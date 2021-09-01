@@ -17,6 +17,7 @@
 import copy
 import datetime
 import json
+from functools import partial
 import os
 import unittest
 from unittest.mock import Mock
@@ -72,7 +73,7 @@ from observatory.platform.utils.workflow_utils import (
 from observatory.platform.utils.workflow_utils import add_partition_date
 from observatory.platform.workflows.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope
-from tests.observatory.test_utils import random_id
+from observatory.platform.utils.test_utils import random_id
 
 DEFAULT_SCHEMA_PATH = "/path/to/schemas"
 
@@ -156,7 +157,7 @@ class TestTemplateUtils(unittest.TestCase):
         with runner.isolated_filesystem():
             # Mock getting home path
             reset_variables()
-            data_path = "data"
+            data_path = "tests/observatory/platform/utils/data"
             mock_variable_get.return_value = data_path
 
             # The name of the telescope to create and expected root folder
@@ -192,32 +193,38 @@ class TestTemplateUtils(unittest.TestCase):
 
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_blob_name(self, mock_variable_get):
-        with CliRunner().isolated_filesystem():
-            cwd = os.getcwd()
-            mock_variable_get.side_effect = side_effect
+        with CliRunner().isolated_filesystem() as t:
+            data_path = os.path.join(t, "data")
+            mock_variable_get.side_effect = partial(side_effect, data_path=data_path)
 
-            file_path = os.path.join(cwd, "data/telescopes/transform/dag_id/dag_id_2021_03_01/file.txt")
+            file_path = os.path.join(data_path, "telescopes", "transform", "dag_id", "dag_id_2021_03_01", "file.txt")
             blob = blob_name(file_path)
 
-            self.assertEqual("telescopes/dag_id/dag_id_2021_03_01/file.txt", blob)
+            expected = os.path.join("telescopes", "dag_id", "dag_id_2021_03_01", "file.txt")
+            self.assertEqual(expected, blob)
 
     @patch("observatory.platform.utils.workflow_utils.upload_files_to_cloud_storage")
     @patch("observatory.platform.utils.workflow_utils.AirflowVariable.get")
     def test_upload_files_from_list(self, mock_variable_get, mock_upload_files):
-        mock_variable_get.side_effect = side_effect
-        files_list = ["/data/file1.txt", "/data/file2.txt"]
-        blob_names = []
-        for file_path in files_list:
-            blob_names.append(blob_name(file_path))
 
-        mock_upload_files.return_value = True
-        success = upload_files_from_list(files_list, "bucket_name")
-        self.assertTrue(success)
-        mock_upload_files.assert_called_once_with("bucket_name", blob_names, files_list)
+        with CliRunner().isolated_filesystem() as t:
+            data_path = os.path.join(t, "data")
+            mock_variable_get.side_effect = partial(side_effect, data_path=data_path)
 
-        mock_upload_files.return_value = False
-        with self.assertRaises(AirflowException):
-            upload_files_from_list(files_list, "bucket_name")
+            files_list = ["file1.txt", "file2.txt"]
+            files_list = [os.path.join(data_path, f) for f in files_list]
+            blob_names = []
+            for file_path in files_list:
+                blob_names.append(blob_name(file_path))
+
+            mock_upload_files.return_value = True
+            success = upload_files_from_list(files_list, "bucket_name")
+            self.assertTrue(success)
+            mock_upload_files.assert_called_once_with("bucket_name", blob_names, files_list)
+
+            mock_upload_files.return_value = False
+            with self.assertRaises(AirflowException):
+                upload_files_from_list(files_list, "bucket_name")
 
     def test_add_partition_date(self):
         list_of_dicts = [{"k1a": "v2a"}, {"k1b": "v2b"}, {"k1c": "v2c"}]
@@ -848,12 +855,12 @@ class TestTemplateUtils(unittest.TestCase):
         )
 
 
-def side_effect(arg):
+def side_effect(arg, data_path: str = ""):
     values = {
         "project_id": "project",
         "download_bucket": "download-bucket",
         "transform_bucket": "transform-bucket",
-        "data_path": os.path.join(os.getcwd(), "data"),
+        "data_path": data_path,
         "data_location": "US",
     }
     return values[arg]

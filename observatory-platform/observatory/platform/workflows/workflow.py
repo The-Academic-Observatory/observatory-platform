@@ -23,12 +23,18 @@ from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Callable, Dict, List, Union
 
+try:
+    from typing import Protocol
+except ImportError:
+    from typing_extensions import Protocol
+
 import pendulum
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import chain
 from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.sensors.base import BaseSensorOperator
+
 from observatory.platform.utils.airflow_utils import (
     AirflowVariable,
     AirflowVars,
@@ -41,7 +47,6 @@ from observatory.platform.utils.workflow_utils import (
     on_failure_callback,
     workflow_path,
 )
-from typing_extensions import Protocol
 
 
 class ReleaseFunction(Protocol):
@@ -403,10 +408,7 @@ class Workflow(AbstractWorkflow):
                 kwargs_ = copy.copy(op.kwargs)
                 kwargs_["task_id"] = make_task_id(op.func, op.kwargs)
                 task = ShortCircuitOperator(
-                    python_callable=op.func,
-                    queue=self.queue,
-                    default_args=self.default_args,
-                    **kwargs_,
+                    python_callable=op.func, queue=self.queue, default_args=self.default_args, **kwargs_,
                 )
                 tasks.append(task)
 

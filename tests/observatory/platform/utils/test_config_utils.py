@@ -34,7 +34,7 @@ from observatory.platform.utils.workflow_utils import (
     workflow_path,
     test_data_path,
 )
-from tests.observatory.test_utils import test_fixtures_path
+from observatory.platform.utils.test_utils import test_fixtures_path
 
 
 class TestConfigUtils(unittest.TestCase):
@@ -75,7 +75,7 @@ class TestConfigUtils(unittest.TestCase):
         self.assertEqual(expected_path, actual_path)
 
     def test_find_schema(self):
-        schemas_path = os.path.join(test_fixtures_path(), "telescopes")
+        schemas_path = test_fixtures_path("schemas")
 
         # Tests that don't use a prefix
         table_name = "grid"

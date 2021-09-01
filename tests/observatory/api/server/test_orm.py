@@ -20,6 +20,9 @@ from typing import List
 
 import pendulum
 import sqlalchemy
+from sqlalchemy.orm import scoped_session
+from sqlalchemy.pool import StaticPool
+
 from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.server.orm import (
     Organisation,
@@ -30,8 +33,6 @@ from observatory.api.server.orm import (
     set_session,
     to_datetime_utc,
 )
-from sqlalchemy.orm import scoped_session
-from sqlalchemy.pool import StaticPool
 
 
 def create_telescope_types(session: scoped_session, telescope_types: List, created: datetime):
