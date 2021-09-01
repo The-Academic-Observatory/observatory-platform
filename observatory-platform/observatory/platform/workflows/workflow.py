@@ -22,7 +22,11 @@ import shutil
 from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Callable, Dict, List, Union
-from typing_extensions import Protocol
+
+try:
+    from typing import Protocol
+except ImportError:
+    from typing_extensions import Protocol
 
 import pendulum
 from airflow import DAG
