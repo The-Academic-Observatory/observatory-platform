@@ -45,7 +45,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
-from google.cloud.bigquery import SourceFormat
+
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
@@ -299,7 +299,7 @@ def bq_load_shard(
     transform_blob: str,
     dataset_id: str,
     table_id: str,
-    source_format: SourceFormat,
+    source_format: str,
     prefix: str = "",
     schema_version: str = None,
     dataset_description: str = "",
@@ -344,7 +344,7 @@ def bq_load_shard_v2(
     dataset_location: str,
     table_id: str,
     release_date: pendulum.Date,
-    source_format: SourceFormat,
+    source_format: str,
     prefix: str = "",
     schema_version: str = None,
     dataset_description: str = "",
@@ -407,7 +407,7 @@ def bq_load_ingestion_partition(
     dataset_id: str,
     main_table_id: str,
     partition_table_id: str,
-    source_format: SourceFormat,
+    source_format: str,
     prefix: str = "",
     schema_version: str = None,
     dataset_description: str = "",
@@ -462,7 +462,7 @@ def bq_load_partition(
     dataset_location: str,
     table_id: str,
     release_date: pendulum.DateTime,
-    source_format: SourceFormat,
+    source_format: str,
     partition_type: bigquery.TimePartitioningType,
     prefix: str = "",
     schema_version: str = None,
@@ -608,7 +608,7 @@ def bq_append_from_file(
     transform_blob: str,
     dataset_id: str,
     main_table_id: str,
-    source_format: SourceFormat,
+    source_format: str,
     prefix: str = "",
     schema_version: str = None,
     dataset_description: str = "",

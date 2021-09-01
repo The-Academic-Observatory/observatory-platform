@@ -64,7 +64,7 @@ class SnapshotTelescope(Workflow):
         queue: str = "default",
         max_retries: int = 3,
         max_active_runs: int = 1,
-        source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
+        source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
         schema_prefix: str = "",
         schema_version: str = None,
         load_bigquery_table_kwargs: Dict = None,
