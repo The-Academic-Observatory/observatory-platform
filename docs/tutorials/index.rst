@@ -25,6 +25,7 @@ Starting an Observatory Platform development environment
     observatory_dev
 
 Deploying an Observatory Platform production environment with Terraform
+#########################################################################
 
 .. toctree::
     :maxdepth: 2
