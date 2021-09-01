@@ -19,10 +19,9 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict, Union
+from typing import Any, ClassVar, Dict, List, Union
 
 import pendulum
-from observatory.api.client.identifiers import TelescopeTypes
 from sqlalchemy import (
     JSON,
     Column,
@@ -40,7 +39,8 @@ session_ = None  # Global session
 
 
 def create_session(
-    uri: str = os.environ.get("OBSERVATORY_DB_URI"), connect_args=None, poolclass=None, seed_db: bool = False
+    uri: str = os.environ.get("OBSERVATORY_DB_URI"), connect_args=None, poolclass=None, seed_db: bool = False,
+        telescope_types: List[(str, str)] = None
 ):
     """Create an SQLAlchemy session.
 
@@ -48,9 +48,12 @@ def create_session(
     :param connect_args: connect arguments for SQLAlchemy.
     :param poolclass: what SQLAlchemy poolclass to use.
     :param seed_db: seed the database with initial values.
+    :param telescope_types: List of telescope type ids and names
     :return: the SQLAlchemy session.
     """
 
+    if telescope_types is None:
+        telescope_types = []
     if uri is None:
         raise ValueError(
             "observatory.api.orm.create_session: please set the create_session `uri` parameter "
@@ -67,32 +70,18 @@ def create_session(
 
     # Insert data if it doesn't exist
     if seed_db:
-        init_db(s)
+        init_db(s, telescope_types)
 
     return s
 
 
-def init_db(session: scoped_session):
+def init_db(session: scoped_session, telescope_types: List[(str, str)]):
     """Initialise the database with initial values.
 
     :param session: the SQLAlchemy session.
+    :param telescope_types: List of telescope type ids and names
     :return: None.
     """
-
-    # Add default TelescopeTypes
-    telescope_types = [
-        (TelescopeTypes.onix, "ONIX Telescope"),
-        (TelescopeTypes.jstor, "JSTOR Telescope"),
-        (TelescopeTypes.google_books, "Google Books Telescope"),
-        (TelescopeTypes.google_analytics, "Google Analytics Telescope"),
-        (TelescopeTypes.oapen_irus_uk, "OAPEN IRUS-UK Telescope"),
-        (TelescopeTypes.ucl_discovery, "UCL Discovery Telescope"),
-        (TelescopeTypes.scopus, "Scopus Telescope"),
-        (TelescopeTypes.wos, "Web of Science Telescope"),
-        (TelescopeTypes.fulcrum, "Fulcrum Telescope"),
-        (TelescopeTypes.onix_workflow, "ONIX Workflow Telescope"),
-    ]
-
     for type_id, name in telescope_types:
         item = session.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
         if item is None:

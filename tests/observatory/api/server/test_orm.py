@@ -23,7 +23,6 @@ import sqlalchemy
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.pool import StaticPool
 
-from observatory.api.client.identifiers import TelescopeTypes
 from observatory.api.server.orm import (
     Organisation,
     Telescope,
@@ -65,12 +64,13 @@ class TestSession(unittest.TestCase):
 
         # Create session with seed_db set to True
         self.session = create_session(
-            uri=self.uri, connect_args={"check_same_thread": False}, poolclass=StaticPool, seed_db=True
+            uri=self.uri, connect_args={"check_same_thread": False}, poolclass=StaticPool, seed_db=True,
+            telescope_types=[("type_id1", "name1"), ("type_id2", "name2")]
         )
         set_session(self.session)
 
         # Test that all expected objects exist
-        type_ids = [type_id for type_id in TelescopeTypes.__dict__.keys() if not type_id.startswith("_")]
+        type_ids = ["type_id1", "type_id2"]
         for type_id in type_ids:
             item = self.session.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
             self.assertIsNotNone(item)
