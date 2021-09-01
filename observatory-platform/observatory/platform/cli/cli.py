@@ -247,10 +247,12 @@ def project(project_path: str, package_name: str, author_name: str):
         │   ├── _static
         │   ├── _templates
         │   ├── workflows
+        │   ├── conf.py
         │   ├── generate_schema_csv.py
         │   ├── index.rst
         │   ├── make.bat
-        │   └── Makefile
+        │   ├── Makefile
+        │   └── requirements.txt
         ├── my_workflows_project
         │   ├── __init__.py
         │   ├── dags

@@ -129,9 +129,9 @@ class GenerateCommand:
         shutil.copy(src, dst)
 
         # Run sphinx quickstart to set up docs
-        if os.path.isdir(os.path.join(project_path, "docs")):
-            print(f"WARNING, the docs directory is not empty. The sphinx-quickstart command to set up the docs "
-                  f"directory will raise an error.")
+        if os.path.isfile(os.path.join(project_path, "docs", "conf.py")):
+            print(f"WARNING, the docs directory already has configuration files. The sphinx-quickstart command to set "
+                  f"up the docs directory will raise an error.")
         sphinx_template_dir = os.path.join(templates_dir, "sphinx-quickstart")
         proc = subprocess.Popen(
             ["sphinx-quickstart", "-q", "-t", sphinx_template_dir, "-p", package_name, "-a", author_name, "-d",
@@ -152,10 +152,12 @@ class GenerateCommand:
             │   ├── _static
             │   ├── _templates
             │   ├── workflows
+            │   ├── conf.py
             │   ├── generate_schema_csv.py
             │   ├── index.rst
             │   ├── make.bat
-            │   └── Makefile
+            │   ├── Makefile
+            │   └── requirements.txt
             ├── {package_name}
             │   ├── __init__.py
             │   ├── dags
