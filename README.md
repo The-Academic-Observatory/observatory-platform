@@ -5,7 +5,7 @@ universities operate as Open Knowledge Institutions.
 
 The Observatory Platform is built with Apache Airflow. The workflows for the project can be seen in the
 [Academic Observatory Workflows](https://github.com/The-Academic-Observatory/academic-observatory-workflows)
-and [OAEBU Workflows](https://github.com/The-Academic-Observatory/oaebu-workflows) projects.
+and [OAeBU Workflows](https://github.com/The-Academic-Observatory/oaebu-workflows) projects.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/badge/python-3.7-blue)](https://img.shields.io/badge/python-3.7-blue)
