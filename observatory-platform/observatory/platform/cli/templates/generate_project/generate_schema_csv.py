@@ -21,7 +21,7 @@ import re
 import shutil
 from glob import glob
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import List
 
 import pandas as pd
 
@@ -108,8 +108,3 @@ def generate_latest_files():
         dst_path = os.path.join(dst_dir, dst_filename)
         src_file = table_schemas[table][-1]
         shutil.copyfile(src_file, dst_path)
-
-
-if __name__ == "__main__":
-    generate_csv(schema_dir="../observatory-dags/observatory/dags/database/schema")
-    generate_latest_files()
