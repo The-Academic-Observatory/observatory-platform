@@ -83,9 +83,9 @@ class TestGenerateCommand(unittest.TestCase):
                 os.path.join(package_name, "dags"),
                 os.path.join(package_name, "database"),
                 os.path.join(package_name, "database", "schema"),
+                os.path.join(package_name, "utils"),
                 os.path.join(package_name, "workflows"),
-                "tests",
-                os.path.join("tests", "workflows"),
+                os.path.join(package_name, "workflows", "tests"),
             ]
             for d in init_dirs:
                 init_file_path = os.path.join(project_path, d, "__init__.py")
@@ -94,11 +94,11 @@ class TestGenerateCommand(unittest.TestCase):
                     f.write("test")
 
             # Check that setup files exist
-            setup_cfg_path = os.path.join(project_path, "setup.cfg")
-            setup_py_path = os.path.join(project_path, "setup.py")
+            self.assertTrue(os.path.isfile(os.path.join(project_path, "setup.cfg")))
+            self.assertTrue(os.path.isfile(os.path.join(project_path, "setup.py")))
 
-            self.assertTrue(os.path.isfile(setup_cfg_path))
-            self.assertTrue(os.path.isfile(setup_py_path))
+            # Check that config.py file exists
+            self.assertTrue(os.path.isfile(os.path.join(project_path, package_name, "config.py")))
 
             # Check that all docs files exist
             docs_dirs = ["_build", "_static", "_templates", "workflows"]
@@ -106,7 +106,8 @@ class TestGenerateCommand(unittest.TestCase):
                 dir_path = os.path.join(project_path, "docs", d)
                 self.assertTrue(os.path.isdir(dir_path))
 
-            docs_files = ["conf.py", "generate_schema_csv.py", "index.rst", "make.bat", "Makefile"]
+            docs_files = ["conf.py", "generate_schema_csv.py", "index.rst", "make.bat", "Makefile",
+                          "requirements.txt", "test_generate_schema_csv.py",]
             for f in docs_files:
                 file_path = os.path.join(project_path, "docs", f)
                 self.assertTrue(os.path.isfile(file_path))
@@ -121,10 +122,14 @@ class TestGenerateCommand(unittest.TestCase):
                 self.assertTrue(os.path.isfile(init_file_path))
                 self.assertEqual('098f6bcd4621d373cade4e832627b4f6', _hash_file(init_file_path, "md5"))
 
+            self.assertEqual(3, mock_cli_confirm.call_count)
+
             # Check that setup files exist
-            self.assertEqual(2, mock_cli_confirm.call_count)
-            self.assertTrue(os.path.isfile(setup_cfg_path))
-            self.assertTrue(os.path.isfile(setup_py_path))
+            self.assertTrue(os.path.isfile(os.path.join(project_path, "setup.cfg")))
+            self.assertTrue(os.path.isfile(os.path.join(project_path, "setup.py")))
+
+            # Check that config.py file exists
+            self.assertTrue(os.path.isfile(os.path.join(project_path, package_name, "config.py")))
 
     def test_generate_workflow(self):
         """ Test generate workflow command and run unit tests that are generated for each of the workflow types.
@@ -150,7 +155,7 @@ class TestGenerateCommand(unittest.TestCase):
             utils_dst_dir = os.path.join(project_path, package_name, "utils")
             workflow_dst_dir = os.path.join(project_path, package_name, "workflows")
             schema_dst_dir = os.path.join(project_path, package_name, "database", "schema")
-            test_dst_dir = os.path.join(project_path, "tests", "workflows")
+            test_dst_dir = os.path.join(workflow_dst_dir, "tests")
             doc_dst_dir = os.path.join(project_path, "docs")
 
             # Test valid workflows
