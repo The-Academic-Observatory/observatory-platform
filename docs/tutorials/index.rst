@@ -23,3 +23,10 @@ Starting an Observatory Platform development environment
     :maxdepth: 2
 
     observatory_dev
+
+Deploying an Observatory Platform production environment with Terraform
+
+.. toctree::
+    :maxdepth: 2
+
+    deploy_terraform.md
