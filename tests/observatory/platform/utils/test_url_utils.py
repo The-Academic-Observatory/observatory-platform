@@ -28,7 +28,7 @@ from observatory.platform.utils.url_utils import (
     is_url_absolute,
     strip_query_params,
     retry_session,
-    get_ao_user_agent,
+    get_user_agent,
     wait_for_url,
 )
 from tests.observatory.platform.cli.test_platform_command import MockUrlOpen
@@ -179,9 +179,9 @@ class TestUrlUtils(unittest.TestCase):
         self.assertAlmostEqual(expected_timeout, duration, delta=1)
 
     @patch("observatory.platform.utils.url_utils.metadata", return_value=MockMetadata)
-    def test_ao_user_agent(self, mock_cfg):
+    def test_user_agent(self, mock_cfg):
         """ Test user agent generation """
 
-        gt = f"Observatory Platform v1 (+http://test.test; mailto: test@test)"
-        ua = get_ao_user_agent()
+        gt = f"observatory-platform v1 (+http://test.test; mailto: test@test)"
+        ua = get_user_agent(package_name="observatory-platform")
         self.assertEqual(ua, gt)

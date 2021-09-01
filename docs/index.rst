@@ -2,63 +2,41 @@
 Observatory Platform
 =======================
 The Observatory Platform provides an environment and workflows for fetching, processing and analysing data to
-understand how well universities operate as open knowledge institutions. The Observatory Platform is build with
-Apache Airflow and includes DAGs (workflows) for processing: Crossref Metadata, Fundref, GRID, Microsoft Academic
-Graph (MAG) and Unpaywall.
+understand how well universities operate as Open Knowledge Institutions.
+
+Getting Started
+=======================
+.. toctree::
+    :maxdepth: 3
+
+    setup/index
 
 Tutorials
 =======================
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 3
 
-    installation
-    observatory_dev
-    deploy_terraform
-    license
+    tutorials/index
 
-Observatory Platform API
+REST API
 =========================
 .. toctree::
     :maxdepth: 2
 
     api/index
 
-Telescopes
-=======================
-.. toctree::
-    :maxdepth: 2
+License & Contributing Guidelines
+=================================
+Information about licenses, contributing guidelines etc.
 
-    telescopes/index
-
-Datasets
-=======================
-.. toctree::
-    :maxdepth: 2
-
-    datasets/index
-
-Analytical Workflows
-=======================
-.. toctree::
-    :maxdepth: 2
-
-    workflows/index
-
-Tutorials
-=======================
-.. toctree::
-    :maxdepth: 2
-
-    tutorials/index
-
-API Reference
-=======================
 .. toctree::
     :maxdepth: 1
 
-Indices and tables
-=======================
+    license
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+Python API Reference
+=====================
+Documentation for the observatory.platform Python API.
+
+.. toctree::
+    :maxdepth: 3

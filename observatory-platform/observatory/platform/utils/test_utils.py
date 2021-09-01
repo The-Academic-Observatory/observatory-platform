@@ -68,8 +68,10 @@ import threading
 import time
 import unittest
 import uuid
+from dataclasses import dataclass
+from datetime import datetime
 from functools import partial
-from typing import Dict
+from typing import Dict, List
 from unittest.mock import patch
 
 import croniter
@@ -78,6 +80,7 @@ import paramiko
 import pendulum
 import requests
 from airflow import DAG, settings
+from airflow.exceptions import AirflowException
 from airflow.models import DagBag
 from airflow.models.connection import Connection
 from airflow.models.dagrun import DagRun
@@ -93,6 +96,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from freezegun import freeze_time
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
+from pendulum import DateTime
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
+
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
@@ -102,8 +108,15 @@ from observatory.platform.utils.file_utils import (
     crc32c_base64_hash,
     gzip_file_crc,
 )
+from observatory.platform.utils.file_utils import list_to_jsonl_gz
+from observatory.platform.utils.gc_utils import (
+    SourceFormat,
+    bigquery_sharded_table_id,
+    load_bigquery_table,
+    upload_files_to_cloud_storage,
+)
+from observatory.platform.utils.workflow_utils import find_schema
 from observatory.platform.utils.workflow_utils import reset_variables
-from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 
 def random_id():
@@ -341,7 +354,7 @@ class ObservatoryEnvironment:
         run_id = "manual__{0}".format(execution_date.isoformat())
 
         # Make sure google auth uses real DateTime and not freezegun fake time
-        with patch("google.auth._helpers.utcnow", wraps=datetime.datetime.utcnow) as mock_utc_now:
+        with patch("google.auth._helpers.utcnow", wraps=datetime.utcnow) as mock_utc_now:
             try:
                 if freeze:
                     frozen_time.start()
@@ -768,3 +781,77 @@ def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
         task1 = DummyOperator(task_id="dummy_task")
 
     return dag
+
+
+@dataclass
+class Table:
+    """A table to be loaded into Elasticsearch.
+
+    :param table_name: the table name.
+    :param is_sharded: whether the table is sharded or not.
+    :param dataset_id: the dataset id.
+    :param records: the records to load.
+    :param schema_prefix: the schema prefix.
+    :param schema_folder: the schema path.
+    """
+
+    table_name: str
+    is_sharded: bool
+    dataset_id: str
+    records: List[Dict]
+    schema_prefix: str
+    schema_folder: str
+
+
+def bq_load_tables(
+    *, tables: List[Table], bucket_name: str, release_date: DateTime, data_location: str,
+):
+    """Load the fake Observatory Dataset in BigQuery.
+
+    :param tables: the list of tables and records to load.
+    :param bucket_name: the Google Cloud Storage bucket name.
+    :param release_date: the release date for the observatory dataset.
+    :param data_location: the location of the BigQuery dataset.
+    :return: None.
+    """
+
+    with CliRunner().isolated_filesystem() as t:
+        files_list = []
+        blob_names = []
+
+        # Save to JSONL
+        for table in tables:
+            blob_name = f"{table.table_name}.jsonl.gz"
+            file_path = os.path.join(t, blob_name)
+            list_to_jsonl_gz(file_path, table.records)
+            files_list.append(file_path)
+            blob_names.append(blob_name)
+
+        # Upload to Google Cloud Storage
+        success = upload_files_to_cloud_storage(bucket_name, blob_names, files_list)
+        assert success, "Data did not load into BigQuery"
+
+        # Save to BigQuery tables
+        for blob_name, table in zip(blob_names, tables):
+            if table.is_sharded:
+                table_id = bigquery_sharded_table_id(table.table_name, release_date)
+            else:
+                table_id = table.table_name
+
+            # Select schema file based on release date
+            schema_file_path = find_schema(table.schema_folder, table.schema_prefix, release_date)
+            if schema_file_path is None:
+                logging.error(
+                    f"No schema found with search parameters: analysis_schema_path={table.schema_folder}, "
+                    f"table_name={table.table_name}, release_date={release_date}"
+                )
+                exit(os.EX_CONFIG)
+
+            # Load BigQuery table
+            uri = f"gs://{bucket_name}/{blob_name}"
+            logging.info(f"URI: {uri}")
+            success = load_bigquery_table(
+                uri, table.dataset_id, data_location, table_id, schema_file_path, SourceFormat.NEWLINE_DELIMITED_JSON,
+            )
+            if not success:
+                raise AirflowException("bq_load task: data failed to load data into BigQuery")

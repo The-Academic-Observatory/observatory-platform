@@ -50,7 +50,7 @@ from observatory.platform.utils.gc_utils import (
     upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
 )
-from tests.observatory.test_utils import random_id, test_fixtures_path
+from observatory.platform.utils.test_utils import random_id, test_fixtures_path
 
 
 def make_account_url(account_name: str) -> str:
@@ -179,7 +179,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
         schema_file_name = "people_schema.json"
         dataset_id = random_id()
         client = bigquery.Client()
-        test_data_path = os.path.join(test_fixtures_path(), "utils", "gc_utils")
+        test_data_path = test_fixtures_path("utils")
         schema_folder = os.path.join(test_data_path, schema_file_name)
 
         # CSV file
@@ -654,31 +654,31 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
     def test_delete_bucket_dir(self):
         runner = CliRunner()
-        with runner.isolated_filesystem():
-            testdir = random_id()
-            Path(".", testdir).mkdir(exist_ok=True, parents=True)
+        with runner.isolated_filesystem() as t:
             # Create file
-            upload_file_name = f"{testdir}/{random_id()}.txt"
-            download_file_name = f"{testdir}/{random_id()}.txt"
+            test_dir = random_id()
+            os.makedirs(os.path.join(t, test_dir), exist_ok=True)
+            blob_name = os.path.join(test_dir, f"{random_id()}.txt")
+            upload_file_name = os.path.join(t, blob_name)
             with open(upload_file_name, "w") as f:
                 f.write(self.data)
 
             # Create client for blob
             storage_client = storage.Client()
             bucket = storage_client.get_bucket(self.gc_bucket_name)
-            blob = bucket.blob(upload_file_name)
 
             try:
                 # Upload file
-                result, upload = upload_file_to_cloud_storage(self.gc_bucket_name, upload_file_name, upload_file_name)
+                result, upload = upload_file_to_cloud_storage(self.gc_bucket_name, blob_name, upload_file_name)
                 self.assertTrue(result)
 
                 # Check that blob exists and has correct hash
+                blob = bucket.blob(blob_name)
                 self.assertTrue(blob.exists())
                 blob.reload()
                 self.assertEqual(self.expected_crc32c, blob.crc32c)
 
-                delete_bucket_dir(bucket_name=self.gc_bucket_name, prefix=testdir)
+                delete_bucket_dir(bucket_name=self.gc_bucket_name, prefix=test_dir)
                 self.assertFalse(blob.exists())
             finally:
                 pass
