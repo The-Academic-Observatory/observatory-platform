@@ -15,7 +15,7 @@
 import pendulum
 from typing import List, Dict
 
-from observatory.dags.config import schema_folder as default_schema_folder
+from {{ package_name }}.config import schema_folder as default_schema_folder
 from observatory.platform.workflows.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 
