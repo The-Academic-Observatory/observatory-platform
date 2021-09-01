@@ -252,25 +252,25 @@ def project(project_path: str, package_name: str, author_name: str):
         │   ├── index.rst
         │   ├── make.bat
         │   ├── Makefile
-        │   └── requirements.txt
-        ├── my_workflows_project
-        │   ├── __init__.py
+        │   ├── requirements.txt
+        │   └── test_generate_schema_csv.py
+        ├── {package_name}
         │   ├── dags
         │   │   └── __init__.py
         │   ├── database
-        │   │   ├── __init__.py
-        │   │   └── schema
-        │   │       └── __init__.py
+        │   │   ├── schema
+        │   │   │   └── __init__.py
+        │   │   └── __init__.py
         │   ├── utils
         │   │   └── __init__.py
         │   └── workflows
-        │       └── __init__.py
-        └── tests
-            ├── __init__.py
-            ├── setup.cfg
-            ├── setup.py
-            └── workflows
-                └── __init__.py
+        │   │   ├── tests
+        │   │   │   └── __init__.py
+        │   │   └── __init__.py
+        │   ├── __init__.py
+        │   └── config.py
+        ├── setup.cfg
+        └── setup.py
     """
     cmd = GenerateCommand()
     cmd.generate_workflows_project(project_path, package_name, author_name)
@@ -327,28 +327,27 @@ def workflow(workflow_type: str, workflow_name: str, project_path: str):
         │   ├── make.bat
         │   └── Makefile
         ├── my_workflows_project
-        │   ├── __init__.py
         │   ├── dags
         │   │   ├── __init__.py
         │   │   └── \033[1mmy_workflow.py\033[0m
         │   ├── database
-        │   │   ├── __init__.py
-        │   │   └── schema
-        │   │       ├── __init__.py
-        │   │       └── \033[1mmy_workflow_YYYY_MM_DD.json\033[0m
+        │   │   ├── schema
+        │   │   │   ├── __init__.py
+        │   │   │   └── \033[1mmy_workflow_YYYY_MM_DD.json\033[0m
+        │   │   └── __init__.py
         │   ├── utils
         │   │   ├── __init__.py
         │   │   └── \033[1midentifiers.py\033[0m (OrganisationTelescope only)
         │   └── workflows
-        │       ├── __init__.py
-        │       └── \033[1mmy_workflow.py\033[0m
-        └── tests
-            ├── __init__.py
-            ├── setup.cfg
-            ├── setup.py
-            └── workflows
-                ├── __init__.py
-                └── \033[1mtest_my_workflow.py\033[0m
+        │   │   ├── tests
+        │   │   │   ├── __init__.py
+        │   │   │   └── \033[1mtest_my_workflow.py\033[0m
+        │   │   ├── __init__.py
+        │   │   └── \033[1mmy_workflow.py\033[0m
+        │   ├── __init__.py
+        │   └── config.py
+        ├── setup.cfg
+        └── setup.py
     """
     print(f"Given workflow type: {workflow_type}")
     print(f"Given workflow name: {workflow_name}")

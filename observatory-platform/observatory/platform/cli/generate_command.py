@@ -78,25 +78,23 @@ class GenerateCommand:
         dag_dst_dir = os.path.join(project_path, package_name, "dags")
         utils_dst_dir = os.path.join(project_path, package_name, "utils")
         workflow_dst_dir = os.path.join(project_path, package_name, "workflows")
+        workflow_test_dst_dir = os.path.join(workflow_dst_dir, "tests")
         schema_dst_dir = os.path.join(project_path, package_name, "database", "schema")
-        test_dst_dir = os.path.join(project_path, "tests", "workflows")
         doc_dst_dir = os.path.join(project_path, "docs", "workflows")
 
         # Make folders
-        for path in [dag_dst_dir, utils_dst_dir, workflow_dst_dir, test_dst_dir, doc_dst_dir, schema_dst_dir]:
+        for path in [dag_dst_dir, utils_dst_dir, workflow_dst_dir, workflow_test_dst_dir, doc_dst_dir, schema_dst_dir]:
             os.makedirs(path, exist_ok=True)
 
         # Make init files
         package_folder = os.path.join(project_path, package_name)
         database_folder = os.path.join(project_path, package_name, "database")
-        tests_folder = os.path.join(project_path, "tests")
         init_paths = [
             package_folder,
             dag_dst_dir,
             utils_dst_dir,
             workflow_dst_dir,
-            tests_folder,
-            test_dst_dir,
+            workflow_test_dst_dir,
             database_folder,
             schema_dst_dir,
         ]
@@ -104,43 +102,28 @@ class GenerateCommand:
             if not os.path.isfile(path):
                 open(os.path.join(path, "__init__.py"), "a").close()
 
-        # Make setup files
         templates_dir = module_file_path("observatory.platform.cli.templates.generate_project")
+
+        # Create setup.cfg file
         setup_cfg_template = os.path.join(templates_dir, "setup.cfg.jinja2")
-        setup_py_template = os.path.join(templates_dir, "setup.py.jinja2")
-
         setup_cfg = render_template(setup_cfg_template, package_name=package_name)
-        setup_py = render_template(setup_py_template)
-
         setup_cfg_path = os.path.join(project_path, "setup.cfg")
-        setup_py_path = os.path.join(project_path, "setup.py")
-
         write_rendered_template(setup_cfg_path, setup_cfg, "setup.cfg")
+
+        # Create setup.py file
+        setup_py_template = os.path.join(templates_dir, "setup.py.jinja2")
+        setup_py = render_template(setup_py_template)
+        setup_py_path = os.path.join(project_path, "setup.py")
         write_rendered_template(setup_py_path, setup_py, "setup.py")
 
-        # Copy generate_schema_csv.py to docs
-        src = os.path.join(templates_dir, "generate_schema_csv.py")
-        dst = os.path.join(project_path, "docs", "generate_schema_csv.py")
-        shutil.copy(src, dst)
+        # Create config.py with schema_folder function
+        config_template = os.path.join(templates_dir, "config.py.jinja2")
+        config = render_template(config_template, package_name=package_name)
+        config_path = os.path.join(project_path, package_name, "config.py")
+        write_rendered_template(config_path, config, "config.py")
 
-        # Copy requirements.txt to docs
-        src = os.path.join(templates_dir, "docs_requirements.txt")
-        dst = os.path.join(project_path, "docs", "requirements.txt")
-        shutil.copy(src, dst)
-
-        # Run sphinx quickstart to set up docs
-        if os.path.isfile(os.path.join(project_path, "docs", "conf.py")):
-            print(f"WARNING, the docs directory already has configuration files. The sphinx-quickstart command to set "
-                  f"up the docs directory will raise an error.")
-        sphinx_template_dir = os.path.join(templates_dir, "sphinx-quickstart")
-        proc = subprocess.Popen(
-            ["sphinx-quickstart", "-q", "-t", sphinx_template_dir, "-p", package_name, "-a", author_name, "-d",
-             f"package_name={package_name}"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=os.path.join(project_path, "docs"),
-        )
-        stream_process(proc, True)
+        # Create a working docs directory using sphinx-quickstart
+        create_docs_directory(project_path, package_name, author_name, templates_dir)
 
         print(
             f"""
@@ -159,23 +142,22 @@ class GenerateCommand:
             │   ├── Makefile
             │   └── requirements.txt
             ├── {package_name}
-            │   ├── __init__.py
             │   ├── dags
             │   │   └── __init__.py
             │   ├── database
-            │   │   ├── __init__.py
-            │   │   └── schema
-            │   │       └── __init__.py
+            │   │   ├── schema
+            │   │   │   └── __init__.py
+            │   │   └── __init__.py
             │   ├── utils
             │   │   └── __init__.py
             │   └── workflows
-            │       └── __init__.py
+            │   │   ├── tests
+            │   │   │   └── __init__.py
+            │   │   └── __init__.py
+            │   ├── __init__.py
+            │   └── config.py
             ├── setup.cfg
-            ├── setup.py
-            └── tests
-                ├── __init__.py
-                └── workflows
-                    └── __init__.py
+            └── setup.py
         """
         )
 
@@ -196,14 +178,13 @@ class GenerateCommand:
         utils_dst_dir = os.path.join(project_path, package_name, "utils")
         workflow_dst_dir = os.path.join(project_path, package_name, "workflows")
         schema_dst_dir = os.path.join(project_path, package_name, "database", "schema")
-        test_dst_dir = os.path.join(project_path, "tests", "workflows")
         doc_dst_dir = os.path.join(project_path, "docs")
 
         # Get paths to files
         dag_dst_file = os.path.join(dag_dst_dir, f"{workflow_module}.py")
         identifiers_dst_file = os.path.join(utils_dst_dir, "identifiers.py")
         workflow_dst_file = os.path.join(workflow_dst_dir, f"{workflow_module}.py")
-        test_dst_file = os.path.join(test_dst_dir, f"test_{workflow_module}.py")
+        test_dst_file = os.path.join(workflow_dst_dir, "tests", f"test_{workflow_module}.py")
         index_dst_file = os.path.join(doc_dst_dir, "index.rst")
         doc_dst_file = os.path.join(doc_dst_dir, "workflows", f"{workflow_module}.md")
         schema_dst_file = os.path.join(schema_dst_dir, f"{workflow_module}_{datetime.now().strftime('%Y-%m-%d')}.json")
@@ -221,7 +202,6 @@ class GenerateCommand:
         test = render_template(
             test_path, workflow_module=workflow_module, workflow_class=workflow_class, package_name=package_name
         )
-        doc_index = render_template(doc_index_path)
         doc = render_template(doc_path, workflow_module=workflow_module, workflow_class=workflow_class)
         schema = render_template(schema_path)
 
@@ -233,8 +213,6 @@ class GenerateCommand:
         write_rendered_template(schema_dst_file, schema, "schema")
 
         # Update documentation index
-        if not os.path.isfile(index_dst_file):
-            write_rendered_template(index_dst_file, doc_index, "index.rst")
         with open(index_dst_file, "a") as f:
             f.write(f"   workflows/{workflow_module}\n")
         print(f"- Updated the documentation index file: {index_dst_file}")
@@ -315,3 +293,41 @@ def write_rendered_template(file_path: str, template: str, file_type: str):
         f.write(template)
     print(f"- Created a new {file_type} file: {file_path}")
 
+
+def create_docs_directory(project_path: str, package_name: str, author_name: str, templates_dir: str):
+    """
+
+    :param project_path:
+    :param package_name:
+    :param author_name:
+    :param templates_dir:
+    :return:
+    """
+    # Copy generate_schema_csv.py to docs
+    src = os.path.join(templates_dir, "generate_schema_csv.py")
+    dst = os.path.join(project_path, "docs", "generate_schema_csv.py")
+    shutil.copy(src, dst)
+
+    # Copy test_generate_schema_csv.py to docs
+    src = os.path.join(templates_dir, "test_generate_schema_csv.py")
+    dst = os.path.join(project_path, "docs", "test_generate_schema_csv.py")
+    shutil.copy(src, dst)
+
+    # Copy requirements.txt to docs
+    src = os.path.join(templates_dir, "docs_requirements.txt")
+    dst = os.path.join(project_path, "docs", "requirements.txt")
+    shutil.copy(src, dst)
+
+    # Run sphinx quickstart to set up docs
+    if os.path.isfile(os.path.join(project_path, "docs", "conf.py")):
+        print(f"WARNING, the docs directory already has configuration files. The sphinx-quickstart command to set "
+              f"up the docs directory will raise an error.")
+    sphinx_template_dir = os.path.join(templates_dir, "sphinx-quickstart")
+    proc = subprocess.Popen(
+        ["sphinx-quickstart", "-q", "-t", sphinx_template_dir, "-p", package_name, "-a", author_name, "-d",
+         f"package_name={package_name}"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=os.path.join(project_path, "docs"),
+    )
+    stream_process(proc, True)
