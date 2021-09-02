@@ -83,7 +83,6 @@ class TestGenerateCommand(unittest.TestCase):
                 os.path.join(package_name, "dags"),
                 os.path.join(package_name, "database"),
                 os.path.join(package_name, "database", "schema"),
-                os.path.join(package_name, "utils"),
                 os.path.join(package_name, "workflows"),
                 os.path.join(package_name, "workflows", "tests"),
             ]
@@ -159,7 +158,6 @@ class TestGenerateCommand(unittest.TestCase):
 
             # Get expected file dirs
             dag_dst_dir = os.path.join(project_path, package_name, "dags")
-            utils_dst_dir = os.path.join(project_path, package_name, "utils")
             workflow_dst_dir = os.path.join(project_path, package_name, "workflows")
             schema_dst_dir = os.path.join(project_path, package_name, "database", "schema")
             test_dst_dir = os.path.join(workflow_dst_dir, "tests")
@@ -184,7 +182,7 @@ class TestGenerateCommand(unittest.TestCase):
                 schema_dst_file = os.path.join(
                     schema_dst_dir, f"{workflow_module}_{datetime.now().strftime('%Y-%m-%d')}.json"
                 )
-                identifiers_dst_file = os.path.join(utils_dst_dir, "identifiers.py")
+                identifiers_dst_file = os.path.join(project_path, package_name, "identifiers.py")
 
                 # Check whether all expected files are generated
                 for file in [
