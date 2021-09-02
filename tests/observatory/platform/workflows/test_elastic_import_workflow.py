@@ -19,14 +19,15 @@ from __future__ import annotations
 import copy
 import os
 import random
+import unittest
 from typing import Dict, List
+from unittest.mock import PropertyMock, patch
 
 import pendulum
 from airflow import DAG
 from airflow.models import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from faker import Faker
-
 from observatory.platform.elastic.elastic import Elastic
 from observatory.platform.elastic.kibana import Kibana, TimeField
 from observatory.platform.utils.airflow_utils import AirflowConns
@@ -35,10 +36,15 @@ from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
+    Table,
+    bq_load_tables,
+    test_fixtures_path,
 )
-from observatory.platform.utils.test_utils import Table, bq_load_tables, test_fixtures_path
 from observatory.platform.workflows.elastic_import_workflow import (
+    ElasticImportRelease,
     ElasticImportWorkflow,
+    KeepInfo,
+    KeepOrder,
     load_elastic_mappings_simple,
 )
 
@@ -99,6 +105,55 @@ def author_records_to_bq(author_records: List[Dict]):
     return records
 
 
+class TestElasticImportRelease(unittest.TestCase):
+    @patch(
+        "observatory.platform.workflows.elastic_import_workflow.ElasticImportRelease.extract_folder",
+        new_callable=PropertyMock,
+    )
+    def test_get_keep_info(self, m_extract_folder):
+        m_extract_folder.return_value = "test"
+        self.release = ElasticImportRelease(
+            dag_id="dag",
+            release_date=pendulum.now(),
+            dataset_id="dataset",
+            file_type="",
+            table_ids=list(),
+            project_id=os.environ["TEST_GCP_PROJECT_ID"],
+            bucket_name="bucket",
+            data_location=os.environ["TEST_GCP_DATA_LOCATION"],
+            elastic_host="",
+            elastic_mappings_folder="",
+            elastic_mappings_func=None,
+            kibana_host="",
+            kibana_username="",
+            kibana_password="",
+            kibana_spaces=list(),
+            kibana_time_fields=list(),
+        )
+
+        index_keep_info = {}
+        keep_info = self.release.get_keep_info(index="something", index_keep_info=index_keep_info)
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=2))
+
+        index_keep_info = {"": KeepInfo(ordering=KeepOrder.newest, num=1)}
+        keep_info = self.release.get_keep_info(index="something", index_keep_info=index_keep_info)
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=1))
+
+        index_keep_info = {
+            "test-very-specific": KeepInfo(ordering=KeepOrder.newest, num=5),
+            "test": KeepInfo(ordering=KeepOrder.newest, num=3),
+        }
+
+        keep_info = self.release.get_keep_info(index="test-very-different", index_keep_info=index_keep_info)
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=3))
+
+        keep_info = self.release.get_keep_info(index="test-very-specific", index_keep_info=index_keep_info)
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=5))
+
+        keep_info = self.release.get_keep_info(index="nomatch", index_keep_info=index_keep_info)
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=2))
+
+
 class TestElasticImportWorkflow(ObservatoryTestCase):
     """Tests for the Elastic Import Workflow"""
 
@@ -114,6 +169,21 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
         self.table_name = "ao_author"
+
+    def test_ctor(self):
+        workflow_default_index_keep_info = ElasticImportWorkflow(
+            dag_id="elastic_import",
+            project_id="project-id",
+            dataset_id="dataset-id",
+            bucket_name="bucket-name",
+            data_location="us",
+            file_type="jsonl.gz",
+            sensor_dag_ids=["doi"],
+            kibana_spaces=[],
+            airflow_conns=[],
+        )
+
+        self.assertTrue(workflow_default_index_keep_info.index_keep_info is not None)
 
     def test_load_elastic_mappings_simple(self):
         """Test load_elastic_mappings_simple"""
@@ -146,7 +216,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 "export_bigquery_tables": ["download_exported_data"],
                 "download_exported_data": ["import_to_elastic"],
                 "import_to_elastic": ["update_elastic_aliases"],
-                "update_elastic_aliases": ["create_kibana_index_patterns"],
+                "update_elastic_aliases": ["delete_stale_indices"],
+                "delete_stale_indices": ["create_kibana_index_patterns"],
                 "create_kibana_index_patterns": ["cleanup"],
                 "cleanup": [],
             },
@@ -263,9 +334,30 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             with env.create_dag_run(es_dag, execution_date):
                 # Data folders
                 release_id = f"{workflow.dag_id}_{release_date.strftime('%Y_%m_%d')}"
-                download_folder = os.path.join(t, "data", "telescopes", "download", workflow.dag_id, release_id,)
-                extract_folder = os.path.join(t, "data", "telescopes", "extract", workflow.dag_id, release_id,)
-                transform_folder = os.path.join(t, "data", "telescopes", "transform", workflow.dag_id, release_id,)
+                download_folder = os.path.join(
+                    t,
+                    "data",
+                    "telescopes",
+                    "download",
+                    workflow.dag_id,
+                    release_id,
+                )
+                extract_folder = os.path.join(
+                    t,
+                    "data",
+                    "telescopes",
+                    "extract",
+                    workflow.dag_id,
+                    release_id,
+                )
+                transform_folder = os.path.join(
+                    t,
+                    "data",
+                    "telescopes",
+                    "transform",
+                    workflow.dag_id,
+                    release_id,
+                )
 
                 # Test that sensor goes into 'success' state as the DAGs that they are waiting for have finished
                 ti = env.run_task(task_id_sensor, es_dag, execution_date=execution_date)
@@ -324,6 +416,19 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 expected_indexes = [index_id]
                 actual_indexes = self.elastic.get_alias_indexes(expected_alias_id)
                 self.assertListEqual(expected_indexes, actual_indexes)  # Check that aliases updated
+
+                # Test delete_stale_indices task
+                # Artificially load extra indices for ao-author
+                client = Elastic(host=self.elastic_uri)
+                client.create_index("ao-author-20210523")
+                client.create_index("ao-author-20210524")
+                client.create_index("ao-author-20210525")
+                ti = env.run_task(workflow.delete_stale_indices.__name__, es_dag, execution_date=execution_date)
+                self.assertEqual(expected_state, ti.state)
+                indices_after_cleanup = set(client.list_indices("ao-author-*"))
+                self.assertEqual(len(indices_after_cleanup), 2)
+                self.assertTrue("ao-author-20210525" in indices_after_cleanup)
+                self.assertTrue("ao-author-20210524" in indices_after_cleanup)
 
                 # Test list create_kibana_index_patterns info task
                 expected_index_pattern_id = expected_alias_id
