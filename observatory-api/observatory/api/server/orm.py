@@ -22,7 +22,6 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, Union
 
 import pendulum
-from observatory.api.client.identifiers import TelescopeTypes
 from sqlalchemy import (
     JSON,
     Column,
@@ -39,15 +38,12 @@ Base = declarative_base()
 session_ = None  # Global session
 
 
-def create_session(
-    uri: str = os.environ.get("OBSERVATORY_DB_URI"), connect_args=None, poolclass=None, seed_db: bool = False
-):
+def create_session(uri: str = os.environ.get("OBSERVATORY_DB_URI"), connect_args=None, poolclass=None):
     """Create an SQLAlchemy session.
 
     :param uri: the database URI.
     :param connect_args: connect arguments for SQLAlchemy.
     :param poolclass: what SQLAlchemy poolclass to use.
-    :param seed_db: seed the database with initial values.
     :return: the SQLAlchemy session.
     """
 
@@ -65,42 +61,7 @@ def create_session(
     Base.query = s.query_property()
     Base.metadata.create_all(bind=engine)  # create all tables.
 
-    # Insert data if it doesn't exist
-    if seed_db:
-        init_db(s)
-
     return s
-
-
-def init_db(session: scoped_session):
-    """Initialise the database with initial values.
-
-    :param session: the SQLAlchemy session.
-    :return: None.
-    """
-
-    # Add default TelescopeTypes
-    telescope_types = [
-        (TelescopeTypes.onix, "ONIX Telescope"),
-        (TelescopeTypes.jstor, "JSTOR Telescope"),
-        (TelescopeTypes.google_books, "Google Books Telescope"),
-        (TelescopeTypes.google_analytics, "Google Analytics Telescope"),
-        (TelescopeTypes.oapen_irus_uk, "OAPEN IRUS-UK Telescope"),
-        (TelescopeTypes.ucl_discovery, "UCL Discovery Telescope"),
-        (TelescopeTypes.scopus, "Scopus Telescope"),
-        (TelescopeTypes.wos, "Web of Science Telescope"),
-        (TelescopeTypes.fulcrum, "Fulcrum Telescope"),
-        (TelescopeTypes.onix_workflow, "ONIX Workflow Telescope"),
-    ]
-
-    for type_id, name in telescope_types:
-        item = session.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
-        if item is None:
-            dt = pendulum.now("UTC")
-            obj = TelescopeType(type_id=type_id, name=name, created=dt, modified=dt)
-            session.add(obj)
-
-    session.commit()
 
 
 def set_session(session):
