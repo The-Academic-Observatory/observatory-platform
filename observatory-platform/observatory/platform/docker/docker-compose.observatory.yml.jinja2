@@ -162,8 +162,9 @@ services:
       retries: 50
 
   flower:
-    image: apache/airflow:2.1.3-python3.8
+    build: *build
     environment: *environment
+    volumes: *volumes
     restart: always
     networks:
       - {{ docker_network_name }}
@@ -182,6 +183,10 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
+    {% if config.google_cloud.credentials is not none -%}
+    secrets:
+      - google_application_credentials.json
+    {%- endif %}
 
   webserver:
     build: *build
