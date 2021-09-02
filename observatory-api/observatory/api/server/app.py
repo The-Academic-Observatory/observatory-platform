@@ -20,7 +20,7 @@ from observatory.api.server.api import create_app
 from observatory.api.server.orm import create_session, set_session
 
 # Setup Observatory DB Session
-session_ = create_session(seed_db=True)
+session_ = create_session()
 set_session(session_)
 
 # Create the Connexion App

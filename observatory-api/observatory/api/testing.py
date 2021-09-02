@@ -53,7 +53,7 @@ class ObservatoryApiEnvironment:
         try:
             # Connect to in memory SQLite database with SQLAlchemy
             self.session = create_session(
-                uri=self.db_uri, connect_args={"check_same_thread": False}, poolclass=StaticPool, seed_db=self.seed_db
+                uri=self.db_uri, connect_args={"check_same_thread": False}, poolclass=StaticPool
             )
             set_session(self.session)
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict, List, Union
+from typing import Any, ClassVar, Dict, Union
 
 import pendulum
 from sqlalchemy import (
@@ -38,22 +38,15 @@ Base = declarative_base()
 session_ = None  # Global session
 
 
-def create_session(
-    uri: str = os.environ.get("OBSERVATORY_DB_URI"), connect_args=None, poolclass=None, seed_db: bool = False,
-        telescope_types: List[(str, str)] = None
-):
+def create_session(uri: str = os.environ.get("OBSERVATORY_DB_URI"), connect_args=None, poolclass=None):
     """Create an SQLAlchemy session.
 
     :param uri: the database URI.
     :param connect_args: connect arguments for SQLAlchemy.
     :param poolclass: what SQLAlchemy poolclass to use.
-    :param seed_db: seed the database with initial values.
-    :param telescope_types: List of telescope type ids and names
     :return: the SQLAlchemy session.
     """
 
-    if telescope_types is None:
-        telescope_types = []
     if uri is None:
         raise ValueError(
             "observatory.api.orm.create_session: please set the create_session `uri` parameter "
@@ -68,28 +61,7 @@ def create_session(
     Base.query = s.query_property()
     Base.metadata.create_all(bind=engine)  # create all tables.
 
-    # Insert data if it doesn't exist
-    if seed_db:
-        init_db(s, telescope_types)
-
     return s
-
-
-def init_db(session: scoped_session, telescope_types: List[(str, str)]):
-    """Initialise the database with initial values.
-
-    :param session: the SQLAlchemy session.
-    :param telescope_types: List of telescope type ids and names
-    :return: None.
-    """
-    for type_id, name in telescope_types:
-        item = session.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
-        if item is None:
-            dt = pendulum.now("UTC")
-            obj = TelescopeType(type_id=type_id, name=name, created=dt, modified=dt)
-            session.add(obj)
-
-    session.commit()
 
 
 def set_session(session):

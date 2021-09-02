@@ -64,16 +64,9 @@ class TestSession(unittest.TestCase):
 
         # Create session with seed_db set to True
         self.session = create_session(
-            uri=self.uri, connect_args={"check_same_thread": False}, poolclass=StaticPool, seed_db=True,
-            telescope_types=[("type_id1", "name1"), ("type_id2", "name2")]
+            uri=self.uri, connect_args={"check_same_thread": False}, poolclass=StaticPool
         )
-        set_session(self.session)
-
-        # Test that all expected objects exist
-        type_ids = ["type_id1", "type_id2"]
-        for type_id in type_ids:
-            item = self.session.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
-            self.assertIsNotNone(item)
+        self.assertTrue(self.session.connection())
 
 
 class TestOrm(unittest.TestCase):
