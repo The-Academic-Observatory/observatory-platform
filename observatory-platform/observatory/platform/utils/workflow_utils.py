@@ -43,6 +43,7 @@ from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
+from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from airflow.sensors.external_task import ExternalTaskSensor
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
@@ -101,7 +102,10 @@ def workflow_path(*subdirs) -> str:
     global data_path
     if data_path is None:
         logging.info("workflow_path: requesting data_path variable")
-        data_path = Variable.get(AirflowVars.DATA_PATH)
+        # Try to get value from env variable first, saving costs from GC secret usage
+        data_path = EnvironmentVariablesBackend().get_variable(AirflowVars.DATA_PATH)
+        if data_path is None:
+            data_path = Variable.get(AirflowVars.DATA_PATH)
 
     subdirs = [subdir.value if isinstance(subdir, Enum) else subdir for subdir in subdirs]
 

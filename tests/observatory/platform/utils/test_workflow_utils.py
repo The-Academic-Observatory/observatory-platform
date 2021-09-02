@@ -35,6 +35,7 @@ from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 
+from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import (
     gzip_file_crc,
     list_to_jsonl_gz,
@@ -151,17 +152,26 @@ class MockStreamTelescope(StreamTelescope):
 
 class TestTemplateUtils(unittest.TestCase):
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
-    def test_telescope_path(self, mock_variable_get):
+    def test_workflow_path(self, mock_variable_get):
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Mock getting home path
-            reset_variables()
+            # The name of the telescope to create, data path and expected root folder
             data_path = "tests/observatory/platform/utils/data"
-            mock_variable_get.return_value = data_path
-
-            # The name of the telescope to create and expected root folder
             telescope_name = "grid"
             root_path = os.path.join(data_path, "telescopes")
+
+            # Test getting variable from env
+            reset_variables()
+            with patch.dict("os.environ", {f"AIRFLOW_VAR_{AirflowVars.DATA_PATH.upper()}": data_path}, clear=True):
+                path = workflow_path(SubFolder.downloaded, telescope_name)
+            expected = os.path.join(root_path, SubFolder.downloaded.value, telescope_name)
+            self.assertEqual(expected, path)
+            self.assertTrue(os.path.exists(path))
+            self.assertEqual(0, mock_variable_get.call_count)
+
+            # Mock getting home path
+            reset_variables()
+            mock_variable_get.return_value = data_path
 
             # Create subdir
             path_downloaded = workflow_path(SubFolder.downloaded, telescope_name)
