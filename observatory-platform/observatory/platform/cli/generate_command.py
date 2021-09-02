@@ -76,14 +76,13 @@ class GenerateCommand:
         """
         # Get paths to folders
         dag_dst_dir = os.path.join(project_path, package_name, "dags")
-        utils_dst_dir = os.path.join(project_path, package_name, "utils")
         workflow_dst_dir = os.path.join(project_path, package_name, "workflows")
         workflow_test_dst_dir = os.path.join(workflow_dst_dir, "tests")
         schema_dst_dir = os.path.join(project_path, package_name, "database", "schema")
         doc_dst_dir = os.path.join(project_path, "docs", "workflows")
 
         # Make folders
-        for path in [dag_dst_dir, utils_dst_dir, workflow_dst_dir, workflow_test_dst_dir, doc_dst_dir, schema_dst_dir]:
+        for path in [dag_dst_dir, workflow_dst_dir, workflow_test_dst_dir, doc_dst_dir, schema_dst_dir]:
             os.makedirs(path, exist_ok=True)
 
         # Make init files
@@ -92,7 +91,6 @@ class GenerateCommand:
         init_paths = [
             package_folder,
             dag_dst_dir,
-            utils_dst_dir,
             workflow_dst_dir,
             workflow_test_dst_dir,
             database_folder,
@@ -148,8 +146,6 @@ class GenerateCommand:
             │   │   ├── schema
             │   │   │   └── __init__.py
             │   │   └── __init__.py
-            │   ├── utils
-            │   │   └── __init__.py
             │   └── workflows
             │   │   ├── tests
             │   │   │   └── __init__.py
@@ -175,14 +171,13 @@ class GenerateCommand:
 
         # Get paths to folders
         dag_dst_dir = os.path.join(project_path, package_name, "dags")
-        utils_dst_dir = os.path.join(project_path, package_name, "utils")
         workflow_dst_dir = os.path.join(project_path, package_name, "workflows")
         schema_dst_dir = os.path.join(project_path, package_name, "database", "schema")
         doc_dst_dir = os.path.join(project_path, "docs")
 
         # Get paths to files
         dag_dst_file = os.path.join(dag_dst_dir, f"{workflow_module}.py")
-        identifiers_dst_file = os.path.join(utils_dst_dir, "identifiers.py")
+        identifiers_dst_file = os.path.join(project_path, package_name, "identifiers.py")
         workflow_dst_file = os.path.join(workflow_dst_dir, f"{workflow_module}.py")
         test_dst_file = os.path.join(workflow_dst_dir, "tests", f"test_{workflow_module}.py")
         index_dst_file = os.path.join(doc_dst_dir, "index.rst")

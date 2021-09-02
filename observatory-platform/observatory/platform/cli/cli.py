@@ -261,8 +261,6 @@ def project(project_path: str, package_name: str, author_name: str):
         │   │   ├── schema
         │   │   │   └── __init__.py
         │   │   └── __init__.py
-        │   ├── utils
-        │   │   └── __init__.py
         │   └── workflows
         │   │   ├── tests
         │   │   │   └── __init__.py
@@ -335,9 +333,6 @@ def workflow(workflow_type: str, workflow_name: str, project_path: str):
         │   │   │   ├── __init__.py
         │   │   │   └── \033[1mmy_workflow_YYYY_MM_DD.json\033[0m
         │   │   └── __init__.py
-        │   ├── utils
-        │   │   ├── __init__.py
-        │   │   └── \033[1midentifiers.py\033[0m (OrganisationTelescope only)
         │   └── workflows
         │   │   ├── tests
         │   │   │   ├── __init__.py
@@ -345,7 +340,8 @@ def workflow(workflow_type: str, workflow_name: str, project_path: str):
         │   │   ├── __init__.py
         │   │   └── \033[1mmy_workflow.py\033[0m
         │   ├── __init__.py
-        │   └── config.py
+        │   ├── config.py
+        │   └── \033[1midentifiers.py\033[0m (OrganisationTelescope only)
         ├── setup.cfg
         └── setup.py
     """

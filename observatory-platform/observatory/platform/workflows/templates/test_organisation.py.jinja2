@@ -18,7 +18,7 @@ from airflow.models.connection import Connection
 
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
-from {{ package_name }}.utils.identifiers import TelescopeTypes
+from {{ package_name }}.identifiers import TelescopeTypes
 from {{ package_name }}.workflows.{{ workflow_module }} import {{ workflow_class }}
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.config_utils import module_file_path
