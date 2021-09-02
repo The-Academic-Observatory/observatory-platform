@@ -65,7 +65,7 @@ class TestGenerateCommand(unittest.TestCase):
 
     @patch("click.confirm")
     def test_generate_workflows_project(self, mock_cli_confirm):
-        """ Test generate a new workflows project
+        """Test generate a new workflows project
 
         :return: None.
         """
@@ -106,8 +106,15 @@ class TestGenerateCommand(unittest.TestCase):
                 dir_path = os.path.join(project_path, "docs", d)
                 self.assertTrue(os.path.isdir(dir_path))
 
-            docs_files = ["conf.py", "generate_schema_csv.py", "index.rst", "make.bat", "Makefile",
-                          "requirements.txt", "test_generate_schema_csv.py",]
+            docs_files = [
+                "conf.py",
+                "generate_schema_csv.py",
+                "index.rst",
+                "make.bat",
+                "Makefile",
+                "requirements.txt",
+                "test_generate_schema_csv.py",
+            ]
             for f in docs_files:
                 file_path = os.path.join(project_path, "docs", f)
                 self.assertTrue(os.path.isfile(file_path))
@@ -120,7 +127,7 @@ class TestGenerateCommand(unittest.TestCase):
             for d in init_dirs:
                 init_file_path = os.path.join(project_path, d, "__init__.py")
                 self.assertTrue(os.path.isfile(init_file_path))
-                self.assertEqual('098f6bcd4621d373cade4e832627b4f6', _hash_file(init_file_path, "md5"))
+                self.assertEqual("098f6bcd4621d373cade4e832627b4f6", _hash_file(init_file_path, "md5"))
 
             self.assertEqual(3, mock_cli_confirm.call_count)
 
@@ -132,7 +139,7 @@ class TestGenerateCommand(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(project_path, package_name, "config.py")))
 
     def test_generate_workflow(self):
-        """ Test generate workflow command and run unit tests that are generated for each of the workflow types.
+        """Test generate workflow command and run unit tests that are generated for each of the workflow types.
 
         :return: None.
         """
@@ -195,8 +202,12 @@ class TestGenerateCommand(unittest.TestCase):
                     self.assertTrue(os.path.exists(identifiers_dst_file))
 
                 # Check whether the template files do not contain any errors by running the created test files
-                proc = subprocess.Popen([sys.executable, "-m", "unittest", test_dst_file], stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE, env=dict(os.environ, PYTHONPATH=project_path))
+                proc = subprocess.Popen(
+                    [sys.executable, "-m", "unittest", test_dst_file],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    env=dict(os.environ, PYTHONPATH=project_path),
+                )
                 out, err = stream_process(proc, debug=True)
                 self.assertEqual("OK", err.splitlines()[-1])
 
@@ -237,7 +248,7 @@ class TestGenerateCommand(unittest.TestCase):
 
     @patch("click.confirm")
     def test_write_rendered_template(self, mock_click_confirm):
-        """ Test writing a rendered template file, only overwrite when file exists if confirmed by user
+        """Test writing a rendered template file, only overwrite when file exists if confirmed by user
 
         :param mock_click_confirm: Mock the click.confirm user confirmation
         :return: None.

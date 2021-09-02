@@ -67,7 +67,7 @@ class GenerateCommand:
         )
 
     def generate_workflows_project(self, project_path: str, package_name: str, author_name: str):
-        """ Create all directories, init files and a setup.cfg + setup.py file for a new workflows project.
+        """Create all directories, init files and a setup.cfg + setup.py file for a new workflows project.
 
         :param project_path: The path to the new project directory
         :param package_name: The name of the new project package
@@ -320,12 +320,24 @@ def create_docs_directory(project_path: str, package_name: str, author_name: str
 
     # Run sphinx quickstart to set up docs
     if os.path.isfile(os.path.join(project_path, "docs", "conf.py")):
-        print(f"WARNING, the docs directory already has configuration files. The sphinx-quickstart command to set "
-              f"up the docs directory will raise an error.")
+        print(
+            f"WARNING, the docs directory already has configuration files. The sphinx-quickstart command to set "
+            f"up the docs directory will raise an error."
+        )
     sphinx_template_dir = os.path.join(templates_dir, "sphinx-quickstart")
     proc = subprocess.Popen(
-        ["sphinx-quickstart", "-q", "-t", sphinx_template_dir, "-p", package_name, "-a", author_name, "-d",
-         f"package_name={package_name}"],
+        [
+            "sphinx-quickstart",
+            "-q",
+            "-t",
+            sphinx_template_dir,
+            "-p",
+            package_name,
+            "-a",
+            author_name,
+            "-d",
+            f"package_name={package_name}",
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=os.path.join(project_path, "docs"),

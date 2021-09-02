@@ -36,7 +36,7 @@ class TestObservatoryGenerate(unittest.TestCase):
     @patch("click.confirm")
     @patch("os.path.exists")
     def test_generate_secrets(self, mock_path_exists, mock_click_confirm):
-        """ Test that the fernet key and default config files are generated """
+        """Test that the fernet key and default config files are generated"""
 
         # Test generate fernet key
         runner = CliRunner()
@@ -86,7 +86,7 @@ class TestObservatoryGenerate(unittest.TestCase):
     @patch("observatory.platform.cli.cli.subprocess.Popen")
     @patch.object(GenerateCommand, "generate_workflows_project")
     def test_generate_project(self, mock_generate_project, mock_subprocess, mock_stream_process):
-        """ Test generating a new workflows project, with and without installing the created package.
+        """Test generating a new workflows project, with and without installing the created package.
 
         :return: None.
         """
@@ -95,18 +95,19 @@ class TestObservatoryGenerate(unittest.TestCase):
         with runner.isolated_filesystem():
             # Test creating project and installing package with pip
             os.makedirs("project_path")
-            result = runner.invoke(generate, ["project", "project_path", "package_name", "Author Name"], input='y')
+            result = runner.invoke(generate, ["project", "project_path", "package_name", "Author Name"], input="y")
             self.assertEqual(0, result.exit_code)
             mock_generate_project.assert_called_once_with("project_path", "package_name", "Author Name")
-            mock_subprocess.assert_called_once_with([sys.executable, "-m", "pip", "install", "-e", "."],
-                                                    cwd="project_path", stderr=-1, stdout=-1)
+            mock_subprocess.assert_called_once_with(
+                [sys.executable, "-m", "pip", "install", "-e", "."], cwd="project_path", stderr=-1, stdout=-1
+            )
             mock_stream_process.called_once_with("proc", True)
 
             # Test creating project without installing
             mock_generate_project.reset_mock()
             mock_subprocess.reset_mock()
             mock_stream_process.reset_mock()
-            result = runner.invoke(generate, ["project", "project_path", "package_name", "Author Name"], input='n')
+            result = runner.invoke(generate, ["project", "project_path", "package_name", "Author Name"], input="n")
             self.assertEqual(0, result.exit_code)
             mock_generate_project.assert_called_once_with("project_path", "package_name", "Author Name")
             mock_subprocess.assert_not_called()
@@ -114,7 +115,7 @@ class TestObservatoryGenerate(unittest.TestCase):
 
     @patch.object(GenerateCommand, "generate_workflow")
     def test_generate_workflow(self, mock_generate_workflow):
-        """ Test generating workflow files for valid and invalid project dirs
+        """Test generating workflow files for valid and invalid project dirs
 
         :return: None.
         """
@@ -131,8 +132,12 @@ class TestObservatoryGenerate(unittest.TestCase):
                 f.write(package_name)
             result = runner.invoke(generate, ["workflow", workflow_type, workflow_name, "-p", project_dir])
             self.assertEqual(0, result.exit_code)
-            mock_generate_workflow.assert_called_once_with(package_name=package_name, project_path=project_dir,
-                                                           workflow_class=workflow_name, workflow_type=workflow_type)
+            mock_generate_workflow.assert_called_once_with(
+                package_name=package_name,
+                project_path=project_dir,
+                workflow_class=workflow_name,
+                workflow_type=workflow_type,
+            )
 
             # Test running with --project-path parameter for invalid project dirs
             mock_generate_workflow.reset_mock()
