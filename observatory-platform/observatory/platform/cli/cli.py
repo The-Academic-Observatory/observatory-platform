@@ -217,7 +217,8 @@ def generate():
     COMMAND: the commands to run include:\n
       - secrets: generate secrets.\n
       - config: generate configuration files for the Observatory Platform.\n
-      - telescope: generate all files for a new telescope using one of the templates.
+      - project: generate a new project directory and required files.\n
+      - workflow: generate all files for a new workflow.
     """
 
     pass
