@@ -98,8 +98,7 @@ class PlatformBuilder(ComposeRunner):
                 compose_template_kwargs={
                     "config": self.config,
                     "docker_network_is_external": docker_network_is_external,
-                    "docker_network_name": docker_network_name,
-                    "dags_projects_to_str": WorkflowsProject.dags_projects_to_str,
+                    "docker_network_name": docker_network_name
                 },
                 debug=debug,
             )
