@@ -14,6 +14,7 @@
 
 # Author: Aniek Roelofs
 
+import json
 import logging
 from datetime import datetime
 from typing import Union
@@ -25,6 +26,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from croniter import croniter
+
 from observatory.platform.observatory_config import TerraformConfig, VirtualMachine
 from observatory.platform.terraform_api import TerraformApi
 from observatory.platform.utils.airflow_utils import (
@@ -143,10 +145,6 @@ class TerraformTasks:
     TASK_ID_RUN_STATUS = "terraform_check_run_status"
     TASK_ID_VM_RUNTIME = "check_runtime_vm"
 
-    # Watch list of dag ids of which their states will be checked
-    # TODO: enable these to be configured from the config file
-    DAG_IDS_WATCH_LIST = ["crossref_metadata", "mag", "open_citations", "unpaywall"]
-
     # Name of variable in terraform configuration that will be updated
     TERRAFORM_CREATE_VM_KEY = "airflow_worker_vm"
     TERRAFORM_CREATE_KEY = "create"
@@ -166,7 +164,9 @@ class TerraformTasks:
         :return: None.
         """
 
-        vars_valid = check_variables(AirflowVars.PROJECT_ID, AirflowVars.TERRAFORM_ORGANIZATION)
+        vars_valid = check_variables(
+            AirflowVars.PROJECT_ID, AirflowVars.TERRAFORM_ORGANIZATION, AirflowVars.VM_DAGS_WATCH_LIST
+        )
         conns_valid = check_connections(AirflowConns.TERRAFORM)
 
         if not vars_valid or not conns_valid:
@@ -360,7 +360,13 @@ class TerraformTasks:
             f"destroy_time_vm: {destroy_time_vm}\n"
         )
 
-        for dag_id in TerraformTasks.DAG_IDS_WATCH_LIST:
+        # Load VM DAGs watch list
+        vm_dags_watch_list_str = AirflowVariable.get(AirflowVars.VM_DAGS_WATCH_LIST)
+        logging.info(f"vm_dags_watch_list_str str: {vm_dags_watch_list_str}")
+        vm_dags_watch_list = json.loads(vm_dags_watch_list_str)
+        logging.info(f"vm_dags_watch_list: {vm_dags_watch_list}")
+
+        for dag_id in vm_dags_watch_list:
             dagbag = DagBag()
             dag = dagbag.get_dag(dag_id)
             logging.info(f"Dag id: {dag_id}")
