@@ -46,6 +46,7 @@ class AirflowVars:
     KIBANA_SPACES = "kibana_spaces"
     OBSERVATORY_API = "observatory_api"
     ORCID_BUCKET = "orcid_bucket"
+    VM_DAGS_WATCH_LIST = "vm_dags_watch_list"
 
 
 class AirflowConns:
