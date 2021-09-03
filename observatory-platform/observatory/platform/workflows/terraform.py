@@ -361,7 +361,7 @@ class TerraformTasks:
         )
 
         # Load VM DAGs watch list
-        vm_dags_watch_list_str = AirflowVariable.get(AirflowVars.VM_DAGS_WATCH_LIST)
+        vm_dags_watch_list_str = Variable.get(AirflowVars.VM_DAGS_WATCH_LIST)
         logging.info(f"vm_dags_watch_list_str str: {vm_dags_watch_list_str}")
         vm_dags_watch_list = json.loads(vm_dags_watch_list_str)
         logging.info(f"vm_dags_watch_list: {vm_dags_watch_list}")
