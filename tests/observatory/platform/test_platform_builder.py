@@ -38,7 +38,7 @@ from observatory.platform.observatory_config import (
     GoogleCloud,
     AirflowVariable,
     AirflowConnection,
-    DagsProject,
+    WorkflowsProject,
 )
 from observatory.platform.observatory_config import save_yaml
 from observatory.platform.platform_builder import PlatformBuilder
@@ -231,7 +231,7 @@ class TestPlatformBuilder(unittest.TestCase):
             bucket = CloudStorageBucket(id="download_bucket", name="my-download-bucket-name")
             var = AirflowVariable(name="my-var", value="my-variable-value")
             conn = AirflowConnection(name="my-conn", value="http://my-username:my-password@")
-            dags_project = DagsProject(
+            dags_project = WorkflowsProject(
                 package_name="observatory-dags",
                 path="/path/to/observatory-platform/observatory-dags/observatory/dags",
                 dags_module="observatory.dags.dags",
@@ -253,7 +253,7 @@ class TestPlatformBuilder(unittest.TestCase):
                 terraform=terraform,
                 airflow_variables=[var],
                 airflow_connections=[conn],
-                dags_projects=[dags_project],
+                workflows_projects=[dags_project],
             )
             cmd.config = config
             cmd.config_exists = True

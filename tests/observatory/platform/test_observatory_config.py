@@ -99,7 +99,7 @@ class TestObservatoryConfig(unittest.TestCase):
                 "observatory": {"airflow_fernet_key": "random-fernet-key", "airflow_secret_key": "random-secret-key"},
                 "airflow_variables": {"my-variable-name": "my-variable-value"},
                 "airflow_connections": {"my-connection": "http://:my-token-key@"},
-                "dags_projects": [
+                "workflows_projects": [
                     {
                         "package_name": "observatory-dags",
                         "path": "/path/to/dags/project",
@@ -145,7 +145,7 @@ class TestObservatoryConfig(unittest.TestCase):
             "observatory": {"airflow_fernet_key": 1, "airflow_secret_key": 1},
             "airflow_variables": {"my-variable-name": 1},
             "airflow_connections": {"my-connection": "token-key"},
-            "dags_projects": [
+            "workflows_projects": [
                 {"package_name": "observatory-dags", "path": "/path/to/dags/project", "dags_module": False},
                 {"package_name": "observatory-dags", "dags_module": "observatory.dags.dags"},
             ],
@@ -247,7 +247,7 @@ class TestTerraformConfig(unittest.TestCase):
                 },
                 "airflow_variables": {"my-variable-name": "my-variable-value"},
                 "airflow_connections": {"my-connection": "http://:my-token-key@"},
-                "dags_projects": [
+                "workflows_projects": [
                     {
                         "package_name": "observatory-dags",
                         "path": "/path/to/dags/project",
@@ -339,7 +339,7 @@ class TestTerraformConfig(unittest.TestCase):
             },
             "airflow_variables": {"my-variable-name": 1},
             "airflow_connections": {"my-connection": "my-token"},
-            "dags_projects": [
+            "workflows_projects": [
                 {
                     "package_name": "observatory-dags",
                     "path": "/path/to/dags/project",
@@ -395,7 +395,7 @@ class TestSchema(unittest.TestCase):
             "observatory",
             "airflow_variables",
             "airflow_connections",
-            "dags_projects",
+            "workflows_projects",
         ]
         not_contains = ["cloud_sql_database", "airflow_main_vm", "airflow_worker_vm"]
         self.assert_schema_keys(schema, contains, not_contains)
@@ -410,7 +410,7 @@ class TestSchema(unittest.TestCase):
             "observatory",
             "airflow_variables",
             "airflow_connections",
-            "dags_projects",
+            "workflows_projects",
             "cloud_sql_database",
             "airflow_main_vm",
             "airflow_worker_vm",
@@ -544,12 +544,12 @@ class TestSchema(unittest.TestCase):
 
     def test_local_schema_dags_projects(self):
         schema = make_schema(BackendType.local)
-        schema_key = "dags_projects"
+        schema_key = "workflows_projects"
 
         valid_docs = [
             {},
             {
-                "dags_projects": [
+                "workflows_projects": [
                     {
                         "package_name": "observatory-dags",
                         "path": "/path/to/dags/project",
@@ -558,9 +558,9 @@ class TestSchema(unittest.TestCase):
                 ]
             },
         ]
-        invalid_docs = [{"dags_projects": [{"package_name": "observatory-dags", "path": "/path/to/dags/project"}]}]
+        invalid_docs = [{"workflows_projects": [{"package_name": "observatory-dags", "path": "/path/to/dags/project"}]}]
 
-        expected_errors = [{"dags_projects": [{0: [{"dags_module": ["required field"]}]}]}]
+        expected_errors = [{"workflows_projects": [{0: [{"dags_module": ["required field"]}]}]}]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
     def test_local_schema_airflow_connections(self):

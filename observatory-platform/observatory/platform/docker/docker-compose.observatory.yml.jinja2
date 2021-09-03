@@ -28,8 +28,6 @@ version: '3.8'
 {%- set host_data_path="${HOST_OBSERVATORY_HOME}/data" -%}
 {%- set host_logs_path="${HOST_OBSERVATORY_HOME}/logs" -%}
 {%- set host_postgres_path="${HOST_OBSERVATORY_HOME}/postgres" -%}
-{%- set host_dags_path="${HOST_DAGS_PATH}" -%}
-{%- set host_platform_package_path="${HOST_PLATFORM_PACKAGE_PATH}" -%}
 {%- set host_api_package_path="${HOST_API_PACKAGE_PATH}" -%}
 {%- set google_application_credentials="${HOST_GOOGLE_APPLICATION_CREDENTIALS}" -%}
 {%- set postgres_hostname="postgres" -%}
@@ -39,8 +37,6 @@ version: '3.8'
 
 {%- set host_data_path="/opt/observatory/data" -%}
 {%- set host_logs_path="/opt/airflow/logs" -%}
-{%- set host_dags_path="/opt/observatory-platform/observatory/platform/dags" -%}
-{%- set host_platform_package_path="/opt/observatory-platform" -%}
 {%- set host_api_package_path="/opt/observatory-api" -%}
 {%- set google_application_credentials="/opt/observatory/google_application_credentials.json" -%}
 {%- set postgres_hostname="${POSTGRES_HOSTNAME}" -%}
@@ -70,6 +66,11 @@ x-environment: &environment
   AIRFLOW__SECRETS__BACKEND_KWARGS: "{'connections_prefix': 'airflow-connections', 'variables_prefix': 'airflow-variables', 'sep': '-'}"
   {%- endif %}
 
+  # Set Airflow DAGs folder to installed observatory platform dags
+  {%- if config.observatory.package_type != 'editable' %}
+  AIRFLOW__CORE__DAGS_FOLDER: "/home/airflow/.local/lib/python3.8/site-packages/observatory/platform/dags"
+  {%- endif %}
+
   # Paths to google credentials and UI user settings
   GOOGLE_APPLICATION_CREDENTIALS: "/run/secrets/google_application_credentials.json"
   AIRFLOW_UI_USER_EMAIL: "{{ airflow_ui_user_email }}"
@@ -84,7 +85,7 @@ x-environment: &environment
 
   # Variables
   AIRFLOW_VAR_DATA_PATH: "/opt/observatory/data"
-  AIRFLOW_VAR_DAGS_MODULE_NAMES: {{ dags_projects_to_str(config.dags_projects)  }}
+  AIRFLOW_VAR_DAGS_MODULE_NAMES: {{ config.dags_module_names  }}
   {%- for var in config.make_airflow_variables() %}
   {%- if config.backend.type.value == 'local' %}
   {{ var.env_var_name }}: '{{ var.value }}'
@@ -95,18 +96,17 @@ x-environment: &environment
 
 x-volumes: &volumes
   - "{{ host_logs_path }}:/opt/airflow/logs"
-  - "{{ host_dags_path }}:/opt/airflow/dags"
   - "{{ host_data_path }}:/opt/observatory/data"
-  - "{{ host_platform_package_path }}:/opt/observatory-platform"
-  - "{{ host_api_package_path }}:/opt/observatory-api"
-  # Volume mappings for DAGs projects:
-  {%- for project in config.dags_projects %}
-  {%- if project.type == 'local' %}
-  {%- if config.backend.type.value == 'local' %}
-  - "{{ project.path }}:/opt/{{ project.package_name }}"
-  {%- else %}
-  - "/opt/{{ project.package_name }}:/opt/{{ project.package_name }}"
+
+  # Volume mapping when observatory installed in editable mode
+  {%- if config.observatory.package_type == 'editable' %}
+  - "{{ config.observatory.host_package }}/observatory/platform/dags:/opt/airflow/dags"
   {%- endif %}
+
+  # Volume mappings for Python packages, incl observatory-platform and dags projects:
+  {%- for package in config.python_packages %}
+  {%- if package.type == 'editable' %}
+  - "{{ package.host_package }}:/opt/{{ package.name }}"
   {%- endif %}
   {%- endfor %}
 

@@ -27,7 +27,7 @@ from observatory.platform.observatory_config import (
     ObservatoryConfig,
     BackendType,
     TerraformConfig,
-    DagsProject,
+    WorkflowsProject,
     Observatory,
 )
 from observatory.platform.utils.config_utils import module_file_path
@@ -99,7 +99,7 @@ class PlatformBuilder(ComposeRunner):
                     "config": self.config,
                     "docker_network_is_external": docker_network_is_external,
                     "docker_network_name": docker_network_name,
-                    "dags_projects_to_str": DagsProject.dags_projects_to_str,
+                    "dags_projects_to_str": WorkflowsProject.dags_projects_to_str,
                 },
                 debug=debug,
             )
@@ -127,13 +127,17 @@ class PlatformBuilder(ComposeRunner):
             )
 
             # Add all project requirements files for local projects
-            if self.config is not None:
-                for project in self.config.dags_projects:
-                    if project.type == "local":
+            if self.config is not None and self.config_is_valid:
+                for package in self.config.python_packages:
+                    if package.type == "editable":
+                        # Add project requirements files for local projects
                         self.add_file(
-                            path=os.path.join(project.path, "requirements.txt"),
-                            output_file_name=f"requirements.{project.package_name}.txt",
+                            path=os.path.join(package.host_package, "requirements.txt"),
+                            output_file_name=f"requirements.{package.name}.txt",
                         )
+                    elif package.type == "sdist":
+                        # Add sdist package file
+                        self.add_file(path=package.host_package, output_file_name=package.docker_package)
 
     @property
     def is_environment_valid(self) -> bool:
@@ -209,10 +213,6 @@ class PlatformBuilder(ComposeRunner):
         env["HOST_USER_ID"] = str(self.host_uid)
         env["HOST_GROUP_ID"] = str(self.host_gid)
         env["HOST_OBSERVATORY_HOME"] = os.path.normpath(self.config.observatory.observatory_home)
-        env["HOST_DAGS_PATH"] = os.path.normpath(self.dags_path)
-        env["HOST_PLATFORM_PACKAGE_PATH"] = os.path.normpath(self.platform_package_path)
-        env["HOST_API_PACKAGE_PATH"] = os.path.normpath(self.api_package_path)
-
         env["HOST_REDIS_PORT"] = str(self.config.observatory.redis_port)
         env["HOST_FLOWER_UI_PORT"] = str(self.config.observatory.flower_ui_port)
         env["HOST_AIRFLOW_UI_PORT"] = str(self.config.observatory.airflow_ui_port)
