@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -17,16 +17,9 @@ jobs:
         with:
           python-version: 3.8
 
-      - name: Install packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e observatory-api
-          pip install -e observatory-platform
-
       - name: Build packages
         run: |
           cd observatory-api
-          cp ../README.md .
           python3 setup.py sdist
 
           cd ../observatory-platform
