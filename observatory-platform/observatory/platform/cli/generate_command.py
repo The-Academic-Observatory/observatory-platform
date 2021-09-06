@@ -104,13 +104,13 @@ class GenerateCommand:
 
         # Create setup.cfg file
         setup_cfg_template = os.path.join(templates_dir, "setup.cfg.jinja2")
-        setup_cfg = render_template(setup_cfg_template, package_name=package_name)
+        setup_cfg = render_template(setup_cfg_template, package_name=package_name, python_version="3.7")
         setup_cfg_path = os.path.join(project_path, "setup.cfg")
         write_rendered_template(setup_cfg_path, setup_cfg, "setup.cfg")
 
         # Create setup.py file
         setup_py_template = os.path.join(templates_dir, "setup.py.jinja2")
-        setup_py = render_template(setup_py_template)
+        setup_py = render_template(setup_py_template, python_version="3.7")
         setup_py_path = os.path.join(project_path, "setup.py")
         write_rendered_template(setup_py_path, setup_py, "setup.py")
 
