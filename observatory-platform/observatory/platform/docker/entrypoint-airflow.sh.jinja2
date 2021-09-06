@@ -17,29 +17,6 @@
 
 # This script is run as the airflow user
 
-# Set PBR version for installing packages
-export PBR_VERSION=0.0.1
-
-###############################
-# Install observatory-api
-###############################
-# Enter observatory platform folder
-cd /opt/observatory-api
-
-# Install the Observatory API Python package
-pip3 install -e . --user
-
-###############################
-# Install observatory-platform
-###############################
-# Enter observatory platform folder
-cd /opt/observatory-platform
-
-# Install the Observatory Platform Python package
-pip3 install -e . --user
-
-unset PBR_VERSION
-
 ########################################
 # Install editable mode Python packages
 ########################################

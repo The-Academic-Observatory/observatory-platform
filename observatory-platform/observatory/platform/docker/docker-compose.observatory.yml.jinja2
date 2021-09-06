@@ -28,7 +28,6 @@ version: '3.8'
 {%- set host_data_path="${HOST_OBSERVATORY_HOME}/data" -%}
 {%- set host_logs_path="${HOST_OBSERVATORY_HOME}/logs" -%}
 {%- set host_postgres_path="${HOST_OBSERVATORY_HOME}/postgres" -%}
-{%- set host_api_package_path="${HOST_API_PACKAGE_PATH}" -%}
 {%- set google_application_credentials="${HOST_GOOGLE_APPLICATION_CREDENTIALS}" -%}
 {%- set postgres_hostname="postgres" -%}
 {%- set redis_hostname="redis" -%}
@@ -37,7 +36,6 @@ version: '3.8'
 
 {%- set host_data_path="/opt/observatory/data" -%}
 {%- set host_logs_path="/opt/airflow/logs" -%}
-{%- set host_api_package_path="/opt/observatory-api" -%}
 {%- set google_application_credentials="/opt/observatory/google_application_credentials.json" -%}
 {%- set postgres_hostname="${POSTGRES_HOSTNAME}" -%}
 {%- set redis_hostname="${REDIS_HOSTNAME}" -%}
