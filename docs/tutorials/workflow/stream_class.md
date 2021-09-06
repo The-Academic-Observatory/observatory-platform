@@ -23,8 +23,8 @@ In this first run, the data is not loaded into a separate partition.
 For any later releases, any new data since the last run as well as any updated/deleted data is loaded into a separate
  partition in the BigQuery 'partitions' table.  
 Then, there are 2 tasks to replace the old data (from the partitions) with the new, updated data in the main table.
-These updates might not be done every DAG run, but instead the update frequency is determined by the stream
- telescope property `bq_merge_days`.  
+These updates might not be done every DAG run, the update frequency is controlled by the stream telescope property
+ `bq_merge_days`.  
 The telescope keeps track of the number of days since the last merge, by checking when the relevant task had the last
  'success' state. 
  
@@ -71,8 +71,8 @@ Gets release info and pushes info as an XCOM.
 The release info includes the start date, end date and a boolean to describe whether this is the first release.
 
 The start date is set to the start date of the telescope if it is the first release.
-If it is a later release, the start date is set to to the end date of the previous run plus 1 day, because the end
- date of the previous run is processed in that run.
+If it is a later release, the start date is set to the end date of the previous run plus 1 day, because the end
+ date of the previous run is already processed in that run.
 
 The end date is set to the current daytime minus 1 day, because some data might not be available on the same day of
  the release.

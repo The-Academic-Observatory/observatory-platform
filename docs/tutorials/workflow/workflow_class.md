@@ -9,9 +9,10 @@ It implements methods from the AbstractWorkflow class and it is not recommended 
  used directly itself.  
 
 ### Make DAG
-The `make_dag` method of the workflow class is used to create an Airflow DAG object. This object is picked up by the
- Airflow scheduler and ensures that all tasks are scheduled.
- 
+The `make_dag` method of the workflow class is used to create an Airflow DAG object. 
+When the object is defined in the global namespace, it is picked up by the Airflow scheduler and ensures that all tasks
+ are scheduled. 
+  
 ### Adding tasks to DAG
 It is possible to add one of the three types of tasks to this DAG object:
  * Sensor
@@ -30,7 +31,7 @@ There are many different types of Airflow Operators available, but in the case o
  when they time out.   
 * The PythonOperator simply calls an executable Python function.  
 * The ShortCircuitOperator is derived from the PythonOperator and additionally evaluates a condition. When the
- conditions is False it short-circuits the workflow.  
+ conditions is False it short-circuits the workflow by skipping all downstream tasks.  
 
 The **sensor** type instantiates the BaseSensorOperator (or a child class of this operator).  
 All sensor tasks are always chained to the beginning of the DAG.  
@@ -62,14 +63,17 @@ Order of the different task types within a workflow:
 By default all tasks within the same type (sensor, setup task, task) are chained linearly in the order they are
  inserted.  
 There is a context manager `parallel_tasks` which can be used to parallelise tasks.  
-All tasks that are added within that context are added in parallel, however as of now this can only be used with the
- setup tasks type.
+All tasks that are added within that context are added in parallel. 
+Currently this is only supported for setup tasks.
 
 ### The 'make_release' method 
-The general task type requires a release instance and because of this the `make_release` method of the workflow class
- always has to be implemented by the developer.  
-This method is called when the PythonOperator for the general task is made and has to return a release instance, the
- release class on which this instance is based is discussed in detail further below.  
+The `make_release` method is used to create a (list of) release instance(s).
+A general task always requires a release instance as a parameter, so the `make_release` method is called when the
+ PythonOperator for a general task is made.
+The release (or list of releases) that is made with this method is then passed on as a parameter to any general task
+ of that workflow.
+Inside the general task the release properties can then be used for things such as local download paths.
+Because the method is used for any general task, this method always has to be implemented.
 
 ### Checking dependencies
 The workflow class also has a method `check_dependencies` implemented that can be added as a set-up task.  
@@ -81,17 +85,21 @@ All workflows require that at least some Airflow Variables and Connections are s
 See :meth:`platform.workflows.workflow.Release` for the API reference.
 ```
 
+The Release class is a basic implementation of the AbstractRelease class.  
 An instance of the release class is passed on as an argument to any general tasks that are added to the workflow.   
 Similarly in set-up to the workflow class, it implements methods from the AbstractRelease class and it is not
  recommended that the AbstractRelease class is used directly by itself.  
+The properties and methods that are added to the Release class should all be relevant to the release instance.  
+If they are always the same, independent of the release instance, they are better placed in the Workflow class.
 
 ### The release id
 The Release class always needs a release id.  
 This release id is usually based on the release date, so it is unique for each release and relates to the date when
  the data became available or was processed.
+It is used for the folder paths described below.
 
 ### Folder paths
-The release has properties for the paths of 3 different folders:
+The Release class has properties for the paths of 3 different folders:
  * `download_folder`
  * `extract_folder`
  * `transform_folder`
@@ -124,7 +132,7 @@ The bucket names are retrieved from Airflow Variables and there are 2 correspond
 These properties are convenient to use when uploading data to either one of these buckets.
 
 ### Clean up
-The release class has a `cleanup` method which can be called inside a task that will 'clean up' by deleting the 3
+The Release class has a `cleanup` method which can be called inside a task that will 'clean up' by deleting the 3
  folders mentioned above.  
 This method is part of the release class, because a clean up task is part of each workflow and it uses those
  folder paths described above that are properties of the release class. 

@@ -164,7 +164,7 @@ XComs are explicitly “pushed” and “pulled” to/from their storage using t
 Many operators will auto-push their results into an XCom key called return_value if the do_xcom_push argument is set
  to True (as it is by default), and @task functions do this as well.
 
-For the workflows they are commonly used to pass on release information.  
+They are commonly used to pass on release information in workflows.  
 One task at the beginning of the workflow will retrieve release information such as the release date or possibly a
  relevant release url.  
 The release information is then pushed during this task using Xcoms and it is pulled in the subsequent tasks, so a
@@ -228,12 +228,15 @@ def make_release(self, **kwargs) -> OrcidRelease:
 ### Using Airflow variables and connections
 Any information that should not be hardcoded inside the workflow, but is still required for the workflow to function
  can be passed on using Airflow variables and connections.   
-Values for both the variables and connections are read from the relevant config file (`config.yaml` in local develop
- environment and `config-terraform.yaml` in deployed terraform environment).  
-In the local develop environment, environment variables are created both for Airflow variables and connections, these
- environment variables are made up of the `AIRLFOW_VAR_` or `AIRFLOW_CONN_` prefix and the name that is used for the
-  variable or connection in the config file.  
-These prefixes are determined by Airflow and any environment variables with these prefixes will automatically be
+Both variables and connections can be added by defining them in the relevant config file (`config.yaml` in local
+ develop environment and `config-terraform.yaml` in deployed terraform environment).  
+Each variable or connection that is defined in the config file is made into an Airflow variable or connection when
+ starting the observatory environment.  
+The way these variables and connections are created is dependent on the type of observatory environment.  
+In the local develop environment, environment variables are created for Airflow variables and connections.
+These environment variables are made up of the `AIRLFOW_VAR_` or `AIRFLOW_CONN_` prefix and the name that is used for
+ the variable or connection in the config file.  
+The prefixes are determined by Airflow and any environment variables with these prefixes will automatically be
  picked up, see the Airflow documentation for more info on managing [variables](https://airflow.apache.org/docs/apache-airflow/stable/howto/variable.html#storing-variables-in-environment-variables)
  and [connections](https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#storing-a-connection-in-environment-variables) 
  with environment variables.  
@@ -243,26 +246,26 @@ A secret is created for each individual Airflow variable or connection, see the 
  on the [secrets backend](https://airflow.apache.org/docs/apache-airflow/stable/security/secrets/secrets-backend/index.html#secrets-backend). 
 
 #### Variables
-Airflow variables should never contain any sensitive information and are used for example for the project_id, bucket
- names or data location.  
+Airflow variables should never contain any sensitive information. Example uses include the project_id, bucket names
+ or data location.  
 
 #### Connections
 Airflow connections can contain sensitive information and are often used to store credentials like API keys or
  usernames and passwords.  
-In the local development environment, the Airflow connections are simply stored in the metastore database.  
+In the local development environment, the Airflow connections are stored in the metastore database.  
 There, the passwords inside the connection configurations are encrypted using Fernet.  
 The value for the Airflow connection should always be a connection URI, see the [Airflow documentation](https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#generating-a-connection-uri)
  for more detailed information on how to construct this URI.
  
 #### Using a new variable or connection
-To use a new Airflow variable or connection, it has to be added to the relevant class in the airflow_utils file.  
+Any new Airflow variables or connections have to be added to either the AirflowVars or AirflowConns class in the
+ airflow_utils file.   
 This file can be found at:  
 `observatory-platform/observatory/platform/utils/airflow_utils.py`
 
-In there are the AirflowVars and AirflowConns classes, these classes make it easier to use the same key name for a
- variable or connection in many different DAGs.
-The python variable name is used inside the workflow and the value is used inside the `config.yaml` or `config-terraform.yaml`
- file.
+These two classes act as a registry that make it easy to access the variables and connections in different DAGs
+For each class attribute, the attribute name is used inside the workflow and the value is used inside the 
+`config.yaml` or `config-terraform.yaml` file.
  
 For example, to add the airflow variable 'new_variable' and connection 'new_connection', the relevant classes are
  updated like this:  
@@ -346,7 +349,7 @@ An additional custom version can be provided together with the date, in this cas
  `<table_name>_<customversion>_YYYY-MM-DD.json`.
 
 The BigQuery table loading utility functions in the Observatory Platform will try to find the correct schema to use
- for loading table data, based on release date and version information.  
+ for loading table data, based on the release date and custom version.  
 If no version is specified, the most recent schema with a date less than or equal to the release date of the data is
  returned.  
 If a version string is specified, the most current (date) schema in that series is returned.  
@@ -359,12 +362,12 @@ The Observatory Platform uses the `unittest` Python framework as a base and prov
  and test DAG structure.
 It also uses the Python `coverage` package to analyse test coverage.
 
-To ensure that the workflow works as expected and in order to pick up any changes in the code base that would break the
- workflow it is required to add unit tests that cover the code in the developed workflow.  
+To ensure that the workflow works as expected and to pick up any changes in the code base that would break the
+ workflow, it is required to add unit tests that cover the code in the developed workflow.  
 
 The test files for workflows are stored in `my-dags/tests/workflows`.  
 The `ObservatoryTestCase` class in the `observatory-platform/observatory/platform/utils/test_utils.py` file contains
- common test methods and should be used as a parent class for the unit tests.  
+ common test methods and should be used as a parent class for the unit tests instead of `unittest.TestCase`.  
 Additionally, the `ObservatoryEnvironment` class in the `test_utils.py` can be used to simulate the Airflow
  environment and the different workflow tasks can be run and tested inside this environment.  
 
@@ -487,24 +490,23 @@ class MyTestClass(ObservatoryTestCase):
 ### Testing workflow tasks
 To run and test a workflow task, the `run_task` method can be used within an `ObservatoryEnvironment`.  
 
-The ObservatoryEnvironment is used to simulate the Airflow environment, to ensure that a workflow can be run from
- end to end it creates additional resources such as storage buckets and BigQuery datasets.
+The ObservatoryEnvironment is used to simulate the Airflow environment.
 
-Creating the Observatory Environment involves:  
-* Creating a temporary local directory.
-* Setting the OBSERVATORY_HOME environment variable.
-* Initialising a temporary Airflow database.
-* Creating download and transform Google Cloud Storage buckets.
-* Creating BigQuery dataset(s).
-* Creating default Airflow Variables: 
+To ensure that a workflow can be run from end to end the Observatory Environment creates additional resources, it will:
+* Create a temporary local directory.
+* Set the OBSERVATORY_HOME environment variable.
+* Initialise a temporary Airflow database.
+* Create download and transform Google Cloud Storage buckets.
+* Create BigQuery dataset(s).
+* Create default Airflow Variables: 
     * AirflowVars.DATA_PATH
     * AirflowVars.PROJECT_ID
     * AirflowVars.DATA_LOCATION
     * AirflowVars.DOWNLOAD_BUCKET
     * AirflowVars.TRANSFORM_BUCKET.
-* Creating an ObservatoryApiEnvironment.
-* Starting an Elastic environment.
-* Cleaning up all resources when the environment is closed.
+* Create an ObservatoryApiEnvironment.
+* Start an Elastic environment.
+* Clean up all resources when the environment is closed.
 
 Note that if the unit test is stopped with a forced interrupt, the code block to clean up the created storage buckets
  and datasets will not be executed and those resources will have to be manually removed.  
@@ -646,10 +648,10 @@ This will output html documentation in the `docs/_build/html` directory and the 
  
 A documentation file with info on the workflow should be added in the `my-dags/docs` directory.  
 This documentation should at least include:  
- * A short summary on the data source
- * A summary table, see example below 
- * Any details on set-up steps that are required to run this workflow
- * Info on any Airflow connections and variables that are used (see further below) 
+ * A short summary on the data source.
+ * A summary table, see example below. 
+ * Any details on set-up steps that are required to run this workflow.
+ * Info on any Airflow connections and variables that are used (see further below). 
  * The latest schema.
  
  Example of a summary table using `eval_rst` to format the RST table:
@@ -683,8 +685,8 @@ This documentation should at least include:
     ```
 
 ### Including Airflow variable/connection info in documentation
-If a newly developed workflow uses an Airflow connection or variable, this should be explained in the documentation on
- the workflow.  
+If a newly developed workflow uses an Airflow connection or variable, this should be explained in the workflow
+ documentation.  
 An example of the variable/connection is required as well as an explanation on how the value for this 
  variable/connection can be obtained.
 
