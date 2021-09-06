@@ -1,5 +1,5 @@
 # Observatory API
-observatory-api>=0.1.0,<1
+observatory-api
 
 # Airflow
 apache-airflow==2.1.3
