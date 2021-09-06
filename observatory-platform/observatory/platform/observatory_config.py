@@ -147,6 +147,7 @@ class Observatory:
         :param elastic_port: The host's Elasticsearch port number.
         :param kibana_port: The host's Kibana port number.
         :param docker_network_name: The Docker Network name, used to specify a custom Docker Network.
+        :param docker_network_is_external: whether the docker network is external or not.
         :param docker_compose_project_name: The namespace for the Docker Compose containers: https://docs.docker.com/compose/reference/envvars/#compose_project_name.
      """
 
@@ -163,8 +164,8 @@ class Observatory:
     airflow_ui_port: int = 8080
     elastic_port: int = 9200
     kibana_port: int = 5601
-    docker_network_is_external: str = False
     docker_network_name: str = "observatory-network"
+    docker_network_is_external: bool = False
     docker_compose_project_name: str = "observatory"
 
     def to_hcl(self):
@@ -204,6 +205,7 @@ class Observatory:
         elastic_port = dict_.get("elastic_port", Observatory.elastic_port)
         kibana_port = dict_.get("kibana_port", Observatory.kibana_port)
         docker_network_name = dict_.get("docker_network_name", Observatory.docker_network_name)
+        docker_network_is_external = dict_.get("docker_network_is_external", Observatory.docker_network_is_external)
         docker_compose_project_name = dict_.get("docker_compose_project_name", Observatory.docker_compose_project_name)
 
         return Observatory(
@@ -221,6 +223,7 @@ class Observatory:
             elastic_port=elastic_port,
             kibana_port=kibana_port,
             docker_network_name=docker_network_name,
+            docker_network_is_external=docker_network_is_external,
             docker_compose_project_name=docker_compose_project_name,
         )
 
@@ -351,8 +354,6 @@ class WorkflowsProject:
             dags_module = item["dags_module"]
             parsed_items.append(WorkflowsProject(package_name, package, package_type, dags_module))
         return parsed_items
-
-
 
 
 def list_to_hcl(items: List[Union[AirflowConnection, AirflowVariable]]) -> str:
@@ -769,7 +770,13 @@ class ObservatoryConfig:
     def _parse_fields(
         dict_: Dict,
     ) -> Tuple[
-        Backend, Observatory, GoogleCloud, Terraform, List[AirflowVariable], List[AirflowConnection], List[WorkflowsProject]
+        Backend,
+        Observatory,
+        GoogleCloud,
+        Terraform,
+        List[AirflowVariable],
+        List[AirflowConnection],
+        List[WorkflowsProject],
     ]:
         backend = Backend.from_dict(dict_.get("backend", dict()))
         observatory = Observatory.from_dict(dict_.get("observatory", dict()))
@@ -806,9 +813,7 @@ class ObservatoryConfig:
         airflow_secret_key = generate_secret_key()
 
         render = render_template(
-            template_path,
-            airflow_fernet_key=airflow_fernet_key,
-            airflow_secret_key=airflow_secret_key
+            template_path, airflow_fernet_key=airflow_fernet_key, airflow_secret_key=airflow_secret_key
         )
 
         # Save file
@@ -1134,6 +1139,7 @@ def make_schema(backend_type: BackendType) -> Dict:
             "elastic_port": {"required": False, "type": "integer"},
             "kibana_port": {"required": False, "type": "integer"},
             "docker_network_name": {"required": False, "type": "string"},
+            "docker_network_is_external": {"required": False, "type": "boolean"},
             "docker_compose_project_name": {"required": False, "type": "string"},
         },
     }

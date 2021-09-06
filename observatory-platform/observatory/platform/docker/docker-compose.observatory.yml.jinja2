@@ -55,6 +55,7 @@ x-environment: &environment
   AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
   AIRFLOW__WEBSERVER__RBAC: "True"
   AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
+  AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL: 30
   AIRFLOW__CELERY__BROKER_URL: "redis://:@{{ redis_hostname }}:6379/0"
   AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
   AIRFLOW__CELERY_BROKER_TRANSPORT_OPTIONS__VISIBILITY_TIMEOUT: 259200
@@ -65,7 +66,6 @@ x-environment: &environment
   AIRFLOW__SECRETS__BACKEND: "observatory.platform.airflow.secret_manager.CloudSecretManagerBackend"
   AIRFLOW__SECRETS__BACKEND_KWARGS: "{'connections_prefix': 'airflow-connections', 'variables_prefix': 'airflow-variables', 'sep': '-'}"
   {%- endif %}
-
   # Set Airflow DAGs folder to installed observatory platform dags
   {%- if config.observatory.package_type != 'editable' %}
   AIRFLOW__CORE__DAGS_FOLDER: "/home/airflow/.local/lib/python3.8/site-packages/observatory/platform/dags"
@@ -114,7 +114,7 @@ x-volumes: &volumes
 {# Local network #}
 x-network-mode: &networks
   networks:
-    - {{ docker_network_name }}
+    - {{ config.observatory.docker_network_name }}
 
 {%- else %}
 
@@ -124,15 +124,15 @@ x-network-mode: &networks
 
 {%- endif -%}
 
-{%- if config.backend.type.value == 'terraform' or not docker_network_is_external %}
+{%- if config.backend.type.value == 'terraform' or not config.observatory.docker_network_is_external %}
 {# Cloud network or not external network #}
 networks:
-  {{ docker_network_name }}:
-    name: {{ docker_network_name }}
+  {{ config.observatory.docker_network_name }}:
+    name: {{ config.observatory.docker_network_name }}
     driver: bridge
 {%- else %}
 networks:
-  {{ docker_network_name }}:
+  {{ config.observatory.docker_network_name }}:
     external: true
 {%- endif %}
 
@@ -150,7 +150,7 @@ services:
     ports:
       - ${HOST_REDIS_PORT}:6379
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -163,7 +163,7 @@ services:
     volumes: *volumes
     restart: always
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
     depends_on:
       redis:
         condition: service_healthy
@@ -190,7 +190,7 @@ services:
     volumes: *volumes
     restart: always
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
     depends_on:
       redis:
         condition: service_healthy
@@ -217,7 +217,7 @@ services:
     volumes: *volumes
     restart: always
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
     depends_on:
       webserver:
         condition: service_healthy
@@ -263,7 +263,7 @@ services:
     ports:
       - ${HOST_ELASTIC_PORT}:9200
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
     environment:
       - discovery.type=single-node
 
@@ -273,7 +273,7 @@ services:
     ports:
       - ${HOST_KIBANA_PORT}:5601
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
 
   postgres:
     image: postgres:12.2
@@ -285,7 +285,7 @@ services:
       - {{ host_postgres_path }}:/var/lib/postgresql/data
     restart: always
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "{{ postgres_user }}"]
       interval: 5s

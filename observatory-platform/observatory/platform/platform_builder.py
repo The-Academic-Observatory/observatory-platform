@@ -27,7 +27,6 @@ from observatory.platform.observatory_config import (
     ObservatoryConfig,
     BackendType,
     TerraformConfig,
-    WorkflowsProject,
     Observatory,
 )
 from observatory.platform.utils.config_utils import module_file_path
@@ -82,12 +81,8 @@ class PlatformBuilder(ComposeRunner):
 
             # Set default values when config is invalid
             observatory_home = Observatory.observatory_home
-            docker_network_is_external = Observatory.docker_network_is_external
-            docker_network_name = Observatory.docker_network_name
             if self.config_is_valid:
                 observatory_home = self.config.observatory.observatory_home
-                docker_network_is_external = self.config.observatory.docker_network_is_external
-                docker_network_name = self.config.observatory.docker_network_name
 
             if docker_build_path is None:
                 docker_build_path = os.path.join(observatory_home, "build", "docker")
@@ -95,11 +90,7 @@ class PlatformBuilder(ComposeRunner):
             super().__init__(
                 compose_template_path=os.path.join(self.docker_module_path, "docker-compose.observatory.yml.jinja2"),
                 build_path=docker_build_path,
-                compose_template_kwargs={
-                    "config": self.config,
-                    "docker_network_is_external": docker_network_is_external,
-                    "docker_network_name": docker_network_name
-                },
+                compose_template_kwargs={"config": self.config},
                 debug=debug,
             )
 

@@ -50,9 +50,6 @@ from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 
-from observatory.api.client.api.observatory_api import ObservatoryApi
-from observatory.api.client.api_client import ApiClient
-from observatory.api.client.configuration import Configuration
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.airflow_utils import (
@@ -861,11 +858,19 @@ class SftpFolders:
                 sftp.rename(in_progress_file, finished_file)
 
 
-def make_observatory_api() -> ObservatoryApi:
+def make_observatory_api() -> "ObservatoryApi":
     """Make the ObservatoryApi object, configuring it with a host and api_key.
 
     :return: the ObservatoryApi.
     """
+
+    try:
+        from observatory.api.client.api.observatory_api import ObservatoryApi
+        from observatory.api.client.api_client import ApiClient
+        from observatory.api.client.configuration import Configuration
+    except ImportError as e:
+        logging.error("Please install the observatory-api Python package to use the make_observatory_api function")
+        raise e
 
     # Get connection
     conn = BaseHook.get_connection(AirflowConns.OBSERVATORY_API)

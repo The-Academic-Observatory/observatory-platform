@@ -42,7 +42,7 @@ RUN groupmod -g ${HOST_GROUP_ID} airflow
 USER airflow
 
 # Install dependencies for all projects
-{%- for package in config.python_packages -%}
+{% for package in config.python_packages %}
 # Set working directory for {{ package.name }}
 ARG WORKING_DIR=/opt/{{ package.name }}
 WORKDIR ${WORKING_DIR}
@@ -51,19 +51,19 @@ WORKDIR ${WORKING_DIR}
 USER root
 RUN chown -R airflow:airflow ${WORKING_DIR}
 USER airflow
-{%- if package.type == 'editable' -%}
+{% if package.type == 'editable' %}
 
 # Install editable package: {{ package.name }}
 COPY ./requirements.{{ package.name }}.txt requirements.txt
 RUN pip3 install -r requirements.txt --user
 
-{%- elif package.type == 'sdist' -%}
+{% elif package.type == 'sdist' %}
 
 # Install sdist package: {{ package.name }}
 COPY ./{{ package.docker_package }} {{ package.docker_package }}
 RUN pip3 install {{ package.docker_package }} --user
 
-{%- elif package.type == 'pypi' -%}
+{% elif package.type == 'pypi' %}
 
 # Install PyPI package: {{ package.name }}
 RUN pip3 install {{ package.docker_package }} --user
@@ -72,7 +72,7 @@ RUN pip3 install {{ package.docker_package }} --user
 
 # Set working directory back to airflow home
 WORKDIR ${AIRFLOW_HOME}
-{%- endfor -%}
+{% endfor %}
 
 # Copy entry point scripts which install new dependencies at runtime and the Observatory Platform Python package
 USER root
