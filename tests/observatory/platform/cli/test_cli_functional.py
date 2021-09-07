@@ -16,9 +16,9 @@
 
 import glob
 import json
+import logging
 import os
 import shutil
-import socketserver
 import subprocess
 import time
 import unittest
@@ -31,6 +31,7 @@ import requests
 import stringcase
 from click.testing import CliRunner
 from cryptography.fernet import Fernet
+from redis import Redis
 
 from observatory.platform.cli.cli import cli
 from observatory.platform.observatory_config import (
@@ -43,7 +44,8 @@ from observatory.platform.observatory_config import (
     WorkflowsProject,
 )
 from observatory.platform.utils.proc_utils import stream_process
-from observatory.platform.utils.test_utils import test_fixtures_path
+from observatory.platform.utils.test_utils import test_fixtures_path, find_free_port, save_empty_file
+from observatory.platform.utils.url_utils import wait_for_url
 
 
 def list_dag_ids(
@@ -71,17 +73,6 @@ def list_dag_ids(
         dag_ids = [dag["dag_id"] for dag in dags]
 
     return set(dag_ids)
-
-
-def find_free_port(host: str = "localhost") -> int:
-    """ Find a free port.
-
-    :param host: the host.
-    :return: the free port number
-    """
-
-    with socketserver.TCPServer((host, 0), None) as tcp_server:
-        return tcp_server.server_address[1]
 
 
 def build_sdist(package_path: str) -> str:
@@ -129,6 +120,8 @@ class TestCliFunctional(unittest.TestCase):
         self.stop_cmd = ["platform", "stop", "--debug", "--config-path"]
         self.workflows_package_name = "my-workflows-project"
         self.dag_check_timeout = 180
+        self.port_wait_timeout = 180
+        self.config_file_name = "config.yaml"
 
     def make_editable_observatory_config(self, temp_dir: str) -> ObservatoryConfig:
         """ Make an editable observatory config.
@@ -198,15 +191,49 @@ class TestCliFunctional(unittest.TestCase):
                 break
         self.assertSetEqual(expected_dag_ids, actual_dag_ids)
 
+    def assert_ports_open(self, observatory: Observatory, timeout: int = 120):
+        """ Check that the ports given in the observatory object are accepting connections.
+
+        :param observatory: the observatory object.
+        :param timeout:  the length of time to wait until timing out.
+        :return: None.
+        """
+
+        # Expected values
+        expected_ports = [observatory.airflow_ui_port, observatory.flower_ui_port]
+        if observatory.enable_elk:
+            expected_ports += [
+                observatory.elastic_port,
+                observatory.kibana_port,
+            ]
+
+        # Verify that ports are active
+        urls = []
+        states = []
+        for port in expected_ports:
+            url = f"http://localhost:{port}"
+            urls.append(url)
+            logging.info(f"Waiting for URL: {url}")
+            state = wait_for_url(url, timeout=timeout)
+            logging.info(f"URL {url} state: {state}")
+            states.append(state)
+
+        # Assert states
+        for state in states:
+            self.assertTrue(state)
+
+        # Check if Redis is active
+        redis = Redis(port=observatory.redis_port, socket_connect_timeout=1)
+        self.assertTrue(redis.ping())
+
     @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
     def test_run_platform_editable(self, mock_config_load):
         """ Test that the platform runs when built from an editable project. API installed from PyPI. """
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
-            # Make empty config
-            config_path = os.path.join(t, "config.yaml")
-            open(config_path, "a").close()
+            # Save empty config
+            config_path = save_empty_file(t, self.config_file_name)
 
             # Copy platform project
             self.copy_observatory_api(t)
@@ -220,6 +247,9 @@ class TestCliFunctional(unittest.TestCase):
                 # Test that start command works
                 result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
                 self.assertEqual(os.EX_OK, result.exit_code)
+
+                # Assert that ports are open
+                self.assert_ports_open(config.observatory, timeout=self.port_wait_timeout)
 
                 # Test that default DAGs are loaded
                 self.assert_dags_loaded(
@@ -238,9 +268,8 @@ class TestCliFunctional(unittest.TestCase):
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
-            # Make empty config
-            config_path = os.path.join(t, "config.yaml")
-            open(config_path, "a").close()
+            # Save empty config
+            config_path = save_empty_file(t, self.config_file_name)
 
             # Copy projects
             self.copy_observatory_api(t)
@@ -248,7 +277,6 @@ class TestCliFunctional(unittest.TestCase):
             self.copy_workflows_project(t)
 
             # Make config object
-
             config = self.make_editable_observatory_config(t)
             config.workflows_projects = [
                 WorkflowsProject(
@@ -264,6 +292,9 @@ class TestCliFunctional(unittest.TestCase):
                 # Test that start command works
                 result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
                 self.assertEqual(os.EX_OK, result.exit_code)
+
+                # Assert that ports are open
+                self.assert_ports_open(config.observatory, timeout=self.port_wait_timeout)
 
                 # Test that default DAGs are loaded
                 self.assert_dags_loaded(
@@ -316,9 +347,8 @@ class TestCliFunctional(unittest.TestCase):
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
-            # Make empty config
-            config_path = os.path.join(t, "config.yaml")
-            open(config_path, "a").close()
+            # Save empty config
+            config_path = save_empty_file(t, self.config_file_name)
 
             # Copy platform project
             self.copy_observatory_api(t)
@@ -337,6 +367,9 @@ class TestCliFunctional(unittest.TestCase):
                 result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
                 self.assertEqual(os.EX_OK, result.exit_code)
 
+                # Assert that ports are open
+                self.assert_ports_open(config.observatory, timeout=self.port_wait_timeout)
+
                 # Test that default DAGs are loaded
                 self.assert_dags_loaded(
                     self.expected_platform_dag_ids, config, dag_check_timeout=self.dag_check_timeout
@@ -354,9 +387,8 @@ class TestCliFunctional(unittest.TestCase):
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
-            # Make empty config
-            config_path = os.path.join(t, "config.yaml")
-            open(config_path, "a").close()
+            # Save empty config
+            config_path = save_empty_file(t, self.config_file_name)
 
             # Copy projects
             self.copy_observatory_api(t)
@@ -384,6 +416,9 @@ class TestCliFunctional(unittest.TestCase):
                 # Test that start command works
                 result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
                 self.assertEqual(os.EX_OK, result.exit_code)
+
+                # Assert that ports are open
+                self.assert_ports_open(config.observatory, timeout=self.port_wait_timeout)
 
                 # Test that default DAGs are loaded
                 self.assert_dags_loaded(

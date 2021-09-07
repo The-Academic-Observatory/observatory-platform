@@ -15,7 +15,6 @@
 # Author: James Diprose
 
 import os
-import random
 import unittest
 from datetime import datetime
 from typing import Any
@@ -24,7 +23,8 @@ from unittest.mock import patch, Mock
 from click.testing import CliRunner
 
 from observatory.platform.cli.platform_command import PlatformCommand
-from observatory.platform.observatory_config import save_yaml
+from observatory.platform.observatory_config import Observatory, ObservatoryConfig, Backend, Environment, BackendType
+from observatory.platform.utils.test_utils import find_free_port, save_empty_file
 
 
 class MockUrlOpen(Mock):
@@ -38,41 +38,63 @@ class MockUrlOpen(Mock):
 
 class TestPlatformCommand(unittest.TestCase):
     def setUp(self) -> None:
-        self.airflow_ui_port = random.randint(1, 65535)
+        self.config_file_name = "config.yaml"
+        self.observatory_platform_package_name = "observatory-platform"
+        self.airflow_fernet_key = "fernet-key"
+        self.airflow_secret_key = "secret-key"
+        self.airflow_ui_port = find_free_port()
 
-    def save_config(self, file_path: str, observatory_home: str):
-        dict_ = {
-            "backend": {"type": "local", "environment": "develop"},
-            "observatory": {
-                "observatory_home": observatory_home,
-                "airflow_fernet_key": "random-fernet-key",
-                "airflow_secret_key": "random-secret-key",
-            },
-        }
+    def make_observatory_config(self, t):
+        """ Make an ObservatoryConfig instance.
 
-        save_yaml(file_path, dict_)
+        :param t: the temporary path.
+        :return: the ObservatoryConfig.
+        """
 
-    def test_ui_url(self):
+        return ObservatoryConfig(
+            backend=Backend(type=BackendType.local, environment=Environment.develop),
+            observatory=Observatory(
+                package=os.path.join(t, self.observatory_platform_package_name),
+                package_type="editable",
+                airflow_fernet_key=self.airflow_fernet_key,
+                airflow_secret_key=self.airflow_secret_key,
+                observatory_home=t,
+                airflow_ui_port=find_free_port(),
+            ),
+        )
+
+    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
+    def test_ui_url(self, mock_config_load):
         with CliRunner().isolated_filesystem() as t:
-            config_path = os.path.join(t, "config.yaml")
-            self.save_config(config_path, t)
+            # Save empty config
+            config_path = save_empty_file(t, self.config_file_name)
+
+            # Make config
+            config = self.make_observatory_config(t)
+            mock_config_load.return_value = config
+
+            # Test that ui URL is correct
             cmd = PlatformCommand(config_path)
             cmd.config.observatory.airflow_ui_port = self.airflow_ui_port
 
             self.assertEqual(f"http://localhost:{self.airflow_ui_port}", cmd.ui_url)
 
+    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
     @patch("urllib.request.urlopen")
-    def test_wait_for_airflow_ui_success(self, mock_url_open):
+    def test_wait_for_airflow_ui_success(self, mock_url_open, mock_config_load):
         # Mock the status code return value: 200 should succeed
         mock_url_open.return_value = MockUrlOpen(200)
 
         with CliRunner().isolated_filesystem() as t:
-            config_path = os.path.join(t, "config.yaml")
-            self.save_config(config_path, t)
+            # Save empty config
+            config_path = save_empty_file(t, self.config_file_name)
 
+            # Make config
+            config = self.make_observatory_config(t)
+            mock_config_load.return_value = config
+
+            # Test that ui connects
             cmd = PlatformCommand(config_path)
-            cmd.config.observatory.airflow_ui_port = self.airflow_ui_port
-
             start = datetime.now()
             state = cmd.wait_for_airflow_ui()
             end = datetime.now()
@@ -81,16 +103,22 @@ class TestPlatformCommand(unittest.TestCase):
             self.assertTrue(state)
             self.assertAlmostEquals(0, duration, delta=0.5)
 
+    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
     @patch("urllib.request.urlopen")
-    def test_wait_for_airflow_ui_failed(self, mock_url_open):
+    def test_wait_for_airflow_ui_failed(self, mock_url_open, mock_config_load):
         # Mock the status code return value: 500 should fail
         mock_url_open.return_value = MockUrlOpen(500)
 
         with CliRunner().isolated_filesystem() as t:
-            config_path = os.path.join(t, "config.yaml")
-            self.save_config(config_path, t)
-            cmd = PlatformCommand(config_path)
+            # Save empty config
+            config_path = save_empty_file(t, self.config_file_name)
 
+            # Make config
+            config = self.make_observatory_config(t)
+            mock_config_load.return_value = config
+
+            # Test that ui error
+            cmd = PlatformCommand(config_path)
             expected_timeout = 10
             start = datetime.now()
             state = cmd.wait_for_airflow_ui(expected_timeout)

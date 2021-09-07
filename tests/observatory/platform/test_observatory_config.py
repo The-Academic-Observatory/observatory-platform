@@ -68,7 +68,12 @@ class TestObservatoryConfig(unittest.TestCase):
         # Test that a minimal configuration works
         dict_ = {
             "backend": {"type": "local", "environment": "develop"},
-            "observatory": {"airflow_fernet_key": "random-fernet-key", "airflow_secret_key": "random-secret-key"},
+            "observatory": {
+                "package": "observatory-platform",
+                "package_type": "pypi",
+                "airflow_fernet_key": "random-fernet-key",
+                "airflow_secret_key": "random-secret-key",
+            },
         }
 
         file_path = "config-valid-minimal.yaml"
@@ -96,19 +101,26 @@ class TestObservatoryConfig(unittest.TestCase):
                         "transform_bucket": "my-transform-bucket-1234",
                     },
                 },
-                "observatory": {"airflow_fernet_key": "random-fernet-key", "airflow_secret_key": "random-secret-key"},
+                "observatory": {
+                    "package": "observatory-platform",
+                    "package_type": "pypi",
+                    "airflow_fernet_key": "random-fernet-key",
+                    "airflow_secret_key": "random-secret-key",
+                },
                 "airflow_variables": {"my-variable-name": "my-variable-value"},
                 "airflow_connections": {"my-connection": "http://:my-token-key@"},
                 "workflows_projects": [
                     {
-                        "package_name": "observatory-dags",
-                        "path": "/path/to/dags/project",
-                        "dags_module": "observatory.dags.dags",
+                        "package_name": "academic-observatory-workflows",
+                        "package": "/path/to/academic-observatory-workflows",
+                        "package_type": "editable",
+                        "dags_module": "academic_observatory_workflows.dags",
                     },
                     {
-                        "package_name": "observatory-dags",
-                        "path": "/path/to/dags/project",
-                        "dags_module": "observatory.dags.dags",
+                        "package_name": "oaebu-workflows",
+                        "package": "/path/to/oaebu-workflows/dist/oaeby-workflows.tar.gz",
+                        "package_type": "sdist",
+                        "dags_module": "oaebu_workflows.dags",
                     },
                 ],
             }
@@ -146,8 +158,17 @@ class TestObservatoryConfig(unittest.TestCase):
             "airflow_variables": {"my-variable-name": 1},
             "airflow_connections": {"my-connection": "token-key"},
             "workflows_projects": [
-                {"package_name": "observatory-dags", "path": "/path/to/dags/project", "dags_module": False},
-                {"package_name": "observatory-dags", "dags_module": "observatory.dags.dags"},
+                {
+                    "package_name": "academic-observatory-workflows",
+                    "package_type": "editable",
+                    "dags_module": "academic_observatory_workflows.dags",
+                },
+                {
+                    "package_name": "oaebu-workflows",
+                    "package": "/path/to/oaebu-workflows/dist/oaeby-workflows.tar.gz",
+                    "package_type": "sdist",
+                    "dags_module": False,
+                },
             ],
         }
 
@@ -172,6 +193,8 @@ class TestTerraformConfig(unittest.TestCase):
             dict_ = {
                 "backend": {"type": "terraform", "environment": "develop"},
                 "observatory": {
+                    "package": "observatory-platform",
+                    "package_type": "pypi",
                     "airflow_fernet_key": "random-fernet-key",
                     "airflow_secret_key": "random-secret-key",
                     "airflow_ui_user_password": "password",
@@ -218,6 +241,8 @@ class TestTerraformConfig(unittest.TestCase):
             dict_ = {
                 "backend": {"type": "terraform", "environment": "develop"},
                 "observatory": {
+                    "package": "observatory-platform",
+                    "package_type": "pypi",
                     "airflow_fernet_key": "random-fernet-key",
                     "airflow_secret_key": "random-secret-key",
                     "airflow_ui_user_password": "password",
@@ -249,14 +274,16 @@ class TestTerraformConfig(unittest.TestCase):
                 "airflow_connections": {"my-connection": "http://:my-token-key@"},
                 "workflows_projects": [
                     {
-                        "package_name": "observatory-dags",
-                        "path": "/path/to/dags/project",
-                        "dags_module": "observatory.dags.dags",
+                        "package_name": "academic-observatory-workflows",
+                        "package": "/path/to/academic-observatory-workflows",
+                        "package_type": "editable",
+                        "dags_module": "academic_observatory_workflows.dags",
                     },
                     {
-                        "package_name": "observatory-dags",
-                        "path": "/path/to/dags/project",
-                        "dags_module": "observatory.dags.dags",
+                        "package_name": "oaebu-workflows",
+                        "package": "/path/to/oaebu-workflows/dist/oaeby-workflows.tar.gz",
+                        "package_type": "sdist",
+                        "dags_module": "oaebu_workflows.dags",
                     },
                 ],
                 "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
@@ -273,6 +300,8 @@ class TestTerraformConfig(unittest.TestCase):
         dict_ = {
             "backend": {"type": "local", "environment": "develop"},
             "airflow": {
+                "package": "observatory-platform",
+                "package_type": "pypi",
                 "fernet_key": "random-fernet-key",
                 "secret_key": "random-secret-key",
                 "ui_user_password": "password",
@@ -312,6 +341,8 @@ class TestTerraformConfig(unittest.TestCase):
         dict_ = {
             "backend": {"type": "terraform", "environment": "develop"},
             "airflow": {
+                "package": "observatory-platform",
+                "package_type": "pypi",
                 "fernet_key": "random-fernet-key",
                 "secret_key": "random-secret-key",
                 "ui_user_password": "password",
@@ -341,10 +372,16 @@ class TestTerraformConfig(unittest.TestCase):
             "airflow_connections": {"my-connection": "my-token"},
             "workflows_projects": [
                 {
-                    "package_name": "observatory-dags",
-                    "path": "/path/to/dags/project",
-                    "dags_module": "observatory.dags.dags",
-                }
+                    "package_name": "academic-observatory-workflows",
+                    "package_type": "editable",
+                    "dags_module": "academic_observatory_workflows.dags",
+                },
+                {
+                    "package_name": "oaebu-workflows",
+                    "package": "/path/to/oaebu-workflows/dist/oaeby-workflows.tar.gz",
+                    "package_type": "sdist",
+                    "dags_module": False,
+                },
             ],
         }
 
@@ -511,9 +548,18 @@ class TestSchema(unittest.TestCase):
         schema_key = "observatory"
 
         valid_docs = [
-            {"observatory": {"airflow_fernet_key": "random-fernet-key", "airflow_secret_key": "random-secret-key"}},
             {
                 "observatory": {
+                    "package": "observatory-platform",
+                    "package_type": "pypi",
+                    "airflow_fernet_key": "random-fernet-key",
+                    "airflow_secret_key": "random-secret-key",
+                }
+            },
+            {
+                "observatory": {
+                    "package": "/path/to/observatory-platform",
+                    "package_type": "editable",
                     "airflow_fernet_key": "password",
                     "airflow_secret_key": "password",
                     "airflow_ui_user_password": "password",
@@ -528,7 +574,16 @@ class TestSchema(unittest.TestCase):
 
         expected_errors = [
             {"observatory": ["required field"]},
-            {"observatory": [{"airflow_fernet_key": ["required field"], "airflow_secret_key": ["required field"]}]},
+            {
+                "observatory": [
+                    {
+                        "package": ["required field"],
+                        "package_type": ["required field"],
+                        "airflow_fernet_key": ["required field"],
+                        "airflow_secret_key": ["required field"],
+                    }
+                ]
+            },
         ]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
@@ -542,7 +597,7 @@ class TestSchema(unittest.TestCase):
         expected_errors = [{"airflow_variables": [{1: ["must be of string type"], "key1": ["must be of string type"]}]}]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
-    def test_local_schema_dags_projects(self):
+    def test_local_schema_workflows_projects(self):
         schema = make_schema(BackendType.local)
         schema_key = "workflows_projects"
 
@@ -551,16 +606,34 @@ class TestSchema(unittest.TestCase):
             {
                 "workflows_projects": [
                     {
-                        "package_name": "observatory-dags",
-                        "path": "/path/to/dags/project",
-                        "dags_module": "observatory.dags.dags",
-                    }
-                ]
+                        "package_name": "academic-observatory-workflows",
+                        "package": "/path/to/academic-observatory-workflows",
+                        "package_type": "editable",
+                        "dags_module": "academic_observatory_workflows.dags",
+                    },
+                    {
+                        "package_name": "oaebu-workflows",
+                        "package": "/path/to/oaebu-workflows/dist/oaeby-workflows.tar.gz",
+                        "package_type": "sdist",
+                        "dags_module": "oaebu_workflows.dags",
+                    },
+                ],
             },
         ]
-        invalid_docs = [{"workflows_projects": [{"package_name": "observatory-dags", "path": "/path/to/dags/project"}]}]
+        invalid_docs = [
+            {
+                "workflows_projects": [
+                    {
+                        "package_name": "academic-observatory-workflows",
+                        "package": "/path/to/academic-observatory-workflows",
+                    }
+                ]
+            }
+        ]
 
-        expected_errors = [{"workflows_projects": [{0: [{"dags_module": ["required field"]}]}]}]
+        expected_errors = [
+            {"workflows_projects": [{0: [{"package_type": ["required field"], "dags_module": ["required field"]}]}]}
+        ]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
     def test_local_schema_airflow_connections(self):
@@ -665,6 +738,8 @@ class TestSchema(unittest.TestCase):
         valid_docs = [
             {
                 "observatory": {
+                    "package": "/path/to/observatory-platform/observatory-platform.tar.gz",
+                    "package_type": "sdist",
                     "airflow_fernet_key": "password",
                     "airflow_secret_key": "password",
                     "airflow_ui_user_password": "password",
@@ -680,6 +755,8 @@ class TestSchema(unittest.TestCase):
             {
                 "observatory": [
                     {
+                        "package": ["required field"],
+                        "package_type": ["required field"],
                         "airflow_fernet_key": ["required field"],
                         "airflow_secret_key": ["required field"],
                         "airflow_ui_user_email": ["required field"],

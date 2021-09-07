@@ -64,6 +64,7 @@ import logging
 import os
 import shutil
 import socket
+import socketserver
 import threading
 import time
 import unittest
@@ -135,6 +136,31 @@ def test_fixtures_path(*subdirs) -> str:
 
     base_path = module_file_path("tests.fixtures")
     return os.path.join(base_path, *subdirs)
+
+
+def find_free_port(host: str = "localhost") -> int:
+    """ Find a free port.
+
+    :param host: the host.
+    :return: the free port number
+    """
+
+    with socketserver.TCPServer((host, 0), None) as tcp_server:
+        return tcp_server.server_address[1]
+
+
+def save_empty_file(path: str, file_name: str) -> str:
+    """ Save empty file and return path.
+
+    :param path: the file directory.
+    :param file_name: the file name.
+    :return: the full file path.
+    """
+
+    file_path = os.path.join(path, file_name)
+    open(file_path, "a").close()
+
+    return file_path
 
 
 class ObservatoryEnvironment:
