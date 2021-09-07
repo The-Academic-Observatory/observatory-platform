@@ -167,8 +167,10 @@ class Observatory:
     kibana_port: int = 5601
     docker_network_name: str = "observatory-network"
     docker_network_is_external: bool = False
-    docker_compose_project_name: str = "observatory",
+    docker_compose_project_name: str = "observatory"
     enable_elk: bool = True
+    api_package: str = "observatory-api"
+    api_package_type: str = "pypi"
 
     def to_hcl(self):
         return to_hcl(
@@ -210,6 +212,8 @@ class Observatory:
         docker_network_is_external = dict_.get("docker_network_is_external", Observatory.docker_network_is_external)
         docker_compose_project_name = dict_.get("docker_compose_project_name", Observatory.docker_compose_project_name)
         enable_elk = dict_.get("enable_elk", Observatory.enable_elk)
+        api_package = dict_.get("api_package", Observatory.api_package)
+        api_package_type = dict_.get("api_package_type", Observatory.api_package_type)
 
         return Observatory(
             package,
@@ -228,7 +232,9 @@ class Observatory:
             docker_network_name=docker_network_name,
             docker_network_is_external=docker_network_is_external,
             docker_compose_project_name=docker_compose_project_name,
-            enable_elk=enable_elk
+            enable_elk=enable_elk,
+            api_package=api_package,
+            api_package_type=api_package_type,
         )
 
 
@@ -716,11 +722,17 @@ class ObservatoryConfig:
 
         packages = [
             PythonPackage(
+                name="observatory-api",
+                type=self.observatory.api_package_type,
+                host_package=self.observatory.api_package,
+                docker_package=os.path.basename(self.observatory.api_package),
+            ),
+            PythonPackage(
                 name="observatory-platform",
                 type=self.observatory.package_type,
                 host_package=self.observatory.package,
                 docker_package=os.path.basename(self.observatory.package),
-            )
+            ),
         ]
 
         for project in self.workflows_projects:
@@ -1148,6 +1160,8 @@ def make_schema(backend_type: BackendType) -> Dict:
             "docker_network_is_external": {"required": False, "type": "boolean"},
             "docker_compose_project_name": {"required": False, "type": "string"},
             "enable_elk": {"required": False, "type": "boolean"},
+            "api_package": {"required": False, "type": "string"},
+            "api_package_type": {"required": False, "type": "string", "allowed": package_types},
         },
     }
 

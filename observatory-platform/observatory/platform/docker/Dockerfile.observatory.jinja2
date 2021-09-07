@@ -68,7 +68,7 @@ RUN pip3 install {{ package.docker_package }} --user
 # Install PyPI package: {{ package.name }}
 RUN pip3 install {{ package.docker_package }} --user
 
-{%- endif -%}
+{% endif %}
 
 # Set working directory back to airflow home
 WORKDIR ${AIRFLOW_HOME}

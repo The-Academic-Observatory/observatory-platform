@@ -113,6 +113,8 @@ def build_sdist(package_path: str) -> str:
 class TestCliFunctional(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.observatory_api_path = module_file_path("observatory.api", nav_back_steps=-3)
+        self.observatory_api_package_name = "observatory-api"
         self.observatory_platform_path = module_file_path("observatory.platform", nav_back_steps=-3)
         self.observatory_platform_package_name = "observatory-platform"
         self.airflow_ui_user_email = "airflow@airflow.com"
@@ -123,8 +125,8 @@ class TestCliFunctional(unittest.TestCase):
         self.docker_compose_project_name = "observatory_unit_test"
         self.expected_platform_dag_ids = {"dummy_telescope", "vm_create", "vm_destroy"}
         self.expected_workflows_dag_ids = {"dummy_telescope", "vm_create", "vm_destroy", "my_dag", "hello_world_dag"}
-        self.start_cmd = ["platform", "start", "--config-path"]
-        self.stop_cmd = ["platform", "stop", "--config-path"]
+        self.start_cmd = ["platform", "start", "--debug", "--config-path"]
+        self.stop_cmd = ["platform", "stop", "--debug", "--config-path"]
         self.workflows_package_name = "my-workflows-project"
         self.dag_check_timeout = 180
 
@@ -152,9 +154,16 @@ class TestCliFunctional(unittest.TestCase):
                 kibana_port=find_free_port(),
                 docker_network_name=self.docker_network_name,
                 docker_compose_project_name=self.docker_compose_project_name,
-                enable_elk=False
+                enable_elk=False,
+                api_package_type="editable",
+                api_package=os.path.join(temp_dir, self.observatory_api_package_name),
             ),
         )
+
+    def copy_observatory_api(self, temp_dir: str):
+        """ Copy the workflows project to the test dir """
+
+        shutil.copytree(self.observatory_api_path, os.path.join(temp_dir, self.observatory_api_package_name))
 
     def copy_observatory_platform(self, temp_dir: str):
         """ Copy the workflows project to the test dir """
@@ -191,7 +200,7 @@ class TestCliFunctional(unittest.TestCase):
 
     @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
     def test_run_platform_editable(self, mock_config_load):
-        """ Test that the platform runs when built from an editable project """
+        """ Test that the platform runs when built from an editable project. API installed from PyPI. """
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -200,6 +209,7 @@ class TestCliFunctional(unittest.TestCase):
             open(config_path, "a").close()
 
             # Copy platform project
+            self.copy_observatory_api(t)
             self.copy_observatory_platform(t)
 
             # Make config object
@@ -209,7 +219,7 @@ class TestCliFunctional(unittest.TestCase):
             try:
                 # Test that start command works
                 result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(result.exit_code, os.EX_OK)
+                self.assertEqual(os.EX_OK, result.exit_code)
 
                 # Test that default DAGs are loaded
                 self.assert_dags_loaded(
@@ -218,13 +228,13 @@ class TestCliFunctional(unittest.TestCase):
 
                 # Test that stop command works
                 result = runner.invoke(cli, self.stop_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(result.exit_code, os.EX_OK)
+                self.assertEqual(os.EX_OK, result.exit_code)
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
     @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
     def test_dag_load_workflows_project_editable(self, mock_config_load):
-        """ Test that the DAGs load when build from an editable workflows project """
+        """ Test that the DAGs load when build from an editable workflows project. API installed from PyPI. """
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -233,10 +243,12 @@ class TestCliFunctional(unittest.TestCase):
             open(config_path, "a").close()
 
             # Copy projects
+            self.copy_observatory_api(t)
             self.copy_observatory_platform(t)
             self.copy_workflows_project(t)
 
             # Make config object
+
             config = self.make_editable_observatory_config(t)
             config.workflows_projects = [
                 WorkflowsProject(
@@ -251,7 +263,7 @@ class TestCliFunctional(unittest.TestCase):
             try:
                 # Test that start command works
                 result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(result.exit_code, os.EX_OK)
+                self.assertEqual(os.EX_OK, result.exit_code)
 
                 # Test that default DAGs are loaded
                 self.assert_dags_loaded(
@@ -260,22 +272,25 @@ class TestCliFunctional(unittest.TestCase):
 
                 # Test that stop command works
                 result = runner.invoke(cli, self.stop_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(result.exit_code, os.EX_OK)
+                self.assertEqual(os.EX_OK, result.exit_code)
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
-    def make_sdist_observatory_config(self, temp_dir: str, sdist_path: str) -> ObservatoryConfig:
+    def make_sdist_observatory_config(
+        self, temp_dir: str, observatory_api_sdist_path: str, observatory_sdist_path: str,
+    ) -> ObservatoryConfig:
         """ Make an sdist observatory config.
 
         :param temp_dir: the temp dir.
-        :param sdist_path: the sdist path.
+        :param observatory_api_sdist_path: the observatory-api sdist path.
+        :param observatory_sdist_path: the observatory-platform sdist path.
         :return: ObservatoryConfig.
         """
 
         return ObservatoryConfig(
             backend=Backend(type=BackendType.local, environment=Environment.develop),
             observatory=Observatory(
-                package=sdist_path,
+                package=observatory_sdist_path,
                 package_type="sdist",
                 airflow_fernet_key=self.airflow_fernet_key,
                 airflow_secret_key=self.airflow_secret_key,
@@ -289,13 +304,15 @@ class TestCliFunctional(unittest.TestCase):
                 kibana_port=find_free_port(),
                 docker_network_name=self.docker_network_name,
                 docker_compose_project_name=self.docker_compose_project_name,
-                enable_elk=False
+                enable_elk=False,
+                api_package=observatory_api_sdist_path,
+                api_package_type="sdist",
             ),
         )
 
     @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
     def test_run_platform_sdist(self, mock_config_load):
-        """ Test that the platform runs when built from a source distribution """
+        """ Test that the platform runs when built from a source distribution. API package installed from PyPI. """
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -304,19 +321,21 @@ class TestCliFunctional(unittest.TestCase):
             open(config_path, "a").close()
 
             # Copy platform project
+            self.copy_observatory_api(t)
             self.copy_observatory_platform(t)
 
             # Build sdist
-            sdist_path = build_sdist(os.path.join(t, self.observatory_platform_package_name))
+            observatory_api_sdist_path = build_sdist(os.path.join(t, self.observatory_api_package_name))
+            observatory_platform_sdist_path = build_sdist(os.path.join(t, self.observatory_platform_package_name))
 
             # Make config object
-            config = self.make_sdist_observatory_config(t, sdist_path)
+            config = self.make_sdist_observatory_config(t, observatory_api_sdist_path, observatory_platform_sdist_path)
             mock_config_load.return_value = config
 
             try:
                 # Test that start command works
                 result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(result.exit_code, os.EX_OK)
+                self.assertEqual(os.EX_OK, result.exit_code)
 
                 # Test that default DAGs are loaded
                 self.assert_dags_loaded(
@@ -325,13 +344,13 @@ class TestCliFunctional(unittest.TestCase):
 
                 # Test that stop command works
                 result = runner.invoke(cli, self.stop_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(result.exit_code, os.EX_OK)
+                self.assertEqual(os.EX_OK, result.exit_code)
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
     @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
     def test_dag_load_workflows_project_sdist(self, mock_config_load):
-        """ Test that DAGs load from an sdist workflows project """
+        """ Test that DAGs load from an sdist workflows project. API package installed from PyPI. """
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -340,15 +359,17 @@ class TestCliFunctional(unittest.TestCase):
             open(config_path, "a").close()
 
             # Copy projects
+            self.copy_observatory_api(t)
             self.copy_observatory_platform(t)
             self.copy_workflows_project(t)
 
             # Build sdists
+            observatory_api_sdist_path = build_sdist(os.path.join(t, self.observatory_api_package_name))
             observatory_sdist_path = build_sdist(os.path.join(t, self.observatory_platform_package_name))
             workflows_sdist_path = build_sdist(os.path.join(t, self.workflows_package_name))
 
             # Make config object
-            config = self.make_sdist_observatory_config(t, observatory_sdist_path)
+            config = self.make_sdist_observatory_config(t, observatory_api_sdist_path, observatory_sdist_path)
             config.workflows_projects = [
                 WorkflowsProject(
                     package_name=self.workflows_package_name,
@@ -362,7 +383,7 @@ class TestCliFunctional(unittest.TestCase):
             try:
                 # Test that start command works
                 result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(result.exit_code, os.EX_OK)
+                self.assertEqual(os.EX_OK, result.exit_code)
 
                 # Test that default DAGs are loaded
                 self.assert_dags_loaded(
@@ -371,6 +392,6 @@ class TestCliFunctional(unittest.TestCase):
 
                 # Test that stop command works
                 result = runner.invoke(cli, self.stop_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(result.exit_code, os.EX_OK)
+                self.assertEqual(os.EX_OK, result.exit_code)
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])

@@ -858,7 +858,7 @@ class SftpFolders:
                 sftp.rename(in_progress_file, finished_file)
 
 
-def make_observatory_api() -> "ObservatoryApi":
+def make_observatory_api() -> "ObservatoryApi":  # noqa: F821
     """Make the ObservatoryApi object, configuring it with a host and api_key.
 
     :return: the ObservatoryApi.
