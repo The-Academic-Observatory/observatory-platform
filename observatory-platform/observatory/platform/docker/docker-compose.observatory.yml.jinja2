@@ -57,6 +57,7 @@ x-environment: &environment
   AIRFLOW__CELERY__BROKER_URL: "redis://:@{{ redis_hostname }}:6379/0"
   AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
   AIRFLOW__CELERY_BROKER_TRANSPORT_OPTIONS__VISIBILITY_TIMEOUT: 259200
+  AIRFLOW__API__AUTH_BACKEND: airflow.api.auth.backend.basic_auth
   {%- if config.backend.type.value == 'terraform' %}
   AIRFLOW__CORE__REMOTE_LOGGING: "True"
   AIRFLOW__CORE__REMOTE_BASE_LOG_FOLDER: "gs://${AIRFLOW_VAR_AIRFLOW_BUCKET}/logs"
@@ -177,7 +178,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-    {% if config.google_cloud.credentials is not none -%}
+    {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
     {%- endif %}
@@ -196,7 +197,7 @@ services:
       postgres:
         condition: service_healthy
       {%- endif %}
-    {% if config.google_cloud.credentials is not none -%}
+    {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
     {%- endif %}
@@ -219,7 +220,7 @@ services:
     depends_on:
       webserver:
         condition: service_healthy
-    {% if config.google_cloud.credentials is not none -%}
+    {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
     {%- endif %}
@@ -233,7 +234,7 @@ services:
     <<: *networks
     depends_on:
       - scheduler
-    {% if config.google_cloud.credentials is not none -%}
+    {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
     {%- endif %}
@@ -245,13 +246,14 @@ services:
     volumes: *volumes
     restart: always
     <<: *networks
-    {% if config.google_cloud.credentials is not none -%}
+    {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
     {%- endif %}
     command: celery worker -q remote_queue
 
   {% if config.backend.type.value == 'local' -%}
+  {% if config.observatory.enable_elk -%}
   elasticsearch:
     image: "docker.elastic.co/elasticsearch/elasticsearch:7.13.3"
     restart: always
@@ -272,6 +274,7 @@ services:
       - ${HOST_KIBANA_PORT}:5601
     networks:
       - {{ config.observatory.docker_network_name }}
+  {%- endif %}
 
   postgres:
     image: postgres:12.2
@@ -285,12 +288,12 @@ services:
     networks:
       - {{ config.observatory.docker_network_name }}
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "{{ postgres_user }}"]
+      test: ["CMD", "pg_isready", "-U", "{{ postgres_user }}", "-d", "{{ airflow_db_name }}"]
       interval: 5s
       retries: 5
   {%- endif %}
 
-{% if config.google_cloud.credentials is not none -%}
+{% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
 secrets:
   google_application_credentials.json:
     file: {{ google_application_credentials }}

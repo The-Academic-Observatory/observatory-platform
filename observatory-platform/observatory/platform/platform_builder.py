@@ -60,9 +60,6 @@ class PlatformBuilder(ComposeRunner):
         self.config_path = config_path
         self.host_uid = host_uid
         self.host_gid = host_gid
-        self.dags_path = module_file_path("observatory.platform.dags")
-        self.platform_package_path = module_file_path("observatory.platform", nav_back_steps=-3)
-        self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
         self.backend_type = backend_type
 
         # Set config class based on type of backend
@@ -106,14 +103,6 @@ class PlatformBuilder(ComposeRunner):
             )
             self.add_file(
                 path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
-            )
-            self.add_file(
-                path=os.path.join(self.platform_package_path, "requirements.txt"),
-                output_file_name="requirements.observatory-platform.txt",
-            )
-            self.add_file(
-                path=os.path.join(self.api_package_path, "requirements.txt"),
-                output_file_name="requirements.observatory-api.txt",
             )
 
             # Add all project requirements files for local projects
@@ -210,7 +199,7 @@ class PlatformBuilder(ComposeRunner):
         env["HOST_KIBANA_PORT"] = str(self.config.observatory.kibana_port)
 
         # Secrets
-        if self.config.google_cloud.credentials is not None:
+        if self.config.google_cloud is not None and self.config.google_cloud.credentials is not None:
             env["HOST_GOOGLE_APPLICATION_CREDENTIALS"] = self.config.google_cloud.credentials
         env["AIRFLOW_FERNET_KEY"] = self.config.observatory.airflow_fernet_key
         env["AIRFLOW_SECRET_KEY"] = self.config.observatory.airflow_secret_key

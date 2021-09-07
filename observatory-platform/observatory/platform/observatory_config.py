@@ -149,14 +149,15 @@ class Observatory:
         :param docker_network_name: The Docker Network name, used to specify a custom Docker Network.
         :param docker_network_is_external: whether the docker network is external or not.
         :param docker_compose_project_name: The namespace for the Docker Compose containers: https://docs.docker.com/compose/reference/envvars/#compose_project_name.
+        :param enable_elk: whether to enable the elk stack or not.
      """
 
     package: str
     package_type: str
     airflow_fernet_key: str
     airflow_secret_key: str
-    airflow_ui_user_password: str = "airflow@airflow.com"
-    airflow_ui_user_email: str = "airflow"
+    airflow_ui_user_email: str = "airflow@airflow.com"
+    airflow_ui_user_password: str = "airflow"
     observatory_home: str = default_observatory_home()
     postgres_password: str = "postgres"
     redis_port: int = 6379
@@ -166,7 +167,8 @@ class Observatory:
     kibana_port: int = 5601
     docker_network_name: str = "observatory-network"
     docker_network_is_external: bool = False
-    docker_compose_project_name: str = "observatory"
+    docker_compose_project_name: str = "observatory",
+    enable_elk: bool = True
 
     def to_hcl(self):
         return to_hcl(
@@ -207,6 +209,7 @@ class Observatory:
         docker_network_name = dict_.get("docker_network_name", Observatory.docker_network_name)
         docker_network_is_external = dict_.get("docker_network_is_external", Observatory.docker_network_is_external)
         docker_compose_project_name = dict_.get("docker_compose_project_name", Observatory.docker_compose_project_name)
+        enable_elk = dict_.get("enable_elk", Observatory.enable_elk)
 
         return Observatory(
             package,
@@ -225,6 +228,7 @@ class Observatory:
             docker_network_name=docker_network_name,
             docker_network_is_external=docker_network_is_external,
             docker_compose_project_name=docker_compose_project_name,
+            enable_elk=enable_elk
         )
 
 
@@ -748,18 +752,20 @@ class ObservatoryConfig:
         # Create airflow variables from fixed config file values
         variables = [AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)]
 
-        if self.google_cloud.project_id is not None:
-            variables.append(AirflowVariable(AirflowVars.PROJECT_ID, self.google_cloud.project_id))
+        if self.google_cloud is not None:
+            if self.google_cloud.project_id is not None:
+                variables.append(AirflowVariable(AirflowVars.PROJECT_ID, self.google_cloud.project_id))
 
-        if self.google_cloud.data_location:
-            variables.append(AirflowVariable(AirflowVars.DATA_LOCATION, self.google_cloud.data_location))
+            if self.google_cloud.data_location:
+                variables.append(AirflowVariable(AirflowVars.DATA_LOCATION, self.google_cloud.data_location))
 
-        if self.terraform.organization is not None:
-            variables.append(AirflowVariable(AirflowVars.TERRAFORM_ORGANIZATION, self.terraform.organization))
+            # Create airflow variables from bucket names
+            for bucket in self.google_cloud.buckets:
+                variables.append(AirflowVariable(bucket.id, bucket.name))
 
-        # Create airflow variables from bucket names
-        for bucket in self.google_cloud.buckets:
-            variables.append(AirflowVariable(bucket.id, bucket.name))
+        if self.terraform is not None:
+            if self.terraform.organization is not None:
+                variables.append(AirflowVariable(AirflowVars.TERRAFORM_ORGANIZATION, self.terraform.organization))
 
         # Add user defined variables to list
         variables += self.airflow_variables
@@ -1141,6 +1147,7 @@ def make_schema(backend_type: BackendType) -> Dict:
             "docker_network_name": {"required": False, "type": "string"},
             "docker_network_is_external": {"required": False, "type": "boolean"},
             "docker_compose_project_name": {"required": False, "type": "string"},
+            "enable_elk": {"required": False, "type": "boolean"},
         },
     }
 
