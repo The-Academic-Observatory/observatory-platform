@@ -230,6 +230,7 @@ class TestCliFunctional(unittest.TestCase):
     def test_run_platform_editable(self, mock_config_load):
         """ Test that the platform runs when built from an editable project. API installed from PyPI. """
 
+        logging.info("test_run_platform_editable")
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
             # Save empty config
@@ -266,6 +267,7 @@ class TestCliFunctional(unittest.TestCase):
     def test_dag_load_workflows_project_editable(self, mock_config_load):
         """ Test that the DAGs load when build from an editable workflows project. API installed from PyPI. """
 
+        logging.info("test_dag_load_workflows_project_editable")
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
             # Save empty config
@@ -345,6 +347,7 @@ class TestCliFunctional(unittest.TestCase):
     def test_run_platform_sdist(self, mock_config_load):
         """ Test that the platform runs when built from a source distribution. API package installed from PyPI. """
 
+        logging.info("test_run_platform_sdist")
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
             # Save empty config
@@ -385,6 +388,7 @@ class TestCliFunctional(unittest.TestCase):
     def test_dag_load_workflows_project_sdist(self, mock_config_load):
         """ Test that DAGs load from an sdist workflows project. API package installed from PyPI. """
 
+        logging.info("test_dag_load_workflows_project_sdist")
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
             # Save empty config
