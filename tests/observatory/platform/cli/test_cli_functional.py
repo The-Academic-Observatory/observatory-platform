@@ -267,7 +267,6 @@ class TestCliFunctional(unittest.TestCase):
     def test_dag_load_workflows_project_editable(self, mock_config_load):
         """ Test that the DAGs load when build from an editable workflows project. API installed from PyPI. """
 
-        logging.info("test_dag_load_workflows_project_editable")
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
             # Save empty config
@@ -293,6 +292,9 @@ class TestCliFunctional(unittest.TestCase):
             try:
                 # Test that start command works
                 result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
+                print("test_dag_load_workflows_project_editable errors")
+                print(f"Output: {result.output}")
+                print(f"Err: {result.stderr}")
                 self.assertEqual(os.EX_OK, result.exit_code)
 
                 # Assert that ports are open
