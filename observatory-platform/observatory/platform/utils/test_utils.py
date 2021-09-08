@@ -117,7 +117,6 @@ from observatory.platform.utils.gc_utils import (
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.workflow_utils import find_schema
-from observatory.platform.utils.workflow_utils import reset_variables
 
 
 def random_id():
@@ -413,9 +412,6 @@ class ObservatoryEnvironment:
         with CliRunner().isolated_filesystem() as temp_dir:
             # Set temporary directory
             self.temp_dir = temp_dir
-
-            # Reset Airflow variables
-            reset_variables()
 
             # Prepare environment
             new_env = {self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, ".observatory")}

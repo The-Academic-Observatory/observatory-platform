@@ -17,9 +17,9 @@
 import copy
 import datetime
 import json
-from functools import partial
 import os
 import unittest
+from functools import partial
 from unittest.mock import Mock
 from unittest.mock import patch
 from urllib.parse import quote
@@ -41,6 +41,7 @@ from observatory.platform.utils.file_utils import (
     list_to_jsonl_gz,
     load_jsonl,
 )
+from observatory.platform.utils.test_utils import random_id
 from observatory.platform.utils.workflow_utils import (
     PeriodCount,
     ScheduleOptimiser,
@@ -65,7 +66,6 @@ from observatory.platform.utils.workflow_utils import (
     on_failure_callback,
     prepare_bq_load,
     prepare_bq_load_v2,
-    reset_variables,
     table_ids_from_path,
     workflow_path,
     upload_files_from_list,
@@ -73,7 +73,6 @@ from observatory.platform.utils.workflow_utils import (
 from observatory.platform.utils.workflow_utils import add_partition_date
 from observatory.platform.workflows.snapshot_telescope import SnapshotRelease, SnapshotTelescope
 from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope
-from observatory.platform.utils.test_utils import random_id
 
 DEFAULT_SCHEMA_PATH = "/path/to/schemas"
 
@@ -161,7 +160,6 @@ class TestTemplateUtils(unittest.TestCase):
             root_path = os.path.join(data_path, "telescopes")
 
             # Test getting variable from env
-            reset_variables()
             with patch.dict("os.environ", {f"AIRFLOW_VAR_{AirflowVars.DATA_PATH.upper()}": data_path}, clear=True):
                 path = workflow_path(SubFolder.downloaded, telescope_name)
             expected = os.path.join(root_path, SubFolder.downloaded.value, telescope_name)
@@ -170,7 +168,6 @@ class TestTemplateUtils(unittest.TestCase):
             self.assertEqual(0, mock_variable_get.call_count)
 
             # Mock getting home path
-            reset_variables()
             mock_variable_get.return_value = data_path
 
             # Create subdir

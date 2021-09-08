@@ -51,10 +51,10 @@ from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 
 from observatory.platform.observatory_config import Environment
-from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.airflow_utils import (
     AirflowVars,
     create_slack_webhook,
+    AirflowConns
 )
 from observatory.platform.utils.config_utils import find_schema, utils_templates_path
 from observatory.platform.utils.file_utils import load_file, write_to_file
@@ -65,8 +65,8 @@ from observatory.platform.utils.gc_utils import (
     load_bigquery_table,
     run_bigquery_query,
     upload_files_to_cloud_storage,
+    upload_file_to_cloud_storage
 )
-from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
 from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
@@ -75,39 +75,22 @@ from observatory.platform.utils.jinja2_utils import (
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
 
-# To avoid hitting the airflow database and the secret backend unnecessarily, some variables are stored as a global
-# variable and only requested once
-data_path = None
-
-
-def reset_variables():
-    """Rest Airflow variables.
-
-    :return: None.
-    """
-
-    global data_path
-
-    data_path = None
-
-
-def workflow_path(*subdirs) -> str:
+def workflow_path(*sub_dirs) -> str:
     """Return a path for saving telescope data. Create it if it doesn't exist.
-    :param subdirs: the subdirectories.
+    :param sub_dirs: the subdirectories.
     :return: the path.
     """
-    global data_path
-    if data_path is None:
-        logging.info("workflow_path: requesting data_path variable")
-        # Try to get value from env variable first, saving costs from GC secret usage
-        data_path = EnvironmentVariablesBackend().get_variable(AirflowVars.DATA_PATH)
-        if data_path is None:
-            data_path = Variable.get(AirflowVars.DATA_PATH)
 
-    subdirs = [subdir.value if isinstance(subdir, Enum) else subdir for subdir in subdirs]
+    logging.info("workflow_path: requesting data_path variable")
+    # Try to get value from env variable first, saving costs from GC secret usage
+    data_path = EnvironmentVariablesBackend().get_variable(AirflowVars.DATA_PATH)
+    if data_path is None:
+        data_path = Variable.get(AirflowVars.DATA_PATH)
+
+    sub_dirs_ = [subdir.value if isinstance(subdir, Enum) else subdir for subdir in sub_dirs]
 
     # Create telescope path
-    path = os.path.join(data_path, "telescopes", *subdirs)
+    path = os.path.join(data_path, "telescopes", *sub_dirs_)
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
     return path
