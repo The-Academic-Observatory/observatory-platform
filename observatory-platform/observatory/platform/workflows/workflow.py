@@ -32,11 +32,11 @@ import pendulum
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import chain
+from airflow.models.variable import Variable
 from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.sensors.base import BaseSensorOperator
 
 from observatory.platform.utils.airflow_utils import (
-    AirflowVariable,
     AirflowVars,
     check_connections,
     check_variables,
@@ -588,14 +588,14 @@ class Release(AbstractRelease):
         """The download bucket name.
         :return: the download bucket name.
         """
-        return AirflowVariable.get(AirflowVars.DOWNLOAD_BUCKET)
+        return Variable.get(AirflowVars.DOWNLOAD_BUCKET)
 
     @property
     def transform_bucket(self):
         """The transform bucket name.
         :return: the transform bucket name.
         """
-        return AirflowVariable.get(AirflowVars.TRANSFORM_BUCKET)
+        return Variable.get(AirflowVars.TRANSFORM_BUCKET)
 
     def cleanup(self) -> None:
         """Delete all files and folders associated with this release.

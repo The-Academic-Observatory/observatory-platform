@@ -19,8 +19,24 @@ import json
 import logging
 
 from airflow.models import DagBag, Variable
-from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars
+from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
+
+
+def get_dags_modules() -> dict:
+    """ Get the dags modules from the Airflow Variable
+
+    :return: Dags modules
+    """
+    # Try to get value from env variable first, saving costs from GC secret usage
+    dags_modules_str = EnvironmentVariablesBackend().get_variable(AirflowVars.DAGS_MODULE_NAMES)
+    if not dags_modules_str:
+        dags_modules_str = Variable.get(AirflowVars.DAGS_MODULE_NAMES)
+    logging.info(f"dags_modules str: {dags_modules_str}")
+    dags_modules = json.loads(dags_modules_str)
+    logging.info(f"dags_modules: {dags_modules}")
+    return dags_modules
 
 
 def load_dag_bag(path: str) -> None:
@@ -38,10 +54,7 @@ def load_dag_bag(path: str) -> None:
 
 
 # Load DAGs for each DAG path
-dags_modules_str = AirflowVariable.get(AirflowVars.DAGS_MODULE_NAMES)
-logging.info(f"dags_modules str: {dags_modules_str}")
-dags_modules = json.loads(dags_modules_str)
-logging.info(f"dags_modules: {dags_modules}")
+dags_modules = get_dags_modules()
 for module_name in dags_modules:
     dags_path = module_file_path(module_name)
     logging.info(f"{module_name} DAGs path: {dags_path}")
