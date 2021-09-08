@@ -109,6 +109,12 @@ class PlatformBuilder(ComposeRunner):
             if self.config is not None and self.config_is_valid:
                 for package in self.config.python_packages:
                     if package.type == "editable":
+                        # Add requirements.sh
+                        self.add_file(
+                            path=os.path.join(package.host_package, "requirements.sh"),
+                            output_file_name=f"requirements.{package.name}.sh",
+                        )
+
                         # Add project requirements files for local projects
                         self.add_file(
                             path=os.path.join(package.host_package, "requirements.txt"),

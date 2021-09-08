@@ -22,15 +22,7 @@ ARG OBSERVATORY_HOME=/opt/observatory
 
 # Install git which is required when installing dependencies with pip
 USER root
-RUN apt-get update -yqq && apt-get install git build-essential pigz mawk unzip openjdk-11-jre -y
-
-# Set Java home
-ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-
-# Install google cloud sdk as root user, used in ORCID telescope
-RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | \
-tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
-apt-key --keyring /usr/share/keyrings/cloud.google.gpg  add - && apt-get update -y && apt-get install google-cloud-sdk -y
+RUN apt-get update -yqq
 
 # Change airflow user's user id to the hosts user id
 RUN usermod -u ${HOST_USER_ID} airflow
@@ -53,6 +45,13 @@ RUN chown -R airflow:airflow ${WORKING_DIR}
 USER airflow
 {% if package.type == 'editable' %}
 
+# Install editable package system dependencies: {{ package.name }}
+COPY ./requirements.{{ package.name }}.sh requirements.sh
+USER root
+RUN chmod +x ./requirements.sh
+RUN ./requirements.sh
+USER airflow
+
 # Install editable package: {{ package.name }}
 COPY ./requirements.{{ package.name }}.txt requirements.txt
 RUN pip3 install -r requirements.txt --user
@@ -61,6 +60,16 @@ RUN pip3 install -r requirements.txt --user
 
 # Install sdist package: {{ package.name }}
 COPY ./{{ package.docker_package }} {{ package.docker_package }}
+
+# Extract sdist and install requirements.sh
+RUN tar -xf {{ package.docker_package }} --one-top-level=sdist --strip-components 1
+RUN cp sdist/requirements.sh ./requirements.sh
+USER root
+RUN chmod +x ./requirements.sh
+RUN ./requirements.sh
+USER airflow
+
+# Install Python package
 RUN pip3 install {{ package.docker_package }} --user
 
 {% elif package.type == 'pypi' %}
