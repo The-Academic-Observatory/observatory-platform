@@ -77,7 +77,7 @@ RUN pip3 install {{ package.docker_package }} --user
 # Install PyPI package: {{ package.name }}
 
 # Extract sdist and install requirements.sh
-RUN pip3 download {{ package.docker_package }} --no-binary --no-deps
+RUN pip3 download {{ package.docker_package }} --no-binary :all: --no-deps
 RUN tar -xf {{ package.docker_package }}.tar.gz --one-top-level=sdist --strip-components 1
 RUN cp sdist/requirements.sh ./requirements.sh
 USER root
