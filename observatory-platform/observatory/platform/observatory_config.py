@@ -30,7 +30,7 @@ from cerberus import Validator
 from cryptography.fernet import Fernet
 
 from observatory.platform.terraform_api import TerraformVariable
-from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars
+from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.config_utils import observatory_home as default_observatory_home
 from observatory.platform.utils.jinja2_utils import render_template
@@ -900,6 +900,8 @@ class TerraformConfig(ObservatoryConfig):
 
         if self.google_cloud.project_id is not None:
             variables.append(AirflowVariable(AirflowVars.PROJECT_ID, self.google_cloud.project_id))
+            variables.append(AirflowVariable(AirflowVars.DOWNLOAD_BUCKET, f"{self.google_cloud.project_id}-download"))
+            variables.append(AirflowVariable(AirflowVars.TRANSFORM_BUCKET, f"{self.google_cloud.project_id}-transform"))
 
         if self.google_cloud.data_location:
             variables.append(AirflowVariable(AirflowVars.DATA_LOCATION, self.google_cloud.data_location))

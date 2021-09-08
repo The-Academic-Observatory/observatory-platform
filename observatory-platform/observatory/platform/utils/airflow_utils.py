@@ -18,23 +18,19 @@
 Airflow utility functions (independent of telescope or google cloud usage)
 """
 
-import json
 import logging
 from typing import Any, List, Optional, Union
 
-import airflow.secrets
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection, TaskInstance, Variable
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookHook
 from airflow.utils.db import create_session
-from google.api_core.exceptions import PermissionDenied
 
 
 class AirflowVars:
     """ Common Airflow Variable names used with the Observatory Platform """
 
-    TEST_DATA_PATH = "test_data_path"
     DATA_PATH = "data_path"
     ENVIRONMENT = "environment"
     PROJECT_ID = "project_id"
@@ -43,8 +39,6 @@ class AirflowVars:
     TRANSFORM_BUCKET = "transform_bucket"
     TERRAFORM_ORGANIZATION = "terraform_organization"
     DAGS_MODULE_NAMES = "dags_module_names"
-    KIBANA_SPACES = "kibana_spaces"
-    OBSERVATORY_API = "observatory_api"
     ORCID_BUCKET = "orcid_bucket"
     VM_DAGS_WATCH_LIST = "vm_dags_watch_list"
 
@@ -67,44 +61,6 @@ class AirflowConns:
     OBSERVATORY_API = "observatory_api"
     GMAIL_API = "gmail_api"
     ORCID = "orcid"
-
-
-def get_variable(key: str) -> Optional[str]:
-    """Get Airflow Variable by iterating over all Secret Backends.
-
-    :param key: Variable Key
-    :return: Variable Value
-    """
-    for secrets_backend in airflow.configuration.ensure_secrets_loaded():
-        # Added try/except statement.
-        try:
-            var_val = secrets_backend.get_variable(key=key)
-        except PermissionDenied as err:
-            print(f"Secret does not exist or cannot be accessed: {err}")
-            var_val = None
-        if var_val is not None:
-            return var_val
-
-    return None
-
-
-class AirflowVariable(Variable):
-    __NO_DEFAULT_SENTINEL = object()
-
-    @classmethod
-    def get(cls, key: str, default_var: Any = __NO_DEFAULT_SENTINEL, deserialize_json: bool = False, session=None):
-        var_val = get_variable(key=key)
-
-        if var_val is None:
-            if default_var is not cls.__NO_DEFAULT_SENTINEL:
-                return default_var
-            else:
-                raise KeyError("Variable {} does not exist".format(key))
-        else:
-            if deserialize_json:
-                return json.loads(var_val)
-            else:
-                return var_val
 
 
 def change_task_log_level(new_levels: Union[List, int]) -> list:
@@ -146,7 +102,7 @@ def check_variables(*variables):
     is_valid = True
     for name in variables:
         try:
-            AirflowVariable.get(name)
+            Variable.get(name)
         except KeyError:
             logging.error(f"Airflow variable '{name}' not set.")
             is_valid = False

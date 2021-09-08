@@ -85,10 +85,6 @@ x-environment: &environment
   # Variables
   AIRFLOW_VAR_DATA_PATH: "/opt/observatory/data"
   AIRFLOW_VAR_DAGS_MODULE_NAMES: {{ dags_projects_to_str(config.dags_projects)  }}
-  {%- if config.backend.type.value == 'terraform' %}
-  AIRFLOW_VAR_DOWNLOAD_BUCKET: ${AIRFLOW_VAR_DOWNLOAD_BUCKET}
-  AIRFLOW_VAR_TRANSFORM_BUCKET: ${AIRFLOW_VAR_TRANSFORM_BUCKET}
-  {%- endif %}
   {%- for var in config.make_airflow_variables() %}
   {%- if config.backend.type.value == 'local' %}
   {{ var.env_var_name }}: '{{ var.value }}'
