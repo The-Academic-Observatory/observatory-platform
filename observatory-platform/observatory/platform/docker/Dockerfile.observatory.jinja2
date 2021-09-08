@@ -62,7 +62,7 @@ RUN pip3 install -r requirements.txt --user
 COPY ./{{ package.docker_package }} {{ package.docker_package }}
 
 # Extract sdist and install requirements.sh
-RUN tar -xf {{ package.docker_package }} --one-top-level=sdist --strip-components 1
+RUN tar -xf *.tar.gz --one-top-level=sdist --strip-components 1
 RUN cp sdist/requirements.sh ./requirements.sh
 USER root
 RUN chmod +x ./requirements.sh
@@ -78,7 +78,7 @@ RUN pip3 install {{ package.docker_package }} --user
 
 # Extract sdist and install requirements.sh
 RUN pip3 download {{ package.docker_package }} --no-binary :all: --no-deps
-RUN tar -xf {{ package.docker_package }}.tar.gz --one-top-level=sdist --strip-components 1
+RUN tar -xf *.tar.gz --one-top-level=sdist --strip-components 1
 RUN cp sdist/requirements.sh ./requirements.sh
 USER root
 RUN chmod +x ./requirements.sh
