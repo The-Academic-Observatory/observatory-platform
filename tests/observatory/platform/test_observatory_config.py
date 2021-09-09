@@ -118,7 +118,7 @@ class TestObservatoryConfig(unittest.TestCase):
                     },
                     {
                         "package_name": "oaebu-workflows",
-                        "package": "/path/to/oaebu-workflows/dist/oaeby-workflows.tar.gz",
+                        "package": "/path/to/oaebu-workflows/dist/oaebu-workflows.tar.gz",
                         "package_type": "sdist",
                         "dags_module": "oaebu_workflows.dags",
                     },
@@ -165,7 +165,7 @@ class TestObservatoryConfig(unittest.TestCase):
                 },
                 {
                     "package_name": "oaebu-workflows",
-                    "package": "/path/to/oaebu-workflows/dist/oaeby-workflows.tar.gz",
+                    "package": "/path/to/oaebu-workflows/dist/oaebu-workflows.tar.gz",
                     "package_type": "sdist",
                     "dags_module": False,
                 },
@@ -281,7 +281,7 @@ class TestTerraformConfig(unittest.TestCase):
                     },
                     {
                         "package_name": "oaebu-workflows",
-                        "package": "/path/to/oaebu-workflows/dist/oaeby-workflows.tar.gz",
+                        "package": "/path/to/oaebu-workflows/dist/oaebu-workflows.tar.gz",
                         "package_type": "sdist",
                         "dags_module": "oaebu_workflows.dags",
                     },
@@ -378,7 +378,7 @@ class TestTerraformConfig(unittest.TestCase):
                 },
                 {
                     "package_name": "oaebu-workflows",
-                    "package": "/path/to/oaebu-workflows/dist/oaeby-workflows.tar.gz",
+                    "package": "/path/to/oaebu-workflows/dist/oaebu-workflows.tar.gz",
                     "package_type": "sdist",
                     "dags_module": False,
                 },
@@ -613,7 +613,7 @@ class TestSchema(unittest.TestCase):
                     },
                     {
                         "package_name": "oaebu-workflows",
-                        "package": "/path/to/oaebu-workflows/dist/oaeby-workflows.tar.gz",
+                        "package": "/path/to/oaebu-workflows/dist/oaebu-workflows.tar.gz",
                         "package_type": "sdist",
                         "dags_module": "oaebu_workflows.dags",
                     },
