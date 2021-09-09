@@ -47,17 +47,20 @@ class DagRunSensor(BaseSensorOperator):
         *,
         external_dag_id: str,
         duration: datetime.timedelta,
+        check_exists: bool = True,
         **kwargs,
     ):
         """
         :param external_dag_id: The DAG ID to monitor.
         :param duration: Size of the window to look back from the current execution date.
+        :param check_exists: Whether to perform check for dag existence.
         :param kwargs: Pass the rest of the parameters to the ExternalTaskSensor.
         """
         super().__init__(**kwargs)
 
         self.duration = duration
         self.external_dag_id = external_dag_id
+        self.check_exists = check_exists
 
     @provide_session
     def poke(self, context: Dict, session: scoped_session = None):
@@ -71,7 +74,8 @@ class DagRunSensor(BaseSensorOperator):
         success_state = True
         retry_state = False
 
-        self.check_dag_exists(session)
+        if self.check_exists:
+            self.check_dag_exists(session)
         execution_date = context["execution_date"]
 
         date = self.get_latest_execution_date(session=session, execution_date=execution_date)
