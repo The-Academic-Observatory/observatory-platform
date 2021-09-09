@@ -17,15 +17,15 @@
 
 import datetime
 import os
+from time import sleep
 from typing import Dict, List, Union
-
-from sqlalchemy.orm.scoping import scoped_session
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+from sqlalchemy.orm.scoping import scoped_session
 
 
 class DagRunSensor(BaseSensorOperator):
@@ -48,12 +48,14 @@ class DagRunSensor(BaseSensorOperator):
         external_dag_id: str,
         duration: datetime.timedelta,
         check_exists: bool = True,
+        grace_period: datetime.timedelta = datetime.timedelta(minutes=10),
         **kwargs,
     ):
         """
         :param external_dag_id: The DAG ID to monitor.
         :param duration: Size of the window to look back from the current execution date.
         :param check_exists: Whether to perform check for dag existence.
+        :param grace_period: If no dag run can be found, sleep for this short grace period and try again.
         :param kwargs: Pass the rest of the parameters to the ExternalTaskSensor.
         """
         super().__init__(**kwargs)
@@ -61,6 +63,7 @@ class DagRunSensor(BaseSensorOperator):
         self.duration = duration
         self.external_dag_id = external_dag_id
         self.check_exists = check_exists
+        self.grace_period = grace_period
 
     @provide_session
     def poke(self, context: Dict, session: scoped_session = None):
@@ -79,6 +82,15 @@ class DagRunSensor(BaseSensorOperator):
         execution_date = context["execution_date"]
 
         date = self.get_latest_execution_date(session=session, execution_date=execution_date)
+
+        # If no execution_date could be found, sleep the grace period, and try again once.This will sleep the duration
+        # of the grace period and try again. This is an alternative to scheduling the workflow at a slightly later time
+        # to allow Airflow to record the dagrun in the database.
+        # Note that this occupies a slot in execution queue.
+        if date is None:
+            sleep(self.grace_period.total_seconds())
+            date = self.get_latest_execution_date(session=session, execution_date=execution_date)
+
         if not date:
             return success_state
 

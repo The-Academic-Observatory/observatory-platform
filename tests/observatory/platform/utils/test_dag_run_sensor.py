@@ -15,6 +15,7 @@
 # Author: Tuan Chien
 
 import datetime
+from unittest.mock import patch
 
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
@@ -54,6 +55,7 @@ class MonitoringWorkflow(Workflow):
             timeout=2,
             mode=mode,
             check_exists=check_exists,
+            grace_period=datetime.timedelta(seconds=1),
         )
 
         self.add_sensor(sensor)
@@ -127,6 +129,20 @@ class TestDagRunSensor(ObservatoryTestCase):
             with env.create_dag_run(dag=dag, execution_date=execution_date):
                 ti = env.run_task("sensor_task", dag, execution_date=execution_date)
                 self.assertEqual(ti.state, State.SUCCESS)
+
+    @patch("observatory.platform.utils.dag_run_sensor.DagRunSensor.get_latest_execution_date")
+    def test_grace_period(self, m_get_execdate):
+        m_get_execdate.return_value = None
+        env = ObservatoryEnvironment()
+        with env.create():
+            execution_date = datetime.datetime(2021, 9, 1, tzinfo=datetime.timezone.utc)
+            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
+            dag = wf.make_dag()
+            with env.create_dag_run(dag=dag, execution_date=execution_date):
+                ti = env.run_task("sensor_task", dag, execution_date=execution_date)
+                self.assertEqual(ti.state, State.SUCCESS)
+
+            self.assertEqual(m_get_execdate.call_count, 2)
 
     def test_execution_on_oldest_boundary(self):
         env = ObservatoryEnvironment()
