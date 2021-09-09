@@ -22,7 +22,7 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from observatory.platform.observatory_config import save_yaml
+from observatory.platform.observatory_config import save_yaml, module_file_path
 from observatory.platform.terraform_builder import TerraformBuilder
 from observatory.platform.utils.proc_utils import stream_process
 
@@ -39,20 +39,27 @@ class Popen(Mock):
 class TestTerraformBuilder(unittest.TestCase):
     def setUp(self) -> None:
         self.is_env_local = True
+        self.observatory_platform_path = module_file_path("observatory.platform", nav_back_steps=-3)
+        self.observatory_api_path = module_file_path("observatory.api", nav_back_steps=-3)
 
-    def save_terraform_config(self, file_path: str, observatory_home: str):
+    def save_terraform_config(self, t: str):
+        config_path = os.path.join(t, "config.yaml")
         credentials_path = os.path.abspath("creds.json")
         open(credentials_path, "a").close()
 
         dict_ = {
             "backend": {"type": "terraform", "environment": "develop"},
             "observatory": {
-                "observatory_home": observatory_home,
+                "package": self.observatory_platform_path,
+                "package_type": "editable",
                 "airflow_fernet_key": "random-fernet-key",
                 "airflow_secret_key": "random-secret-key",
                 "airflow_ui_user_password": "password",
                 "airflow_ui_user_email": "password",
                 "postgres_password": "my-password",
+                "observatory_home": t,
+                "api_package": self.observatory_api_path,
+                "api_package_type": "editable",
             },
             "terraform": {"organization": "hello world"},
             "google_cloud": {
@@ -76,7 +83,9 @@ class TestTerraformBuilder(unittest.TestCase):
             "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
         }
 
-        save_yaml(file_path, dict_)
+        save_yaml(config_path, dict_)
+
+        return config_path
 
     def test_is_environment_valid(self):
         with CliRunner().isolated_filesystem() as t:
@@ -88,7 +97,7 @@ class TestTerraformBuilder(unittest.TestCase):
 
             # Environment should be valid because there is a config.yaml
             # Assumes that Docker is setup on the system where the tests are run
-            self.save_terraform_config(config_path, t)
+            config_path = self.save_terraform_config(t)
             cmd = TerraformBuilder(config_path=config_path)
             self.assertTrue(cmd.is_environment_valid)
 
@@ -107,10 +116,8 @@ class TestTerraformBuilder(unittest.TestCase):
         """ Test building of the terraform files """
 
         with CliRunner().isolated_filesystem() as t:
-            config_path = os.path.join(t, "config.yaml")
-
             # Save default config file
-            self.save_terraform_config(config_path, t)
+            config_path = self.save_terraform_config(t)
 
             # Make observatory files
             cmd = TerraformBuilder(config_path=config_path)
@@ -163,12 +170,11 @@ class TestTerraformBuilder(unittest.TestCase):
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
-            config_path = os.path.join(t, "config.yaml")
             mock_subprocess.return_value = Popen()
             mock_stream_process.return_value = ("", "")
 
             # Save default config file
-            self.save_terraform_config(config_path, t)
+            config_path = self.save_terraform_config(t)
 
             # Make observatory files
             cmd = TerraformBuilder(config_path=config_path)
@@ -187,12 +193,11 @@ class TestTerraformBuilder(unittest.TestCase):
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
-            config_path = os.path.join(t, "config.yaml")
             mock_subprocess.return_value = Popen()
             mock_stream_process.return_value = ("", "")
 
             # Save default config file
-            self.save_terraform_config(config_path, t)
+            config_path = self.save_terraform_config(t)
 
             # Make observatory files
             cmd = TerraformBuilder(config_path=config_path)
@@ -211,12 +216,11 @@ class TestTerraformBuilder(unittest.TestCase):
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
-            config_path = os.path.join(t, "config.yaml")
             mock_subprocess.return_value = Popen()
             mock_stream_process.return_value = ("", "")
 
             # Save default config file
-            self.save_terraform_config(config_path, t)
+            config_path = self.save_terraform_config(t)
 
             # Make observatory files
             cmd = TerraformBuilder(config_path=config_path)
@@ -233,10 +237,8 @@ class TestTerraformBuilder(unittest.TestCase):
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
-            config_path = os.path.join(t, "config.yaml")
-
             # Save default config file
-            self.save_terraform_config(config_path, t)
+            config_path = self.save_terraform_config(t)
 
             # Make observatory files
             cmd = TerraformBuilder(config_path=config_path)

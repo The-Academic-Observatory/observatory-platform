@@ -17,17 +17,14 @@
 import json
 import os
 import unittest
-from typing import Any
-from typing import List
-from unittest.mock import Mock
-from unittest.mock import patch
+from typing import Any, List
+from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
 
 from observatory.platform.cli.cli import cli
 from observatory.platform.docker.compose import ProcessOutput
-from observatory.platform.observatory_config import TerraformConfig
-from observatory.platform.observatory_config import ValidationError
+from observatory.platform.observatory_config import TerraformConfig, ValidationError
 from observatory.platform.platform_builder import HOST_UID, HOST_GID, DEBUG
 from observatory.platform.terraform_api import TerraformApi
 from observatory.platform.utils.test_utils import random_id
@@ -121,7 +118,7 @@ class MockPlatformCommand(Mock):
         wait_for_airflow_ui: bool,
         config_path: str,
         dags_path: str,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.is_environment_valid = is_environment_valid
@@ -388,6 +385,8 @@ class TestObservatoryTerraform(unittest.TestCase):
                 {
                     "backend": {"type": "terraform", "environment": "develop"},
                     "observatory": {
+                        "package": "observatory-platform",
+                        "package_type": "pypi",
                         "airflow_fernet_key": "random-fernet-key",
                         "airflow_secret_key": "random-secret-key",
                         "airflow_ui_user_password": "password",

@@ -17,36 +17,13 @@
 
 # This script is run as the airflow user
 
-# Set PBR version for installing packages
-export PBR_VERSION=0.0.1
+########################################
+# Install editable mode Python packages
+########################################
 
-###############################
-# Install observatory-api
-###############################
-# Enter observatory platform folder
-cd /opt/observatory-api
-
-# Install the Observatory API Python package
-pip3 install -e . --user
-
-###############################
-# Install observatory-platform
-###############################
-# Enter observatory platform folder
-cd /opt/observatory-platform
-
-# Install the Observatory Platform Python package
-pip3 install -e . --user
-
-unset PBR_VERSION
-
-#########################
-# Install dags projects
-#########################
-
-{% for project in config.dags_projects %}
-{% if project.type == 'local' -%}
-cd /opt/{{ project.package_name }}
+{% for package in config.python_packages %}
+{% if package.type == 'editable' -%}
+cd /opt/{{ package.name }}
 pip3 install -r requirements.txt
 
 export PBR_VERSION=0.0.1

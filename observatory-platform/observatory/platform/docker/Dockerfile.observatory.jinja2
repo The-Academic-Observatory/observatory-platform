@@ -22,15 +22,7 @@ ARG OBSERVATORY_HOME=/opt/observatory
 
 # Install git which is required when installing dependencies with pip
 USER root
-RUN apt-get update -yqq && apt-get install git build-essential pigz mawk unzip openjdk-11-jre -y
-
-# Set Java home
-ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-
-# Install google cloud sdk as root user, used in ORCID telescope
-RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | \
-tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
-apt-key --keyring /usr/share/keyrings/cloud.google.gpg  add - && apt-get update -y && apt-get install google-cloud-sdk -y
+RUN apt-get update -yqq
 
 # Change airflow user's user id to the hosts user id
 RUN usermod -u ${HOST_USER_ID} airflow
@@ -41,50 +33,66 @@ RUN groupmod -g ${HOST_GROUP_ID} airflow
 # Install Python dependencies for Observatory Platform as airflow user
 USER airflow
 
-# Install observatory api requirements
-ARG WORKING_DIR=${OBSERVATORY_HOME}/observatory-api
-WORKDIR ${WORKING_DIR}
-COPY ./requirements.observatory-api.txt requirements.txt
-RUN pip3 install -r requirements.txt --user
-
-# Install observatory platform requirements
-ARG WORKING_DIR=${OBSERVATORY_HOME}/observatory-platform
-WORKDIR ${WORKING_DIR}
-COPY ./requirements.observatory-platform.txt requirements.txt
-RUN pip3 install -r requirements.txt --user
-
-# Install dependencies for DAGs projects for local projects and intall entire projects for git and PyPI based projects
-{% for project in config.dags_projects %}
-# Set working directory for {{ project.package_name }}
-ARG WORKING_DIR=/opt/{{ project.package_name }}
+# Install dependencies for all projects
+{% for package in config.python_packages %}
+# Set working directory for {{ package.name }}
+ARG WORKING_DIR=/opt/{{ package.name }}
 WORKDIR ${WORKING_DIR}
 
 # Change owner of directory to airflow
 USER root
 RUN chown -R airflow:airflow ${WORKING_DIR}
 USER airflow
+{% if package.type == 'editable' %}
 
-{% if project.type == 'local' -%}
-# Copy requirements file for {{ project.package_name }} and install
-COPY ./requirements.{{ project.package_name }}.txt requirements.txt
-# Remove first line as this is observatory-platform
-RUN sed -i '1d' requirements.txt
+# Install editable package system dependencies: {{ package.name }}
+COPY ./requirements.{{ package.name }}.sh requirements.sh
+USER root
+RUN chmod +x ./requirements.sh
+RUN ./requirements.sh
+USER airflow
+
+# Install editable package: {{ package.name }}
+COPY ./requirements.{{ package.name }}.txt requirements.txt
 RUN pip3 install -r requirements.txt --user
 
-{% elif project.type == 'git' %}
-# Clone {{ project.package_name }} and install
-RUN git clone {{ project.package_name }} .
-RUN pip3 install -e . --user
+{% elif package.type == 'sdist' %}
 
-{% else %}
-# Install {{ project.package_name }} from Github
-RUN pip3 install {{ project.package_name }} --user
+# Install sdist package: {{ package.name }}
+COPY ./{{ package.docker_package }} {{ package.docker_package }}
+
+# Extract sdist and install requirements.sh
+RUN tar -xf *.tar.gz --one-top-level=sdist --strip-components 1
+RUN cp sdist/requirements.sh ./requirements.sh
+USER root
+RUN chmod +x ./requirements.sh
+RUN ./requirements.sh
+USER airflow
+
+# Install Python package
+RUN pip3 install {{ package.docker_package }} --user
+
+{% elif package.type == 'pypi' %}
+
+# Install PyPI package: {{ package.name }}
+
+# Extract sdist and install requirements.sh
+RUN pip3 download {{ package.docker_package }} --no-binary :all: --no-deps
+RUN tar -xf *.tar.gz --one-top-level=sdist --strip-components 1
+RUN cp sdist/requirements.sh ./requirements.sh
+USER root
+RUN chmod +x ./requirements.sh
+RUN ./requirements.sh
+USER airflow
+
+# Install package with PyPI
+RUN pip3 install {{ package.docker_package }} --user
 
 {% endif %}
-{% endfor %}
 
-# Set working directory to airflow home
+# Set working directory back to airflow home
 WORKDIR ${AIRFLOW_HOME}
+{% endfor %}
 
 # Copy entry point scripts which install new dependencies at runtime and the Observatory Platform Python package
 USER root

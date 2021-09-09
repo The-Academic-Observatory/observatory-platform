@@ -27,7 +27,6 @@ from observatory.platform.observatory_config import (
     ObservatoryConfig,
     BackendType,
     TerraformConfig,
-    DagsProject,
     Observatory,
 )
 from observatory.platform.utils.config_utils import module_file_path
@@ -61,9 +60,6 @@ class PlatformBuilder(ComposeRunner):
         self.config_path = config_path
         self.host_uid = host_uid
         self.host_gid = host_gid
-        self.dags_path = module_file_path("observatory.platform.dags")
-        self.platform_package_path = module_file_path("observatory.platform", nav_back_steps=-3)
-        self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
         self.backend_type = backend_type
 
         # Set config class based on type of backend
@@ -82,12 +78,8 @@ class PlatformBuilder(ComposeRunner):
 
             # Set default values when config is invalid
             observatory_home = Observatory.observatory_home
-            docker_network_is_external = Observatory.docker_network_is_external
-            docker_network_name = Observatory.docker_network_name
             if self.config_is_valid:
                 observatory_home = self.config.observatory.observatory_home
-                docker_network_is_external = self.config.observatory.docker_network_is_external
-                docker_network_name = self.config.observatory.docker_network_name
 
             if docker_build_path is None:
                 docker_build_path = os.path.join(observatory_home, "build", "docker")
@@ -95,12 +87,7 @@ class PlatformBuilder(ComposeRunner):
             super().__init__(
                 compose_template_path=os.path.join(self.docker_module_path, "docker-compose.observatory.yml.jinja2"),
                 build_path=docker_build_path,
-                compose_template_kwargs={
-                    "config": self.config,
-                    "docker_network_is_external": docker_network_is_external,
-                    "docker_network_name": docker_network_name,
-                    "dags_projects_to_str": DagsProject.dags_projects_to_str,
-                },
+                compose_template_kwargs={"config": self.config},
                 debug=debug,
             )
 
@@ -117,23 +104,25 @@ class PlatformBuilder(ComposeRunner):
             self.add_file(
                 path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
             )
-            self.add_file(
-                path=os.path.join(self.platform_package_path, "requirements.txt"),
-                output_file_name="requirements.observatory-platform.txt",
-            )
-            self.add_file(
-                path=os.path.join(self.api_package_path, "requirements.txt"),
-                output_file_name="requirements.observatory-api.txt",
-            )
 
             # Add all project requirements files for local projects
-            if self.config is not None:
-                for project in self.config.dags_projects:
-                    if project.type == "local":
+            if self.config is not None and self.config_is_valid:
+                for package in self.config.python_packages:
+                    if package.type == "editable":
+                        # Add requirements.sh
                         self.add_file(
-                            path=os.path.join(project.path, "requirements.txt"),
-                            output_file_name=f"requirements.{project.package_name}.txt",
+                            path=os.path.join(package.host_package, "requirements.sh"),
+                            output_file_name=f"requirements.{package.name}.sh",
                         )
+
+                        # Add project requirements files for local projects
+                        self.add_file(
+                            path=os.path.join(package.host_package, "requirements.txt"),
+                            output_file_name=f"requirements.{package.name}.txt",
+                        )
+                    elif package.type == "sdist":
+                        # Add sdist package file
+                        self.add_file(path=package.host_package, output_file_name=package.docker_package)
 
     @property
     def is_environment_valid(self) -> bool:
@@ -209,10 +198,6 @@ class PlatformBuilder(ComposeRunner):
         env["HOST_USER_ID"] = str(self.host_uid)
         env["HOST_GROUP_ID"] = str(self.host_gid)
         env["HOST_OBSERVATORY_HOME"] = os.path.normpath(self.config.observatory.observatory_home)
-        env["HOST_DAGS_PATH"] = os.path.normpath(self.dags_path)
-        env["HOST_PLATFORM_PACKAGE_PATH"] = os.path.normpath(self.platform_package_path)
-        env["HOST_API_PACKAGE_PATH"] = os.path.normpath(self.api_package_path)
-
         env["HOST_REDIS_PORT"] = str(self.config.observatory.redis_port)
         env["HOST_FLOWER_UI_PORT"] = str(self.config.observatory.flower_ui_port)
         env["HOST_AIRFLOW_UI_PORT"] = str(self.config.observatory.airflow_ui_port)
@@ -220,7 +205,7 @@ class PlatformBuilder(ComposeRunner):
         env["HOST_KIBANA_PORT"] = str(self.config.observatory.kibana_port)
 
         # Secrets
-        if self.config.google_cloud.credentials is not None:
+        if self.config.google_cloud is not None and self.config.google_cloud.credentials is not None:
             env["HOST_GOOGLE_APPLICATION_CREDENTIALS"] = self.config.google_cloud.credentials
         env["AIRFLOW_FERNET_KEY"] = self.config.observatory.airflow_fernet_key
         env["AIRFLOW_SECRET_KEY"] = self.config.observatory.airflow_secret_key

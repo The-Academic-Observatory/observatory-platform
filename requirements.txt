@@ -1,2 +1,0 @@
-This file is required so that when python3 setup.py sdist is run, pbr will copy the requirements.txt files in
-observatory-dags, observatory-platform and observatory-reports into the respective builds.
