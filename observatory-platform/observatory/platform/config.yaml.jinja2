@@ -6,6 +6,8 @@ backend:
 
 # Observatory settings
 observatory:
+  package: observatory-api
+  package_type: pypi
   airflow_fernet_key: {{ airflow_fernet_key }}
   airflow_secret_key: {{ airflow_secret_key }}
 
@@ -31,7 +33,8 @@ observatory:
 #   my_connection: http://my-username:my-password@
 
 # User defined workflows projects:
-# dags_projects:
+# workflows_projects:
 #   - package_name: academic-observatory-workflows
-#     path: /path/to/academic-observatory-workflows
+#     package: /path/to/academic-observatory-workflows
+#     package_type: editable
 #     dags_module: academic_observatory_workflows.dags

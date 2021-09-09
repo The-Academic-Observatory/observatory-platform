@@ -120,10 +120,21 @@ class Backend:
 
 
 @dataclass
+class PythonPackage:
+    name: str
+    host_package: str
+    docker_package: str
+    type: str
+
+
+@dataclass
 class Observatory:
     """ The Observatory settings for the Observatory Platform.
 
     Attributes:
+        :param package: the observatory platform package, either a local path to a Python source package (editable type),
+        path to a sdist (sdist) or a PyPI package name and version (pypi).
+        :param package_type: the package type, editable, sdist, pypi.
         :param airflow_fernet_key: the Fernet key.
         :param airflow_secret_key: the secret key used to run the flask app.
         :param airflow_ui_user_password: the password for the Apache Airflow UI admin user.
@@ -136,13 +147,17 @@ class Observatory:
         :param elastic_port: The host's Elasticsearch port number.
         :param kibana_port: The host's Kibana port number.
         :param docker_network_name: The Docker Network name, used to specify a custom Docker Network.
+        :param docker_network_is_external: whether the docker network is external or not.
         :param docker_compose_project_name: The namespace for the Docker Compose containers: https://docs.docker.com/compose/reference/envvars/#compose_project_name.
+        :param enable_elk: whether to enable the elk stack or not.
      """
 
+    package: str
+    package_type: str
     airflow_fernet_key: str
     airflow_secret_key: str
-    airflow_ui_user_password: str = "airflow@airflow.com"
-    airflow_ui_user_email: str = "airflow"
+    airflow_ui_user_email: str = "airflow@airflow.com"
+    airflow_ui_user_password: str = "airflow"
     observatory_home: str = default_observatory_home()
     postgres_password: str = "postgres"
     redis_port: int = 6379
@@ -151,11 +166,11 @@ class Observatory:
     elastic_port: int = 9200
     kibana_port: int = 5601
     docker_network_name: str = "observatory-network"
+    docker_network_is_external: bool = False
     docker_compose_project_name: str = "observatory"
-
-    @property
-    def docker_network_is_external(self):
-        return self.docker_network_name != "observatory-network"
+    enable_elk: bool = True
+    api_package: str = "observatory-api"
+    api_package_type: str = "pypi"
 
     def to_hcl(self):
         return to_hcl(
@@ -168,6 +183,10 @@ class Observatory:
             }
         )
 
+    @property
+    def host_package(self):
+        return os.path.normpath(self.package)
+
     @staticmethod
     def from_dict(dict_: Dict) -> Observatory:
         """ Constructs an Airflow instance from a dictionary.
@@ -176,6 +195,8 @@ class Observatory:
         :return: the Airflow instance.
         """
 
+        package = dict_.get("package")
+        package_type = dict_.get("package_type")
         airflow_fernet_key = dict_.get("airflow_fernet_key")
         airflow_secret_key = dict_.get("airflow_secret_key")
         airflow_ui_user_email = dict_.get("airflow_ui_user_email", Observatory.airflow_ui_user_email)
@@ -188,9 +209,15 @@ class Observatory:
         elastic_port = dict_.get("elastic_port", Observatory.elastic_port)
         kibana_port = dict_.get("kibana_port", Observatory.kibana_port)
         docker_network_name = dict_.get("docker_network_name", Observatory.docker_network_name)
+        docker_network_is_external = dict_.get("docker_network_is_external", Observatory.docker_network_is_external)
         docker_compose_project_name = dict_.get("docker_compose_project_name", Observatory.docker_compose_project_name)
+        enable_elk = dict_.get("enable_elk", Observatory.enable_elk)
+        api_package = dict_.get("api_package", Observatory.api_package)
+        api_package_type = dict_.get("api_package_type", Observatory.api_package_type)
 
         return Observatory(
+            package,
+            package_type,
             airflow_fernet_key,
             airflow_secret_key,
             airflow_ui_user_password=airflow_ui_user_password,
@@ -203,7 +230,11 @@ class Observatory:
             elastic_port=elastic_port,
             kibana_port=kibana_port,
             docker_network_name=docker_network_name,
+            docker_network_is_external=docker_network_is_external,
             docker_compose_project_name=docker_compose_project_name,
+            enable_elk=enable_elk,
+            api_package=api_package,
+            api_package_type=api_package_type,
         )
 
 
@@ -301,47 +332,38 @@ def parse_dict_to_list(dict_: Dict, cls: ClassVar) -> List[Any]:
 
 
 @dataclass
-class DagsProject:
+class WorkflowsProject:
     """ Represents a project that contains DAGs to load.
 
     Attributes:
-        package_name: the package name.
-        path: the path to the DAGs folder. TODO: check
+        :param package_name: the package name.
+        :param package: the observatory platform package, either a local path to a Python source package (editable type),
+        path to a sdist (sdist) or a PyPI package name and version (pypi).
+        :param package_type: the package type, editable, sdist, pypi.
         dags_module: the Python import path to the module that contains the Apache Airflow DAGs to load.
      """
 
     package_name: str
-    path: str
+    package: str
+    package_type: str
     dags_module: str
 
-    @property
-    def type(self) -> str:
-        """ The type of DAGs project: local, Github or PyPI.
-
-        :return: the type of DAGs project.
-        """
-
-        return "local"
-
     @staticmethod
-    def parse_dags_projects(list: List) -> List[DagsProject]:
-        """ Parse the dags_projects list object into a list of DagsProject instances.
+    def parse_dags_projects(list: List) -> List[WorkflowsProject]:
+        """ Parse the workflows_projects list object into a list of WorkflowsProject instances.
 
         :param list: the list.
-        :return: a list of DagsProject instances.
+        :return: a list of WorkflowsProject instances.
         """
 
         parsed_items = []
         for item in list:
             package_name = item["package_name"]
-            path = item["path"]
+            package = item["package"]
+            package_type = item["package_type"]
             dags_module = item["dags_module"]
-            parsed_items.append(DagsProject(package_name, path, dags_module))
+            parsed_items.append(WorkflowsProject(package_name, package, package_type, dags_module))
         return parsed_items
-
-    @staticmethod
-    def dags_projects_to_str(dags_projects: List[DagsProject]):
-        return f"'{str(json.dumps([project.dags_module for project in dags_projects]))}'"
 
 
 def list_to_hcl(items: List[Union[AirflowConnection, AirflowVariable]]) -> str:
@@ -631,7 +653,7 @@ class ObservatoryConfig:
         terraform: Terraform = None,
         airflow_variables: List[AirflowVariable] = None,
         airflow_connections: List[AirflowConnection] = None,
-        dags_projects: List[DagsProject] = None,
+        workflows_projects: List[WorkflowsProject] = None,
         validator: ObservatoryConfigValidator = None,
     ):
         """ Create an ObservatoryConfig instance.
@@ -642,7 +664,7 @@ class ObservatoryConfig:
         :param terraform: the Terraform config.
         :param airflow_variables: a list of Airflow variables.
         :param airflow_connections: a list of Airflow connections.
-        :param dags_projects: a list of DAGs projects.
+        :param workflows_projects: a list of DAGs projects.
         :param validator: an ObservatoryConfigValidator instance.
         """
 
@@ -659,9 +681,9 @@ class ObservatoryConfig:
         if airflow_variables is None:
             self.airflow_connections = []
 
-        self.dags_projects = dags_projects
-        if dags_projects is None:
-            self.dags_projects = []
+        self.workflows_projects = workflows_projects
+        if workflows_projects is None:
+            self.workflows_projects = []
 
         self.validator = validator
 
@@ -692,6 +714,47 @@ class ObservatoryConfig:
 
         return errors
 
+    @property
+    def python_packages(self) -> List[PythonPackage]:
+        """ Make a list of Python Packages to build or include in the observatory.
+        :return: the list of Python packages.
+        """
+
+        packages = [
+            PythonPackage(
+                name="observatory-api",
+                type=self.observatory.api_package_type,
+                host_package=self.observatory.api_package,
+                docker_package=os.path.basename(self.observatory.api_package),
+            ),
+            PythonPackage(
+                name="observatory-platform",
+                type=self.observatory.package_type,
+                host_package=self.observatory.package,
+                docker_package=os.path.basename(self.observatory.package),
+            ),
+        ]
+
+        for project in self.workflows_projects:
+            packages.append(
+                PythonPackage(
+                    name=project.package_name,
+                    type=project.package_type,
+                    host_package=project.package,
+                    docker_package=os.path.basename(project.package),
+                )
+            )
+
+        return packages
+
+    @property
+    def dags_module_names(self):
+        """ Returns a list of DAG project module names.
+        :return: the list of DAG project module names.
+        """
+
+        return f"'{str(json.dumps([project.dags_module for project in self.workflows_projects]))}'"
+
     def make_airflow_variables(self) -> List[AirflowVariable]:
         """ Make all airflow variables for the observatory platform.
 
@@ -701,18 +764,20 @@ class ObservatoryConfig:
         # Create airflow variables from fixed config file values
         variables = [AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)]
 
-        if self.google_cloud.project_id is not None:
-            variables.append(AirflowVariable(AirflowVars.PROJECT_ID, self.google_cloud.project_id))
+        if self.google_cloud is not None:
+            if self.google_cloud.project_id is not None:
+                variables.append(AirflowVariable(AirflowVars.PROJECT_ID, self.google_cloud.project_id))
 
-        if self.google_cloud.data_location:
-            variables.append(AirflowVariable(AirflowVars.DATA_LOCATION, self.google_cloud.data_location))
+            if self.google_cloud.data_location:
+                variables.append(AirflowVariable(AirflowVars.DATA_LOCATION, self.google_cloud.data_location))
 
-        if self.terraform.organization is not None:
-            variables.append(AirflowVariable(AirflowVars.TERRAFORM_ORGANIZATION, self.terraform.organization))
+            # Create airflow variables from bucket names
+            for bucket in self.google_cloud.buckets:
+                variables.append(AirflowVariable(bucket.id, bucket.name))
 
-        # Create airflow variables from bucket names
-        for bucket in self.google_cloud.buckets:
-            variables.append(AirflowVariable(bucket.id, bucket.name))
+        if self.terraform is not None:
+            if self.terraform.organization is not None:
+                variables.append(AirflowVariable(AirflowVars.TERRAFORM_ORGANIZATION, self.terraform.organization))
 
         # Add user defined variables to list
         variables += self.airflow_variables
@@ -723,7 +788,13 @@ class ObservatoryConfig:
     def _parse_fields(
         dict_: Dict,
     ) -> Tuple[
-        Backend, Observatory, GoogleCloud, Terraform, List[AirflowVariable], List[AirflowConnection], List[DagsProject]
+        Backend,
+        Observatory,
+        GoogleCloud,
+        Terraform,
+        List[AirflowVariable],
+        List[AirflowConnection],
+        List[WorkflowsProject],
     ]:
         backend = Backend.from_dict(dict_.get("backend", dict()))
         observatory = Observatory.from_dict(dict_.get("observatory", dict()))
@@ -731,9 +802,9 @@ class ObservatoryConfig:
         terraform = Terraform.from_dict(dict_.get("terraform", dict()))
         airflow_variables = AirflowVariable.parse_airflow_variables(dict_.get("airflow_variables", dict()))
         airflow_connections = AirflowConnection.parse_airflow_connections(dict_.get("airflow_connections", dict()))
-        dags_projects = DagsProject.parse_dags_projects(dict_.get("dags_projects", list()))
+        workflows_projects = WorkflowsProject.parse_dags_projects(dict_.get("workflows_projects", list()))
 
-        return backend, observatory, google_cloud, terraform, airflow_variables, airflow_connections, dags_projects
+        return backend, observatory, google_cloud, terraform, airflow_variables, airflow_connections, workflows_projects
 
     @staticmethod
     def save_default(config_path: str):
@@ -760,9 +831,7 @@ class ObservatoryConfig:
         airflow_secret_key = generate_secret_key()
 
         render = render_template(
-            template_path,
-            airflow_fernet_key=airflow_fernet_key,
-            airflow_secret_key=airflow_secret_key
+            template_path, airflow_fernet_key=airflow_fernet_key, airflow_secret_key=airflow_secret_key
         )
 
         # Save file
@@ -792,7 +861,7 @@ class ObservatoryConfig:
                 terraform,
                 airflow_variables,
                 airflow_connections,
-                dags_projects,
+                workflows_projects,
             ) = ObservatoryConfig._parse_fields(dict_)
 
             return ObservatoryConfig(
@@ -802,7 +871,7 @@ class ObservatoryConfig:
                 terraform=terraform,
                 airflow_variables=airflow_variables,
                 airflow_connections=airflow_connections,
-                dags_projects=dags_projects,
+                workflows_projects=workflows_projects,
                 validator=validator,
             )
         else:
@@ -841,7 +910,7 @@ class TerraformConfig(ObservatoryConfig):
         terraform: Terraform = None,
         airflow_variables: List[AirflowVariable] = None,
         airflow_connections: List[AirflowConnection] = None,
-        dags_projects: List[DagsProject] = None,
+        workflows_projects: List[WorkflowsProject] = None,
         cloud_sql_database: CloudSqlDatabase = None,
         airflow_main_vm: VirtualMachine = None,
         airflow_worker_vm: VirtualMachine = None,
@@ -857,7 +926,7 @@ class TerraformConfig(ObservatoryConfig):
         :param terraform: the Terraform config.
         :param airflow_variables: a list of Airflow variables.
         :param airflow_connections: a list of Airflow connections.
-        :param dags_projects: a list of DAGs projects.
+        :param workflows_projects: a list of DAGs projects.
         :param cloud_sql_database: a Google Cloud SQL database config.
         :param airflow_main_vm: the Airflow Main VM config.
         :param airflow_worker_vm: the Airflow Worker VM config.
@@ -871,7 +940,7 @@ class TerraformConfig(ObservatoryConfig):
             terraform=terraform,
             airflow_variables=airflow_variables,
             airflow_connections=airflow_connections,
-            dags_projects=dags_projects,
+            workflows_projects=workflows_projects,
             validator=validator,
         )
         self.cloud_sql_database = cloud_sql_database
@@ -911,7 +980,7 @@ class TerraformConfig(ObservatoryConfig):
 
         variables.append(
             AirflowVariable(
-                AirflowVars.DAGS_MODULE_NAMES, json.dumps([proj.dags_module for proj in self.dags_projects])
+                AirflowVars.DAGS_MODULE_NAMES, json.dumps([proj.dags_module for proj in self.workflows_projects])
             )
         )
 
@@ -967,7 +1036,7 @@ class TerraformConfig(ObservatoryConfig):
                 terraform,
                 airflow_variables,
                 airflow_connections,
-                dags_projects,
+                workflows_projects,
             ) = ObservatoryConfig._parse_fields(dict_)
 
             cloud_sql_database = CloudSqlDatabase.from_dict(dict_.get("cloud_sql_database", dict()))
@@ -983,7 +1052,7 @@ class TerraformConfig(ObservatoryConfig):
                 terraform=terraform,
                 airflow_variables=airflow_variables,
                 airflow_connections=airflow_connections,
-                dags_projects=dags_projects,
+                workflows_projects=workflows_projects,
                 cloud_sql_database=cloud_sql_database,
                 airflow_main_vm=airflow_main_vm,
                 airflow_worker_vm=airflow_worker_vm,
@@ -1069,10 +1138,13 @@ def make_schema(backend_type: BackendType) -> Dict:
         }
 
     # Observatory settings
+    package_types = ["editable", "sdist", "pypi"]
     schema["observatory"] = {
         "required": True,
         "type": "dict",
         "schema": {
+            "package": {"required": True, "type": "string"},
+            "package_type": {"required": True, "type": "string", "allowed": package_types},
             "airflow_fernet_key": {"required": True, "type": "string"},
             "airflow_secret_key": {"required": True, "type": "string"},
             "airflow_ui_user_password": {"required": is_backend_terraform, "type": "string"},
@@ -1085,7 +1157,11 @@ def make_schema(backend_type: BackendType) -> Dict:
             "elastic_port": {"required": False, "type": "integer"},
             "kibana_port": {"required": False, "type": "integer"},
             "docker_network_name": {"required": False, "type": "string"},
+            "docker_network_is_external": {"required": False, "type": "boolean"},
             "docker_compose_project_name": {"required": False, "type": "string"},
+            "enable_elk": {"required": False, "type": "boolean"},
+            "api_package": {"required": False, "type": "string"},
+            "api_package_type": {"required": False, "type": "string", "allowed": package_types},
         },
     }
 
@@ -1137,14 +1213,15 @@ def make_schema(backend_type: BackendType) -> Dict:
     }
 
     # Dags projects
-    schema["dags_projects"] = {
+    schema["workflows_projects"] = {
         "required": False,
         "type": "list",
         "schema": {
             "type": "dict",
             "schema": {
                 "package_name": {"required": True, "type": "string",},
-                "path": {"required": True, "type": "string",},
+                "package": {"required": True, "type": "string"},
+                "package_type": {"required": True, "type": "string", "allowed": package_types},
                 "dags_module": {"required": True, "type": "string",},
             },
         },

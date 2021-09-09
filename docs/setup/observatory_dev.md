@@ -49,7 +49,7 @@ airflow:
 #   my_connection: http://my-username:my-password@
 
 # User defined Observatory DAGs projects:
-# dags_projects:
+# workflows_projects:
 #   - package_name: observatory-dags
 #     path: /home/user/observatory-platform/observatory-dags
 #     dags_module: observatory.dags.dags

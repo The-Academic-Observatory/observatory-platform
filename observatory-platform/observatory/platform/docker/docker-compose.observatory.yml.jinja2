@@ -28,9 +28,6 @@ version: '3.8'
 {%- set host_data_path="${HOST_OBSERVATORY_HOME}/data" -%}
 {%- set host_logs_path="${HOST_OBSERVATORY_HOME}/logs" -%}
 {%- set host_postgres_path="${HOST_OBSERVATORY_HOME}/postgres" -%}
-{%- set host_dags_path="${HOST_DAGS_PATH}" -%}
-{%- set host_platform_package_path="${HOST_PLATFORM_PACKAGE_PATH}" -%}
-{%- set host_api_package_path="${HOST_API_PACKAGE_PATH}" -%}
 {%- set google_application_credentials="${HOST_GOOGLE_APPLICATION_CREDENTIALS}" -%}
 {%- set postgres_hostname="postgres" -%}
 {%- set redis_hostname="redis" -%}
@@ -39,9 +36,6 @@ version: '3.8'
 
 {%- set host_data_path="/opt/observatory/data" -%}
 {%- set host_logs_path="/opt/airflow/logs" -%}
-{%- set host_dags_path="/opt/observatory-platform/observatory/platform/dags" -%}
-{%- set host_platform_package_path="/opt/observatory-platform" -%}
-{%- set host_api_package_path="/opt/observatory-api" -%}
 {%- set google_application_credentials="/opt/observatory/google_application_credentials.json" -%}
 {%- set postgres_hostname="${POSTGRES_HOSTNAME}" -%}
 {%- set redis_hostname="${REDIS_HOSTNAME}" -%}
@@ -59,15 +53,21 @@ x-environment: &environment
   AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
   AIRFLOW__WEBSERVER__RBAC: "True"
   AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
+  AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL: 30
   AIRFLOW__CELERY__BROKER_URL: "redis://:@{{ redis_hostname }}:6379/0"
   AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
   AIRFLOW__CELERY_BROKER_TRANSPORT_OPTIONS__VISIBILITY_TIMEOUT: 259200
+  AIRFLOW__API__AUTH_BACKEND: airflow.api.auth.backend.basic_auth
   {%- if config.backend.type.value == 'terraform' %}
   AIRFLOW__CORE__REMOTE_LOGGING: "True"
   AIRFLOW__CORE__REMOTE_BASE_LOG_FOLDER: "gs://${AIRFLOW_VAR_AIRFLOW_BUCKET}/logs"
   AIRFLOW__CORE__REMOTE_LOG_CONN_ID: "google_cloud_observatory"
   AIRFLOW__SECRETS__BACKEND: "observatory.platform.airflow.secret_manager.CloudSecretManagerBackend"
   AIRFLOW__SECRETS__BACKEND_KWARGS: "{'connections_prefix': 'airflow-connections', 'variables_prefix': 'airflow-variables', 'sep': '-'}"
+  {%- endif %}
+  # Set Airflow DAGs folder to installed observatory platform dags
+  {%- if config.observatory.package_type != 'editable' %}
+  AIRFLOW__CORE__DAGS_FOLDER: "/home/airflow/.local/lib/python3.8/site-packages/observatory/platform/dags"
   {%- endif %}
 
   # Paths to google credentials and UI user settings
@@ -84,7 +84,7 @@ x-environment: &environment
 
   # Variables
   AIRFLOW_VAR_DATA_PATH: "/opt/observatory/data"
-  AIRFLOW_VAR_DAGS_MODULE_NAMES: {{ dags_projects_to_str(config.dags_projects)  }}
+  AIRFLOW_VAR_DAGS_MODULE_NAMES: {{ config.dags_module_names  }}
   {%- for var in config.make_airflow_variables() %}
   {%- if config.backend.type.value == 'local' %}
   {{ var.env_var_name }}: '{{ var.value }}'
@@ -95,18 +95,17 @@ x-environment: &environment
 
 x-volumes: &volumes
   - "{{ host_logs_path }}:/opt/airflow/logs"
-  - "{{ host_dags_path }}:/opt/airflow/dags"
   - "{{ host_data_path }}:/opt/observatory/data"
-  - "{{ host_platform_package_path }}:/opt/observatory-platform"
-  - "{{ host_api_package_path }}:/opt/observatory-api"
-  # Volume mappings for DAGs projects:
-  {%- for project in config.dags_projects %}
-  {%- if project.type == 'local' %}
-  {%- if config.backend.type.value == 'local' %}
-  - "{{ project.path }}:/opt/{{ project.package_name }}"
-  {%- else %}
-  - "/opt/{{ project.package_name }}:/opt/{{ project.package_name }}"
+
+  # Volume mapping when observatory installed in editable mode
+  {%- if config.observatory.package_type == 'editable' %}
+  - "{{ config.observatory.host_package }}/observatory/platform/dags:/opt/airflow/dags"
   {%- endif %}
+
+  # Volume mappings for Python packages, incl observatory-platform and dags projects:
+  {%- for package in config.python_packages %}
+  {%- if package.type == 'editable' %}
+  - "{{ package.host_package }}:/opt/{{ package.name }}"
   {%- endif %}
   {%- endfor %}
 
@@ -114,7 +113,7 @@ x-volumes: &volumes
 {# Local network #}
 x-network-mode: &networks
   networks:
-    - {{ docker_network_name }}
+    - {{ config.observatory.docker_network_name }}
 
 {%- else %}
 
@@ -124,15 +123,15 @@ x-network-mode: &networks
 
 {%- endif -%}
 
-{%- if config.backend.type.value == 'terraform' or not docker_network_is_external %}
+{%- if config.backend.type.value == 'terraform' or not config.observatory.docker_network_is_external %}
 {# Cloud network or not external network #}
 networks:
-  {{ docker_network_name }}:
-    name: {{ docker_network_name }}
+  {{ config.observatory.docker_network_name }}:
+    name: {{ config.observatory.docker_network_name }}
     driver: bridge
 {%- else %}
 networks:
-  {{ docker_network_name }}:
+  {{ config.observatory.docker_network_name }}:
     external: true
 {%- endif %}
 
@@ -150,7 +149,7 @@ services:
     ports:
       - ${HOST_REDIS_PORT}:6379
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -163,7 +162,7 @@ services:
     volumes: *volumes
     restart: always
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
     depends_on:
       redis:
         condition: service_healthy
@@ -179,7 +178,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-    {% if config.google_cloud.credentials is not none -%}
+    {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
     {%- endif %}
@@ -190,7 +189,7 @@ services:
     volumes: *volumes
     restart: always
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
     depends_on:
       redis:
         condition: service_healthy
@@ -198,7 +197,7 @@ services:
       postgres:
         condition: service_healthy
       {%- endif %}
-    {% if config.google_cloud.credentials is not none -%}
+    {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
     {%- endif %}
@@ -209,7 +208,7 @@ services:
       test: ["CMD-SHELL", "[ -f /opt/airflow/airflow-webserver.pid ]"]
       interval: 30s
       timeout: 30s
-      retries: 3
+      retries: 30
 
   scheduler:
     build: *build
@@ -217,11 +216,11 @@ services:
     volumes: *volumes
     restart: always
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
     depends_on:
       webserver:
         condition: service_healthy
-    {% if config.google_cloud.credentials is not none -%}
+    {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
     {%- endif %}
@@ -235,7 +234,7 @@ services:
     <<: *networks
     depends_on:
       - scheduler
-    {% if config.google_cloud.credentials is not none -%}
+    {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
     {%- endif %}
@@ -247,13 +246,14 @@ services:
     volumes: *volumes
     restart: always
     <<: *networks
-    {% if config.google_cloud.credentials is not none -%}
+    {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
     {%- endif %}
     command: celery worker -q remote_queue
 
   {% if config.backend.type.value == 'local' -%}
+  {% if config.observatory.enable_elk -%}
   elasticsearch:
     image: "docker.elastic.co/elasticsearch/elasticsearch:7.13.3"
     restart: always
@@ -263,7 +263,7 @@ services:
     ports:
       - ${HOST_ELASTIC_PORT}:9200
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
     environment:
       - discovery.type=single-node
 
@@ -273,7 +273,8 @@ services:
     ports:
       - ${HOST_KIBANA_PORT}:5601
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
+  {%- endif %}
 
   postgres:
     image: postgres:12.2
@@ -285,14 +286,14 @@ services:
       - {{ host_postgres_path }}:/var/lib/postgresql/data
     restart: always
     networks:
-      - {{ docker_network_name }}
+      - {{ config.observatory.docker_network_name }}
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "{{ postgres_user }}"]
+      test: ["CMD", "pg_isready", "-U", "{{ postgres_user }}", "-d", "{{ airflow_db_name }}"]
       interval: 5s
       retries: 5
   {%- endif %}
 
-{% if config.google_cloud.credentials is not none -%}
+{% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
 secrets:
   google_application_credentials.json:
     file: {{ google_application_credentials }}

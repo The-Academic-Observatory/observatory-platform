@@ -233,7 +233,7 @@ api:
 #   my_connection: http://my-username:my-password@
 
 # User defined Observatory DAGs projects:
-# dags_projects:
+# workflows_projects:
 #   - package_name: observatory-dags
 #     path: /home/user/observatory-platform/observatory-dags
 #     dags_module: observatory.dags.dags
@@ -295,7 +295,7 @@ observatory terraform build-image ~/.observatory/config-terraform.yaml
 ```
 
 Use this command if you have:
-* Created, removed or updated user defined Observatory DAGs projects via the field `dags_projects`, in the Observatory
+* Created, removed or updated user defined Observatory DAGs projects via the field `workflows_projects`, in the Observatory
 Terraform config file.
 * Updated any code in the Observatory Platform.
 * Update the `backend.environment` variable in the Observatory Terraform config file: you need to make sure that an
