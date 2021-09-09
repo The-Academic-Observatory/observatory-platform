@@ -39,7 +39,8 @@ class MonitoringWorkflow(Workflow):
         start_date: datetime.datetime,
         ext_dag_id: str,
         schedule_interval: str = "@monthly",
-        mode: str = "reschedule"
+        mode: str = "reschedule",
+        check_exists: bool = True,
     ):
         super().__init__(
             dag_id=MonitoringWorkflow.DAG_ID, start_date=start_date, schedule_interval=schedule_interval, catchup=False
@@ -52,6 +53,7 @@ class MonitoringWorkflow(Workflow):
             poke_interval=1,
             timeout=2,
             mode=mode,
+            check_exists=check_exists,
         )
 
         self.add_sensor(sensor)
@@ -105,6 +107,16 @@ class TestDagRunSensor(ObservatoryTestCase):
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
                 self.assertRaises(AirflowException, env.run_task, "sensor_task", dag, execution_date=execution_date)
+
+    def test_no_dag_exists_no_check(self):
+        env = ObservatoryEnvironment()
+        with env.create():
+            execution_date = datetime.datetime(2021, 9, 1, tzinfo=datetime.timezone.utc)
+            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="nodag", check_exists=False)
+            dag = wf.make_dag()
+            with env.create_dag_run(dag=dag, execution_date=execution_date):
+                ti = env.run_task("sensor_task", dag, execution_date=execution_date)
+                self.assertEqual(ti.state, State.SUCCESS)
 
     def test_no_execution_date_in_range(self):
         env = ObservatoryEnvironment()
