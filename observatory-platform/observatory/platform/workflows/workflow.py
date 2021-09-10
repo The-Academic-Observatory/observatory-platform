@@ -35,7 +35,6 @@ from airflow.models.baseoperator import chain
 from airflow.models.variable import Variable
 from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.sensors.base import BaseSensorOperator
-
 from observatory.platform.utils.airflow_utils import (
     AirflowVars,
     check_connections,
@@ -408,7 +407,10 @@ class Workflow(AbstractWorkflow):
                 kwargs_ = copy.copy(op.kwargs)
                 kwargs_["task_id"] = make_task_id(op.func, op.kwargs)
                 task = ShortCircuitOperator(
-                    python_callable=op.func, queue=self.queue, default_args=self.default_args, **kwargs_,
+                    python_callable=op.func,
+                    queue=self.queue,
+                    default_args=self.default_args,
+                    **kwargs_,
                 )
                 tasks.append(task)
 

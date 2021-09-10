@@ -33,7 +33,6 @@ from math import ceil
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Type, Union
 
-import dateutil
 import jsonlines
 import paramiko
 import pendulum
@@ -45,16 +44,14 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from airflow.sensors.external_task import ExternalTaskSensor
-from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
-
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import (
+    AirflowConns,
     AirflowVars,
     create_slack_webhook,
-    AirflowConns
 )
 from observatory.platform.utils.config_utils import find_schema, utils_templates_path
 from observatory.platform.utils.file_utils import load_file, write_to_file
@@ -64,8 +61,8 @@ from observatory.platform.utils.gc_utils import (
     create_bigquery_dataset,
     load_bigquery_table,
     run_bigquery_query,
+    upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
-    upload_file_to_cloud_storage
 )
 from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
@@ -691,45 +688,6 @@ def normalized_schedule_interval(schedule_interval: Optional[str]) -> Optional[S
     else:
         _schedule_interval = schedule_interval
     return _schedule_interval
-
-
-def get_prev_execution_date(schedule_interval_target: str, execution_date: pendulum.datetime) -> datetime:
-    """Get the previous execution date of a target DAG based on the given execution date and schedule interval of
-    the target DAG.
-    This can be used as a callable for the execution_delta_fn of the ExternalTaskSensor.
-    For example:
-    execution_date_fn=lambda execution_date: get_prev_execution_date(ExternalTelescope.SCHEDULE_INTERVAL,
-                                                                     execution_date)
-
-    :param schedule_interval_target: Schedule interval of target DAG (can be e.g. '@monthly' or '0 0 1 * *')
-    :param execution_date: The execution date
-    :return: The previous execution date of the target DAG.
-    """
-    # Normalize schedule, converting cron preset to cron expression
-    normalized_schedule = normalized_schedule_interval(schedule_interval_target)
-
-    # Convert exec date to datetime, using pendulum exec date gives error 'list index out of range' related to tz info
-    tz_info = dateutil.tz.gettz(execution_date.timezone_name)
-    dt_execution_date = datetime(
-        execution_date.year,
-        execution_date.month,
-        execution_date.day,
-        execution_date.hour,
-        execution_date.minute,
-        execution_date.second,
-        execution_date.microsecond,
-    ).astimezone(tz_info)
-
-    logging.info(
-        f"Getting last execution date with normalized schedule '{normalized_schedule}' and execution_date "
-        f"'{dt_execution_date}'"
-    )
-    # Create croniter object
-    cron_iter = croniter(normalized_schedule, dt_execution_date)
-    # Get previous execution date
-    execution_date_target = cron_iter.get_prev(datetime)
-    logging.info(f"Found execution date: {execution_date_target}")
-    return execution_date_target
 
 
 def make_sftp_connection() -> pysftp.Connection:
