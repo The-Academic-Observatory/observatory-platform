@@ -20,8 +20,7 @@ import json
 import os
 import unittest
 from functools import partial
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.parse import quote
 
 import dateutil
@@ -34,7 +33,6 @@ from airflow.models.connection import Connection
 from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
-
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import (
     gzip_file_crc,
@@ -45,15 +43,8 @@ from observatory.platform.utils.test_utils import random_id
 from observatory.platform.utils.workflow_utils import (
     PeriodCount,
     ScheduleOptimiser,
-    get_prev_execution_date,
-    make_dag_id,
-    make_observatory_api,
-    make_sftp_connection,
-    make_workflow_sensor,
-    normalized_schedule_interval,
-)
-from observatory.platform.utils.workflow_utils import (
     SubFolder,
+    add_partition_date,
     blob_name,
     bq_append_from_file,
     bq_append_from_partition,
@@ -63,16 +54,26 @@ from observatory.platform.utils.workflow_utils import (
     bq_load_shard,
     bq_load_shard_v2,
     create_date_table_id,
+    make_dag_id,
+    make_observatory_api,
+    make_sftp_connection,
+    make_workflow_sensor,
+    normalized_schedule_interval,
     on_failure_callback,
     prepare_bq_load,
     prepare_bq_load_v2,
     table_ids_from_path,
-    workflow_path,
     upload_files_from_list,
+    workflow_path,
 )
-from observatory.platform.utils.workflow_utils import add_partition_date
-from observatory.platform.workflows.snapshot_telescope import SnapshotRelease, SnapshotTelescope
-from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope
+from observatory.platform.workflows.snapshot_telescope import (
+    SnapshotRelease,
+    SnapshotTelescope,
+)
+from observatory.platform.workflows.stream_telescope import (
+    StreamRelease,
+    StreamTelescope,
+)
 
 DEFAULT_SCHEMA_PATH = "/path/to/schemas"
 
@@ -902,15 +903,6 @@ class TestWorkflowUtils(unittest.TestCase):
             actual_n_schedule_interval = normalized_schedule_interval(schedule_interval)
 
             self.assertEqual(expected_n_schedule_interval, actual_n_schedule_interval)
-
-    def test_get_prev_execution_date(self):
-        """Test get_prev_execution_date"""
-        execution_date = pendulum.datetime(2020, 2, 20)
-        # test for both cron preset and cron expression
-        for schedule_interval in ["@monthly", "0 0 1 * *"]:
-            prev_execution_date = get_prev_execution_date(schedule_interval, execution_date)
-            expected = datetime.datetime(2020, 2, 1, tzinfo=dateutil.tz.gettz(execution_date.timezone_name))
-            self.assertEqual(expected, prev_execution_date)
 
     @patch.object(pysftp, "Connection")
     @patch("airflow.hooks.base_hook.BaseHook.get_connection")
