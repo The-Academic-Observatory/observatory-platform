@@ -18,7 +18,6 @@ from typing import Dict, List
 
 import pendulum
 from google.cloud.bigquery import SourceFormat
-from observatory.platform.workflows.workflow import Release, Workflow
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.workflow_utils import (
     blob_name,
@@ -26,6 +25,7 @@ from observatory.platform.utils.workflow_utils import (
     table_ids_from_path,
     upload_files_from_list,
 )
+from observatory.platform.workflows.workflow import Release, Workflow
 
 
 class SnapshotRelease(Release):
@@ -115,6 +115,15 @@ class SnapshotTelescope(Workflow):
         self.load_bigquery_table_kwargs = load_bigquery_table_kwargs if load_bigquery_table_kwargs else dict()
         self.dataset_description = dataset_description
         self.table_descriptions = table_descriptions if table_descriptions else dict()
+
+    def upload_downloaded(self, releases: List[SnapshotRelease], **kwargs):
+        """Task to upload the downloaded releases.
+
+        :param releases: a list of releases.
+        """
+
+        for release in releases:
+            upload_files_from_list(release.download_files, release.download_bucket)
 
     def upload_transformed(self, releases: List[SnapshotRelease], **kwargs):
         """Task to upload each transformed release to a google cloud bucket
