@@ -901,10 +901,10 @@ class HttpServer:
         self.directory = directory
         self.process = None
 
-        host = "localhost"
-        port = find_free_port(host=host)
-        self.address = (host, port)
-        self.url = f"http://{host}:{port}/"
+        self.host = "localhost"
+        self.port = find_free_port(host=self.host)
+        self.address = (self.host, self.port)
+        self.url = f"http://{self.host}:{self.port}/"
 
     @staticmethod
     def serve_(address, directory):

@@ -522,7 +522,7 @@ class TestHttpserver(ObservatoryTestCase):
 
         with CliRunner().isolated_filesystem() as tmpdir:
             dst_file = os.path.join(tmpdir, "testfile.txt")
-            AsyncHttpFileDownloader.download_files([{"url": url, "filename": dst_file}])
+            AsyncHttpFileDownloader.download_files(download_list=[{"url": url, "filename": dst_file}])
 
             self.assert_file_integrity(dst_file, expected_hash, algorithm)
 
@@ -541,5 +541,5 @@ class TestHttpserver(ObservatoryTestCase):
 
             with CliRunner().isolated_filesystem() as tmpdir:
                 dst_file = os.path.join(tmpdir, "testfile.txt")
-                AsyncHttpFileDownloader.download_files([{"url": url, "filename": dst_file}])
+                AsyncHttpFileDownloader.download_file(url=url, filename=dst_file)
                 self.assert_file_integrity(dst_file, expected_hash, algorithm)
