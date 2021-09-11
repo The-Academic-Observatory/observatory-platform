@@ -939,7 +939,7 @@ class HttpServer:
         """Shutdown the server."""
 
         if self.process is not None and self.process.is_alive():
-            self.process.terminate()
+            self.process.kill()
             self.process.join()
 
     @contextlib.contextmanager
