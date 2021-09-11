@@ -16,6 +16,7 @@
 
 """ Utility functions that support (almost) all telescopes/the template """
 
+import asyncio
 import calendar
 import json
 import logging
@@ -31,8 +32,10 @@ from datetime import datetime, timedelta
 from enum import Enum
 from math import ceil
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
+import aiohttp
+import backoff
 import jsonlines
 import paramiko
 import pendulum
@@ -47,13 +50,12 @@ from airflow.sensors.external_task import ExternalTaskSensor
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
-
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
+    AirflowVars,
     create_slack_webhook,
 )
-from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import find_schema, utils_templates_path
 from observatory.platform.utils.file_utils import load_file, write_to_file
 from observatory.platform.utils.gc_utils import (
@@ -62,14 +64,15 @@ from observatory.platform.utils.gc_utils import (
     create_bigquery_dataset,
     load_bigquery_table,
     run_bigquery_query,
+    select_table_shard_dates,
     upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
-    select_table_shard_dates,
 )
 from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
 )
+from observatory.platform.utils.url_utils import get_filename_from_url
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -1133,21 +1136,6 @@ def write_xml_to_json(transform_path: str, release_date: str, inst_id: str, in_f
     return json_file_list, schema_vers
 
 
-def make_workflow_sensor(telescope_name: str, dag_prefix: str) -> ExternalTaskSensor:
-    """Create an ExternalTaskSensor to monitor when a telescope has finished execution.
-
-    :param telescope_name: Name of the telescope.
-    :param dag_prefix: DAG ID prefix.
-    :return: ExternalTaskSensor object that monitors a telescope.
-    """
-
-    dag_id = make_dag_id(dag_prefix, telescope_name)
-
-    return ExternalTaskSensor(
-        task_id=f"{dag_id}_sensor", external_dag_id=dag_id, mode="reschedule", start_date=pendulum.datetime(2021, 3, 28)
-    )
-
-
 @dataclass
 class PeriodCount:
     """Descriptive wrapper for a (period, count) object."""
@@ -1320,3 +1308,78 @@ def make_table_name(
         new_table_name = f"{table_id}{table_date.strftime('%Y%m%d')}"
 
     return new_table_name
+
+
+def get_chunks(*, input_list: List[Any], chunk_size: int = 8) -> List[Any]:
+    """Generator that splits a list into chunks of a fixed size.
+
+    :param input_list: Input list.
+    :param chunk_size: Size of chunks.
+    :return: The next chunk from the input list.
+    """
+
+    n = len(input_list)
+    for i in range(0, n, chunk_size):
+        yield input_list[i : i + chunk_size]
+
+
+class AsyncHttpFileDownloader:
+    @staticmethod
+    @backoff.on_exception(backoff.expo, aiohttp.ClientError, max_tries=11, max_time=60)
+    async def download_http_file_(*, url, dst_file=None, headers=None):
+        READ_BUFFER_SIZE = 2 ** 16  # 64 KiB
+
+        dst_file = dst_file if dst_file is not None else get_filename_from_url(url)
+
+        async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
+            async with session.get(url) as resp:
+                with open(dst_file, "wb") as f:
+                    while True:
+                        chunk = await resp.content.read(READ_BUFFER_SIZE)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+
+    @staticmethod
+    async def download_http_files_(*, download_list: List[Any], num_connections: str = 8, headers: Dict = None):
+        for chunk in get_chunks(input_list=download_list, chunk_size=num_connections):
+            download_tasks = [
+                AsyncHttpFileDownloader.download_http_file_(url=info["url"], dst_file=info["filename"], headers=headers)
+                for info in chunk
+            ]
+            responses = await asyncio.gather(*download_tasks, return_exceptions=True)
+            for response in responses:
+                if response is not None:
+                    logging.error(f"AsyncHttpFileDownloader exceptions: {response}")
+
+    @staticmethod
+    def download_files(*, download_list: List[Any], num_connections: int = 8, headers: Dict = None):
+        if len(download_list) == 0:
+            return
+
+        # We got a list of url instead of a dict of urls and filenames. Convert to dict.
+        if isinstance(download_list[0], str):
+            download_info = [{"url": url, "filename": get_filename_from_url(url)} for url in download_list]
+            download_list = download_info
+
+        asyncio.run(
+            AsyncHttpFileDownloader.download_http_files_(
+                download_list=download_list, num_connections=num_connections, headers=headers
+            )
+        )
+
+    @staticmethod
+    def download_file(*, url: str, filename: str = None, headers: Dict = None):
+        """Download a single file from a url.
+
+        :param url: URL to download file from.
+        :param filename: Destination file.
+        :param headers: Any custom header you want to use in HTTP session.
+        """
+
+        if filename is None:
+            filename = get_filename_from_url(url=url)
+
+        download_list = [{"url": url, "filename": filename}]
+
+        AsyncHttpFileDownloader.download_files(download_list=download_list, num_connections=1, headers=headers)

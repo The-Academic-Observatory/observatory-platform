@@ -21,14 +21,15 @@ from unittest.mock import patch
 
 import httpretty
 import requests
-
 from observatory.platform.utils.url_utils import (
+    get_filename_from_url,
+    get_observatory_http_header,
     get_url_domain_suffix,
-    unique_id,
-    is_url_absolute,
-    strip_query_params,
-    retry_session,
     get_user_agent,
+    is_url_absolute,
+    retry_session,
+    strip_query_params,
+    unique_id,
     wait_for_url,
 )
 from tests.observatory.platform.cli.test_platform_command import MockUrlOpen
@@ -185,3 +186,19 @@ class TestUrlUtils(unittest.TestCase):
         gt = f"observatory-platform v1 (+http://test.test; mailto: test@test)"
         ua = get_user_agent(package_name="observatory-platform")
         self.assertEqual(ua, gt)
+
+    @patch("observatory.platform.utils.url_utils.metadata", return_value=MockMetadata)
+    def test_get_observatory_http_header(self, mock_cfg):
+        expected_header = {"User-Agent": "observatory-platform v1 (+http://test.test; mailto: test@test)"}
+        header = get_observatory_http_header(package_name="observatory-platform")
+        self.assertEqual(expected_header, header)
+
+    def test_get_filename_from_url(self):
+        file1 = "myfile.gz"
+        url1 = f"http://blah/{file1}"
+        url2 = f"http://blah/{file1}?someparam=adfdf&somethingelse=akdf4"
+
+        parsed1 = get_filename_from_url(url1)
+        self.assertEqual(parsed1, file1)
+        parsed2 = get_filename_from_url(url2)
+        self.assertEqual(parsed2, file1)

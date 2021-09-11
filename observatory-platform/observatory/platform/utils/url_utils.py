@@ -15,11 +15,12 @@
 # Author: James Diprose
 
 import hashlib
+import os
 import time
 import urllib.error
 import urllib.request
-from typing import Tuple, Union
-from urllib.parse import urlparse, urljoin, ParseResult
+from typing import Dict, Tuple, Union
+from urllib.parse import ParseResult, urljoin, urlparse
 
 import requests
 import tldextract
@@ -129,7 +130,7 @@ def wait_for_url(url: str, timeout: int = 60):
     return started
 
 
-def get_user_agent(*, package_name):
+def get_user_agent(*, package_name: str) -> str:
     """Return a standardised user agent that can be used by custom web clients to indicate which Python
     package they came from.
 
@@ -143,3 +144,30 @@ def get_user_agent(*, package_name):
     ua = f"{package_name} v{version} (+{url}; mailto: {mailto})"
 
     return ua
+
+
+def get_observatory_http_header(*, package_name: str) -> Dict:
+    """Construct a HTTP header with a custom user agent.
+
+    :param package_name: Package name used to fetch metadata for the User Agent.
+    """
+
+    user_agent = get_user_agent(package_name=package_name)
+    header = {"User-Agent": user_agent}
+    return header
+
+
+def get_filename_from_url(url: str) -> str:
+    """Given a download url with the filename part of the url, extract the filename.
+
+    :param url: URL to parse.
+    :return: Filename.
+    """
+
+    dst_file = os.path.basename(url)
+    tail = dst_file.find("?")  # Remove any parameters
+    if tail < 0:
+        tail = len(dst_file)
+    dst_file = dst_file[:tail]
+
+    return dst_file

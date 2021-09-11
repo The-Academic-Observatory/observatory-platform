@@ -34,17 +34,22 @@ from airflow.models.variable import Variable
 from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
-
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import (
     gzip_file_crc,
     list_to_jsonl_gz,
     load_jsonl,
 )
-from observatory.platform.utils.test_utils import ObservatoryEnvironment
-from observatory.platform.utils.test_utils import random_id
-from observatory.platform.utils.test_utils import test_fixtures_path
+from observatory.platform.utils.test_utils import (
+    HttpServer,
+    ObservatoryEnvironment,
+    ObservatoryTestCase,
+    random_id,
+    test_fixtures_path,
+)
+from observatory.platform.utils.url_utils import get_observatory_http_header
 from observatory.platform.utils.workflow_utils import (
+    AsyncHttpFileDownloader,
     PeriodCount,
     ScheduleOptimiser,
     SubFolder,
@@ -58,10 +63,14 @@ from observatory.platform.utils.workflow_utils import (
     bq_load_shard,
     bq_load_shard_v2,
     create_date_table_id,
+    fetch_dag_bag,
+    fetch_dags_modules,
+    get_chunks,
     make_dag_id,
     make_observatory_api,
+    make_release_date,
     make_sftp_connection,
-    make_workflow_sensor,
+    make_table_name,
     normalized_schedule_interval,
     on_failure_callback,
     prepare_bq_load,
@@ -69,10 +78,6 @@ from observatory.platform.utils.workflow_utils import (
     table_ids_from_path,
     upload_files_from_list,
     workflow_path,
-    make_release_date,
-    make_table_name,
-    fetch_dags_modules,
-    fetch_dag_bag,
 )
 from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
@@ -1110,27 +1115,14 @@ class TestWorkflowUtils(unittest.TestCase):
             actual_records = load_jsonl(file_path)
             self.assertListEqual(expected_records, actual_records)
 
+    def test_get_chunks(self):
+        """Test chunk generation."""
 
-class TestMakeTelescopeSensor(unittest.TestCase):
-    """Test the external task sensor creation."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    class Organisation:
-        def __init__(self):
-            self.name = "test"
-
-    class Response:
-        def __init__(self):
-            self.organisation = TestMakeTelescopeSensor.Organisation()
-
-    def test_make_telescope_sensor(self):
-        telescope = TestMakeTelescopeSensor.Response()
-        sensor = make_workflow_sensor(telescope.organisation.name, "dag_prefix")
-        self.assertEqual(sensor.task_id, "dag_prefix_test_sensor")
-        self.assertEqual(sensor.mode, "reschedule")
-        self.assertEqual(sensor.external_dag_id, "dag_prefix_test")
+        items = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        chunks = list(get_chunks(input_list=items, chunk_size=2))
+        self.assertEqual(len(chunks), 5)
+        self.assertEqual(len(chunks[0]), 2)
+        self.assertEqual(len(chunks[4]), 1)
 
 
 class TestScheduleOptimiser(unittest.TestCase):
@@ -1282,3 +1274,81 @@ class TestScheduleOptimiser(unittest.TestCase):
         self.assertEqual(schedule[0].end, pendulum.date(1000, 1, 1))
         self.assertEqual(schedule[1].start, pendulum.date(1000, 2, 1))
         self.assertEqual(schedule[1].end, pendulum.date(1000, 5, 1))
+
+
+class MockVersionData:
+    @classmethod
+    def get(self, attribute):
+        if attribute == "Version":
+            return "1"
+        if attribute == "Home-page":
+            return "http://test.test"
+        if attribute == "Author-email":
+            return "test@test"
+
+
+class TestAsyncHttpFileDownloader(ObservatoryTestCase):
+    def test_download_files(self):
+        # Spin up http server
+        directory = test_fixtures_path("utils")
+        http_server = HttpServer(directory=directory)
+        http_server.start()
+
+        file1 = "http_testfile.txt"
+        file2 = "http_testfile2.txt"
+        hash1 = "d8e8fca2dc0f896fd7cb4cb0031ba249"
+        hash2 = "126a8a51b9d1bbd07fddc65819a542c3"
+        algorithm = "md5"
+
+        url1 = f"{http_server.url}{file1}"
+        url2 = f"{http_server.url}{file2}"
+
+        # Empty list
+        with CliRunner().isolated_filesystem() as tmpdir:
+            AsyncHttpFileDownloader.download_files(download_list=[])
+            files = os.listdir(tmpdir)
+            self.assertEqual(len(files), 0)
+
+        # URL only
+        with CliRunner().isolated_filesystem() as tmpdir:
+            download_list = [url1, url2]
+            AsyncHttpFileDownloader.download_files(download_list=download_list)
+            self.assert_file_integrity(file1, hash1, algorithm)
+            self.assert_file_integrity(file2, hash2, algorithm)
+
+        # URL only with observatory user agent
+        with CliRunner().isolated_filesystem() as tmpdir:
+            with patch("observatory.platform.utils.url_utils.metadata", return_value=MockVersionData):
+                headers = get_observatory_http_header(package_name="observatory-platform")
+                download_list = [url1, url2]
+                AsyncHttpFileDownloader.download_files(download_list=download_list, headers=headers)
+                self.assert_file_integrity(file1, hash1, algorithm)
+                self.assert_file_integrity(file2, hash2, algorithm)
+
+        # Dictionary list
+        with CliRunner().isolated_filesystem() as tmpdir:
+            dst1 = "test1.txt"
+            dst2 = "test2.txt"
+
+            download_list = [
+                {"url": url1, "filename": dst1},
+                {"url": url2, "filename": dst2},
+            ]
+            AsyncHttpFileDownloader.download_files(download_list=download_list)
+            self.assert_file_integrity(dst1, hash1, algorithm)
+            self.assert_file_integrity(dst2, hash2, algorithm)
+
+        # Single download
+        with CliRunner().isolated_filesystem() as tmpdir:
+            AsyncHttpFileDownloader.download_file(url=url1)
+            AsyncHttpFileDownloader.download_file(url=url2, filename=file2)
+            self.assert_file_integrity(file1, hash1, algorithm)
+            self.assert_file_integrity(file2, hash2, algorithm)
+
+        # Retry and timeout
+        download_list = [f"{http_server.url}does_not_exist"]
+        with patch("observatory.platform.utils.workflow_utils.logging.error") as m_logging:
+            AsyncHttpFileDownloader.download_files(download_list=download_list)
+            self.assertEqual(m_logging.call_count, 1)
+
+        http_server.stop()

@@ -34,6 +34,8 @@ json_lines>=0.5.0,<1 # Reading, including jsonl.gz
 # HTTP requests and URL cleaning
 requests>=2.25.0,<3
 tldextract>=3.1.1
+aiohttp
+
 
 # SFTP
 pysftp>=0.2.9<1
@@ -41,6 +43,8 @@ paramiko>=2.7.2,<3
 
 # Utils
 natsort>=7.1.1,<8
+backoff==1.11.*
+timeout-decorator
 
 # Test utils
 freezegun>=1.1.0,<2
