@@ -45,6 +45,7 @@ paramiko>=2.7.2,<3
 natsort>=7.1.1,<8
 backoff==1.11.*
 timeout-decorator
+validators
 
 # Test utils
 freezegun>=1.1.0,<2
