@@ -98,15 +98,19 @@ x-volumes: &volumes
   - "{{ host_data_path }}:/opt/observatory/data"
 
   # Volume mapping when observatory installed in editable mode
-  {%- if config.observatory.package_type == 'editable' %}
+  {%- if config.backend.type.value == 'local' and config.observatory.package_type == 'editable' %}
   - "{{ config.observatory.host_package }}/observatory/platform/dags:/opt/airflow/dags"
-  {%- endif %}
+  {%- elif config.backend.type.value == 'terraform' and config.observatory.package_type == 'editable'  %}
+  - "/opt/observatory-platform/observatory/platform/dags:/opt/airflow/dags"
+  {%- endif -%}
 
   # Volume mappings for Python packages, incl observatory-platform and dags projects:
   {%- for package in config.python_packages %}
-  {%- if package.type == 'editable' %}
+  {%- if config.backend.type.value == 'local' and package.type == 'editable' %}
   - "{{ package.host_package }}:/opt/{{ package.name }}"
-  {%- endif %}
+  {%- elif config.backend.type.value == 'terraform' and package.type == 'editable'  %}
+  - "/opt/{{ package.name }}:/opt/{{ package.name }}"
+  {%- endif -%}
   {%- endfor %}
 
 {% if config.backend.type.value == 'local' %}
