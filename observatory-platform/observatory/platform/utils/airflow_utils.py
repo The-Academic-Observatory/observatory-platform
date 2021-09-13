@@ -21,6 +21,7 @@ Airflow utility functions (independent of telescope or google cloud usage)
 import logging
 from typing import Any, List, Optional, Union
 
+import validators
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection, TaskInstance, Variable
@@ -172,3 +173,22 @@ def set_task_state(success: bool, task_id: str):
         msg_failed = f"{task_id} failed"
         logging.error(msg_failed)
         raise AirflowException(msg_failed)
+
+
+def get_airflow_connection_url(conn_id: str) -> str:
+    """Get the Airflow connection host, validate it is a valid url, and return it if it is, with a trailing /,
+        otherwise throw an exception.  Assumes the connection_id exists.
+
+    :param conn_id: Airflow connection id.
+    :return: Connection URL with a trailing / added if necessary, or raise an exception if it is not a valid URL.
+    """
+
+    url = BaseHook.get_connection(conn_id)
+
+    if validators.url(url) != True:
+        raise AirflowException(f"Airflow connection id {conn_id} does not have a valid url: {url}")
+
+    if url[-1] != "/":
+        url += "/"
+
+    return url

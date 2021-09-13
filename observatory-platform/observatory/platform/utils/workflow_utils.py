@@ -41,7 +41,6 @@ import paramiko
 import pendulum
 import pysftp
 import six
-import validators
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import DagBag, Variable
@@ -1384,22 +1383,3 @@ class AsyncHttpFileDownloader:
         download_list = [{"url": url, "filename": filename}]
 
         AsyncHttpFileDownloader.download_files(download_list=download_list, num_connections=1, headers=headers)
-
-
-def get_airflow_connection_url(conn_id: str) -> str:
-    """Get the Airflow connection host, validate it is a valid url, and return it if it is, with a trailing /,
-        otherwise throw an exception.  Assumes the connection_id exists.
-
-    :param conn_id: Airflow connection id.
-    :return: Connection URL with a trailing / added if necessary, or raise an exception if it is not a valid URL.
-    """
-
-    url = BaseHook.get_connection(conn_id)
-
-    if validators.url(url) != True:
-        raise AirflowException(f"Airflow connection id {conn_id} does not have a valid url: {url}")
-
-    if url[-1] != "/":
-        url += "/"
-
-    return url
