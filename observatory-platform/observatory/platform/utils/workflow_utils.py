@@ -47,6 +47,7 @@ from airflow.sensors.external_task import ExternalTaskSensor
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
+
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
@@ -63,6 +64,7 @@ from observatory.platform.utils.gc_utils import (
     run_bigquery_query,
     upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
+    select_table_shard_dates,
 )
 from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
@@ -178,7 +180,7 @@ def prepare_bq_load(
     schema_folder: str,
     dataset_id: str,
     table_id: str,
-    release_date: pendulum.datetime,
+    release_date: pendulum.DateTime,
     prefix: str,
     schema_version: str,
     dataset_description: str = "",
@@ -223,7 +225,7 @@ def prepare_bq_load_v2(
     dataset_id: str,
     dataset_location: str,
     table_id: str,
-    release_date: pendulum.datetime,
+    release_date: pendulum.DateTime,
     prefix: str,
     schema_version: str,
     dataset_description: str = "",
@@ -258,7 +260,7 @@ def prepare_bq_load_v2(
 
 def bq_load_shard(
     schema_folder: str,
-    release_date: pendulum.datetime,
+    release_date: pendulum.DateTime,
     transform_blob: str,
     dataset_id: str,
     table_id: str,
@@ -306,7 +308,7 @@ def bq_load_shard_v2(
     dataset_id: str,
     dataset_location: str,
     table_id: str,
-    release_date: pendulum.datetime,
+    release_date: pendulum.Date,
     source_format: SourceFormat,
     prefix: str = "",
     schema_version: str = None,
@@ -365,7 +367,7 @@ def bq_load_shard_v2(
 
 def bq_load_ingestion_partition(
     schema_folder: str,
-    end_date: pendulum.datetime,
+    end_date: pendulum.DateTime,
     transform_blob: str,
     dataset_id: str,
     main_table_id: str,
@@ -424,7 +426,7 @@ def bq_load_partition(
     dataset_id: str,
     dataset_location: str,
     table_id: str,
-    release_date: pendulum.datetime,
+    release_date: pendulum.DateTime,
     source_format: SourceFormat,
     partition_type: bigquery.TimePartitioningType,
     prefix: str = "",
@@ -486,8 +488,8 @@ def bq_load_partition(
 
 
 def bq_delete_old(
-    start_date: pendulum.datetime,
-    end_date: pendulum.datetime,
+    start_date: pendulum.DateTime,
+    end_date: pendulum.DateTime,
     dataset_id: str,
     main_table_id: str,
     partition_table_id: str,
@@ -527,8 +529,8 @@ def bq_delete_old(
 
 def bq_append_from_partition(
     schema_folder: str,
-    start_date: pendulum.datetime,
-    end_date: pendulum.datetime,
+    start_date: pendulum.DateTime,
+    end_date: pendulum.DateTime,
     dataset_id: str,
     main_table_id: str,
     partition_table_id: str,
@@ -567,7 +569,7 @@ def bq_append_from_partition(
 
 def bq_append_from_file(
     schema_folder: str,
-    end_date: pendulum.datetime,
+    end_date: pendulum.DateTime,
     transform_blob: str,
     dataset_id: str,
     main_table_id: str,
@@ -1248,3 +1250,34 @@ def add_partition_date(
     for entry in list_of_dicts:
         entry[partition_field] = partition_date
     return list_of_dicts
+
+
+def make_release_date(**kwargs) -> pendulum.DateTime:
+    """Make a release date"""
+
+    d = kwargs["next_execution_date"].subtract(microseconds=1).date()
+    return pendulum.datetime(d.year, d.month, d.day)
+
+
+def make_table_name(
+    *, project_id: str, dataset_id: str, table_id: str, end_date: Union[pendulum.DateTime, pendulum.Date], sharded: bool
+):
+    """Make a BQ table name.
+    :param project_id: GCP Project ID.
+    :param dataset_id: GCP Dataset ID.
+    :param table_id: Table name to convert to the suitable BQ table ID.
+    :param end_date: Latest date considered.
+    :param sharded: whether the table is sharded or not.
+    """
+
+    new_table_name = table_id
+    if sharded:
+        table_date = select_table_shard_dates(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            end_date=end_date,
+        )[0]
+        new_table_name = f"{table_id}{table_date.strftime('%Y%m%d')}"
+
+    return new_table_name

@@ -138,16 +138,6 @@ class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
         actual = bigquery_sharded_table_id("my_table", pendulum.datetime(year=2020, month=3, day=15))
         self.assertEqual(expected, actual)
 
-    @patch("observatory.platform.utils.gc_utils.run_bigquery_query")
-    def test_select_table_shard_dates(self, mock_run_bq_query):
-        end_date = pendulum.datetime(2021, 1, 1)
-        mock_run_bq_query.return_value = [{"suffix": end_date}]
-
-        results = select_table_shard_dates(project_id="proj", dataset_id="ds", table_id="table", end_date=end_date)
-
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0], end_date)
-
 
 class TestGoogleCloudUtils(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -687,10 +677,9 @@ class TestGoogleCloudUtils(unittest.TestCase):
         client = bigquery.Client()
         dataset_id = random_id()
         table_id = "fundref"
-        # end_date = pendulum.date(year=2019, month=5, day=1)
-        release_1 = pendulum.datetime(year=2019, month=5, day=1)
-        release_2 = pendulum.datetime(year=2019, month=6, day=1)
-        release_3 = pendulum.datetime(year=2019, month=7, day=1)
+        release_1 = pendulum.date(year=2019, month=5, day=1)
+        release_2 = pendulum.date(year=2019, month=6, day=1)
+        release_3 = pendulum.date(year=2019, month=7, day=1)
         query = "SELECT * FROM `bigquery-public-data.labeled_patents.figures` LIMIT 1"
 
         try:
@@ -717,20 +706,20 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 self.gc_bucket_location,
             )
 
-            suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_1)
-            p_suffixes = [pendulum.instance(datetime.combine(suffix, datetime.min.time())) for suffix in suffixes]
-            self.assertTrue(len(suffixes), 1)
-            self.assertEqual(release_1, p_suffixes[0])
+            dates = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_1)
+            for date in dates:
+                self.assertIsInstance(date, pendulum.Date)
+            self.assertEqual(release_1, dates[0])
 
-            suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_2)
-            p_suffixes = [pendulum.instance(datetime.combine(suffix, datetime.min.time())) for suffix in suffixes]
-            self.assertTrue(len(suffixes), 1)
-            self.assertEqual(release_2, p_suffixes[0])
+            dates = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_2)
+            for date in dates:
+                self.assertIsInstance(date, pendulum.Date)
+            self.assertEqual(release_2, dates[0])
 
-            suffixes = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_3)
-            p_suffixes = [pendulum.instance(datetime.combine(suffix, datetime.min.time())) for suffix in suffixes]
-            self.assertTrue(len(suffixes), 1)
-            self.assertEqual(release_3, p_suffixes[0])
+            dates = select_table_shard_dates(self.gc_project_id, dataset_id, table_id, release_3)
+            for date in dates:
+                self.assertIsInstance(date, pendulum.Date)
+            self.assertEqual(release_3, dates[0])
 
         finally:
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)

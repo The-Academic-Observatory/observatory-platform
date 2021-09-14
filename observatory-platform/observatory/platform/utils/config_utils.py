@@ -75,7 +75,7 @@ def terraform_credentials_path() -> str:
 
 
 def find_schema(
-    path: str, table_name: str, release_date: pendulum.datetime, prefix: str = "", ver: str = None
+    path: str, table_name: str, release_date: pendulum.DateTime, prefix: str = "", ver: str = None
 ) -> Union[str, None]:
 
     """Finds a schema file on a given path, with a particular table name, release date and optional prefix.
