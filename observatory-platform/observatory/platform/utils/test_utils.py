@@ -414,12 +414,12 @@ class ObservatoryEnvironment:
             self.temp_dir = temp_dir
 
             # Prepare environment
-            new_env = {self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, ".observatory")}
+            self.new_env = {self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, ".observatory")}
             prev_env = dict(os.environ)
 
             try:
                 # Update environment
-                os.environ.update(new_env)
+                os.environ.update(self.new_env)
 
                 # Create Airflow SQLite database
                 settings.DAGS_FOLDER = os.path.join(self.temp_dir, "airflow", "dags")
