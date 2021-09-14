@@ -469,7 +469,7 @@ module "airflow_connections" {
   for_each = toset(nonsensitive(keys(var.airflow_connections))) # Make keys of variable nonsensitive.
   source = "./secret"
   secret_id = "airflow-connections-${each.key}"
-  secret_data = each.value
+  secret_data = var.airflow_connections[each.key]
   service_account_email = google_service_account.observatory_service_account.email
   depends_on = [google_project_service.services]
 }
