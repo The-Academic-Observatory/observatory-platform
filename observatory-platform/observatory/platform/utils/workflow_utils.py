@@ -40,8 +40,8 @@ import pysftp
 import six
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.models import DagBag, Variable
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.variable import Variable
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from airflow.sensors.external_task import ExternalTaskSensor
 from dateutil.relativedelta import relativedelta
@@ -51,9 +51,9 @@ from google.cloud.bigquery import SourceFormat
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
-    AirflowVars,
     create_slack_webhook,
 )
+from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import find_schema, utils_templates_path
 from observatory.platform.utils.file_utils import load_file, write_to_file
 from observatory.platform.utils.gc_utils import (
@@ -72,6 +72,44 @@ from observatory.platform.utils.jinja2_utils import (
 )
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
+
+
+def fetch_dags_modules() -> dict:
+    """Get the dags modules from the Airflow Variable
+
+    :return: Dags modules
+    """
+
+    # Try to get value from env variable first, saving costs from GC secret usage
+    dags_modules_str = EnvironmentVariablesBackend().get_variable(AirflowVars.DAGS_MODULE_NAMES)
+    if not dags_modules_str:
+        dags_modules_str = Variable.get(AirflowVars.DAGS_MODULE_NAMES)
+    logging.info(f"dags_modules str: {dags_modules_str}")
+    dags_modules_ = json.loads(dags_modules_str)
+    logging.info(f"dags_modules: {dags_modules_}")
+    return dags_modules_
+
+
+def fetch_dag_bag(path: str) -> DagBag:
+    """Load a DAG Bag from a given path.
+
+    :param path: the path to the DAG bag.
+    :return: None.
+    """
+    logging.info(f"Loading DAG bag from path: {path}")
+    dag_bag = DagBag(path)
+
+    if dag_bag is None:
+        raise Exception(f"DagBag could not be loaded from path: {path}")
+
+    if len(dag_bag.import_errors):
+        # Collate loading errors as single string and raise it as exception
+        results = []
+        for path, exception in dag_bag.import_errors.items():
+            results.append(f"DAG import exception: {path}\n{exception}\n\n")
+        raise Exception("\n".join(results))
+
+    return dag_bag
 
 
 def workflow_path(*sub_dirs) -> str:

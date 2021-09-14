@@ -81,7 +81,7 @@ class ElasticImportConfig:
     elastic_mappings_func: Callable = None
     kibana_spaces: List[str] = None
     kibana_time_fields: List[TimeField] = None
-    index_keep_info: KeepInfo = field(default_factory=default_index_keep_info)
+    index_keep_info: Dict[str, KeepInfo] = field(default_factory=default_index_keep_info)
 
 
 def load_elastic_mappings_simple(path: str, table_prefix: str) -> Dict:
