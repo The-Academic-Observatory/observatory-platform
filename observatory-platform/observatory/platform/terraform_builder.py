@@ -115,7 +115,7 @@ class TerraformBuilder:
         # Copy DAGs projects
         for dags_project in self.config.workflows_projects:
             destination_path = os.path.join(self.packages_build_path, dags_project.package_name)
-            copy_dir(dags_project.path, destination_path, ignore)
+            copy_dir(dags_project.package, destination_path, ignore)
 
         # Copy terraform files into build/terraform: ignore jinja2 templates
         copy_dir(self.terraform_path, self.terraform_build_path, shutil.ignore_patterns("*.jinja2", "__pycache__"))
