@@ -43,7 +43,7 @@ class MonitoringWorkflow(Workflow):
         ext_dag_id: str,
         schedule_interval: str = "@monthly",
         mode: str = "reschedule",
-        check_exists: bool = False,
+        check_exists: bool = True,
     ):
         super().__init__(
             dag_id=MonitoringWorkflow.DAG_ID, start_date=start_date, schedule_interval=schedule_interval, catchup=False
@@ -107,7 +107,7 @@ class TestDagRunSensor(ObservatoryTestCase):
         env = ObservatoryEnvironment()
         with env.create():
             execution_date = pendulum.datetime(2021, 9, 1)
-            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="nodag")
+            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="nodag", check_exists=True)
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
                 self.assertRaises(AirflowException, env.run_task, "sensor_task", dag, execution_date=execution_date)
