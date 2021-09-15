@@ -37,16 +37,14 @@ def copy_dir(source_path: str, destination_path: str, ignore):
 
 class TerraformBuilder:
     def __init__(self, config_path: str, debug: bool = False):
-        """ Create a TerraformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
+        """Create a TerraformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
 
         :param config_path: the path to the config.yaml configuration file.
         :param debug: whether to print debug statements.
         """
 
-        self.platform_package_path = module_file_path("observatory.platform", nav_back_steps=-3)
         self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
         self.terraform_path = module_file_path("observatory.platform.terraform")
-        self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
         self.api_path = module_file_path("observatory.api.server")
         self.debug = debug
 
@@ -71,7 +69,7 @@ class TerraformBuilder:
 
     @property
     def is_environment_valid(self) -> bool:
-        """ Return whether the environment for building the Packer image is valid.
+        """Return whether the environment for building the Packer image is valid.
 
         :return: whether the environment for building the Packer image is valid.
         """
@@ -80,7 +78,7 @@ class TerraformBuilder:
 
     @property
     def packer_exe_path(self) -> str:
-        """ The path to the Packer executable.
+        """The path to the Packer executable.
 
         :return: the path or None.
         """
@@ -89,7 +87,7 @@ class TerraformBuilder:
 
     @property
     def gcloud_exe_path(self) -> str:
-        """ The path to the Google Cloud SDK executable.
+        """The path to the Google Cloud SDK executable.
 
         :return: the path or None.
         """
@@ -104,18 +102,11 @@ class TerraformBuilder:
 
         ignore = shutil.ignore_patterns("__pycache__", "*.eggs", "*.egg-info")
 
-        # Copy Observatory Platform
-        destination_path = os.path.join(self.packages_build_path, "observatory-platform")
-        copy_dir(self.platform_package_path, destination_path, ignore)
-
-        # Copy Observatory API
-        destination_path = os.path.join(self.packages_build_path, "observatory-api")
-        copy_dir(self.api_package_path, destination_path, ignore)
-
-        # Copy DAGs projects
-        for dags_project in self.config.workflows_projects:
-            destination_path = os.path.join(self.packages_build_path, dags_project.package_name)
-            copy_dir(dags_project.package, destination_path, ignore)
+        # Copy local packages
+        for package in self.config.python_packages:
+            if package.type == "editable":
+                destination_path = os.path.join(self.packages_build_path, package.name)
+                copy_dir(package.host_package, destination_path, ignore)
 
         # Copy terraform files into build/terraform: ignore jinja2 templates
         copy_dir(self.terraform_path, self.terraform_build_path, shutil.ignore_patterns("*.jinja2", "__pycache__"))
@@ -149,7 +140,7 @@ class TerraformBuilder:
             f.write(render)
 
     def build_terraform(self):
-        """ Build the Observatory Platform Terraform files.
+        """Build the Observatory Platform Terraform files.
 
         :return: None.
         """
@@ -158,7 +149,7 @@ class TerraformBuilder:
         self.platform_builder.make_files()
 
     def build_image(self) -> Tuple[str, str, int]:
-        """ Build the Observatory Platform Google Compute image with Packer.
+        """Build the Observatory Platform Google Compute image with Packer.
 
         :return: output and error stream results and proc return code.
         """
