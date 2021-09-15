@@ -46,6 +46,7 @@ natsort>=7.1.1,<8
 backoff==1.11.*
 timeout-decorator
 validators
+xmltodict
 
 # Test utils
 freezegun>=1.1.0,<2
