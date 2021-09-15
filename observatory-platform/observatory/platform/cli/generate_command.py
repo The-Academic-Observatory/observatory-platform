@@ -102,7 +102,7 @@ class GenerateCommand:
         return workflow_path, dag_path, test_path, doc_path
 
     def generate_new_workflow(self, *, project_path: str, package_name: str, workflow_type: str, workflow_name: str):
-        """ Make a new workflow template.
+        """Make a new workflow template.
 
         :param project_path: the path to the workflows project.
         :param package_name: the Python package name.

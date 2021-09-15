@@ -138,7 +138,7 @@ def test_fixtures_path(*subdirs) -> str:
 
 
 def find_free_port(host: str = "localhost") -> int:
-    """ Find a free port.
+    """Find a free port.
 
     :param host: the host.
     :return: the free port number
@@ -149,7 +149,7 @@ def find_free_port(host: str = "localhost") -> int:
 
 
 def save_empty_file(path: str, file_name: str) -> str:
-    """ Save empty file and return path.
+    """Save empty file and return path.
 
     :param path: the file directory.
     :param file_name: the file name.
@@ -826,7 +826,11 @@ class Table:
 
 
 def bq_load_tables(
-    *, tables: List[Table], bucket_name: str, release_date: DateTime, data_location: str,
+    *,
+    tables: List[Table],
+    bucket_name: str,
+    release_date: DateTime,
+    data_location: str,
 ):
     """Load the fake Observatory Dataset in BigQuery.
 
@@ -873,7 +877,12 @@ def bq_load_tables(
             uri = f"gs://{bucket_name}/{blob_name}"
             logging.info(f"URI: {uri}")
             success = load_bigquery_table(
-                uri, table.dataset_id, data_location, table_id, schema_file_path, SourceFormat.NEWLINE_DELIMITED_JSON,
+                uri,
+                table.dataset_id,
+                data_location,
+                table_id,
+                schema_file_path,
+                SourceFormat.NEWLINE_DELIMITED_JSON,
             )
             if not success:
                 raise AirflowException("bq_load task: data failed to load data into BigQuery")

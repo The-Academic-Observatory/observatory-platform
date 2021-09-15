@@ -41,7 +41,7 @@ class ProcessOutput:
 
 
 class ComposeRunnerInterface(ABC):
-    """ An interface for running Docker Compose commands """
+    """An interface for running Docker Compose commands"""
 
     @abstractmethod
     def make_environment(self) -> Dict:

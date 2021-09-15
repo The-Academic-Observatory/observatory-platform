@@ -34,7 +34,7 @@ class TestObservatoryGenerate(unittest.TestCase):
     @patch("click.confirm")
     @patch("os.path.exists")
     def test_generate(self, mock_path_exists, mock_click_confirm):
-        """ Test that the fernet key and default config files are generated """
+        """Test that the fernet key and default config files are generated"""
 
         # Test generate fernet key
         runner = CliRunner()
@@ -160,7 +160,7 @@ class MockPlatformCommand(Mock):
 class TestObservatoryPlatform(unittest.TestCase):
     @patch("observatory.platform.cli.cli.PlatformCommand")
     def test_platform_start_stop_success(self, mock_cmd):
-        """ Test that the start and stop command are successful """
+        """Test that the start and stop command are successful"""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -205,7 +205,7 @@ class TestObservatoryPlatform(unittest.TestCase):
 
     @patch("observatory.platform.cli.cli.PlatformCommand")
     def test_platform_start_fail(self, mock_cmd):
-        """ Test that the start command error messages and return codes """
+        """Test that the start command error messages and return codes"""
 
         # Check that no config file generates an error
         runner = CliRunner()
@@ -356,7 +356,7 @@ class TestObservatoryTerraform(unittest.TestCase):
     @patch("click.confirm")
     @patch("observatory.platform.observatory_config.TerraformConfig.load")
     def test_terraform_create_update(self, mock_load_config, mock_click_confirm):
-        """ Test creating and updating a terraform cloud workspace"""
+        """Test creating and updating a terraform cloud workspace"""
 
         # Create token json
         token_json = {"credentials": {"app.terraform.io": {"token": self.token}}}
@@ -489,7 +489,7 @@ class TestObservatoryTerraform(unittest.TestCase):
 
     @patch("observatory.platform.observatory_config.TerraformConfig.load")
     def test_terraform_check_dependencies(self, mock_load_config):
-        """ Test that checking for dependencies prints the correct output when files are missing"""
+        """Test that checking for dependencies prints the correct output when files are missing"""
         runner = CliRunner()
         with runner.isolated_filesystem() as working_dir:
             credentials_file_path = os.path.join(working_dir, "google_application_credentials.json")

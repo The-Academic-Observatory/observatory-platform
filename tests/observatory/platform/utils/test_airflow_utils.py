@@ -24,7 +24,7 @@ from observatory.platform.utils.airflow_utils import set_task_state
 
 class TestAirflowUtils(unittest.TestCase):
     def test_set_task_state(self):
-        """ Test set_task_state  """
+        """Test set_task_state"""
 
         task_id = "test_task"
         set_task_state(True, task_id)

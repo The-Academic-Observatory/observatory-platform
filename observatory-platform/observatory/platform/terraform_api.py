@@ -28,7 +28,7 @@ import requests
 
 
 class TerraformVariableCategory(Enum):
-    """ The type of Terraform variable.  """
+    """The type of Terraform variable."""
 
     terraform = "terraform"
     env = "env"

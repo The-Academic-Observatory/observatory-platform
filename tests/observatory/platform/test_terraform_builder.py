@@ -103,7 +103,7 @@ class TestTerraformBuilder(unittest.TestCase):
 
     @unittest.skip
     def test_packer_exe_path(self):
-        """ Test that the path to the Packer executable is found """
+        """Test that the path to the Packer executable is found"""
 
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
@@ -113,7 +113,7 @@ class TestTerraformBuilder(unittest.TestCase):
             self.assertTrue(result.endswith("packer"))
 
     def test_build_terraform(self):
-        """ Test building of the terraform files """
+        """Test building of the terraform files"""
 
         with CliRunner().isolated_filesystem() as t:
             # Save default config file
@@ -166,7 +166,7 @@ class TestTerraformBuilder(unittest.TestCase):
     @patch("subprocess.Popen")
     @patch("observatory.platform.terraform_builder.stream_process")
     def test_build_image(self, mock_stream_process, mock_subprocess):
-        """ Test building of the observatory platform """
+        """Test building of the observatory platform"""
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
@@ -189,7 +189,7 @@ class TestTerraformBuilder(unittest.TestCase):
     @patch("subprocess.Popen")
     @patch("observatory.platform.terraform_builder.stream_process")
     def test_gcloud_activate_service_account(self, mock_stream_process, mock_subprocess):
-        """ Test activating the gcloud service account """
+        """Test activating the gcloud service account"""
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
@@ -212,7 +212,7 @@ class TestTerraformBuilder(unittest.TestCase):
     @patch("subprocess.Popen")
     @patch("observatory.platform.terraform_builder.stream_process")
     def test_gcloud_builds_submit(self, mock_stream_process, mock_subprocess):
-        """ Test gcloud builds submit command """
+        """Test gcloud builds submit command"""
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
@@ -233,7 +233,7 @@ class TestTerraformBuilder(unittest.TestCase):
             self.assertEqual(expected_return_code, return_code)
 
     def test_build_api_image(self):
-        """ Test building API image using Docker """
+        """Test building API image using Docker"""
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
