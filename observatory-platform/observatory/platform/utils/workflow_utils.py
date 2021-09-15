@@ -90,14 +90,15 @@ def fetch_dags_modules() -> dict:
     return dags_modules_
 
 
-def fetch_dag_bag(path: str) -> DagBag:
+def fetch_dag_bag(path: str, include_examples: bool = False) -> DagBag:
     """Load a DAG Bag from a given path.
 
     :param path: the path to the DAG bag.
+    :param include_examples: whether to include example DAGs or not.
     :return: None.
     """
     logging.info(f"Loading DAG bag from path: {path}")
-    dag_bag = DagBag(path)
+    dag_bag = DagBag(path, include_examples=include_examples)
 
     if dag_bag is None:
         raise Exception(f"DagBag could not be loaded from path: {path}")
