@@ -981,6 +981,9 @@ class TestWorkflowUtils(unittest.TestCase):
         with env.create() as t:
             # No DAGs found
             dag_bag = fetch_dag_bag(t)
+            print(f"DAGS found on path: {t}")
+            for dag_id in dag_bag.dag_ids:
+                print(f"  {dag_id}")
             self.assertEqual(0, len(dag_bag.dag_ids))
 
             # Bad DAG
