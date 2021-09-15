@@ -120,7 +120,7 @@ class TestTerraformApi(unittest.TestCase):
         cls.terraform_api.delete_workspace(cls.organisation, cls.workspace)
 
     def test_token_from_file(self):
-        """ Test if token from json file is correctly retrieved """
+        """Test if token from json file is correctly retrieved"""
 
         token = "24asdfAAD.atlasv1.AD890asdnlqADn6daQdf"
         token_json = {"credentials": {"app.terraform.io": {"token": token}}}
@@ -156,7 +156,7 @@ class TestTerraformApi(unittest.TestCase):
         self.assertEqual(response_code, 404)
 
     def test_workspace_id(self):
-        """ Test that workspace id returns string or raises SystemExit for invalid workspace """
+        """Test that workspace id returns string or raises SystemExit for invalid workspace"""
 
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
         self.assertIsInstance(workspace_id, str)
@@ -165,7 +165,7 @@ class TestTerraformApi(unittest.TestCase):
             self.terraform_api.workspace_id(self.organisation, "non-existing-workspace")
 
     def test_add_delete_workspace_variable(self):
-        """ Test whether workspace variable is successfully added and deleted """
+        """Test whether workspace variable is successfully added and deleted"""
 
         # Get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
@@ -190,7 +190,7 @@ class TestTerraformApi(unittest.TestCase):
                 self.terraform_api.delete_workspace_variable(var, workspace_id)
 
     def test_update_workspace_variable(self):
-        """ Test updating variable both with empty attributes (meaning the var won't change) and updated attributes. """
+        """Test updating variable both with empty attributes (meaning the var won't change) and updated attributes."""
         # get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
 
@@ -217,7 +217,7 @@ class TestTerraformApi(unittest.TestCase):
             self.terraform_api.delete_workspace_variable(var, workspace_id)
 
     def test_list_workspace_variables(self):
-        """ Test listing workspace variables and the returned response. """
+        """Test listing workspace variables and the returned response."""
         # get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
         expected_vars_index = dict()
@@ -255,7 +255,7 @@ class TestTerraformApi(unittest.TestCase):
             self.terraform_api.delete_workspace_variable(actual_var, workspace_id)
 
     def test_create_configuration_version(self):
-        """ Test that configuration version is uploaded successfully """
+        """Test that configuration version is uploaded successfully"""
         # get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
 
@@ -275,7 +275,7 @@ class TestTerraformApi(unittest.TestCase):
         self.assertIn(configuration_status, ["pending", "uploaded", "errored"])
 
     def test_upload_configuration_files(self):
-        """ Test that configuration files are uploaded successfully """
+        """Test that configuration files are uploaded successfully"""
         # get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
 
@@ -295,7 +295,7 @@ class TestTerraformApi(unittest.TestCase):
             self.assertEqual(response_code, 200)
 
     def test_create_run(self):
-        """ Test creating a run (with auto-apply) """
+        """Test creating a run (with auto-apply)"""
         # get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
         # create configuration version
@@ -327,7 +327,7 @@ class TestTerraformApi(unittest.TestCase):
         self.assertIsInstance(run_id, str)
 
     def test_get_run_details(self):
-        """ Test retrieval of run details """
+        """Test retrieval of run details"""
         # get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
         # create configuration version
@@ -388,7 +388,7 @@ class TestTerraformApi(unittest.TestCase):
         self.assertIn(run_status, run_states)
 
     def test_plan_variable_changes(self):
-        """ Test the lists that are returned by plan_variable_changes. """
+        """Test the lists that are returned by plan_variable_changes."""
 
         # Get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)
@@ -477,7 +477,7 @@ class TestTerraformApi(unittest.TestCase):
             self.terraform_api.delete_workspace_variable(var, workspace_id)
 
     def test_update_workspace_variables(self):
-        """ Test whether variables in workspace are updated correctly. """
+        """Test whether variables in workspace are updated correctly."""
 
         # Get workspace id
         workspace_id = self.terraform_api.workspace_id(self.organisation, self.workspace)

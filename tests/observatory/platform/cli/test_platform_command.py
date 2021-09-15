@@ -45,7 +45,7 @@ class TestPlatformCommand(unittest.TestCase):
         self.airflow_ui_port = find_free_port()
 
     def make_observatory_config(self, t):
-        """ Make an ObservatoryConfig instance.
+        """Make an ObservatoryConfig instance.
 
         :param t: the temporary path.
         :return: the ObservatoryConfig.

@@ -70,7 +70,7 @@ RES_EXAMPLE = {
 
 
 class TestElastic(unittest.TestCase):
-    """ Tests for the 'query' endpoint of the API. """
+    """Tests for the 'query' endpoint of the API."""
 
     @patch("observatory.api.server.elastic.Elasticsearch.ping")
     def test_create_es_connection(self, mock_elasticsearch_ping):

@@ -26,7 +26,7 @@ from observatory.platform.utils.url_utils import wait_for_url
 
 class PlatformCommand(PlatformBuilder):
     def __init__(self, config_path: str, host_uid: int = HOST_UID, host_gid: int = HOST_GID, debug: bool = DEBUG):
-        """ Create a PlatformCommand, which can be used to start and stop Observatory Platform instances.
+        """Create a PlatformCommand, which can be used to start and stop Observatory Platform instances.
 
         :param config_path: The path to the config.yaml configuration file.
         :param host_uid: The user id of the host system. Used to set the user id in the Docker containers.
@@ -40,7 +40,7 @@ class PlatformCommand(PlatformBuilder):
 
     @property
     def ui_url(self) -> str:
-        """ Return the URL to Apache Airflow UI.
+        """Return the URL to Apache Airflow UI.
 
         :return: Apache Airflow UI URL.
         """
@@ -48,7 +48,7 @@ class PlatformCommand(PlatformBuilder):
         return f"http://localhost:{self.config.observatory.airflow_ui_port}"
 
     def wait_for_airflow_ui(self, timeout: int = 60) -> bool:
-        """ Wait for the Apache Airflow UI to start.
+        """Wait for the Apache Airflow UI to start.
 
         :param timeout: the number of seconds to wait before timing out.
         :return: whether connecting to the Apache Airflow UI was successful or not.

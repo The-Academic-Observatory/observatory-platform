@@ -52,7 +52,7 @@ class MockTelescope(Workflow):
 
 
 class TestTelescope(ObservatoryTestCase):
-    """ Tests the Telescope. """
+    """Tests the Telescope."""
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -67,7 +67,7 @@ class TestTelescope(ObservatoryTestCase):
         self.schedule_interval = "@weekly"
 
     def test_make_task_id(self):
-        """ Test make_task_id """
+        """Test make_task_id"""
 
         def test_func():
             pass
@@ -83,7 +83,7 @@ class TestTelescope(ObservatoryTestCase):
         self.assertEqual(expected_task_id, actual_task_id)
 
     def test_make_dag(self):
-        """ Test making DAG """
+        """Test making DAG"""
         # Test adding tasks from Telescope methods
         telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
         telescope.add_setup_task(telescope.setup_task)
@@ -176,7 +176,7 @@ class TestTelescope(ObservatoryTestCase):
 
 
 class TestAddSensorsTelescope(ObservatoryTestCase):
-    """ Tests the sensor interface. """
+    """Tests the sensor interface."""
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
