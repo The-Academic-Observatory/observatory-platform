@@ -360,8 +360,10 @@ class ObservatoryEnvironment:
         task = dag.get_task(task_id=task_id)
         ti = TaskInstance(task, execution_date)
         ti.refresh_from_db()
+        if ti.state == State.SCHEDULED:
+            ti.set_state(State.NONE)
         ti.init_run_context(raw=True)
-        ti.run(ignore_ti_state=True)
+        ti.run()
         return ti
 
     @contextlib.contextmanager

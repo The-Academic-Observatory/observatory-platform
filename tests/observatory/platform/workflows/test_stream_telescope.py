@@ -12,19 +12,302 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Tuan Chien
+# Author: Aniek Roelofs, Tuan Chien
 
 from unittest.mock import MagicMock
+from airflow.utils.state import State
+
+from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope, get_data_interval
+import os
+from datetime import timedelta
 from unittest.mock import patch
 
 import pendulum
-from airflow.utils.state import State
-
-from observatory.platform.utils.test_utils import (
-    ObservatoryEnvironment,
+from airflow.models.taskinstance import TaskInstance
+from google.cloud.bigquery import SourceFormat
+from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase
+from observatory.platform.utils.workflow_utils import blob_name, table_ids_from_path
+from observatory.platform.workflows.stream_telescope import (
+    StreamRelease,
+    StreamTelescope,
 )
-from observatory.platform.utils.test_utils import ObservatoryTestCase
-from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope, get_data_interval
+
+DEFAULT_SCHEMA_PATH = "/path/to/schemas"
+
+
+class TestStreamTelescope(StreamTelescope):
+    """
+    Generic Workflow telescope for running tasks.
+    """
+
+    DAG_ID = "unit_test_stream"
+
+    def __init__(
+        self,
+        dag_id: str = DAG_ID,
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
+        schedule_interval: str = "@daily",
+        dataset_id: str = "dataset_id",
+        merge_partition_field: str = "id",
+        bq_merge_days: int = 7,
+        schema_folder: str = DEFAULT_SCHEMA_PATH,
+        source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
+        schema_prefix: str = "prefix",
+        schema_version: str = "1",
+        dataset_description: str = "dataset_description",
+    ):
+        table_descriptions = {"file": "table description"}
+        super().__init__(
+            dag_id,
+            start_date,
+            schedule_interval,
+            dataset_id,
+            merge_partition_field,
+            bq_merge_days,
+            schema_folder,
+            source_format=source_format,
+            schema_prefix=schema_prefix,
+            schema_version=schema_version,
+            dataset_description=dataset_description,
+            table_descriptions=table_descriptions,
+        )
+
+        self.add_setup_task_chain([self.check_dependencies, self.get_release_info])
+        self.add_task(self.transform)
+        self.add_task(self.upload_transformed)
+        self.add_task(self.bq_load_partition)
+        self.add_task_chain([self.bq_delete_old, self.bq_append_new, self.cleanup], trigger_rule="none_failed")
+
+    def make_release(self, **kwargs) -> StreamRelease:
+        """Make a Release instance
+
+        :param kwargs: The context passed from the PythonOperator.
+        :return: CrossrefEventsRelease
+        """
+        ti: TaskInstance = kwargs["ti"]
+        start_date, end_date, first_release = ti.xcom_pull(
+            key=TestStreamTelescope.RELEASE_INFO, include_prior_dates=True
+        )
+
+        start_date = pendulum.parse(start_date)
+        end_date = pendulum.parse(end_date)
+
+        release = StreamRelease(self.dag_id, start_date, end_date, first_release)
+        return release
+
+    def transform(self, release: StreamRelease, **kwargs):
+        with open(os.path.join(release.transform_folder, "file.jsonl"), "w") as f:
+            f.write(release.release_id)
+
+
+class TestTestStreamTelescope(ObservatoryTestCase):
+    """ Tests the StreamTelescope. """
+
+    def __init__(self, *args, **kwargs):
+        """Constructor which sets up variables used by tests.
+
+        :param args: arguments.
+        :param kwargs: keyword arguments.
+        """
+
+        super(TestTestStreamTelescope, self).__init__(*args, **kwargs)
+        self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
+        self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
+
+    @patch("observatory.platform.workflows.stream_telescope.bq_append_from_file")
+    @patch("observatory.platform.workflows.stream_telescope.bq_append_from_partition")
+    @patch("observatory.platform.workflows.stream_telescope.bq_delete_old")
+    @patch("observatory.platform.workflows.stream_telescope.bq_load_ingestion_partition")
+    @patch("observatory.platform.workflows.stream_telescope.upload_files_from_list")
+    def test_telescope(
+        self,
+        upload_files_from_list,
+        bq_load_ingestion_partition,
+        bq_delete_old,
+        bq_append_from_partition,
+        bq_append_from_file,
+    ):
+        """Test the telescope end to end.
+        :return: None.
+        """
+        run1 = {
+            "date": pendulum.datetime(year=2020, month=1, day=1),
+            "first_release": True,
+            "bq_append_from_file": True,
+        }
+        run2 = {"date": pendulum.datetime(year=2020, month=1, day=2), "first_release": False, "bq_load_partition": True}
+        run3 = {
+            "date": pendulum.datetime(year=2020, month=1, day=8),
+            "first_release": False,
+            "bq_load_partition": True,
+            "bq_delete_old": True,
+            "bq_append_from_partition": True,
+        }
+        run4 = {"date": pendulum.datetime(year=2020, month=1, day=9), "first_release": False, "bq_load_partition": True}
+
+        # Setup Observatory environment
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        dataset_id = env.add_dataset()
+
+        # Setup Telescope
+        telescope = TestStreamTelescope(dataset_id=dataset_id)
+        dag = telescope.make_dag()
+
+        # Create the Observatory environment and run tests
+        with env.create(task_logging=True):
+            for run in [run1, run2, run3, run4]:
+                with env.create_dag_run(dag, run["date"]):
+                    # Test that all dependencies are specified: no error should be thrown
+                    env.run_task(telescope.check_dependencies.__name__)
+
+                    # Test start and end date for release info
+                    ti = env.run_task(telescope.get_release_info.__name__)
+                    start_date, end_date, first_release = ti.xcom_pull(
+                        key=TestStreamTelescope.RELEASE_INFO,
+                        task_ids=telescope.get_release_info.__name__,
+                        include_prior_dates=False,
+                    )
+
+                    start_date = pendulum.parse(start_date)
+                    end_date = pendulum.parse(end_date)
+
+                    self.assertEqual(run["first_release"], first_release)
+                    if first_release:
+                        self.assertEqual(start_date, dag.default_args["start_date"])
+                        self.assertEqual(end_date, pendulum.today("UTC") - timedelta(days=1))
+                    else:
+                        self.assertEqual(release.end_date + timedelta(days=1), start_date)
+                        self.assertEqual(pendulum.today("UTC") - timedelta(days=1), end_date)
+
+                    # Use release info for other tasks
+                    release = StreamRelease(
+                        telescope.dag_id,
+                        start_date,
+                        end_date,
+                        first_release,
+                    )
+                    transform_path = os.path.join(release.transform_folder, "file.jsonl")
+
+                    env.run_task(telescope.transform.__name__)
+                    self.assertTrue(os.path.exists(transform_path))
+
+                    # Test that files upload is called
+                    env.run_task(telescope.upload_transformed.__name__)
+                    upload_files_from_list.assert_called_once_with([transform_path], release.transform_bucket)
+
+                    # Test whether the correct bq load functions are called for different runs
+                    ti = env.run_task(telescope.bq_load_partition.__name__)
+                    if run.get("bq_load_partition", False):
+                        transform_blob = blob_name(transform_path)
+                        main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                        table_description = telescope.table_descriptions.get(main_table_id, "")
+                        bq_load_ingestion_partition.assert_called_once_with(
+                            telescope.schema_folder,
+                            release.end_date,
+                            transform_blob,
+                            telescope.dataset_id,
+                            main_table_id,
+                            partition_table_id,
+                            telescope.source_format,
+                            telescope.schema_prefix,
+                            telescope.schema_version,
+                            telescope.dataset_description,
+                            table_description=table_description,
+                            **telescope.load_bigquery_table_kwargs,
+                        )
+                        self.assertEqual("success", ti.state)
+                    else:
+                        self.assertEqual(0, bq_load_ingestion_partition.call_count)
+                        self.assertEqual("skipped", ti.state)
+
+                    # Test whether the correct bq delete functions are called for different runs
+                    ti = env.run_task(telescope.bq_delete_old.__name__)
+                    if run.get("bq_delete_old", False):
+                        # Use previous ti, because after running task new xcoms have been pushed
+                        previous_ti = ti.get_previous_ti()
+                        start_date = pendulum.from_format(
+                            previous_ti.xcom_pull(
+                                key=telescope.XCOM_BQ_DATES, task_ids=ti.task_id, include_prior_dates=True
+                            ),
+                            "YYYYMMDD",
+                        )
+                        end_date = pendulum.instance(ti.start_date)
+                        main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                        bq_delete_old.assert_called_once_with(
+                            start_date,
+                            end_date,
+                            telescope.dataset_id,
+                            main_table_id,
+                            partition_table_id,
+                            telescope.merge_partition_field,
+                        )
+                        self.assertEqual("success", ti.state)
+                    else:
+                        self.assertEqual(0, bq_delete_old.call_count)
+                        self.assertEqual("skipped", ti.state)
+
+                    # Test whether the correct bq append functions are called for different runs
+                    ti = env.run_task(telescope.bq_append_new.__name__)
+                    if run.get("bq_append_from_partition", False):
+                        # Use previous ti, because after running task new xcoms have been pushed
+                        previous_ti = ti.get_previous_ti()
+                        start_date = pendulum.from_format(
+                            previous_ti.xcom_pull(
+                                key=telescope.XCOM_BQ_DATES, task_ids=ti.task_id, include_prior_dates=True
+                            ),
+                            "YYYYMMDD",
+                        )
+                        end_date = pendulum.instance(ti.start_date)
+                        main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                        bq_append_from_partition.assert_called_once_with(
+                            start_date,
+                            end_date,
+                            telescope.dataset_id,
+                            main_table_id,
+                            partition_table_id,
+                            telescope.merge_partition_field,
+                        )
+                        self.assertEqual("success", ti.state)
+                    elif run.get("bq_append_from_file", False):
+                        transform_blob = blob_name(transform_path)
+                        main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                        table_description = telescope.table_descriptions.get(main_table_id, "")
+                        bq_append_from_file.assert_called_once_with(
+                            telescope.schema_folder,
+                            release.end_date,
+                            transform_blob,
+                            telescope.dataset_id,
+                            main_table_id,
+                            telescope.source_format,
+                            telescope.schema_prefix,
+                            telescope.schema_version,
+                            telescope.dataset_description,
+                            table_description=table_description,
+                            **telescope.load_bigquery_table_kwargs,
+                        )
+                        self.assertEqual("success", ti.state)
+                    else:
+                        self.assertEqual(0, bq_delete_old.call_count)
+                        self.assertEqual("skipped", ti.state)
+
+                    # Test that all telescope data deleted
+                    download_folder, extract_folder, transform_folder = (
+                        release.download_folder,
+                        release.extract_folder,
+                        release.transform_folder,
+                    )
+                    env.run_task(telescope.cleanup.__name__)
+                    self.assert_cleanup(download_folder, extract_folder, transform_folder)
+
+                    # Reset mocked functions
+                    for mocked_function in [
+                        upload_files_from_list,
+                        bq_load_ingestion_partition,
+                        bq_delete_old,
+                        bq_append_from_partition,
+                        bq_append_from_file,
+                    ]:
+                        mocked_function.reset_mock()
 
 
 class MockTelescope(StreamTelescope):
@@ -48,7 +331,7 @@ class MockTelescope(StreamTelescope):
         return StreamRelease(dag_id="dag", start_date=pendulum.now(), end_date=pendulum.now(), first_release=True)
 
 
-class TestStreamTelescope(ObservatoryTestCase):
+class TestStreamTelescopeTasks(ObservatoryTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

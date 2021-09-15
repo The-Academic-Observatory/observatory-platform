@@ -24,6 +24,7 @@ from unittest.mock import patch
 
 import croniter
 import httpretty
+import logging
 import pendulum
 import pysftp
 import timeout_decorator
@@ -88,9 +89,13 @@ class TelescopeTest(Workflow):
         airflow_conns = [MY_CONN_ID]
         super().__init__(dag_id, start_date, schedule_interval, airflow_vars=airflow_vars, airflow_conns=airflow_conns)
         self.add_setup_task(self.check_dependencies)
+        self.add_setup_task(self.setup_task)
 
     def make_release(self, **kwargs) -> Union[AbstractRelease, List[AbstractRelease]]:
         pass
+
+    def setup_task(self):
+        logging.info("success")
 
 
 class TestObservatoryEnvironment(unittest.TestCase):
@@ -175,6 +180,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
         telescope = TelescopeTest()
         dag = telescope.make_dag()
 
+        # Test environment without logging enabled
         with env.create():
             with env.create_dag_run(dag, execution_date):
 
@@ -194,7 +200,6 @@ class TestObservatoryEnvironment(unittest.TestCase):
         # Test environment with logging enabled
         with env.create(task_logging=True):
             with env.create_dag_run(dag, execution_date):
-
                 # Test add_variable
                 env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
 
@@ -207,6 +212,27 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 # Test run task
                 ti = env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
                 self.assertTrue(ti.log.propagate)
+
+        # Test that previous tasks have to be finished to run next task
+        with env.create(task_logging=True):
+            with env.create_dag_run(dag, execution_date):
+                # Add_variable
+                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+
+                # Add connection
+                conn = Connection(
+                    conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2"
+                )
+                env.add_connection(conn)
+
+                # Test run task when dependencies are not met
+                ti = env.run_task(telescope.setup_task.__name__, dag, execution_date)
+                self.assertIsNone(ti.state)
+
+                # Try again when dependencies are met
+                env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+                ti = env.run_task(telescope.setup_task.__name__, dag, execution_date)
+                self.assertEqual("success", ti.state)
 
     def test_create_dagrun(self):
         """Tests create_dag_run"""
