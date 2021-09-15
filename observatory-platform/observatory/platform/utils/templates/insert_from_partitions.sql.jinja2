@@ -1,0 +1,33 @@
+{# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# Author: Aniek Roelofs -#}
+# Add entries from selected partitions to main table.
+# If there are rows with the same id in multiple partitions, only the row with that id from the latest partition will be added
+INSERT INTO `{{ dataset }}.{{ main_table }}`
+SELECT
+  agg.table.*
+FROM (
+  SELECT
+    {{ merge_condition_field }} as id,
+    # Create an array with table values grouped by id and ordered by partitiondate, then get the entry from latest partition date
+    ARRAY_AGG(
+      STRUCT(table)
+      ORDER BY
+        _PARTITIONDATE DESC
+        )[SAFE_OFFSET(0)]
+    AS agg
+  FROM
+    `{{ dataset }}.{{ partitioned_table }}` AS table WHERE _PARTITIONDATE > '{{ start_date }}' AND _PARTITIONDATE <= '{{ end_date }}'
+  GROUP BY
+    id)

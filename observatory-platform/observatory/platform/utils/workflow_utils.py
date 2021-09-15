@@ -418,7 +418,7 @@ def bq_load_ingestion_partition(
     given it will automatically partition by ingestion datetime.
 
     :param schema_folder: the path to the SQL schema folder.
-    :param end_date: End date.
+    :param end_date: End date used to find the schema.
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
     :param main_table_id: Main table id.
@@ -533,6 +533,7 @@ def bq_delete_old(
     """Will run a BigQuery query that deletes rows from the main table that are matched with rows from
     specific partitions of the partition table.
     The query is created from a template and the given info.
+
     :param start_date: Start date, excluded.
     :param end_date: End date, included.
     :param dataset_id: Dataset id.
@@ -563,43 +564,45 @@ def bq_delete_old(
 
 
 def bq_append_from_partition(
-    schema_folder: str,
     start_date: pendulum.DateTime,
     end_date: pendulum.DateTime,
     dataset_id: str,
     main_table_id: str,
     partition_table_id: str,
-    prefix: str = "",
-    schema_version: str = None,
+    merge_partition_field: str,
 ):
-    """Appends rows to the main table by coping specific partitions from the partition table to the main table.
-    :param schema_folder: the SQL schema path.
+    """Will run a BigQuery query that inserts rows from specific partitions of the partitioned table. If there are rows
+    with the same id (merge_partition_field) in multiple partitions, only the row with that id from the latest
+    partition will be added.
+    The query is created from a template and the given info.
+
     :param start_date: Start date, excluded.
     :param end_date: End date, included.
     :param dataset_id: Dataset id.
     :param main_table_id: Main table id.
     :param partition_table_id: Partition table id.
-    :param prefix: The prefix for the schema.
-    :param schema_version: Schema version.
+    :param merge_partition_field: Merge partition field.
     :return: None.
     """
-    project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
-        schema_folder, dataset_id, main_table_id, end_date, prefix, schema_version
+    start_date = start_date.strftime("%Y-%m-%d")
+    end_date = end_date.strftime("%Y-%m-%d")
+    # Get merge variables
+    dataset_id = dataset_id
+    main_table = main_table_id
+    partitioned_table = partition_table_id
+    merge_condition_field = merge_partition_field
+
+    template_path = os.path.join(utils_templates_path(), make_sql_jinja2_filename("insert_from_partitions"))
+    query = render_template(
+        template_path,
+        dataset=dataset_id,
+        main_table=main_table,
+        partitioned_table=partitioned_table,
+        merge_condition_field=merge_condition_field,
+        start_date=start_date,
+        end_date=end_date,
     )
-    # exclude start date and include end date in period
-    period = pendulum.period(start_date.date() + timedelta(days=1), end_date.date())
-    logging.info(f"Getting table partitions: ")
-    source_table_ids = []
-    for dt in period:
-        table_id = f"{project_id}.{dataset_id}.{partition_table_id}${dt.strftime('%Y%m%d')}"
-        source_table_ids.append(table_id)
-        logging.info(f"Adding table_id: {table_id}")
-    destination_table_id = f"{project_id}.{dataset_id}.{main_table_id}"
-    success = copy_bigquery_table(
-        source_table_ids, destination_table_id, data_location, bigquery.WriteDisposition.WRITE_APPEND
-    )
-    if not success:
-        raise AirflowException()
+    run_bigquery_query(query)
 
 
 def bq_append_from_file(
