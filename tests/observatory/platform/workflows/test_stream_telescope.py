@@ -152,6 +152,7 @@ class TestTestStreamTelescope(ObservatoryTestCase):
         # Setup Telescope
         telescope = TestStreamTelescope(dataset_id=dataset_id)
         dag = telescope.make_dag()
+        release = None
 
         # Create the Observatory environment and run tests
         with env.create(task_logging=True):
