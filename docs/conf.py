@@ -72,4 +72,3 @@ html_static_path = []
 def setup(app):
     app.add_config_value("recommonmark_config", {"enable_eval_rst": True, "auto_toc_tree_section": "Contents"}, True)
     app.add_transform(AutoStructify)
-

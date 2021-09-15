@@ -44,8 +44,8 @@ class TestObservatoryConfigValidator(unittest.TestCase):
         }
 
     def test_validate_google_application_credentials(self):
-        """ Check if an error occurs for pointing to a file that does not exist when the
-        'google_application_credentials' tag is present in the schema. """
+        """Check if an error occurs for pointing to a file that does not exist when the
+        'google_application_credentials' tag is present in the schema."""
 
         with CliRunner().isolated_filesystem():
             # Make google application credentials

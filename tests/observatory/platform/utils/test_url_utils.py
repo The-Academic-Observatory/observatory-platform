@@ -180,7 +180,7 @@ class TestUrlUtils(unittest.TestCase):
 
     @patch("observatory.platform.utils.url_utils.metadata", return_value=MockMetadata)
     def test_user_agent(self, mock_cfg):
-        """ Test user agent generation """
+        """Test user agent generation"""
 
         gt = f"observatory-platform v1 (+http://test.test; mailto: test@test)"
         ua = get_user_agent(package_name="observatory-platform")

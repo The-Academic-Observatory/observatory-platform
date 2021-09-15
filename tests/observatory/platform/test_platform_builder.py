@@ -55,7 +55,7 @@ class MockFromEnv(Mock):
 
 
 def make_expected_env(cmd: PlatformBuilder) -> Dict:
-    """ Make an expected environment.
+    """Make an expected environment.
 
     :param cmd: the PlatformBuilder.
     :return: the environment.
@@ -118,7 +118,7 @@ class TestPlatformBuilder(unittest.TestCase):
             self.assertTrue(cmd.is_environment_valid)
 
     def test_docker_module_path(self):
-        """ Test that the path to the Docker module  is found """
+        """Test that the path to the Docker module  is found"""
 
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
@@ -127,7 +127,7 @@ class TestPlatformBuilder(unittest.TestCase):
             self.assertEqual(expected_path, cmd.docker_module_path)
 
     def test_docker_exe_path(self):
-        """ Test that the path to the Docker executable is found """
+        """Test that the path to the Docker executable is found"""
 
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
@@ -137,7 +137,7 @@ class TestPlatformBuilder(unittest.TestCase):
             self.assertTrue(result.endswith("docker"))
 
     def test_docker_compose_path(self):
-        """ Test that the path to the Docker Compose executable is found """
+        """Test that the path to the Docker Compose executable is found"""
 
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
@@ -148,7 +148,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
     @patch("observatory.platform.platform_builder.docker.from_env")
     def test_is_docker_running_true(self, mock_from_env):
-        """ Test the property is_docker_running returns True when Docker is running  """
+        """Test the property is_docker_running returns True when Docker is running"""
 
         mock_from_env.return_value = MockFromEnv(True)
 
@@ -159,7 +159,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
     @patch("observatory.platform.platform_builder.docker.from_env")
     def test_is_docker_running_false(self, mock_from_env):
-        """ Test the property is_docker_running returns False when Docker is not running  """
+        """Test the property is_docker_running returns False when Docker is not running"""
 
         mock_from_env.return_value = MockFromEnv(False)
 
@@ -169,7 +169,7 @@ class TestPlatformBuilder(unittest.TestCase):
             self.assertFalse(cmd.is_docker_running)
 
     def test_make_observatory_files(self):
-        """ Test building of the observatory files """
+        """Test building of the observatory files"""
 
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
@@ -183,7 +183,7 @@ class TestPlatformBuilder(unittest.TestCase):
                 "elasticsearch.yml",
                 "entrypoint-airflow.sh",
                 "entrypoint-root.sh",
-                "requirements.observatory-platform.txt"
+                "requirements.observatory-platform.txt",
             ]
             for file_name in build_file_names:
                 path = os.path.join(cmd.build_path, file_name)
@@ -192,7 +192,7 @@ class TestPlatformBuilder(unittest.TestCase):
                 self.assertTrue(os.stat(path).st_size > 0)
 
     def test_make_environment_minimal(self):
-        """ Test making of the minimal observatory platform files """
+        """Test making of the minimal observatory platform files"""
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
@@ -212,7 +212,7 @@ class TestPlatformBuilder(unittest.TestCase):
             self.assertTrue("HOST_GOOGLE_APPLICATION_CREDENTIALS" not in env)
 
     def test_make_environment_all_settings(self):
-        """ Test making of the observatory platform files with all settings """
+        """Test making of the observatory platform files with all settings"""
 
         # Check that the environment variables are set properly for a complete config file
         with CliRunner().isolated_filesystem() as t:
@@ -280,7 +280,7 @@ class TestPlatformBuilder(unittest.TestCase):
                 self.assertEqual(value, env[key])
 
     def test_build(self):
-        """ Test building of the observatory platform """
+        """Test building of the observatory platform"""
 
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:

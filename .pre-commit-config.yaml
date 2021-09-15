@@ -7,3 +7,8 @@ repos:
         entry: ./bin/prefix_commit_jira.sh
         language: script
         stages: [prepare-commit-msg]
+-   repo: https://github.com/psf/black
+    rev: 21.9b0
+    hooks:
+    -   id: black
+        exclude: ^(observatory-api/observatory/api/client|observatory-platform/observatory/platform/airflow)

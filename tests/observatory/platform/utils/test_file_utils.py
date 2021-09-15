@@ -40,13 +40,13 @@ class TestFileUtils(unittest.TestCase):
         ]
 
     def test_is_gzip(self):
-        """ Test is_gzip """
+        """Test is_gzip"""
 
         self.assertTrue(is_gzip(self.csv_gz_file_path))
         self.assertFalse(is_gzip(self.csv_file_path))
 
     def test_load_csv(self):
-        """ Test that CSV loader functions """
+        """Test that CSV loader functions"""
 
         # Read gzipped CSV
         actual_records = load_csv(self.csv_gz_file_path)
@@ -57,7 +57,7 @@ class TestFileUtils(unittest.TestCase):
         self.assertListEqual(self.expected_records, actual_records)
 
     def test_load_jsonl(self):
-        """ Test that Json lines loader functions """
+        """Test that Json lines loader functions"""
 
         # Read gzipped json lines
         actual_records = load_jsonl(self.jsonl_gz_file_path)
@@ -68,7 +68,7 @@ class TestFileUtils(unittest.TestCase):
         self.assertListEqual(self.expected_records, actual_records)
 
     def test_yield_csv(self):
-        """ Test that yield CSV loader functions """
+        """Test that yield CSV loader functions"""
 
         # Read gzipped CSV
         generator = yield_csv(self.csv_file_path)
@@ -76,7 +76,7 @@ class TestFileUtils(unittest.TestCase):
         self.assertListEqual(self.expected_records, list(generator))
 
     def test_yield_jsonl(self):
-        """ Test that yield Json lines loader functions """
+        """Test that yield Json lines loader functions"""
 
         generator = yield_jsonl(self.jsonl_file_path)
         self.assertIsInstance(generator, Generator)
