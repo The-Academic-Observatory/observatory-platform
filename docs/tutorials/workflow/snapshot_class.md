@@ -5,12 +5,12 @@ See :meth:`platform.workflows.snapshot_telescope.SnapshotTelescope` for the API 
 ```
 
 The SnapshotTelescope is a subclass of the Workflow class.
-This subclass can be used for 'snapshot' type telescopes.  
+This subclass can be used for 'snapshot' type telescopes. 
 A 'snapshot' telescope is defined by the fact that each release contains a complete snapshot of all data and is loaded
- into a BigQuery table shard.  
+ into a BigQuery table shard. 
 The DAGs created with the snapshot telescope have catchup set to True by default, meaning that the DAG will catch up
  with any scheduled DAG runs in the past when the DAG is turned on, but setting catchup to False won't break the
-  telescope.  
+  telescope. 
 Within each scheduled period, there might be multiple releases available.  
 
 Examples of snapshot telescopes found in the Observatory Platform include:
@@ -43,7 +43,7 @@ For each release, the local download, extract and transform directories are dele
 See :meth:`platform.workflows.snapshot_telescope.SnapshotRelease` for the API reference.
 ```
 
-The SnapshotRelease is used with the SnapshotTelescope.  
+The SnapshotRelease is used with the SnapshotTelescope. 
 The snapshot release always has a release date, and this date is used to create the release id.
 
 ## Example

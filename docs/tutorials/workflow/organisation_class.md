@@ -5,11 +5,11 @@ See :meth:`platform.workflows.organisation_telescope.OrganisationTelescope` for 
 ```
 
 The OrganisationTelescope is a subclass of the Workflow class.
-This subclass can be used for 'organisation' type telescopes.  
+This subclass can be used for 'organisation' type telescopes. 
 An 'organisation' telescope is defined by the fact that it uses an Organisation which is provided by the Observatory
  API.
 The Google Cloud project id is derived from the organisation, generally each organisation has it's own Google Cloud
- project and the data processed in this telescope is loaded into a BigQuery dataset inside that project.  
+ project and the data processed in this telescope is loaded into a BigQuery dataset inside that project. 
 In contrast, for the other telescope templates, the project id is derived from an Airflow variable inside the BigQuery
  loading tasks and data is loaded into the same Google Cloud project.
 
@@ -31,11 +31,11 @@ For each release, uploads all files listed with the `transform_files` property t
 
 ### bq_load_partition
 For each release, loads each blob that is in the release directory of the transform bucket into a separate BigQuery
- table partition.  
+ table partition. 
 The partition is based on the "release_date" field.
 This means that to be able to use this task the data needs to have a "release_date" field with a corresponding value
  that is of a BigQuery DATE type.  
-The partition type is set to 'monthly' by default, but could be changed.  
+The partition type is set to 'monthly' by default, but could be changed. 
 The table partition has the release date as a suffix in the table name and the format is dependent on the partition
  type, for the monthly partition type it would be e.g. `dataset_id.table_id$20200101`.
 
@@ -49,11 +49,11 @@ See :meth:`platform.workflows.organisation_telescope.OrganisationRelease` for th
 ```
 
 The OrganisationRelease is used with the OrganisationTelescope.
-The organisation release always has a release date, and this date is used to create the release id.  
-Additionally, the release requires an Organisation instance.  
-This organisation is used to determine the `download_bucket` and `transform_bucket` names.  
+The organisation release always has a release date, and this date is used to create the release id. 
+Additionally, the release requires an Organisation instance. 
+This organisation is used to determine the `download_bucket` and `transform_bucket` names. 
 Each organisation generally has it's own Google Cloud project and a download and transform bucket inside this project
- to store data in.  
+ to store data in. 
 This means the release overwrites the methods for the `download_bucket` and `transform_bucket` of the base Release
  class.
 

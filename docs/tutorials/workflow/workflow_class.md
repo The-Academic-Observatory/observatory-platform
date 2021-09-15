@@ -20,38 +20,38 @@ It is possible to add one of the three types of tasks to this DAG object:
  * Task
 
 All three types of tasks can be added individually per task using the `add_<type_of_task>` method or a list of tasks
- can be added using the `add_<type_of_task>_chain` method.  
+ can be added using the `add_<type_of_task>_chain` method. 
 To better understand the difference between these type of tasks, it is helpful to know how tasks are created in
- Airflow.  
-Within a DAG, each task that is part of the DAG is created by instantiating an Operator class.   
+ Airflow. 
+Within a DAG, each task that is part of the DAG is created by instantiating an Operator class. 
 There are many different types of Airflow Operators available, but in the case of the template the usage is limited to
- the BaseSensorOperator, PythonOperator and the ShortCircuitOperator.  
+ the BaseSensorOperator, PythonOperator and the ShortCircuitOperator. 
  
 * The BaseSensorOperator keeps executing at a regular time interval and succeeds when a criteria is met and fails if and
- when they time out.   
-* The PythonOperator simply calls an executable Python function.  
+ when they time out. 
+* The PythonOperator simply calls an executable Python function. 
 * The ShortCircuitOperator is derived from the PythonOperator and additionally evaluates a condition. When the
- conditions is False it short-circuits the workflow by skipping all downstream tasks.  
+ conditions is False it short-circuits the workflow by skipping all downstream tasks. 
 
 The **sensor** type instantiates the BaseSensorOperator (or a child class of this operator).  
-All sensor tasks are always chained to the beginning of the DAG.  
+All sensor tasks are always chained to the beginning of the DAG. 
 Tasks of this type are useful for example to probe whether another task has finished successfully using the
  ExternalTaskSensor.
 
 The **set-up task** type instantiates the ShortCircuitOperator.  
 Because the ShortCircuitOperator is used, the executable Python function that is called with this operator has to
- return a boolean.  
-The returned value is then evaluated to determine whether the workflow continues.  
+ return a boolean. 
+The returned value is then evaluated to determine whether the workflow continues. 
 Additionally, the set-up task does not require a release instance as an argument passed to the Python function, in
- contrast to a 'general' task.   
-The set-up tasks are chained after any sensors and before any remaining 'general' tasks.  
+ contrast to a 'general' task. 
+The set-up tasks are chained after any sensors and before any remaining 'general' tasks. 
 Tasks of this type are useful for example to check whether all dependencies for a workflow are met or to list which
  releases are available.
 
 The general **task** type instantiates the PythonOperator.  
 The executable Python function that is called with this operator requires a release instance to be passed on as an
- argument.  
-These tasks are always chained after any sensors and set-up tasks.  
+ argument. 
+These tasks are always chained after any sensors and set-up tasks. 
 Tasks of this type are the most common in the workflows and are useful for any functionality that requires release
  information such as downloading, transforming, loading into BigQuery, etc.
 
@@ -61,9 +61,9 @@ Order of the different task types within a workflow:
 </p>
 
 By default all tasks within the same type (sensor, setup task, task) are chained linearly in the order they are
- inserted.  
-There is a context manager `parallel_tasks` which can be used to parallelise tasks.  
-All tasks that are added within that context are added in parallel. 
+ inserted. 
+There is a context manager `parallel_tasks` which can be used to parallelise tasks. 
+All tasks that are added within that context are added in parallel.
 Currently this is only supported for setup tasks.
 
 ### The 'make_release' method 
@@ -76,7 +76,7 @@ Inside the general task the release properties can then be used for things such 
 Because the method is used for any general task, this method always has to be implemented.
 
 ### Checking dependencies
-The workflow class also has a method `check_dependencies` implemented that can be added as a set-up task.  
+The workflow class also has a method `check_dependencies` implemented that can be added as a set-up task. 
 All workflows require that at least some Airflow Variables and Connections are set, so these dependencies should be
  checked at the start of each workflow and this can be done with this task.
 
@@ -86,14 +86,14 @@ See :meth:`platform.workflows.workflow.Release` for the API reference.
 ```
 
 The Release class is a basic implementation of the AbstractRelease class.  
-An instance of the release class is passed on as an argument to any general tasks that are added to the workflow.   
+An instance of the release class is passed on as an argument to any general tasks that are added to the workflow. 
 Similarly in set-up to the workflow class, it implements methods from the AbstractRelease class and it is not
- recommended that the AbstractRelease class is used directly by itself.  
-The properties and methods that are added to the Release class should all be relevant to the release instance.  
+ recommended that the AbstractRelease class is used directly by itself. 
+The properties and methods that are added to the Release class should all be relevant to the release instance. 
 If they are always the same, independent of the release instance, they are better placed in the Workflow class.
 
 ### The release id
-The Release class always needs a release id.  
+The Release class always needs a release id. 
 This release id is usually based on the release date, so it is unique for each release and relates to the date when
  the data became available or was processed.
 It is used for the folder paths described below.
@@ -105,11 +105,11 @@ The Release class has properties for the paths of 3 different folders:
  * `transform_folder`
  
  It is convenient to use these when downloading/extract/transforming data and writing the data to a file in the
-  matching folder.  
+  matching folder. 
 The paths for these folders always include the release id and the format is as follows:    
 `/path/to/workflows/{download|extract|transform}/{dag_id}/{release_id}/`
 
-The `path/to/workflows` is determined by a separate function.  
+The `path/to/workflows` is determined by a separate function. 
 Having these folder paths as properties of the release class makes it easy to have the same file structure for each
  workflow.
 
@@ -119,21 +119,21 @@ The folder paths are also used for the 3 corresponding properties:
  * `extract_files`
  * `transform_files`  
  
-These properties will each return a list of files in their corresponding folder that match a given regex pattern.  
+These properties will each return a list of files in their corresponding folder that match a given regex pattern. 
 This is useful when e.g. iterating through all download files to transform them, or passing on the list of transform
- files to a function that uploads all files to a storage bucket.   
-The regex patterns for each of the 3 folders is passed on separately when instantiating the release class.  
+ files to a function that uploads all files to a storage bucket. 
+The regex patterns for each of the 3 folders is passed on separately when instantiating the release class. 
 
 ### Bucket names
 There are 2 storage buckets used to store the data processed with the workflow, a download bucket and a transform
- bucket.  
+ bucket. 
 The bucket names are retrieved from Airflow Variables and there are 2 corresponding properties in the release class, 
-`download_bucket` and `transform_bucket`.  
+`download_bucket` and `transform_bucket`. 
 These properties are convenient to use when uploading data to either one of these buckets.
 
 ### Clean up
 The Release class has a `cleanup` method which can be called inside a task that will 'clean up' by deleting the 3
- folders mentioned above.  
+ folders mentioned above. 
 This method is part of the release class, because a clean up task is part of each workflow and it uses those
  folder paths described above that are properties of the release class. 
  
@@ -269,7 +269,7 @@ globals()[workflow.dag_id] = workflow.make_dag()
 ```
 
 In case you are familiar with creating DAGs in Airflow, below is the equivalent workflow without using the template.  
-This might help to understand how the template works behind the scenes.  
+This might help to understand how the template works behind the scenes. 
   
 Workflow and DAG in one file:  
 ```python

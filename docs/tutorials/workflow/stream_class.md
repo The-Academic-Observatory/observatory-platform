@@ -5,38 +5,38 @@ See :meth:`platform.workflows.stream_telescope.StreamTelescope` for the API refe
 ```
 
 The StreamTelescope is another subclass of the Workflow class.
-This subclass can be used for 'stream' type telescopes.  
+This subclass can be used for 'stream' type telescopes. 
 A 'stream' telescope is defined by the fact that there is one main table with data and this table is
- constantly kept up to date with a stream of data.  
+ constantly kept up to date with a stream of data. 
 The telescope has a start and end date (rather than just a release date) and these are based on when the previous DAG
- run was started (start) and on the current run date (end).  
+ run was started (start) and on the current run date (end). 
 The `get_release_info` method can be used to push these start and end dates as XCOMs.
 These XCOMs can then be pulled in the `make_release` method that always has to be implemented and used to create
  the release instance.
  
 Because there is one main table that is kept up to date, the first time the telescope runs is slightly different to any
- later runs.  
+ later runs. 
 For the first release, all available data is downloaded and loaded into the BigQuery 'main' table from a file in the
- storage bucket using the `bq_append_new` method.  
+ storage bucket using the `bq_append_new` method. 
 In this first run, the data is not loaded into a separate partition.
 
 For any later releases, any new data since the last run as well as any updated/deleted data is loaded into a separate
- partition in the BigQuery 'partitions' table.  
+ partition in the BigQuery 'partitions' table. 
 Then, there are 2 tasks to replace the old data (from the partitions) with the new, updated data in the main table.
 These updates might not be done every DAG run, the update frequency is controlled by the stream telescope property
- `bq_merge_days`.  
+ `bq_merge_days`. 
 The telescope keeps track of the number of days since the last merge, by checking when the relevant task had the last
  'success' state. 
  
 When it is time to update the main table, a SQL merge query will find any rows in the main table that match the rows
- in the relevant table partitions and delete those matching rows from the main table.  
+ in the relevant table partitions and delete those matching rows from the main table. 
 This is done with the `bq_delete_old` method.  
 Next, all rows from the relevant table partitions are appended to the main table.
-This is done with the `bq_append_new` method.  
-After these 2 tasks, any new rows are added to the main table and any old rows are updated in place.
+This is done with the `bq_append_new` method. 
+These two tasks together have added any new rows to the main table and updated any old rows in place.
 
 As an example, let's assume there is a stream telescope with `bq_merge_days` set to 14 and the `schedule_interval` 
- set to `@weekly`.  
+ set to `@weekly`. 
 Below is an overview of the expected states for each of the BigQuery load tasks for different run dates.
 
 On 2021-01-01. First release:   
@@ -81,27 +81,27 @@ The end date is set to the current daytime minus 1 day, because some data might 
 Uploads all files listed with the `transform_files` property of the release to the transform storage bucket.
 
 ### bq_load_partition
-For the first release, this task will be skipped.  
+For the first release, this task will be skipped. 
 For any later releases it loads each blob that is in the release directory of the transform bucket into a separate
- BigQuery table partition, where each partition is based on the ingestion time.  
+ BigQuery table partition, where each partition is based on the ingestion time. 
 This BigQuery table has the `_partitions` suffix.
 
 ### bq_delete_old
-For the first release, this task will be skipped (but in the success state).  
+For the first release, this task will be skipped (but in the success state). 
 For any later releases, it will be skipped if the days since the last successful execution of this task is smaller
- than the number of days set by the `bq_merge_days` property.  
+ than the number of days set by the `bq_merge_days` property. 
 If not skipped, it runs an SQL merge query which matches rows from one or more table partitions with rows in the main
- table, the matching is done based on the `merge_partition_field` property.  
-When there is a matching row, this row will be deleted from the main table.  
-All partitions that have been added since the last successful execution of this task will be processed.  
-When adding this task, the task specific setting `trigger_rule` should be set to 'none_failed'.  
+ table, the matching is done based on the `merge_partition_field` property. 
+When there is a matching row, this row will be deleted from the main table. 
+All partitions that have been added since the last successful execution of this task will be processed. 
+When adding this task, the task specific setting `trigger_rule` should be set to 'none_failed'. 
 This ensures that any downstream tasks (such as clean up) will still be executed successfully.
 
 ### bq_append_new
 For the first release, this task will load each blob that is in the release directory of the transform bucket into a
- separate main BigQuery table.  
+ separate main BigQuery table. 
 For any later releases, it will load one or more table partitions from the BigQuery partitions table (mentioned in
- bq_load_partition) into the main BigQuery table.  
+ bq_load_partition) into the main BigQuery table. 
 All partitions that have been added since the last successful execution of this task will be processed.   
 When adding this task, the task specific setting `trigger_rule` should be set to 'none_failed'.  
 This ensures that any downstream tasks (such as clean up) will still be executed successfully.  
@@ -115,8 +115,8 @@ The local download, extract and transform directories of the release are deleted
 See :meth:`platform.workflows.stream_telescope.StreamRelease` for the API reference.
 ```
 
-The StreamRelease is used with the StreamTelescope.  
-The stream release has the start date, end date and first_release properties.  
+The StreamRelease is used with the StreamTelescope. 
+The stream release has the start date, end date and first_release properties. 
 The first_release property is a boolean and described whether this release is the first release, the start and end
  date are used to create the release id.
  

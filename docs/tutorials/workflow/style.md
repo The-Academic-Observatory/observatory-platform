@@ -13,5 +13,5 @@ Type hints help reduce this ambiguity.
 
 ## Docstring
 Docstring comments should also be provided for all classes, methods, and functions. 
-This includes descriptions of arguments, and returned objects.  
+This includes descriptions of arguments, and returned objects. 
 These comments will be automatically compiled into the Observatory Platform API reference documentation section.

@@ -11,11 +11,11 @@ In these filepaths, `my-dags` is the workflows project folder and `my_dags` is t
 
 ## 1. Creating a DAG file
 For Airflow to pickup new DAGs, it is required to create a DAG file that contains the DAG object as well as the keywords
- 'airflow' and 'DAG'.  
+ 'airflow' and 'DAG'. 
 Any code in this file is executed every time the file is loaded into the Airflow dagbag, which is once per minute by
- default.  
+ default. 
 This means that the code in this file should be as minimal as possible, preferably limited to just creating the DAG
- object.  
+ object. 
 The filename is usually similar to the DAG id and the file should be inside the `my-dags/my_dags/dags` directory, 
  where `my-dags` is the workflows project folder and `my_dags` is the package name.
 
@@ -32,7 +32,7 @@ globals()[workflow.dag_id] = workflow.make_dag()
 
 ## 2. Creating a workflow file
 The workflow file contains the release class at the top, then the workflow class and at the bottom any functions that
- are used within these classes.  
+ are used within these classes. 
 This filename is also usually similar to the DAG id and should be inside the `my-dags/my_dags/workflows` directory.  
 
 An example of the workflow file:
@@ -164,11 +164,11 @@ XComs are explicitly “pushed” and “pulled” to/from their storage using t
 Many operators will auto-push their results into an XCom key called return_value if the do_xcom_push argument is set
  to True (as it is by default), and @task functions do this as well.
 
-They are commonly used to pass on release information in workflows.  
+They are commonly used to pass on release information in workflows. 
 One task at the beginning of the workflow will retrieve release information such as the release date or possibly a
- relevant release url.  
+ relevant release url. 
 The release information is then pushed during this task using Xcoms and it is pulled in the subsequent tasks, so a
- release instance can be made with the given information.    
+ release instance can be made with the given information. 
 An example of this can be seen in the implemented method `get_release_info` of the StreamTelescope class.  
 
 The `get_release_info` method:
@@ -227,33 +227,33 @@ def make_release(self, **kwargs) -> OrcidRelease:
 
 ### Using Airflow variables and connections
 Any information that should not be hardcoded inside the workflow, but is still required for the workflow to function
- can be passed on using Airflow variables and connections.   
+ can be passed on using Airflow variables and connections. 
 Both variables and connections can be added by defining them in the relevant config file (`config.yaml` in local
- develop environment and `config-terraform.yaml` in deployed terraform environment).  
+ develop environment and `config-terraform.yaml` in deployed terraform environment). 
 Each variable or connection that is defined in the config file is made into an Airflow variable or connection when
- starting the observatory environment.  
-The way these variables and connections are created is dependent on the type of observatory environment.  
+ starting the observatory environment. 
+The way these variables and connections are created is dependent on the type of observatory environment. 
 In the local develop environment, environment variables are created for Airflow variables and connections.
 These environment variables are made up of the `AIRLFOW_VAR_` or `AIRFLOW_CONN_` prefix and the name that is used for
- the variable or connection in the config file.  
+ the variable or connection in the config file. 
 The prefixes are determined by Airflow and any environment variables with these prefixes will automatically be
  picked up, see the Airflow documentation for more info on managing [variables](https://airflow.apache.org/docs/apache-airflow/stable/howto/variable.html#storing-variables-in-environment-variables)
  and [connections](https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#storing-a-connection-in-environment-variables) 
- with environment variables.  
+ with environment variables. 
 In the deployed terraform environment, the Google Cloud Secret Manager is used as a backend to store both Airflow
- variables and connections, because this is more secure than using environment variables.  
+ variables and connections, because this is more secure than using environment variables. 
 A secret is created for each individual Airflow variable or connection, see the Airflow documentation for more info
  on the [secrets backend](https://airflow.apache.org/docs/apache-airflow/stable/security/secrets/secrets-backend/index.html#secrets-backend). 
 
 #### Variables
 Airflow variables should never contain any sensitive information. Example uses include the project_id, bucket names
- or data location.  
+ or data location. 
 
 #### Connections
 Airflow connections can contain sensitive information and are often used to store credentials like API keys or
- usernames and passwords.  
-In the local development environment, the Airflow connections are stored in the metastore database.  
-There, the passwords inside the connection configurations are encrypted using Fernet.  
+ usernames and passwords. 
+In the local development environment, the Airflow connections are stored in the metastore database. 
+There, the passwords inside the connection configurations are encrypted using Fernet. 
 The value for the Airflow connection should always be a connection URI, see the [Airflow documentation](https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#generating-a-connection-uri)
  for more detailed information on how to construct this URI.
  
@@ -309,7 +309,7 @@ airflow_connections:
 In the cloud environment that is deployed with terraform, Airflow uses Google Cloud Secret Manager as a secrets
  backend and both the Airflow variable and connections are stored in there as secrets.
  
-Unfortunately, there is currently an issue with Airflow's method to obtain variables when using the secrets backend.  
+Unfortunately, there is currently an issue with Airflow's method to obtain variables when using the secrets backend. 
 This issue has been resolved by implementing a custom `AirflowVariable` class inside 
 `observatory-platform/observatory/platform/utils/airflow_utils.py`.  
 This class should always be used to get variables instead of the standard Airflow `Variable` class inside `airflow
@@ -323,12 +323,12 @@ variable = AirflowVariable.get(AirflowVars.DOWNLOAD_BUCKET)
 ```
 
 The problem occurs when Airflow tries to get a variable while the Google Cloud Secrets Manager is set as a secrets
- backend, but the variable is not stored as a Google Cloud Secret.  
+ backend, but the variable is not stored as a Google Cloud Secret. 
 This is the case for some Airflow variables that are often used in the telescopes (test_data_path, data_path, 
-download_bucket, transform_bucket).  
+download_bucket, transform_bucket). 
 They are not set in the 'airflow_variables' section of the `config-terraform.yaml` file and this means that these
  variables are not stored as Google Cloud Secrets.
-They do exist as valid Airflow variables, but as environment variables instead of Google Cloud Secrets.  
+They do exist as valid Airflow variables, but as environment variables instead of Google Cloud Secrets. 
 The search order for variables/connections for Airflow is not configurable and with a secrets backend enabled the
  order is:   
 ```
@@ -338,21 +338,21 @@ secrets backend > environment variables > metastore
 The issue is that the current Airflow method to get variables from the secrets backend will return an error when a
  Google Cloud Secret can not be found.
 This error prevents Airflow from searching for a variable in remaining places (environment variables & metastore),
- so the value for a variable can never be resolved if it does not exist as a Google Cloud Secret.   
+ so the value for a variable can never be resolved if it does not exist as a Google Cloud Secret. 
 The custom `AirflowVariable` class solves this by catching the error in a Try/Except clause, meaning that Airflow
  will continue to look for a variable in the remaining places.
 
 ## 3. Creating a BigQuery schema file
 BigQuery database schema json files are stored in `my-dag/my_dags/database/schema`.  
-They follow the format: `<table_name>_YYYY-MM-DD.json`.  
+They follow the format: `<table_name>_YYYY-MM-DD.json`. 
 An additional custom version can be provided together with the date, in this case the files should follow the format:  
  `<table_name>_<customversion>_YYYY-MM-DD.json`.
 
 The BigQuery table loading utility functions in the Observatory Platform will try to find the correct schema to use
- for loading table data, based on the release date and custom version.  
+ for loading table data, based on the release date and custom version. 
 If no version is specified, the most recent schema with a date less than or equal to the release date of the data is
- returned.  
-If a version string is specified, the most current (date) schema in that series is returned.  
+ returned. 
+If a version string is specified, the most current (date) schema in that series is returned. 
 The utility functions are used by the BigQuery load tasks of the sub templates (Snapshot, Stream, Organisation) and
  it is required to set the `schema_version` parameter to automatically pick up the schema version when using these
   templates.
@@ -363,18 +363,18 @@ The Observatory Platform uses the `unittest` Python framework as a base and prov
 It also uses the Python `coverage` package to analyse test coverage.
 
 To ensure that the workflow works as expected and to pick up any changes in the code base that would break the
- workflow, it is required to add unit tests that cover the code in the developed workflow.  
+ workflow, it is required to add unit tests that cover the code in the developed workflow. 
 
-The test files for workflows are stored in `my-dags/tests/workflows`.  
+The test files for workflows are stored in `my-dags/tests/workflows`. 
 The `ObservatoryTestCase` class in the `observatory-platform/observatory/platform/utils/test_utils.py` file contains
- common test methods and should be used as a parent class for the unit tests instead of `unittest.TestCase`.  
+ common test methods and should be used as a parent class for the unit tests instead of `unittest.TestCase`. 
 Additionally, the `ObservatoryEnvironment` class in the `test_utils.py` can be used to simulate the Airflow
- environment and the different workflow tasks can be run and tested inside this environment.  
+ environment and the different workflow tasks can be run and tested inside this environment. 
 
 ### Testing DAG structure
 The workflow's DAG structure can be tested through the `assert_dag_structure` method of `ObservatoryTestCase`.  
 The DAG object is compared against a dictionary, where the key is the source node, and the value is a list of sink
- nodes.  
+ nodes. 
 This expresses the relationship that the source node task is a dependency of all of the sink node tasks.  
 
 Example:
@@ -488,7 +488,7 @@ class MyTestClass(ObservatoryTestCase):
 ```
 
 ### Testing workflow tasks
-To run and test a workflow task, the `run_task` method can be used within an `ObservatoryEnvironment`.  
+To run and test a workflow task, the `run_task` method can be used within an `ObservatoryEnvironment`. 
 
 The ObservatoryEnvironment is used to simulate the Airflow environment.
 
@@ -509,9 +509,9 @@ To ensure that a workflow can be run from end to end the Observatory Environment
 * Clean up all resources when the environment is closed.
 
 Note that if the unit test is stopped with a forced interrupt, the code block to clean up the created storage buckets
- and datasets will not be executed and those resources will have to be manually removed.  
+ and datasets will not be executed and those resources will have to be manually removed. 
 
-The run dependencies that are imposed on each task by the DAG structure are preserved in the test environment.  
+The run dependencies that are imposed on each task by the DAG structure are preserved in the test environment. 
 This means that to run a specific task, all the previous tasks in the DAG have to run successfully before that task
  within the same `create_dag_run` environment.
  
@@ -576,17 +576,17 @@ class MyTestClass(ObservatoryTestCase):
 ```
 
 ### Temporary GCP datasets
-Unit testing frameworks often run tests in parallel, so there is no guarantee of execution order.  
+Unit testing frameworks often run tests in parallel, so there is no guarantee of execution order. 
 When running code that modifies datasets or tables in the Google Cloud, it is recommended to create temporary
- datasets for each task to prevent any bugs caused by race conditions.  
+ datasets for each task to prevent any bugs caused by race conditions. 
 The `ObservatoryEnvironment` has a method called `add_dataset` that can be used to create a new dataset in the linked
  project for the duration of the environment.
 
 ### Observatory Platform API
-Some workflows make use of the Observatory Platform API in order to fetch necessary metadata.  
+Some workflows make use of the Observatory Platform API in order to fetch necessary metadata. 
 When writing unit tests for workflows that use the platform API, it is necessary to use an isolated API environment
- where the relevant TelescopeType, Organisations and Telescope exist.  
-The ObservatoryEnvironment that is mentioned above can be used to achieve this.  
+ where the relevant TelescopeType, Organisations and Telescope exist. 
+The ObservatoryEnvironment that is mentioned above can be used to achieve this. 
 An API session is started when creating the ObservatoryEnvironment and the TelescopeType, Organisations and Telescope
  can all be added to this session.  
  
@@ -633,8 +633,8 @@ env.api_session.commit()
 ```
 
 ## 5. Creating a documentation file
-The Observatory Platform builds documentation using [Sphinx](https://www.sphinx-doc.org).  
-Documentation is contained in the `docs` directory.  
+The Observatory Platform builds documentation using [Sphinx](https://www.sphinx-doc.org). 
+Documentation is contained in the `docs` directory. 
 Currently index pages are written in [RST format (Restructured Text)](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html), 
  and content pages are written with [Markdown](https://www.sphinx-doc.org/en/master/usage/markdown.html) for simplicity.
 
@@ -686,7 +686,7 @@ This documentation should at least include:
 
 ### Including Airflow variable/connection info in documentation
 If a newly developed workflow uses an Airflow connection or variable, this should be explained in the workflow
- documentation.  
+ documentation. 
 An example of the variable/connection is required as well as an explanation on how the value for this 
  variable/connection can be obtained.
 
@@ -694,16 +694,16 @@ See for example this info section on the Airflow connection required with the go
 
 ---
 ## Airflow connections
-Note that all values need to be urlencoded.  
+Note that all values need to be urlencoded. 
 In the config.yaml file, the following airflow connection is required:  
 
 ### sftp_service
 ```yaml
 sftp_service: ssh://<username>:<password>@<host>?host_key=<host_key>
 ```
-The sftp_service airflow connection is used to connect to the sftp_service and download the reports.  
-The username and password are created by the sftp service and the host is e.g. `oaebu.exavault.com`.  
-The host key is optional, you can get it by running ssh-keyscan, e.g.:  
+The sftp_service airflow connection is used to connect to the sftp_service and download the reports. 
+The username and password are created by the sftp service and the host is e.g. `oaebu.exavault.com`. 
+The host key is optional, you can get it by running ssh-keyscan, e.g.: 
 ```
 ssh-keyscan oaebu.exavault.com
 ```
@@ -711,16 +711,16 @@ ssh-keyscan oaebu.exavault.com
 
 ### Including schemas in documentation
 The documentation build system automatically converts all the schema files from `my-dags/my_dags/database/schemas` 
- into CSV files.  
-This is temporarily stored in the `docs/schemas` folder.  
-The csv files have the same filename as the original schema files, except for the suffix, which is changed to csv.  
+ into CSV files. 
+This is temporarily stored in the `docs/schemas` folder. 
+The csv files have the same filename as the original schema files, except for the suffix, which is changed to csv. 
 If there are multiple schemas for the same workflow, the `_latest` suffix can be used to always get the latest
- version of the schema.  
+ version of the schema. 
 The schemas folder is cleaned up as part of the build process so this directory is not visible, but can be made
- visable by disabling the cleanup code in the `Makefile`.  
+ visable by disabling the cleanup code in the `Makefile`. 
 
 To include a schema in the documentation markdown file, it is necessary to embed some RST that loads a table from a
- csv file.  
+ csv file. 
 Since the recommonmark package is used, this can be done with an `eval_rst` codeblock that contains RST:
 
     ``` eval_rst
