@@ -22,7 +22,6 @@ import pendulum
 from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
-from observatory.platform.workflows.workflow import Release, Workflow
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
@@ -34,6 +33,7 @@ from observatory.platform.utils.workflow_utils import (
     table_ids_from_path,
     upload_files_from_list,
 )
+from observatory.platform.workflows.workflow import Release, Workflow
 
 
 class StreamRelease(Release):
@@ -166,6 +166,33 @@ class StreamTelescope(Workflow):
 
         ti.xcom_push(self.RELEASE_INFO, (start_date, end_date, first_release))
         return True
+
+    def download(self, release: StreamRelease, **kwargs):
+        """Task to download the StreamRelease release.
+
+        :param release: a StreamRelease instance.
+        :param kwargs: The context passed from the PythonOperator.
+        :return: None.
+        """
+        release.download()
+
+    def upload_downloaded(self, release: StreamRelease, **kwargs):
+        """Upload the downloaded files for the given release.
+
+        :param release: a StreamRelease instance
+        :param kwargs: The context passed from the PythonOperator.
+        :return: None.
+        """
+        upload_files_from_list(release.download_files, release.download_bucket)
+
+    def transform(self, release: StreamRelease, **kwargs):
+        """Task to transform the StreamRelease release.
+
+        :param release: a StreamRelease instance.
+        :param kwargs: The context passed from the PythonOperator.
+        :return: None.
+        """
+        release.transform()
 
     def upload_transformed(self, release: StreamRelease, **kwargs):
         """Upload the transformed files for the given release.
