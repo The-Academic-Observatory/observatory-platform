@@ -339,7 +339,7 @@ class TestObservatoryTestCase(unittest.TestCase):
         dag = telescope.make_dag()
 
         # No assertion error
-        expected = {"check_dependencies": []}
+        expected = {"check_dependencies": ["setup_task"], "setup_task": []}
         test_case.assert_dag_structure(expected, dag)
 
         # Raise assertion error
