@@ -14,7 +14,7 @@
 
 # Author: Tuan Chien
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pendulum
 from observatory.platform.utils.test_utils import ObservatoryTestCase
@@ -36,12 +36,21 @@ class MockTelescope(SnapshotTelescope):
         )
 
     def make_release(self, **kwargs):
-        return [Release(dag_id="dag", release_id="id")]
+        return [SnapshotRelease(dag_id="dag", release_date=pendulum.now())]
 
 
 class TestSnapshotTelescope(ObservatoryTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
+    def test_download(self, m_get):
+        m_get.return_value = "data"
+        telescope = MockTelescope()
+        releases = telescope.make_release()
+        releases[0].download = MagicMock()
+        telescope.download(releases)
+        self.assertEqual(releases[0].download.call_count, 1)
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_upload_downloaded(self, m_get):
@@ -56,3 +65,21 @@ class TestSnapshotTelescope(ObservatoryTestCase):
             call_args, _ = m_upload.call_args
             self.assertEqual(call_args[0], [])
             self.assertEqual(call_args[1], "data")
+
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
+    def test_extract(self, m_get):
+        m_get.return_value = "data"
+        telescope = MockTelescope()
+        releases = telescope.make_release()
+        releases[0].extract = MagicMock()
+        telescope.extract(releases)
+        self.assertEqual(releases[0].extract.call_count, 1)
+
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
+    def test_transform(self, m_get):
+        m_get.return_value = "data"
+        telescope = MockTelescope()
+        releases = telescope.make_release()
+        releases[0].transform = MagicMock()
+        telescope.transform(releases)
+        self.assertEqual(releases[0].transform.call_count, 1)

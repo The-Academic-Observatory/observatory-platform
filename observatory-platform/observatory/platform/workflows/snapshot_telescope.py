@@ -116,6 +116,15 @@ class SnapshotTelescope(Workflow):
         self.dataset_description = dataset_description
         self.table_descriptions = table_descriptions if table_descriptions else dict()
 
+    def download(self, releases: List[SnapshotRelease], **kwargs):
+        """Task to download the releases.
+
+        :param releases: a list of SnapshotRelease.
+        :return: None.
+        """
+        for release in releases:
+            release.download()
+
     def upload_downloaded(self, releases: List[SnapshotRelease], **kwargs):
         """Task to upload the downloaded releases.
 
@@ -124,6 +133,24 @@ class SnapshotTelescope(Workflow):
 
         for release in releases:
             upload_files_from_list(release.download_files, release.download_bucket)
+
+    def extract(self, releases: List[SnapshotRelease], **kwargs):
+        """Task to extract the releases.
+
+        :param releases: a list of SnapshotRelease.
+        :return: None.
+        """
+        for release in releases:
+            release.extract()
+
+    def transform(self, releases: List[SnapshotRelease], **kwargs):
+        """Task to transform the releases.
+
+        :param releases: A list of SnapshotRelease objects.
+        :return: None.
+        """
+        for release in releases:
+            release.transform()
 
     def upload_transformed(self, releases: List[SnapshotRelease], **kwargs):
         """Task to upload each transformed release to a google cloud bucket
