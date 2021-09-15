@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Tuan Chien
 
+import csv
 import json
 from typing import List
 
@@ -35,3 +36,23 @@ def to_json_lines(items: List[dict], serialize_custom_types_func=None) -> str:
     json_lines = "".join(json_records)
 
     return json_lines
+
+
+def convert_csv_to_jsonlines_file(*, csv_file: str, jsonl_file: str):
+    """Convert CSV file to a json lines file.
+
+    :param csv_file: File path to csv file.
+    :param jsonl_file: File path to output jsonl file.
+    """
+
+    json_lines = []
+
+    with open(csv_file, "r") as f:
+        reader = csv.DictReader(f)
+
+        for line in reader:
+            json_line = json.dumps(line) + "\n"
+            json_lines.append(json_line)
+
+    with open(jsonl_file, "w") as f:
+        f.writelines(json_lines)

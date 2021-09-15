@@ -12,14 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Tuan Chien
 
+import csv
+import json
+import os
 import unittest
 
-from observatory.platform.utils.json_util import to_json_lines
+from click.testing import CliRunner
+from observatory.platform.utils.json_util import (
+    convert_csv_to_jsonlines_file,
+    to_json_lines,
+)
+from observatory.platform.utils.test_utils import (
+    ObservatoryTestCase,
+    test_fixtures_path,
+)
 
 
-class TestJsonUtil(unittest.TestCase):
+class TestJsonUtil(ObservatoryTestCase):
     def test_to_json_lines(self):
         hello = dict()
         hello["hello"] = "world"
@@ -39,3 +50,14 @@ class TestJsonUtil(unittest.TestCase):
         expected = ""
         actual = to_json_lines([])
         self.assertEqual(expected, actual)
+
+    def test_convert_csv_to_jsonlines_file(self):
+        fixtures_dir = test_fixtures_path("utils")
+        csv_file = os.path.join(fixtures_dir, "test.csv")
+
+        with CliRunner().isolated_filesystem():
+            output_file = "test.jsonl"
+            expected_hash = "d7233f74c7a9bd526c868a5fec24fe52"
+            algorithm = "md5"
+            convert_csv_to_jsonlines_file(csv_file=csv_file, jsonl_file=output_file)
+            self.assert_file_integrity(output_file, expected_hash, algorithm)
