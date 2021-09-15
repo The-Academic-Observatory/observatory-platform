@@ -23,8 +23,10 @@ from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
 from observatory.platform.platform_builder import DEBUG, HOST_GID, HOST_UID
-from observatory.platform.utils.config_utils import observatory_home
-from observatory.platform.utils.config_utils import terraform_credentials_path as default_terraform_credentials_path
+from observatory.platform.utils.config_utils import (
+    terraform_credentials_path as default_terraform_credentials_path,
+    observatory_home,
+)
 
 PLATFORM_NAME = "Observatory Platform"
 TERRAFORM_NAME = "Observatory Terraform"
@@ -71,7 +73,11 @@ def cli():
 )
 @click.option("--debug", is_flag=True, default=DEBUG, help="Print debugging information.")
 def platform(
-    command: str, config_path: str, host_uid: int, host_gid: int, debug,
+    command: str,
+    config_path: str,
+    host_uid: int,
+    host_gid: int,
+    debug,
 ):
     """Run the local Observatory Platform platform.\n
 
@@ -84,7 +90,12 @@ def platform(
     print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end="\r")
     if os.path.isfile(config_path):
         # Make the platform command, which encapsulates functionality for running the observatory
-        platform_cmd = PlatformCommand(config_path, host_uid=host_uid, host_gid=host_gid, debug=debug,)
+        platform_cmd = PlatformCommand(
+            config_path,
+            host_uid=host_uid,
+            host_gid=host_gid,
+            debug=debug,
+        )
 
         # Check dependencies
         platform_check_dependencies(platform_cmd, min_line_chars=min_line_chars)
@@ -222,7 +233,8 @@ def generate():
 
 @generate.command()
 @click.argument(
-    "project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    "project_path",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
 )
 @click.argument("package_name", type=str)
 @click.argument("workflow_type", type=click.Choice(["Workflow", "StreamTelescope", "SnapshotTelescope"]))

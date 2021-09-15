@@ -18,28 +18,32 @@ import copy
 import datetime
 import json
 import os
+import shutil
 import unittest
 from functools import partial
 from unittest.mock import Mock, patch
 from urllib.parse import quote
 
-import dateutil
 import paramiko
 import pendulum
 import pysftp
 from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
+from airflow.models.variable import Variable
 from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
+
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import (
     gzip_file_crc,
     list_to_jsonl_gz,
     load_jsonl,
 )
+from observatory.platform.utils.test_utils import ObservatoryEnvironment
 from observatory.platform.utils.test_utils import random_id
+from observatory.platform.utils.test_utils import test_fixtures_path
 from observatory.platform.utils.workflow_utils import (
     PeriodCount,
     ScheduleOptimiser,
@@ -65,6 +69,10 @@ from observatory.platform.utils.workflow_utils import (
     table_ids_from_path,
     upload_files_from_list,
     workflow_path,
+    make_release_date,
+    make_table_name,
+    fetch_dags_modules,
+    fetch_dag_bag,
 )
 from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
@@ -939,6 +947,88 @@ class TestWorkflowUtils(unittest.TestCase):
         expected_dag_id = "onix_curtin_press"
         dag_id = make_dag_id("onix", "Curtin Press")
         self.assertEqual(expected_dag_id, dag_id)
+
+    def test_fetch_dags_modules(self):
+        """Test fetch_dags_modules"""
+
+        dags_module_names_val = '["academic_observatory_workflows.dags", "oaebu_workflows.dags"]'
+        expected = ["academic_observatory_workflows.dags", "oaebu_workflows.dags"]
+        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        with env.create():
+            # Test when no variable set
+            with self.assertRaises(KeyError):
+                fetch_dags_modules()
+
+            # Test when using an Airflow Variable exists
+            env.add_variable(Variable(key="dags_module_names", val=dags_module_names_val))
+            actual = fetch_dags_modules()
+            self.assertEqual(expected, actual)
+
+        with ObservatoryEnvironment(enable_api=False, enable_elastic=False).create():
+            # Set environment variable
+            new_env = env.new_env
+            new_env["AIRFLOW_VAR_DAGS_MODULE_NAMES"] = dags_module_names_val
+            os.environ.update(new_env)
+
+            # Test when using an Airflow Variable set with an environment variable
+            actual = fetch_dags_modules()
+            self.assertEqual(expected, actual)
+
+    def test_fetch_dag_bag(self):
+        """Test fetch_dag_bag"""
+
+        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        with env.create() as t:
+            # No DAGs found
+            dag_bag = fetch_dag_bag(t)
+            print(f"DAGS found on path: {t}")
+            for dag_id in dag_bag.dag_ids:
+                print(f"  {dag_id}")
+            self.assertEqual(0, len(dag_bag.dag_ids))
+
+            # Bad DAG
+            src = test_fixtures_path("utils", "bad_dag.py")
+            shutil.copy(src, os.path.join(t, "dags.py"))
+            with self.assertRaises(Exception):
+                fetch_dag_bag(t)
+
+            # Copy Good DAGs to folder
+            src = test_fixtures_path("utils", "good_dag.py")
+            shutil.copy(src, os.path.join(t, "dags.py"))
+
+            # DAGs found
+            expected_dag_ids = {"hello", "world"}
+            dag_bag = fetch_dag_bag(t)
+            actual_dag_ids = set(dag_bag.dag_ids)
+            self.assertSetEqual(expected_dag_ids, actual_dag_ids)
+
+    def test_make_release_date(self):
+        """Test make_table_name"""
+
+        next_execution_date = pendulum.datetime(2021, 11, 11)
+        expected_release_date = pendulum.datetime(2021, 11, 10)
+        actual_release_date = make_release_date(**{"next_execution_date": next_execution_date})
+        self.assertEqual(expected_release_date, actual_release_date)
+
+    @patch("observatory.platform.utils.workflow_utils.select_table_shard_dates")
+    def test_make_table_name(self, mock_sel_table_suffixes):
+        """Test make_table_name"""
+        dt = pendulum.datetime(2021, 1, 1)
+        mock_sel_table_suffixes.return_value = [dt]
+
+        # Sharded
+        expected_table_name = "hello20210101"
+        actual_table_name = make_table_name(
+            project_id="project_id", dataset_id="dataset_id", table_id="hello", end_date=dt, sharded=True
+        )
+        self.assertEqual(expected_table_name, actual_table_name)
+
+        # Not sharded
+        expected_table_name = "hello"
+        actual_table_name = make_table_name(
+            project_id="project_id", dataset_id="dataset_id", table_id="hello", end_date=dt, sharded=False
+        )
+        self.assertEqual(expected_table_name, actual_table_name)
 
     @patch("airflow.hooks.base_hook.BaseHook.get_connection")
     def test_make_observatory_api(self, mock_get_connection):

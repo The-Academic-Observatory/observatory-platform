@@ -36,7 +36,7 @@ from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
 from requests.exceptions import ChunkedEncodingError
 
-from observatory.platform.utils.config_utils import module_file_path, utils_templates_path
+from observatory.platform.utils.config_utils import utils_templates_path
 from observatory.platform.utils.file_utils import crc32c_base64_hash
 from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
@@ -94,7 +94,7 @@ def bigquery_table_exists(project_id: str, dataset_id: str, table_name: str) -> 
     return table_exists
 
 
-def bigquery_sharded_table_id(table_name, datetime: pendulum.DateTime) -> str:
+def bigquery_sharded_table_id(table_name, datetime: pendulum.Date) -> str:
     """Create a sharded table identifier for a BigQuery table.
 
     :param table_name: the name of the table.
@@ -386,7 +386,9 @@ def create_bigquery_table_from_query(
     # Set partitioning settings
     if partition:
         job_config.time_partitioning = bigquery.TimePartitioning(
-            type_=partition_type, field=partition_field, require_partition_filter=require_partition_filter,
+            type_=partition_type,
+            field=partition_field,
+            require_partition_filter=require_partition_filter,
         )
 
     if cluster:
@@ -860,7 +862,9 @@ def azure_to_google_cloud_storage_transfer(
         "transferSpec": {
             "azureBlobStorageDataSource": {
                 "storageAccount": azure_storage_account_name,
-                "azureCredentials": {"sasToken": azure_sas_token,},
+                "azureCredentials": {
+                    "sasToken": azure_sas_token,
+                },
                 "container": azure_container,
             },
             "objectConditions": {"includePrefixes": include_prefixes},
@@ -914,7 +918,10 @@ def aws_to_google_cloud_storage_transfer(
         "transferSpec": {
             "awsS3DataSource": {
                 "bucketName": aws_bucket,
-                "awsAccessKey": {"accessKeyId": aws_access_key_id, "secretAccessKey": aws_secret_key,},
+                "awsAccessKey": {
+                    "accessKeyId": aws_access_key_id,
+                    "secretAccessKey": aws_secret_key,
+                },
             },
             "objectConditions": {"includePrefixes": include_prefixes},
             "gcsDataSink": {"bucketName": gc_bucket},
@@ -934,8 +941,8 @@ def aws_to_google_cloud_storage_transfer(
 
 
 def select_table_shard_dates(
-    project_id: str, dataset_id: str, table_id: str, end_date: pendulum.Date, limit: int = 1
-) -> List:
+    project_id: str, dataset_id: str, table_id: str, end_date: Union[pendulum.DateTime, pendulum.Date], limit: int = 1
+) -> List[pendulum.Date]:
     """Returns a list of table shard dates, sorted from the most recent to the oldest date. By default it returns
     the first result.
     :param project_id: the Google Cloud project id.
@@ -946,9 +953,7 @@ def select_table_shard_dates(
     :return:
     """
 
-    template_path = os.path.join(
-        utils_templates_path(), make_sql_jinja2_filename("select_table_shard_dates")
-    )
+    template_path = os.path.join(utils_templates_path(), make_sql_jinja2_filename("select_table_shard_dates"))
     query = render_template(
         template_path,
         project_id=project_id,
@@ -958,8 +963,12 @@ def select_table_shard_dates(
         limit=limit,
     )
     rows = run_bigquery_query(query)
-    suffixes = [row["suffix"] for row in rows]
-    return suffixes
+    dates = []
+    for row in rows:
+        py_date = row["suffix"]
+        date = pendulum.Date(py_date.year, py_date.month, py_date.day)
+        dates.append(date)
+    return dates
 
 
 def delete_bucket_dir(*, bucket_name: str, prefix: str):

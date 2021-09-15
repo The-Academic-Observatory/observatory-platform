@@ -51,9 +51,9 @@ x-environment: &environment
   AIRFLOW__CORE__AIRFLOW_HOME: /opt/airflow
   AIRFLOW__CORE__LOAD_EXAMPLES: "False"
   AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
+  AIRFLOW__CORE__EXECUTE_TASKS_NEW_PYTHON_INTERPRETER: "True"
   AIRFLOW__WEBSERVER__RBAC: "True"
   AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
-  AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL: 30
   AIRFLOW__CELERY__BROKER_URL: "redis://:@{{ redis_hostname }}:6379/0"
   AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
   AIRFLOW__CELERY_BROKER_TRANSPORT_OPTIONS__VISIBILITY_TIMEOUT: 259200
@@ -98,15 +98,19 @@ x-volumes: &volumes
   - "{{ host_data_path }}:/opt/observatory/data"
 
   # Volume mapping when observatory installed in editable mode
-  {%- if config.observatory.package_type == 'editable' %}
+  {%- if config.backend.type.value == 'local' and config.observatory.package_type == 'editable' %}
   - "{{ config.observatory.host_package }}/observatory/platform/dags:/opt/airflow/dags"
-  {%- endif %}
+  {%- elif config.backend.type.value == 'terraform' and config.observatory.package_type == 'editable'  %}
+  - "/opt/observatory-platform/observatory/platform/dags:/opt/airflow/dags"
+  {%- endif -%}
 
   # Volume mappings for Python packages, incl observatory-platform and dags projects:
   {%- for package in config.python_packages %}
-  {%- if package.type == 'editable' %}
+  {%- if config.backend.type.value == 'local' and package.type == 'editable' %}
   - "{{ package.host_package }}:/opt/{{ package.name }}"
-  {%- endif %}
+  {%- elif config.backend.type.value == 'terraform' and package.type == 'editable'  %}
+  - "/opt/{{ package.name }}:/opt/{{ package.name }}"
+  {%- endif -%}
   {%- endfor %}
 
 {% if config.backend.type.value == 'local' %}
