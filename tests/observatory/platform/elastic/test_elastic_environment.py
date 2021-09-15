@@ -29,7 +29,7 @@ class TestElasticEnvironment(unittest.TestCase):
         self.wait_time_secs = 120
 
     def test_elastic_environment(self):
-        """ Test that the elastic kibana environment starts and stops """
+        """Test that the elastic kibana environment starts and stops"""
 
         with CliRunner().isolated_filesystem() as t:
             build_path = os.path.join(t, "docker")

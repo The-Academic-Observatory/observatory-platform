@@ -30,14 +30,14 @@ class TestOpenApiSchema(unittest.TestCase):
         self.template_file = os.path.join(module_file_path("observatory.api.server"), "openapi.yaml.jinja2")
 
     def test_validate_backend(self):
-        """ Test that the backend OpenAPI spec is valid """
+        """Test that the backend OpenAPI spec is valid"""
 
         renderer = OpenApiRenderer(self.template_file, cloud_endpoints=False, api_client=False)
         render = renderer.render()
         self.validate_spec(render)
 
     def test_validate_cloud_endpoints(self):
-        """ Test that the cloud endpoints OpenAPI spec is valid """
+        """Test that the cloud endpoints OpenAPI spec is valid"""
 
         renderer = OpenApiRenderer(self.template_file, cloud_endpoints=True, api_client=False)
         render = renderer.render()
@@ -46,7 +46,7 @@ class TestOpenApiSchema(unittest.TestCase):
         self.validate_spec(render)
 
     def test_validate_api_client(self):
-        """ Test that the API Client OpenAPI spec is valid """
+        """Test that the API Client OpenAPI spec is valid"""
 
         renderer = OpenApiRenderer(self.template_file, cloud_endpoints=False, api_client=True)
         render = renderer.render()

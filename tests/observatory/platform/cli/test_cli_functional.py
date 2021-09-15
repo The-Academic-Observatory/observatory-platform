@@ -51,7 +51,7 @@ from observatory.platform.utils.url_utils import wait_for_url
 def list_dag_ids(
     host: str = "http://localhost", port: int = None, user: str = "airflow@airflow.com", pwd: str = "airflow"
 ) -> Set:
-    """ List the DAG ids that have been loaded in an Airflow instance.
+    """List the DAG ids that have been loaded in an Airflow instance.
 
     :param host: the hostname.
     :param port: the port.
@@ -76,7 +76,7 @@ def list_dag_ids(
 
 
 def build_sdist(package_path: str) -> str:
-    """ Build a Python source distribution and return the path to the tar file.
+    """Build a Python source distribution and return the path to the tar file.
 
     :param package_path:
     :return:
@@ -124,7 +124,7 @@ class TestCliFunctional(unittest.TestCase):
         self.config_file_name = "config.yaml"
 
     def make_editable_observatory_config(self, temp_dir: str) -> ObservatoryConfig:
-        """ Make an editable observatory config.
+        """Make an editable observatory config.
 
         :param temp_dir: the temp dir.
         :return: ObservatoryConfig.
@@ -154,24 +154,24 @@ class TestCliFunctional(unittest.TestCase):
         )
 
     def copy_observatory_api(self, temp_dir: str):
-        """ Copy the workflows project to the test dir """
+        """Copy the workflows project to the test dir"""
 
         shutil.copytree(self.observatory_api_path, os.path.join(temp_dir, self.observatory_api_package_name))
 
     def copy_observatory_platform(self, temp_dir: str):
-        """ Copy the workflows project to the test dir """
+        """Copy the workflows project to the test dir"""
 
         shutil.copytree(self.observatory_platform_path, os.path.join(temp_dir, self.observatory_platform_package_name))
 
     def copy_workflows_project(self, temp_dir: str):
-        """ Copy the workflows project to the test dir """
+        """Copy the workflows project to the test dir"""
 
         shutil.copytree(
             test_fixtures_path("cli", self.workflows_package_name), os.path.join(temp_dir, self.workflows_package_name)
         )
 
     def assert_dags_loaded(self, expected_dag_ids: Set, config: ObservatoryConfig, dag_check_timeout: int = 30):
-        """ Assert that DAGs loaded into Airflow.
+        """Assert that DAGs loaded into Airflow.
 
         :param expected_dag_ids: the expected DAG ids.
         :param config: the Observatory Config.
@@ -192,7 +192,7 @@ class TestCliFunctional(unittest.TestCase):
         self.assertSetEqual(expected_dag_ids, actual_dag_ids)
 
     def assert_ports_open(self, observatory: Observatory, timeout: int = 120):
-        """ Check that the ports given in the observatory object are accepting connections.
+        """Check that the ports given in the observatory object are accepting connections.
 
         :param observatory: the observatory object.
         :param timeout:  the length of time to wait until timing out.
@@ -228,7 +228,7 @@ class TestCliFunctional(unittest.TestCase):
 
     @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
     def test_run_platform_editable(self, mock_config_load):
-        """ Test that the platform runs when built from an editable project. API installed from PyPI. """
+        """Test that the platform runs when built from an editable project. API installed from PyPI."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -264,7 +264,7 @@ class TestCliFunctional(unittest.TestCase):
 
     @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
     def test_dag_load_workflows_project_editable(self, mock_config_load):
-        """ Test that the DAGs load when build from an editable workflows project. API installed from PyPI. """
+        """Test that the DAGs load when build from an editable workflows project. API installed from PyPI."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -310,9 +310,12 @@ class TestCliFunctional(unittest.TestCase):
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
     def make_sdist_observatory_config(
-        self, temp_dir: str, observatory_api_sdist_path: str, observatory_sdist_path: str,
+        self,
+        temp_dir: str,
+        observatory_api_sdist_path: str,
+        observatory_sdist_path: str,
     ) -> ObservatoryConfig:
-        """ Make an sdist observatory config.
+        """Make an sdist observatory config.
 
         :param temp_dir: the temp dir.
         :param observatory_api_sdist_path: the observatory-api sdist path.
@@ -345,7 +348,7 @@ class TestCliFunctional(unittest.TestCase):
 
     @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
     def test_run_platform_sdist(self, mock_config_load):
-        """ Test that the platform runs when built from a source distribution. API package installed from PyPI. """
+        """Test that the platform runs when built from a source distribution. API package installed from PyPI."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -385,7 +388,7 @@ class TestCliFunctional(unittest.TestCase):
 
     @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
     def test_dag_load_workflows_project_sdist(self, mock_config_load):
-        """ Test that DAGs load from an sdist workflows project. API package installed from PyPI. """
+        """Test that DAGs load from an sdist workflows project. API package installed from PyPI."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:

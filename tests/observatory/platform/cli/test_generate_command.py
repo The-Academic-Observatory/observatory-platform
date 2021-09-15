@@ -54,7 +54,7 @@ class TestGenerateCommand(unittest.TestCase):
             self.assertTrue(os.path.exists(config_path))
 
     def test_generate_workflow(self):
-        """ Test generate workflow """
+        """Test generate workflow"""
 
         # Test valid workflow types
         package_name = "my_workflows_package"

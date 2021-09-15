@@ -63,9 +63,7 @@ class TestSession(unittest.TestCase):
         """Test create_session and init_db"""
 
         # Create session with seed_db set to True
-        self.session = create_session(
-            uri=self.uri, connect_args={"check_same_thread": False}, poolclass=StaticPool
-        )
+        self.session = create_session(uri=self.uri, connect_args={"check_same_thread": False}, poolclass=StaticPool)
         self.assertTrue(self.session.connection())
 
 

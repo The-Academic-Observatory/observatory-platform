@@ -29,7 +29,7 @@ from airflow.utils.db import create_session
 
 
 class AirflowVars:
-    """ Common Airflow Variable names used with the Observatory Platform """
+    """Common Airflow Variable names used with the Observatory Platform"""
 
     DATA_PATH = "data_path"
     ENVIRONMENT = "environment"
@@ -44,7 +44,7 @@ class AirflowVars:
 
 
 class AirflowConns:
-    """ Common Airflow Connection names used with the Observatory Platform """
+    """Common Airflow Connection names used with the Observatory Platform"""
 
     CROSSREF = "crossref"
     MAG_RELEASES_TABLE = "mag_releases_table"

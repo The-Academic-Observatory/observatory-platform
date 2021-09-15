@@ -62,7 +62,7 @@ def parse_kibana_url(url):
 
 
 class ObjectType(Enum):
-    """ Valid Kibana saved object types """
+    """Valid Kibana saved object types"""
 
     visualization = "visualization"
     dashboard = "dashboard"
