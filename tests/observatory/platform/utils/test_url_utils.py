@@ -17,12 +17,17 @@
 import unittest
 from datetime import datetime
 from typing import List
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import httpretty
 import requests
+from click.testing import CliRunner
+from observatory.platform.utils.test_utils import HttpServer, test_fixtures_path
 from observatory.platform.utils.url_utils import (
     get_filename_from_url,
+    get_http_response_json_to_dict,
+    get_http_response_xml_to_dict,
+    get_http_text_response,
     get_observatory_http_header,
     get_url_domain_suffix,
     get_user_agent,
@@ -202,3 +207,42 @@ class TestUrlUtils(unittest.TestCase):
         self.assertEqual(parsed1, file1)
         parsed2 = get_filename_from_url(url2)
         self.assertEqual(parsed2, file1)
+
+    def test_get_http_text_response(self):
+        with CliRunner().isolated_filesystem():
+            httpserver = HttpServer(".")
+
+            with httpserver.create():
+                # 404
+                url = f"http://{httpserver.host}:{httpserver.port}/missing.txt"
+                self.assertRaises(ConnectionError, get_http_text_response, url)
+
+                # OK
+                url = f"http://{httpserver.host}:{httpserver.port}/"
+                text = get_http_text_response(url)
+                self.assertTrue(len(text) > 0)
+
+    def test_get_http_response_json_to_dict(self):
+        with CliRunner().isolated_filesystem():
+            httpserver = HttpServer(test_fixtures_path("utils"))
+
+            with httpserver.create():
+                url = f"http://{httpserver.host}:{httpserver.port}/get_http_response_json_to_dict.json"
+
+                response = get_http_response_json_to_dict(url)
+                self.assertTrue(isinstance(response, dict))
+                self.assertEqual(response["test"], "value")
+
+    def test_get_http_response_xml_to_dict(self):
+        with CliRunner().isolated_filesystem():
+            httpserver = HttpServer(test_fixtures_path("utils"))
+
+            with httpserver.create():
+                url = f"http://{httpserver.host}:{httpserver.port}/get_http_response_xml_to_dict.xml"
+
+                response = get_http_response_xml_to_dict(url)
+                self.assertTrue(isinstance(response, dict))
+                self.assertEqual(response["note"]["to"], "Curtin")
+                self.assertEqual(response["note"]["from"], "COKI")
+                self.assertEqual(response["note"]["heading"], "Test heading")
+                self.assertEqual(response["note"]["body"], "Test text")

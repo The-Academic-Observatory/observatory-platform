@@ -15,6 +15,7 @@
 # Author: James Diprose
 
 import hashlib
+import json
 import os
 import time
 import urllib.error
@@ -24,6 +25,7 @@ from urllib.parse import ParseResult, urljoin, urlparse
 
 import requests
 import tldextract
+import xmltodict
 from importlib_metadata import metadata
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -98,6 +100,45 @@ def retry_session(
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session
+
+
+def get_http_text_response(url) -> str:
+    """Get the text response from an HTTP GET call.
+
+    :param url: URL to query.
+    :return: Text response.
+    """
+
+    HTTP_OK = 200
+    response = retry_session().get(url)
+    if response.status_code != HTTP_OK:
+        raise ConnectionError(f"Error requesting {url}")
+
+    return response.text
+
+
+def get_http_response_json_to_dict(url):
+    """Get the JSON response from an HTTP API call as a dict.
+
+    :param url: URL to query.
+    :return: Dictionary of the response.
+    """
+
+    response = get_http_text_response(url)
+    response_dict = json.loads(response)
+    return response_dict
+
+
+def get_http_response_xml_to_dict(url):
+    """Get the XML response from an HTTP API call as a dict.
+
+    :param url: URL to query.
+    :return: Dictionary of the response.
+    """
+
+    response = get_http_text_response(url)
+    response_dict = xmltodict.parse(response)
+    return response_dict
 
 
 def wait_for_url(url: str, timeout: int = 60):

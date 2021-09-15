@@ -915,7 +915,6 @@ class HttpServer:
         """
 
         os.chdir(directory)
-        print(f"Servering directory: {directory}")
         server = ThreadingHTTPServer(address, SimpleHTTPRequestHandler)
         server.serve_forever()
 
