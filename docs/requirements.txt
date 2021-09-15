@@ -1,4 +1,4 @@
-Sphinx>3
+Sphinx>=4,<5
 sphinx-autoapi==1.8.*
 sphinx-rtd-theme==0.5.*
 recommonmark==0.7.*

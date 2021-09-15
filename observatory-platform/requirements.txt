@@ -26,7 +26,7 @@ cerberus>=1.3.4,<2
 Jinja2>=2.10.1,<3
 stringcase>=1.2.0,<2
 pyhcl>=0.4.4,<1
-Sphinx==4.1.*
+Sphinx>=4,<5
 
 # Reading and writing jsonlines files
 jsonlines>=2.0.0,<3  # Writing
