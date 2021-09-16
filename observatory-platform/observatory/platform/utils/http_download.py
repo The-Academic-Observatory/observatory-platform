@@ -16,7 +16,7 @@
 
 # Asynchronous HTTP GET file downloader. Use the download_file, and download_files interfaces to download.
 # Creates a worker pool to asynchronously (single thread) download file(s).
-# Valid hash algorithms: see observatory.platform.utils.file_utils.get_hasher_ for more information.
+# Valid hash algorithms: see observatory.platform.utils.file_utils.get_hasher_ for valid options.
 #
 # Usage examples:
 #    custom_headers = {"User-Agent" : "Something" }
@@ -248,7 +248,10 @@ def download_file(
     if filename is None:
         filename = get_filename_from_url(url=url)
 
-    download_list = [{"url": url, "filename": filename, "hash": hash, "hash_algorithm": hash_algorithm}]
+    download_dict = {"url": url, "filename": filename}
+    if hash_algorithm is not None:
+        download_dict["hash_algorithm"] = hash_algorithm
+        download_dict["hash"] = hash
 
-    success = download_files(download_list=download_list, num_connections=1, headers=headers)
+    success = download_files(download_list=[download_dict], num_connections=1, headers=headers)
     return success
