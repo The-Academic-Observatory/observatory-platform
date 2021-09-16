@@ -17,7 +17,7 @@
 import unittest
 from datetime import datetime
 from typing import List
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import httpretty
 import requests
@@ -25,7 +25,7 @@ from click.testing import CliRunner
 from observatory.platform.utils.test_utils import HttpServer, test_fixtures_path
 from observatory.platform.utils.url_utils import (
     get_filename_from_url,
-    get_http_response_json_to_dict,
+    get_http_response_json,
     get_http_response_xml_to_dict,
     get_http_text_response,
     get_observatory_http_header,
@@ -222,14 +222,14 @@ class TestUrlUtils(unittest.TestCase):
                 text = get_http_text_response(url)
                 self.assertTrue(len(text) > 0)
 
-    def test_get_http_response_json_to_dict(self):
+    def test_get_http_response_json(self):
         with CliRunner().isolated_filesystem():
             httpserver = HttpServer(test_fixtures_path("utils"))
 
             with httpserver.create():
-                url = f"http://{httpserver.host}:{httpserver.port}/get_http_response_json_to_dict.json"
+                url = f"http://{httpserver.host}:{httpserver.port}/get_http_response_json.json"
 
-                response = get_http_response_json_to_dict(url)
+                response = get_http_response_json(url)
                 self.assertTrue(isinstance(response, dict))
                 self.assertEqual(response["test"], "value")
 

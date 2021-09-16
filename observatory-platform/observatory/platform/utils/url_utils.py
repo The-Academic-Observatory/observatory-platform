@@ -20,9 +20,11 @@ import os
 import time
 import urllib.error
 import urllib.request
-from typing import Dict, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 from urllib.parse import ParseResult, urljoin, urlparse
 
+import aiohttp
+import backoff
 import requests
 import tldextract
 import xmltodict
@@ -102,7 +104,7 @@ def retry_session(
     return session
 
 
-def get_http_text_response(url) -> str:
+def get_http_text_response(url: str) -> str:
     """Get the text response from an HTTP GET call.
 
     :param url: URL to query.
@@ -117,7 +119,7 @@ def get_http_text_response(url) -> str:
     return response.text
 
 
-def get_http_response_json_to_dict(url):
+def get_http_response_json(url: str) -> Union[List, Dict]:
     """Get the JSON response from an HTTP API call as a dict.
 
     :param url: URL to query.
@@ -125,11 +127,11 @@ def get_http_response_json_to_dict(url):
     """
 
     response = get_http_text_response(url)
-    response_dict = json.loads(response)
-    return response_dict
+    response_obj = json.loads(response)
+    return response_obj
 
 
-def get_http_response_xml_to_dict(url):
+def get_http_response_xml_to_dict(url: str) -> Dict:
     """Get the XML response from an HTTP API call as a dict.
 
     :param url: URL to query.

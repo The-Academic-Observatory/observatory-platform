@@ -38,7 +38,7 @@ def to_json_lines(items: List[dict], serialize_custom_types_func=None) -> str:
     return json_lines
 
 
-def convert_csv_to_jsonlines_file(*, csv_file: str, jsonl_file: str):
+def csv_to_jsonlines(*, csv_file: str, jsonl_file: str):
     """Convert CSV file to a json lines file.
 
     :param csv_file: File path to csv file.

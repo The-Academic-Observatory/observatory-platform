@@ -36,8 +36,8 @@ import json_lines
 import jsonlines
 import numpy as np
 import pandas as pd
+from _hashlib import HASH
 from google_crc32c import Checksum as Crc32cChecksum
-
 from observatory.platform.utils.proc_utils import wait_for_process
 
 
@@ -56,6 +56,7 @@ def list_files(path: str, regex: str = None) -> List[str]:
     return paths
 
 
+# Third party code.  Remove soon in a ticket.
 def _hash_file(fpath, algorithm="sha256", chunk_size=65535):
     """Calculates a file sha256 or md5 hash.
 
@@ -88,6 +89,7 @@ def _hash_file(fpath, algorithm="sha256", chunk_size=65535):
     return hasher.hexdigest()
 
 
+# Third party code.  Remove soon in a ticket.
 def validate_file(fpath, file_hash, algorithm="auto", chunk_size=65535):
     """Validates a file against a sha256 or md5 hash.
     # Arguments
@@ -109,6 +111,55 @@ def validate_file(fpath, file_hash, algorithm="auto", chunk_size=65535):
         return True
     else:
         return False
+
+
+def get_hasher_(algorithm: str) -> HASH:
+    """Get the hasher for the specified algorithm.
+
+    :param algorithm: Algorithm name.  See https://docs.python.org/3.8/library/hashlib.html for supported names.
+    :return: Hasher object.
+    """
+
+    if algorithm == "md5":
+        return hashlib.md5()
+    elif algorithm == "sha256":
+        return hashlib.sha256()
+    elif algorithm == "sha512":
+        return hashlib.sha512()
+
+    raise Exception(f"get_hasher_ unsupported algorithm: {algorithm}")
+
+
+def get_file_hash(*, file_path: str, algorithm: str = "md5") -> str:
+    """Get the hash string of the file.
+
+    :param file_path: File to hash.
+    :param algorithm: Hashing algorithm to use.
+    :return: Hash string.
+    """
+
+    hasher = get_hasher_(algorithm)
+
+    BUFFER_SIZE = 2 ** 16  # 64 KiB
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(BUFFER_SIZE), b""):
+            hasher.update(chunk)
+
+    hash_code = hasher.hexdigest()
+    return hash_code
+
+
+def validate_file_hash(*, file_path: str, expected_hash: str, algorithm="md5") -> bool:
+    """Check whether a file has the correct hash string.
+
+    :param file_path: File to check.
+    :param expected_hash: Expected hash string.
+    :param algorithm: Hashing algorithm to use.
+    :return: Whether the hash is valid.
+    """
+
+    computed_hash = get_file_hash(file_path=file_path, algorithm=algorithm)
+    return computed_hash == expected_hash
 
 
 def gzip_file_crc(file_path: str) -> str:

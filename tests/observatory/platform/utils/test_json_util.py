@@ -20,10 +20,7 @@ import os
 import unittest
 
 from click.testing import CliRunner
-from observatory.platform.utils.json_util import (
-    convert_csv_to_jsonlines_file,
-    to_json_lines,
-)
+from observatory.platform.utils.json_util import csv_to_jsonlines, to_json_lines
 from observatory.platform.utils.test_utils import (
     ObservatoryTestCase,
     test_fixtures_path,
@@ -51,7 +48,7 @@ class TestJsonUtil(ObservatoryTestCase):
         actual = to_json_lines([])
         self.assertEqual(expected, actual)
 
-    def test_convert_csv_to_jsonlines_file(self):
+    def test_csv_to_jsonlines(self):
         fixtures_dir = test_fixtures_path("utils")
         csv_file = os.path.join(fixtures_dir, "test.csv")
 
@@ -59,5 +56,5 @@ class TestJsonUtil(ObservatoryTestCase):
             output_file = "test.jsonl"
             expected_hash = "d7233f74c7a9bd526c868a5fec24fe52"
             algorithm = "md5"
-            convert_csv_to_jsonlines_file(csv_file=csv_file, jsonl_file=output_file)
+            csv_to_jsonlines(csv_file=csv_file, jsonl_file=output_file)
             self.assert_file_integrity(output_file, expected_hash, algorithm)

@@ -16,7 +16,6 @@
 
 """ Utility functions that support (almost) all telescopes/the template """
 
-import asyncio
 import calendar
 import json
 import logging
@@ -32,10 +31,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from math import ceil
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, List, Optional, Tuple, Type, Union
 
-import aiohttp
-import backoff
 import jsonlines
 import paramiko
 import pendulum
@@ -46,7 +43,6 @@ from airflow.hooks.base import BaseHook
 from airflow.models import DagBag, Variable
 from airflow.models.taskinstance import TaskInstance
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
-from airflow.sensors.external_task import ExternalTaskSensor
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
@@ -72,7 +68,6 @@ from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
 )
-from observatory.platform.utils.url_utils import get_filename_from_url
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -226,7 +221,7 @@ def prepare_bq_load(
     prefix: str,
     schema_version: str,
     dataset_description: str = "",
-) -> [str, str, str, str]:
+) -> Tuple[str, str, str, str]:
     """
     Prepare to load data into BigQuery. This will:
      - create the dataset if it does not exist yet
@@ -1321,65 +1316,3 @@ def get_chunks(*, input_list: List[Any], chunk_size: int = 8) -> List[Any]:
     n = len(input_list)
     for i in range(0, n, chunk_size):
         yield input_list[i : i + chunk_size]
-
-
-class AsyncHttpFileDownloader:
-    @staticmethod
-    @backoff.on_exception(backoff.expo, aiohttp.ClientError, max_tries=11, max_time=60)
-    async def download_http_file_(*, url, dst_file=None, headers=None):
-        READ_BUFFER_SIZE = 2 ** 16  # 64 KiB
-
-        dst_file = dst_file if dst_file is not None else get_filename_from_url(url)
-
-        async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
-            async with session.get(url) as resp:
-                with open(dst_file, "wb") as f:
-                    while True:
-                        chunk = await resp.content.read(READ_BUFFER_SIZE)
-                        if not chunk:
-                            break
-                        f.write(chunk)
-
-    @staticmethod
-    async def download_http_files_(*, download_list: List[Any], num_connections: str = 8, headers: Dict = None):
-        for chunk in get_chunks(input_list=download_list, chunk_size=num_connections):
-            download_tasks = [
-                AsyncHttpFileDownloader.download_http_file_(url=info["url"], dst_file=info["filename"], headers=headers)
-                for info in chunk
-            ]
-            responses = await asyncio.gather(*download_tasks, return_exceptions=True)
-            for response in responses:
-                if response is not None:
-                    logging.error(f"AsyncHttpFileDownloader exceptions: {response}")
-
-    @staticmethod
-    def download_files(*, download_list: List[Any], num_connections: int = 8, headers: Dict = None):
-        if len(download_list) == 0:
-            return
-
-        # We got a list of url instead of a dict of urls and filenames. Convert to dict.
-        if isinstance(download_list[0], str):
-            download_info = [{"url": url, "filename": get_filename_from_url(url)} for url in download_list]
-            download_list = download_info
-
-        asyncio.run(
-            AsyncHttpFileDownloader.download_http_files_(
-                download_list=download_list, num_connections=num_connections, headers=headers
-            )
-        )
-
-    @staticmethod
-    def download_file(*, url: str, filename: str = None, headers: Dict = None):
-        """Download a single file from a url.
-
-        :param url: URL to download file from.
-        :param filename: Destination file.
-        :param headers: Any custom header you want to use in HTTP session.
-        """
-
-        if filename is None:
-            filename = get_filename_from_url(url=url)
-
-        download_list = [{"url": url, "filename": filename}]
-
-        AsyncHttpFileDownloader.download_files(download_list=download_list, num_connections=1, headers=headers)

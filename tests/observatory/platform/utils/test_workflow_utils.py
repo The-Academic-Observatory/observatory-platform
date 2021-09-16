@@ -41,15 +41,12 @@ from observatory.platform.utils.file_utils import (
     load_jsonl,
 )
 from observatory.platform.utils.test_utils import (
-    HttpServer,
     ObservatoryEnvironment,
-    ObservatoryTestCase,
     random_id,
     test_fixtures_path,
 )
 from observatory.platform.utils.url_utils import get_observatory_http_header
 from observatory.platform.utils.workflow_utils import (
-    AsyncHttpFileDownloader,
     PeriodCount,
     ScheduleOptimiser,
     SubFolder,
@@ -1274,81 +1271,3 @@ class TestScheduleOptimiser(unittest.TestCase):
         self.assertEqual(schedule[0].end, pendulum.date(1000, 1, 1))
         self.assertEqual(schedule[1].start, pendulum.date(1000, 2, 1))
         self.assertEqual(schedule[1].end, pendulum.date(1000, 5, 1))
-
-
-class MockVersionData:
-    @classmethod
-    def get(self, attribute):
-        if attribute == "Version":
-            return "1"
-        if attribute == "Home-page":
-            return "http://test.test"
-        if attribute == "Author-email":
-            return "test@test"
-
-
-class TestAsyncHttpFileDownloader(ObservatoryTestCase):
-    def test_download_files(self):
-        # Spin up http server
-        directory = test_fixtures_path("utils")
-        http_server = HttpServer(directory=directory)
-        http_server.start()
-
-        file1 = "http_testfile.txt"
-        file2 = "http_testfile2.txt"
-        hash1 = "d8e8fca2dc0f896fd7cb4cb0031ba249"
-        hash2 = "126a8a51b9d1bbd07fddc65819a542c3"
-        algorithm = "md5"
-
-        url1 = f"{http_server.url}{file1}"
-        url2 = f"{http_server.url}{file2}"
-
-        # Empty list
-        with CliRunner().isolated_filesystem() as tmpdir:
-            AsyncHttpFileDownloader.download_files(download_list=[])
-            files = os.listdir(tmpdir)
-            self.assertEqual(len(files), 0)
-
-        # URL only
-        with CliRunner().isolated_filesystem() as tmpdir:
-            download_list = [url1, url2]
-            AsyncHttpFileDownloader.download_files(download_list=download_list)
-            self.assert_file_integrity(file1, hash1, algorithm)
-            self.assert_file_integrity(file2, hash2, algorithm)
-
-        # URL only with observatory user agent
-        with CliRunner().isolated_filesystem() as tmpdir:
-            with patch("observatory.platform.utils.url_utils.metadata", return_value=MockVersionData):
-                headers = get_observatory_http_header(package_name="observatory-platform")
-                download_list = [url1, url2]
-                AsyncHttpFileDownloader.download_files(download_list=download_list, headers=headers)
-                self.assert_file_integrity(file1, hash1, algorithm)
-                self.assert_file_integrity(file2, hash2, algorithm)
-
-        # Dictionary list
-        with CliRunner().isolated_filesystem() as tmpdir:
-            dst1 = "test1.txt"
-            dst2 = "test2.txt"
-
-            download_list = [
-                {"url": url1, "filename": dst1},
-                {"url": url2, "filename": dst2},
-            ]
-            AsyncHttpFileDownloader.download_files(download_list=download_list)
-            self.assert_file_integrity(dst1, hash1, algorithm)
-            self.assert_file_integrity(dst2, hash2, algorithm)
-
-        # Single download
-        with CliRunner().isolated_filesystem() as tmpdir:
-            AsyncHttpFileDownloader.download_file(url=url1)
-            AsyncHttpFileDownloader.download_file(url=url2, filename=file2)
-            self.assert_file_integrity(file1, hash1, algorithm)
-            self.assert_file_integrity(file2, hash2, algorithm)
-
-        # Retry and timeout
-        download_list = [f"{http_server.url}does_not_exist"]
-        with patch("observatory.platform.utils.workflow_utils.logging.error") as m_logging:
-            AsyncHttpFileDownloader.download_files(download_list=download_list)
-            self.assertEqual(m_logging.call_count, 1)
-
-        http_server.stop()
