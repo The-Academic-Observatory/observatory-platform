@@ -75,3 +75,12 @@ class TestSnapshotTelescope(ObservatoryTestCase):
         releases.transform = MagicMock()
         telescope.transform(releases)
         self.assertEqual(releases.transform.call_count, 1)
+
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
+    def test_extract(self, m_get):
+        m_get.return_value = "data"
+        telescope = MockTelescope()
+        release = telescope.make_release()
+        release.extract = MagicMock()
+        telescope.extract(release)
+        self.assertEqual(release.extract.call_count, 1)

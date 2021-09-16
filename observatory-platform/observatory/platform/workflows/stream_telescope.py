@@ -185,6 +185,15 @@ class StreamTelescope(Workflow):
         """
         upload_files_from_list(release.download_files, release.download_bucket)
 
+    def extract(self, release: StreamRelease, **kwargs):
+        """Task to extract the StreamRelease release.
+
+        :param release: a StreamRelease instance.
+        :param kwargs: The context passed from the PythonOperator.
+        :return: None.
+        """
+        release.extract()
+
     def transform(self, release: StreamRelease, **kwargs):
         """Task to transform the StreamRelease release.
 
