@@ -21,14 +21,20 @@ from unittest.mock import patch
 
 import httpretty
 import requests
-
+from click.testing import CliRunner
+from observatory.platform.utils.test_utils import HttpServer, test_fixtures_path
 from observatory.platform.utils.url_utils import (
+    get_filename_from_url,
+    get_http_response_json,
+    get_http_response_xml_to_dict,
+    get_http_text_response,
+    get_observatory_http_header,
     get_url_domain_suffix,
-    unique_id,
-    is_url_absolute,
-    strip_query_params,
-    retry_session,
     get_user_agent,
+    is_url_absolute,
+    retry_session,
+    strip_query_params,
+    unique_id,
     wait_for_url,
 )
 from tests.observatory.platform.cli.test_platform_command import MockUrlOpen
@@ -185,3 +191,58 @@ class TestUrlUtils(unittest.TestCase):
         gt = f"observatory-platform v1 (+http://test.test; mailto: test@test)"
         ua = get_user_agent(package_name="observatory-platform")
         self.assertEqual(ua, gt)
+
+    @patch("observatory.platform.utils.url_utils.metadata", return_value=MockMetadata)
+    def test_get_observatory_http_header(self, mock_cfg):
+        expected_header = {"User-Agent": "observatory-platform v1 (+http://test.test; mailto: test@test)"}
+        header = get_observatory_http_header(package_name="observatory-platform")
+        self.assertEqual(expected_header, header)
+
+    def test_get_filename_from_url(self):
+        file1 = "myfile.gz"
+        url1 = f"http://blah/{file1}"
+        url2 = f"http://blah/{file1}?someparam=adfdf&somethingelse=akdf4"
+
+        parsed1 = get_filename_from_url(url1)
+        self.assertEqual(parsed1, file1)
+        parsed2 = get_filename_from_url(url2)
+        self.assertEqual(parsed2, file1)
+
+    def test_get_http_text_response(self):
+        with CliRunner().isolated_filesystem():
+            httpserver = HttpServer(".")
+
+            with httpserver.create():
+                # 404
+                url = f"http://{httpserver.host}:{httpserver.port}/missing.txt"
+                self.assertRaises(ConnectionError, get_http_text_response, url)
+
+                # OK
+                url = f"http://{httpserver.host}:{httpserver.port}/"
+                text = get_http_text_response(url)
+                self.assertTrue(len(text) > 0)
+
+    def test_get_http_response_json(self):
+        with CliRunner().isolated_filesystem():
+            httpserver = HttpServer(test_fixtures_path("utils"))
+
+            with httpserver.create():
+                url = f"http://{httpserver.host}:{httpserver.port}/get_http_response_json.json"
+
+                response = get_http_response_json(url)
+                self.assertTrue(isinstance(response, dict))
+                self.assertEqual(response["test"], "value")
+
+    def test_get_http_response_xml_to_dict(self):
+        with CliRunner().isolated_filesystem():
+            httpserver = HttpServer(test_fixtures_path("utils"))
+
+            with httpserver.create():
+                url = f"http://{httpserver.host}:{httpserver.port}/get_http_response_xml_to_dict.xml"
+
+                response = get_http_response_xml_to_dict(url)
+                self.assertTrue(isinstance(response, dict))
+                self.assertEqual(response["note"]["to"], "Curtin")
+                self.assertEqual(response["note"]["from"], "COKI")
+                self.assertEqual(response["note"]["heading"], "Test heading")
+                self.assertEqual(response["note"]["body"], "Test text")
