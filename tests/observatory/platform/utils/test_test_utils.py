@@ -37,6 +37,7 @@ from observatory.platform.utils.gc_utils import (
     load_bigquery_table,
     upload_file_to_cloud_storage,
 )
+from observatory.platform.utils.http_download import download_file, download_files
 from observatory.platform.utils.test_utils import (
     HttpServer,
     ObservatoryEnvironment,
@@ -46,7 +47,6 @@ from observatory.platform.utils.test_utils import (
     test_fixtures_path,
 )
 from observatory.platform.utils.url_utils import retry_session
-from observatory.platform.utils.workflow_utils import AsyncHttpFileDownloader
 from observatory.platform.workflows.workflow import AbstractRelease, Workflow
 
 DAG_ID = "telescope-test"
@@ -522,7 +522,7 @@ class TestHttpserver(ObservatoryTestCase):
 
         with CliRunner().isolated_filesystem() as tmpdir:
             dst_file = os.path.join(tmpdir, "testfile.txt")
-            AsyncHttpFileDownloader.download_files(download_list=[{"url": url, "filename": dst_file}])
+            download_files(download_list=[{"url": url, "filename": dst_file}])
 
             self.assert_file_integrity(dst_file, expected_hash, algorithm)
 
@@ -541,5 +541,5 @@ class TestHttpserver(ObservatoryTestCase):
 
             with CliRunner().isolated_filesystem() as tmpdir:
                 dst_file = os.path.join(tmpdir, "testfile.txt")
-                AsyncHttpFileDownloader.download_file(url=url, filename=dst_file)
+                download_file(url=url, filename=dst_file)
                 self.assert_file_integrity(dst_file, expected_hash, algorithm)
