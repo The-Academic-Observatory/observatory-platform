@@ -20,9 +20,21 @@ from unittest.mock import MagicMock, patch
 
 from airflow.exceptions import AirflowException
 from observatory.platform.utils.airflow_utils import (
+    get_airflow_connection_password,
     get_airflow_connection_url,
     set_task_state,
 )
+
+
+class MockConnection:
+    def __init__(self, url):
+        self.url = url
+
+    def get_uri(self):
+        return self.url
+
+    def get_password(self):
+        return "password"
 
 
 class TestAirflowUtils(unittest.TestCase):
@@ -36,10 +48,10 @@ class TestAirflowUtils(unittest.TestCase):
 
     def test_get_airflow_connection_url_invalid(self):
         with patch("observatory.platform.utils.airflow_utils.BaseHook") as m_basehook:
-            m_basehook.get_connection = MagicMock(return_value="")
+            m_basehook.get_connection = MagicMock(return_value=MockConnection(""))
             self.assertRaises(AirflowException, get_airflow_connection_url, "some_connection")
 
-            m_basehook.get_connection = MagicMock(return_value="http://invalidurl")
+            m_basehook.get_connection = MagicMock(return_value=MockConnection("http://invalidurl"))
             self.assertRaises(AirflowException, get_airflow_connection_url, "some_connection")
 
     def test_get_airflow_connection_url_valid(self):
@@ -49,12 +61,18 @@ class TestAirflowUtils(unittest.TestCase):
         with patch("observatory.platform.utils.airflow_utils.BaseHook") as m_basehook:
             # With trailing /
             input_url = "http://localhost/"
-            m_basehook.get_connection = MagicMock(return_value=input_url)
+            m_basehook.get_connection = MagicMock(return_value=MockConnection(input_url))
             url = get_airflow_connection_url(fake_conn)
             self.assertEqual(url, expected_url)
 
             # Without trailing /
             input_url = "http://localhost"
-            m_basehook.get_connection = MagicMock(return_value=input_url)
+            m_basehook.get_connection = MagicMock(return_value=MockConnection(input_url))
             url = get_airflow_connection_url(fake_conn)
             self.assertEqual(url, expected_url)
+
+    def test_get_airflow_connection_password(self):
+        with patch("observatory.platform.utils.airflow_utils.BaseHook") as m_basehook:
+            m_basehook.get_connection = MagicMock(return_value=MockConnection(""))
+            password = get_airflow_connection_password("")
+            self.assertEqual(password, "password")

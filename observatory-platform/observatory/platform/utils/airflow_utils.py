@@ -183,7 +183,8 @@ def get_airflow_connection_url(conn_id: str) -> str:
     :return: Connection URL with a trailing / added if necessary, or raise an exception if it is not a valid URL.
     """
 
-    url = BaseHook.get_connection(conn_id)
+    conn = BaseHook.get_connection(conn_id)
+    url = conn.get_uri()
 
     if validators.url(url) != True:
         raise AirflowException(f"Airflow connection id {conn_id} does not have a valid url: {url}")
@@ -192,3 +193,15 @@ def get_airflow_connection_url(conn_id: str) -> str:
         url += "/"
 
     return url
+
+
+def get_airflow_connection_password(conn_id: str) -> str:
+    """Get the Airflow connection password. Assumes the connection_id exists.
+
+    :param conn_id: Airflow connection id.
+    :return: Connection password.
+    """
+
+    conn = BaseHook.get_connection(conn_id)
+    password = conn.get_password()
+    return password
