@@ -72,6 +72,8 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from multiprocessing import Process
 from typing import Dict, List
 from unittest.mock import patch
 
@@ -97,9 +99,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from freezegun import freeze_time
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
-from pendulum import DateTime
-from sftpserver.stub_sftp import StubServer, StubSFTPServer
-
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
@@ -108,8 +107,8 @@ from observatory.platform.utils.file_utils import (
     _hash_file,
     crc32c_base64_hash,
     gzip_file_crc,
+    list_to_jsonl_gz,
 )
-from observatory.platform.utils.file_utils import list_to_jsonl_gz
 from observatory.platform.utils.gc_utils import (
     SourceFormat,
     bigquery_sharded_table_id,
@@ -117,6 +116,8 @@ from observatory.platform.utils.gc_utils import (
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.workflow_utils import find_schema
+from pendulum import DateTime
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 
 def random_id():
@@ -886,3 +887,66 @@ def bq_load_tables(
             )
             if not success:
                 raise AirflowException("bq_load task: data failed to load data into BigQuery")
+
+
+class HttpServer:
+    """Simple HTTP server for testing. Serves files from a directory to http://locahost:port/filename"""
+
+    def __init__(self, directory: str):
+        """Initialises the server.
+
+        :param directory: Directory to serve.
+        """
+
+        self.directory = directory
+        self.process = None
+
+        self.host = "localhost"
+        self.port = find_free_port(host=self.host)
+        self.address = (self.host, self.port)
+        self.url = f"http://{self.host}:{self.port}/"
+
+    @staticmethod
+    def serve_(address, directory):
+        """Entry point for a new process to run HTTP server.
+
+        :param address: Address (host, port) to bind server to.
+        :param directory: Directory to serve.
+        """
+
+        os.chdir(directory)
+        server = ThreadingHTTPServer(address, SimpleHTTPRequestHandler)
+        server.serve_forever()
+
+    def start(self):
+        """Spin the server up in a new process."""
+
+        # Don't try to start it twice.
+        if self.process is not None and self.process.is_alive():
+            return
+
+        self.process = Process(
+            target=HttpServer.serve_,
+            args=(
+                self.address,
+                self.directory,
+            ),
+        )
+        self.process.start()
+
+    def stop(self):
+        """Shutdown the server."""
+
+        if self.process is not None and self.process.is_alive():
+            self.process.kill()
+            self.process.join()
+
+    @contextlib.contextmanager
+    def create(self):
+        """Spin up a server for the duration of the session."""
+        self.start()
+
+        try:
+            yield self.process
+        finally:
+            self.stop()

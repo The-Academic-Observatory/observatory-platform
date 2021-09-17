@@ -34,16 +34,18 @@ from airflow.models.variable import Variable
 from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
-
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import (
     gzip_file_crc,
     list_to_jsonl_gz,
     load_jsonl,
 )
-from observatory.platform.utils.test_utils import ObservatoryEnvironment
-from observatory.platform.utils.test_utils import random_id
-from observatory.platform.utils.test_utils import test_fixtures_path
+from observatory.platform.utils.test_utils import (
+    ObservatoryEnvironment,
+    random_id,
+    test_fixtures_path,
+)
+from observatory.platform.utils.url_utils import get_observatory_http_header
 from observatory.platform.utils.workflow_utils import (
     PeriodCount,
     ScheduleOptimiser,
@@ -58,10 +60,14 @@ from observatory.platform.utils.workflow_utils import (
     bq_load_shard,
     bq_load_shard_v2,
     create_date_table_id,
+    fetch_dag_bag,
+    fetch_dags_modules,
+    get_chunks,
     make_dag_id,
     make_observatory_api,
+    make_release_date,
     make_sftp_connection,
-    make_workflow_sensor,
+    make_table_name,
     normalized_schedule_interval,
     on_failure_callback,
     prepare_bq_load,
@@ -69,10 +75,6 @@ from observatory.platform.utils.workflow_utils import (
     table_ids_from_path,
     upload_files_from_list,
     workflow_path,
-    make_release_date,
-    make_table_name,
-    fetch_dags_modules,
-    fetch_dag_bag,
 )
 from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
@@ -1110,27 +1112,14 @@ class TestWorkflowUtils(unittest.TestCase):
             actual_records = load_jsonl(file_path)
             self.assertListEqual(expected_records, actual_records)
 
+    def test_get_chunks(self):
+        """Test chunk generation."""
 
-class TestMakeTelescopeSensor(unittest.TestCase):
-    """Test the external task sensor creation."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    class Organisation:
-        def __init__(self):
-            self.name = "test"
-
-    class Response:
-        def __init__(self):
-            self.organisation = TestMakeTelescopeSensor.Organisation()
-
-    def test_make_telescope_sensor(self):
-        telescope = TestMakeTelescopeSensor.Response()
-        sensor = make_workflow_sensor(telescope.organisation.name, "dag_prefix")
-        self.assertEqual(sensor.task_id, "dag_prefix_test_sensor")
-        self.assertEqual(sensor.mode, "reschedule")
-        self.assertEqual(sensor.external_dag_id, "dag_prefix_test")
+        items = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        chunks = list(get_chunks(input_list=items, chunk_size=2))
+        self.assertEqual(len(chunks), 5)
+        self.assertEqual(len(chunks[0]), 2)
+        self.assertEqual(len(chunks[4]), 1)
 
 
 class TestScheduleOptimiser(unittest.TestCase):

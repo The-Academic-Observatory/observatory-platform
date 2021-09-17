@@ -12,14 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Tuan Chien
 
 
 import os
 import unittest
 from typing import Generator
 
-from observatory.platform.utils.file_utils import load_csv, load_jsonl, yield_jsonl, yield_csv, is_gzip
+from _hashlib import HASH
+from observatory.platform.utils.file_utils import (
+    get_file_hash,
+    get_hasher_,
+    is_gzip,
+    load_csv,
+    load_jsonl,
+    validate_file_hash,
+    yield_csv,
+    yield_jsonl,
+)
 from observatory.platform.utils.test_utils import test_fixtures_path
 
 
@@ -81,3 +91,33 @@ class TestFileUtils(unittest.TestCase):
         generator = yield_jsonl(self.jsonl_file_path)
         self.assertIsInstance(generator, Generator)
         self.assertListEqual(self.expected_records, list(generator))
+
+    def test_get_hasher_(self):
+        # MD5
+        hasher = get_hasher_("md5")
+        self.assertEqual(hasher.name, "md5")
+
+        # SHA-256
+        hasher = get_hasher_("sha256")
+        self.assertEqual(hasher.name, "sha256")
+
+        # SHA-512
+        hasher = get_hasher_("sha512")
+        self.assertEqual(hasher.name, "sha512")
+
+        # Invalid
+        self.assertRaises(Exception, get_hasher_, "invalid")
+
+    def test_get_file_hash(self):
+        expected_hash = "f299060e0383392ebeac64b714eca7e3"
+        fixtures_dir = test_fixtures_path("utils")
+        file_path = os.path.join(fixtures_dir, "test_hasher.txt")
+        computed_hash = get_file_hash(file_path=file_path)
+        self.assertEqual(expected_hash, computed_hash)
+
+    def test_validate_file_hash(self):
+        expected_hash = "f299060e0383392ebeac64b714eca7e3"
+        fixtures_dir = test_fixtures_path("utils")
+        file_path = os.path.join(fixtures_dir, "test_hasher.txt")
+
+        self.assertTrue(validate_file_hash(file_path=file_path, expected_hash=expected_hash))

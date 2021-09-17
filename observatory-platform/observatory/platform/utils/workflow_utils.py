@@ -43,17 +43,15 @@ from airflow.hooks.base import BaseHook
 from airflow.models import DagBag, Variable
 from airflow.models.taskinstance import TaskInstance
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
-from airflow.sensors.external_task import ExternalTaskSensor
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
-
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
+    AirflowVars,
     create_slack_webhook,
 )
-from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import find_schema, utils_templates_path
 from observatory.platform.utils.file_utils import load_file, write_to_file
 from observatory.platform.utils.gc_utils import (
@@ -62,9 +60,9 @@ from observatory.platform.utils.gc_utils import (
     create_bigquery_dataset,
     load_bigquery_table,
     run_bigquery_query,
+    select_table_shard_dates,
     upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
-    select_table_shard_dates,
 )
 from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
@@ -223,7 +221,7 @@ def prepare_bq_load(
     prefix: str,
     schema_version: str,
     dataset_description: str = "",
-) -> [str, str, str, str]:
+) -> Tuple[str, str, str, str]:
     """
     Prepare to load data into BigQuery. This will:
      - create the dataset if it does not exist yet
@@ -1133,21 +1131,6 @@ def write_xml_to_json(transform_path: str, release_date: str, inst_id: str, in_f
     return json_file_list, schema_vers
 
 
-def make_workflow_sensor(telescope_name: str, dag_prefix: str) -> ExternalTaskSensor:
-    """Create an ExternalTaskSensor to monitor when a telescope has finished execution.
-
-    :param telescope_name: Name of the telescope.
-    :param dag_prefix: DAG ID prefix.
-    :return: ExternalTaskSensor object that monitors a telescope.
-    """
-
-    dag_id = make_dag_id(dag_prefix, telescope_name)
-
-    return ExternalTaskSensor(
-        task_id=f"{dag_id}_sensor", external_dag_id=dag_id, mode="reschedule", start_date=pendulum.datetime(2021, 3, 28)
-    )
-
-
 @dataclass
 class PeriodCount:
     """Descriptive wrapper for a (period, count) object."""
@@ -1320,3 +1303,16 @@ def make_table_name(
         new_table_name = f"{table_id}{table_date.strftime('%Y%m%d')}"
 
     return new_table_name
+
+
+def get_chunks(*, input_list: List[Any], chunk_size: int = 8) -> List[Any]:
+    """Generator that splits a list into chunks of a fixed size.
+
+    :param input_list: Input list.
+    :param chunk_size: Size of chunks.
+    :return: The next chunk from the input list.
+    """
+
+    n = len(input_list)
+    for i in range(0, n, chunk_size):
+        yield input_list[i : i + chunk_size]

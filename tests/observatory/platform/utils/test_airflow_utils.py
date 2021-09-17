@@ -16,10 +16,13 @@
 
 
 import unittest
+from unittest.mock import MagicMock, patch
 
 from airflow.exceptions import AirflowException
-
-from observatory.platform.utils.airflow_utils import set_task_state
+from observatory.platform.utils.airflow_utils import (
+    get_airflow_connection_url,
+    set_task_state,
+)
 
 
 class TestAirflowUtils(unittest.TestCase):
@@ -30,3 +33,28 @@ class TestAirflowUtils(unittest.TestCase):
         set_task_state(True, task_id)
         with self.assertRaises(AirflowException):
             set_task_state(False, task_id)
+
+    def test_get_airflow_connection_url_invalid(self):
+        with patch("observatory.platform.utils.airflow_utils.BaseHook") as m_basehook:
+            m_basehook.get_connection = MagicMock(return_value="")
+            self.assertRaises(AirflowException, get_airflow_connection_url, "some_connection")
+
+            m_basehook.get_connection = MagicMock(return_value="http://invalidurl")
+            self.assertRaises(AirflowException, get_airflow_connection_url, "some_connection")
+
+    def test_get_airflow_connection_url_valid(self):
+        expected_url = "http://localhost/"
+        fake_conn = "some_connection"
+
+        with patch("observatory.platform.utils.airflow_utils.BaseHook") as m_basehook:
+            # With trailing /
+            input_url = "http://localhost/"
+            m_basehook.get_connection = MagicMock(return_value=input_url)
+            url = get_airflow_connection_url(fake_conn)
+            self.assertEqual(url, expected_url)
+
+            # Without trailing /
+            input_url = "http://localhost"
+            m_basehook.get_connection = MagicMock(return_value=input_url)
+            url = get_airflow_connection_url(fake_conn)
+            self.assertEqual(url, expected_url)
