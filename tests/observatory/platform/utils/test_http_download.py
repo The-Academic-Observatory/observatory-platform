@@ -126,3 +126,9 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                 hash = "garbage2dc0f896fd7cb4cb0031ba249"
                 success = download_file(url=url1, hash=hash, hash_algorithm="md5")
                 self.assertFalse(success)
+
+            # File does not exist, good hash
+            with CliRunner().isolated_filesystem() as tmpdir:
+                success = download_file(url=url1, hash=hash1, hash_algorithm="md5")
+                self.assertTrue(success)
+                self.assert_file_integrity(file1, hash1, algorithm)

@@ -122,7 +122,7 @@ def requeue_once_if_bad_hash(
             downloads.put_nowait(download_info)
 
         # Error out if this is not the first attempt.
-        else:
+        elif not valid and "retry" in download_info:
             error_msg = f"File {filename} has a bad hash after retrying download. Giving up."
             errors.append(Exception(error_msg))
 
