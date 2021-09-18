@@ -333,3 +333,45 @@ def zip_files(file_list: List[str]):
                 shutil.copyfileobj(f_in, f_out)
 
     return zip_list
+
+
+def unzip_files(*, file_list: List[str], output_dir: str = None):
+    """Gunzip the list of files.
+
+    :param file_list: List of files to unzip.
+    :param output_dir: Optional output directory.
+    """
+
+    for file_path in file_list:
+        if file_path[-3:] != ".gz":  # Skip files without .gz extension
+            continue
+
+        logging.info(f"Unzipping file {file_path}")
+
+        if output_dir is None:
+            output_dir = os.path.dirname(file_path)
+
+        filename = os.path.basename(file_path)
+        filename = filename[:-3]  # Strip .gz extension
+        dst = os.path.join(output_dir, filename)
+
+        with gzip.open(file_path, "rb") as f_in:
+            with open(dst, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+
+def find_replace_file(*, src: str, dst: str, pattern: str, replacement: str):
+    """Find an expression (can be a regex) in lines of a text file and replace it with a replacement string.
+    You can optionally save the file in a different location.
+
+    :param src: Input file.
+    :param dst: Destination file.
+    :param pattern: Expression to search for.
+    :param replacement: Replacement string.
+    """
+
+    with open(src, "r") as f_in:
+        with open(dst, "w") as f_out:
+            for line in f_in:
+                output = re.sub(pattern=pattern, repl=replacement, string=line)
+                f_out.write(output)

@@ -16,16 +16,20 @@
 
 
 import os
+import shutil
 import unittest
 from typing import Generator
 
 from _hashlib import HASH
+from click.testing import CliRunner
 from observatory.platform.utils.file_utils import (
+    find_replace_file,
     get_file_hash,
     get_hasher_,
     is_gzip,
     load_csv,
     load_jsonl,
+    unzip_files,
     validate_file_hash,
     yield_csv,
     yield_jsonl,
@@ -121,3 +125,40 @@ class TestFileUtils(unittest.TestCase):
         file_path = os.path.join(fixtures_dir, "test_hasher.txt")
 
         self.assertTrue(validate_file_hash(file_path=file_path, expected_hash=expected_hash))
+
+    def test_unzip_files(self):
+        fixture_dir = test_fixtures_path("utils")
+        filename = "testzip.txt.gz"
+        expected_hash = "62d83685cff9cd962ac5abb563c61f38"
+        output_file = "testzip.txt"
+        src = os.path.join(fixture_dir, filename)
+
+        # Save in same dir
+        with CliRunner().isolated_filesystem() as tmpdir:
+            dst = os.path.join(tmpdir, filename)
+            shutil.copyfile(src, dst)
+
+            unzip_files(file_list=[dst])
+            self.assertTrue(validate_file_hash(file_path=output_file, expected_hash=expected_hash))
+
+        # Specify save dir
+        with CliRunner().isolated_filesystem() as tmpdir:
+            dst = os.path.join(tmpdir, filename)
+            unzip_files(file_list=[src], output_dir=tmpdir)
+            self.assertTrue(validate_file_hash(file_path=output_file, expected_hash=expected_hash))
+
+        # Skip non gz files
+        with CliRunner().isolated_filesystem() as tmpdir:
+            dst = os.path.join(tmpdir, filename)
+            src_path = os.path.join(fixture_dir, output_file)
+            unzip_files(file_list=[src_path], output_dir=tmpdir)
+            self.assertFalse(os.path.exists(dst))
+
+    def test_find_replace_file(self):
+        fixture_dir = test_fixtures_path("utils")
+        src = os.path.join(fixture_dir, "find_replace.txt")
+        expected_hash = "ffa623201cb9538bd3c030cd0b9f6b66"
+
+        with CliRunner().isolated_filesystem():
+            find_replace_file(src=src, dst="output", pattern="authenticated-orcid", replacement="authenticated_orcid")
+            validate_file_hash(file_path="output", expected_hash=expected_hash)
