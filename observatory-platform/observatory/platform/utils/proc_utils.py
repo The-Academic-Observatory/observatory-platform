@@ -71,5 +71,6 @@ def run_bash_cmd(cmd: str):
     if stdout:
         logging.info(stdout)
 
-    if stderr:
+    success = p.returncode == 0
+    if not success:
         raise AirflowException(f"Command {cmd} failed: {stderr}")

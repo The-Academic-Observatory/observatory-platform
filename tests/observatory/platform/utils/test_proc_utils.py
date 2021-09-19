@@ -30,6 +30,6 @@ class TestProcUtils(unittest.TestCase):
             run_bash_cmd(cmd)
             self.assertEqual(m_log.call_count, 1)
 
-        # Have stderr
-        cmd = "echo Hello >&2"
+        # Have an error
+        cmd = "$(exit 1)"
         self.assertRaises(AirflowException, run_bash_cmd, cmd)
