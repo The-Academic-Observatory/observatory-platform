@@ -59,10 +59,10 @@ class MockTelescope(Workflow):
 
 
 class TestCallbackWorkflow(Workflow):
-    def __init__(self, dag_id: str, start_date: pendulum.DateTime, schedule_interval: str, max_retries: int,
-                 airflow_conns: list):
-        super().__init__(dag_id, start_date, schedule_interval, max_retries=max_retries,
-                         airflow_conns=airflow_conns)
+    def __init__(
+        self, dag_id: str, start_date: pendulum.DateTime, schedule_interval: str, max_retries: int, airflow_conns: list
+    ):
+        super().__init__(dag_id, start_date, schedule_interval, max_retries=max_retries, airflow_conns=airflow_conns)
         self.add_setup_task(self.check_dependencies)
 
     def make_release(self, **kwargs):
@@ -196,7 +196,7 @@ class TestTelescope(ObservatoryTestCase):
 
     @patch("observatory.platform.utils.workflow_utils.create_slack_webhook")
     def test_callback(self, mock_create_slack_webhook):
-        """ Test that the on_failure_callback function is successfully called in a production environment when a task
+        """Test that the on_failure_callback function is successfully called in a production environment when a task
         fails
 
         :param mock_create_slack_webhook: Mock create_slack_webhook function
@@ -208,9 +208,13 @@ class TestTelescope(ObservatoryTestCase):
         env = ObservatoryEnvironment(self.project_id, self.data_location)
 
         # Setup Telescope with 0 retries and missing airflow variable, so it will fail the task
-        telescope = TestCallbackWorkflow("test_callback", pendulum.datetime(2020, 1, 1), self.schedule_interval,
-                                         max_retries=0,
-                                         airflow_conns=[AirflowVars.ORCID_BUCKET])
+        telescope = TestCallbackWorkflow(
+            "test_callback",
+            pendulum.datetime(2020, 1, 1),
+            self.schedule_interval,
+            max_retries=0,
+            airflow_conns=[AirflowVars.ORCID_BUCKET],
+        )
         dag = telescope.make_dag()
 
         # Create the Observatory environment and run task, expecting slack webhook call in production environment
@@ -219,8 +223,9 @@ class TestTelescope(ObservatoryTestCase):
             with self.assertRaises(AirflowNotFoundException):
                 env.run_task(telescope.check_dependencies.__name__, dag, pendulum.datetime(2020, 1, 1))
             mock_create_slack_webhook.assert_called_once_with(
-                "Task failed, exception:\nairflow.exceptions.AirflowNotFoundException: The conn_id `orcid_bucket` isn\'t defined",
-                self.project_id, ANY
+                "Task failed, exception:\nairflow.exceptions.AirflowNotFoundException: The conn_id `orcid_bucket` isn't defined",
+                self.project_id,
+                ANY,
             )
         # Reset mock
         mock_create_slack_webhook.reset_mock()
