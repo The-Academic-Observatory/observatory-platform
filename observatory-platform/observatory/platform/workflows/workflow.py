@@ -236,7 +236,6 @@ class Workflow(AbstractWorkflow):
         self.dag_id = dag_id
         self.start_date = start_date
         self.schedule_interval = schedule_interval
-        self.dataset_id = "dataset_id"
         self.catchup = catchup
         self.queue = queue
         self.max_retries = max_retries

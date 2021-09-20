@@ -290,13 +290,13 @@ def write_rendered_template(file_path: str, template: str, file_type: str):
 
 
 def create_docs_directory(project_path: str, package_name: str, author_name: str, templates_dir: str):
-    """
+    """Create a new docs directory, part of a new workflows project
 
-    :param project_path:
-    :param package_name:
-    :param author_name:
-    :param templates_dir:
-    :return:
+    :param project_path: The full path to the project source
+    :param package_name: The name of the package inside the project
+    :param author_name: The author name (required for sphinx quickstart)
+    :param templates_dir: The directory with template files
+    :return: None.
     """
     # Copy generate_schema_csv.py to docs
     src = os.path.join(templates_dir, "generate_schema_csv.py")

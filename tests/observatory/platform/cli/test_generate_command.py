@@ -209,33 +209,6 @@ class TestGenerateCommand(unittest.TestCase):
                 out, err = stream_process(proc, debug=True)
                 self.assertEqual("OK", err.splitlines()[-1])
 
-                # # Modify test file to insert module in system path
-                # with open(test_dst_file, "r") as f_in, open(test_dst_file + "tmp", "w") as f_out:
-                #     f_out.write(f"import sys\nsys.path.insert(0, '{project_path}')\n")
-                #     f_out.write(f_in.read())
-                # os.rename(test_dst_file + "tmp", test_dst_file)
-
-                # Load unit test as test suite and run unit test, this works
-                # sys.path.insert(0, project_path)
-                # importlib.import_module(f"tests.workflows.test_{workflow_module}")
-                # module = sys.modules[f"tests.workflows.test_{workflow_module}"]
-                # test_suite = TestLoader().loadTestsFromModule(module)
-                # test_suite = TestLoader().discover(
-                #     test_dst_dir, pattern=f"test_{workflow_module}.py", top_level_dir=project_path
-                # )
-
-                # # Check that tests were found
-                # found_tests = False
-                # for suite in test_suite._tests:
-                #     if suite._tests:
-                #         found_tests = True
-                #         break
-                # self.assertTrue(found_tests)
-                #
-                # # Run the unit tests
-                # result = test_suite.run(result=TestResult())
-                # self.assertTrue(result.wasSuccessful(), msg=result.errors)
-
             # Test that identifiers file is only created if it does not exist
             cmd.generate_workflow(project_path, package_name, "OrganisationTelescope", "MyOrganisation2")
             self.assertEqual("7f1de3572c0fb605e4d24e7a2e1c4e30", _hash_file(identifiers_dst_file, "md5"))
