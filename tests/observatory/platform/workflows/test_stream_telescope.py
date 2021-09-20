@@ -131,16 +131,34 @@ class TestTestStreamTelescope(ObservatoryTestCase):
             "date": pendulum.datetime(year=2020, month=1, day=1),
             "first_release": True,
             "bq_append_from_file": True,
+            "bq_load_partition": False,
+            "bq_delete_old": False,
+            "bq_append_from_partition": False,
         }
-        run2 = {"date": pendulum.datetime(year=2020, month=1, day=2), "first_release": False, "bq_load_partition": True}
+        run2 = {
+            "date": pendulum.datetime(year=2020, month=1, day=2),
+            "first_release": False,
+            "bq_append_from_file": False,
+            "bq_load_partition": True,
+            "bq_delete_old": False,
+            "bq_append_from_partition": False,
+        }
         run3 = {
             "date": pendulum.datetime(year=2020, month=1, day=8),
             "first_release": False,
+            "bq_append_from_file": False,
             "bq_load_partition": True,
             "bq_delete_old": True,
             "bq_append_from_partition": True,
         }
-        run4 = {"date": pendulum.datetime(year=2020, month=1, day=9), "first_release": False, "bq_load_partition": True}
+        run4 = {
+            "date": pendulum.datetime(year=2020, month=1, day=9),
+            "first_release": False,
+            "bq_append_from_file": False,
+            "bq_load_partition": True,
+            "bq_delete_old": False,
+            "bq_append_from_partition": False,
+        }
 
         # Setup Observatory environment
         env = ObservatoryEnvironment(self.project_id, self.data_location)
@@ -195,7 +213,7 @@ class TestTestStreamTelescope(ObservatoryTestCase):
 
                     # Test whether the correct bq load functions are called for different runs
                     ti = env.run_task(telescope.bq_load_partition.__name__)
-                    if run.get("bq_load_partition", False):
+                    if run["bq_load_partition"]:
                         transform_blob = blob_name(transform_path)
                         main_table_id, partition_table_id = table_ids_from_path(transform_path)
                         table_description = telescope.table_descriptions.get(main_table_id, "")
@@ -220,7 +238,7 @@ class TestTestStreamTelescope(ObservatoryTestCase):
 
                     # Test whether the correct bq delete functions are called for different runs
                     ti = env.run_task(telescope.bq_delete_old.__name__)
-                    if run.get("bq_delete_old", False):
+                    if run["bq_delete_old"]:
                         # Use previous ti, because after running task new xcoms have been pushed
                         previous_ti = ti.get_previous_ti()
                         start_date = pendulum.from_format(
@@ -246,7 +264,7 @@ class TestTestStreamTelescope(ObservatoryTestCase):
 
                     # Test whether the correct bq append functions are called for different runs
                     ti = env.run_task(telescope.bq_append_new.__name__)
-                    if run.get("bq_append_from_partition", False):
+                    if run["bq_append_from_partition"]:
                         # Use previous ti, because after running task new xcoms have been pushed
                         previous_ti = ti.get_previous_ti()
                         start_date = pendulum.from_format(
@@ -266,7 +284,7 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                             telescope.merge_partition_field,
                         )
                         self.assertEqual("success", ti.state)
-                    elif run.get("bq_append_from_file", False):
+                    elif run["bq_append_from_file"]:
                         transform_blob = blob_name(transform_path)
                         main_table_id, partition_table_id = table_ids_from_path(transform_path)
                         table_description = telescope.table_descriptions.get(main_table_id, "")
