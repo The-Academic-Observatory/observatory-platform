@@ -149,7 +149,6 @@ def create_slack_webhook(comments: str = "", project_id: str = "?", context: dic
     """.format(
         task=ti.task_id,
         dag=ti.dag_id,
-        ti=ti,
         exec_date=context["execution_date"],
         log_url=ti.log_url,
         comments=comments,
