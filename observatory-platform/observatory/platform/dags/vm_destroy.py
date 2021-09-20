@@ -16,11 +16,7 @@
 
 import pendulum
 from airflow import DAG
-from airflow.operators.python import (
-    BranchPythonOperator,
-    PythonOperator,
-    ShortCircuitOperator,
-)
+from airflow.operators.python import BranchPythonOperator, PythonOperator, ShortCircuitOperator
 from observatory.platform.workflows.terraform import TerraformTasks
 
 default_args = {"owner": "airflow", "start_date": pendulum.datetime(2020, 1, 1)}
@@ -39,20 +35,17 @@ with DAG(
 
     # If vm is already off, stop dag
     vm_status = ShortCircuitOperator(
-        task_id=TerraformTasks.TASK_ID_VM_STATUS,
-        python_callable=TerraformTasks.get_variable_create,
+        task_id=TerraformTasks.TASK_ID_VM_STATUS, python_callable=TerraformTasks.get_variable_create
     )
 
     # Destroying vm if all dags (since vm_create) are successful
     check_dags_status = BranchPythonOperator(
-        task_id=TerraformTasks.TASK_ID_DAG_SUCCESS,
-        python_callable=TerraformTasks.check_success_dags,
+        task_id=TerraformTasks.TASK_ID_DAG_SUCCESS, python_callable=TerraformTasks.check_success_dags
     )
 
     # Update terraform variable vm_create to False
     var_destroy = PythonOperator(
-        task_id=TerraformTasks.TASK_ID_VAR_UPDATE,
-        python_callable=TerraformTasks.update_terraform_variable,
+        task_id=TerraformTasks.TASK_ID_VAR_UPDATE, python_callable=TerraformTasks.update_terraform_variable
     )
 
     # Run terraform configuration
@@ -60,8 +53,7 @@ with DAG(
 
     # Check status of terraform run
     check_run_status = PythonOperator(
-        task_id=TerraformTasks.TASK_ID_RUN_STATUS,
-        python_callable=TerraformTasks.check_terraform_run_status,
+        task_id=TerraformTasks.TASK_ID_RUN_STATUS, python_callable=TerraformTasks.check_terraform_run_status
     )
 
     # Check how long VM has been turned on for

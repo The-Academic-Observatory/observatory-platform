@@ -38,10 +38,7 @@ from requests.exceptions import ChunkedEncodingError
 
 from observatory.platform.utils.config_utils import utils_templates_path
 from observatory.platform.utils.file_utils import crc32c_base64_hash
-from observatory.platform.utils.jinja2_utils import (
-    make_sql_jinja2_filename,
-    render_template,
-)
+from observatory.platform.utils.jinja2_utils import make_sql_jinja2_filename, render_template
 
 # The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
 DEFAULT_CHUNK_SIZE = 256 * 1024 * 4
@@ -153,7 +150,7 @@ def load_bigquery_table(
     location: str,
     table: str,
     schema_file_path: str,
-    source_format: SourceFormat,
+    source_format: str,
     csv_field_delimiter: str = ",",
     csv_quote_character: str = '"',
     csv_allow_quoted_newlines: bool = False,
@@ -386,9 +383,7 @@ def create_bigquery_table_from_query(
     # Set partitioning settings
     if partition:
         job_config.time_partitioning = bigquery.TimePartitioning(
-            type_=partition_type,
-            field=partition_field,
-            require_partition_filter=require_partition_filter,
+            type_=partition_type, field=partition_field, require_partition_filter=require_partition_filter
         )
 
     if cluster:
@@ -784,7 +779,7 @@ def google_cloud_storage_transfer_job(job: dict, func_name: str, gc_project_id: 
         if "operations" in response:
             operations = response["operations"]
 
-            in_progress_count, success_count, failed_count, aborted_count, objects_count = 0, 0, 0, 0, 0
+            in_progress_count, success_count, failed_count, aborted_count, objects_count = (0, 0, 0, 0, 0)
             for op in operations:
                 status = op["metadata"]["status"]
                 if status == TransferStatus.success.value:
@@ -862,9 +857,7 @@ def azure_to_google_cloud_storage_transfer(
         "transferSpec": {
             "azureBlobStorageDataSource": {
                 "storageAccount": azure_storage_account_name,
-                "azureCredentials": {
-                    "sasToken": azure_sas_token,
-                },
+                "azureCredentials": {"sasToken": azure_sas_token},
                 "container": azure_container,
             },
             "objectConditions": {"includePrefixes": include_prefixes},
@@ -918,10 +911,7 @@ def aws_to_google_cloud_storage_transfer(
         "transferSpec": {
             "awsS3DataSource": {
                 "bucketName": aws_bucket,
-                "awsAccessKey": {
-                    "accessKeyId": aws_access_key_id,
-                    "secretAccessKey": aws_secret_key,
-                },
+                "awsAccessKey": {"accessKeyId": aws_access_key_id, "secretAccessKey": aws_secret_key},
             },
             "objectConditions": {"includePrefixes": include_prefixes},
             "gcsDataSink": {"bucketName": gc_bucket},

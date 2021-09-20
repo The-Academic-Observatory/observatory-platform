@@ -28,7 +28,6 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
-
         :param args: arguments.
         :param kwargs: keyword arguments.
         """
@@ -36,23 +35,30 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
 
-        self.execution_date = pendulum.datetime(year=2021, month=1, day=1)
+        self.first_execution_date = pendulum.datetime(year=2021, month=1, day=1)
+        self.second_execution_date = pendulum.datetime(year=2021, month=2, day=1)
 
     def test_dag_structure(self):
         """Test that the DAG has the correct structure.
 
         :return: None
         """
-
         dag = {{ workflow_class }}().make_dag()
-        self.assert_dag_structure({"check_dependencies": ["task1"], "task1": ["cleanup"], "cleanup": []}, dag)
+        self.assert_dag_structure(
+            {
+                "check_dependencies": ["get_release_info"],
+                "get_release_info": ["task1"],
+                "task1": ["cleanup"],
+                "cleanup": [],
+            },
+            dag,
+        )
 
     def test_dag_load(self):
         """Test that the DAG can be loaded from a DAG bag.
 
         :return: None
         """
-
         with ObservatoryEnvironment().create():
             dag_file = os.path.join(module_file_path("{{ package_name }}.dags"), "{{ workflow_module }}.py")
             self.assert_dag_load("{{ workflow_module }}", dag_file)
@@ -67,12 +73,21 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
         dataset_id = env.add_dataset()
 
         # Setup Workflow
-        workflow = {{ workflow_class }}()
+        workflow = {{ workflow_class }}(dataset_id=dataset_id)
         dag = workflow.make_dag()
 
-        # Create the Observatory environment and run tests
+        # Test the workflow tasks
         with env.create(task_logging=True):
-            with env.create_dag_run(dag, self.execution_date):
+            # Test the dag run for the first release
+            with env.create_dag_run(dag, self.first_execution_date):
                 env.run_task(workflow.check_dependencies.__name__)
+                env.run_task(workflow.get_release_info.__name__)
+                env.run_task(workflow.task1.__name__)
+                env.run_task(workflow.cleanup.__name__)
+
+            # Test the dag run for a later release
+            with env.create_dag_run(dag, self.second_execution_date):
+                env.run_task(workflow.check_dependencies.__name__)
+                env.run_task(workflow.get_release_info.__name__)
                 env.run_task(workflow.task1.__name__)
                 env.run_task(workflow.cleanup.__name__)

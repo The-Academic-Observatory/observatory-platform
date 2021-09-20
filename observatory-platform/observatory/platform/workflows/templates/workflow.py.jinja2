@@ -1,4 +1,4 @@
-{#- Copyright 2020 Curtin University
+{# Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,84 +11,114 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Author: Tuan Chien -#}
-import logging
-from typing import List
-
+# Author: Tuan Chien, Aniek Roelofs -#}
 import pendulum
+
 from observatory.platform.workflows.workflow import Release, Workflow
+from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
 
 
 class {{ workflow_class }}Release(Release):
-    def __init__(self, *, dag_id: str, release_date: pendulum.DateTime):
+    def __init__(self, dag_id: str, release_date: pendulum.DateTime):
         """Construct a Release instance
+
         :param dag_id: the id of the DAG.
-        :param release_id: the id of the release.
+        :param release_date: the release date (used to construct release_id).
         """
 
         self.release_date = release_date
-        release_id = f'{dag_id}_{self.release_date.strftime("%Y_%m_%d")}'
-        super().__init__(dag_id=dag_id, release_id=release_id)
+        release_id = f"{dag_id}_{self.release_date.strftime('%Y_%m_%d')}"
+        super().__init__(dag_id, release_id)
 
 
 class {{ workflow_class }}(Workflow):
+    """ {{ workflow_class }} Workflow."""
+
     DAG_ID = "{{ workflow_module }}"
 
     def __init__(
         self,
-        *,
         dag_id: str = DAG_ID,
-        start_date: pendulum.DateTime = pendulum.datetime(2021, 7, 1),
-        schedule_interval="@weekly",
-        catchup=False,
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
+        schedule_interval: str = "@weekly",
+        catchup: bool = True,
+        queue: str = "default",
+        max_retries: int = 3,
+        max_active_runs: int = 1,
+        airflow_vars: list = None,
+        airflow_conns: list = None
     ):
-        """Construct a {{ workflow_class }}Workflow instance.
+        """Construct a Workflow instance.
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
         :param schedule_interval: the schedule interval of the DAG.
         :param catchup: whether to catchup the DAG or not.
+        :param queue: the Airflow queue name.
+        :param max_retries: the number of times to retry each task.
+        :param max_active_runs: the maximum number of DAG runs that can be run at once.
+        :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
+        :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         """
 
+        if airflow_vars is None:
+            airflow_vars = [
+                AirflowVars.DATA_PATH,
+                AirflowVars.PROJECT_ID,
+                AirflowVars.DATA_LOCATION,
+                AirflowVars.DOWNLOAD_BUCKET,
+                AirflowVars.TRANSFORM_BUCKET,
+            ]
+
+        # if airflow_conns is None:
+        #     airflow_conns = [AirflowConns.SOMEDEFAULT_CONNECTION]
+
         super().__init__(
-            dag_id=dag_id,
-            start_date=start_date,
-            schedule_interval=schedule_interval,
+            dag_id,
+            start_date,
+            schedule_interval,
             catchup=catchup,
+            queue=queue,
+            max_retries=max_retries,
+            max_active_runs=max_active_runs,
+            airflow_vars=airflow_vars,
+            airflow_conns=airflow_conns,
         )
 
         # Add sensor tasks
         # self.add_sensor(some_airflow_sensor)
 
         # Add setup tasks
-        # self.add_setup_task(self.some_setup_task)
+        self.add_setup_task(self.check_dependencies)
 
         # Add generic tasks
         self.add_task(self.task1)
         self.add_task(self.cleanup)
 
-    def make_release(self, **kwargs):
+    def make_release(self, **kwargs) -> {{ workflow_class }}Release:
         """Make a release instance.
+
         :param kwargs: the context passed from the PythonOperator.
-        :return: A release instance or list of release instances
+        :return: A release instance
         """
+        release_date = kwargs["execution_date"]
+        release = {{ workflow_class }}Release(dag_id=self.dag_id, release_date=release_date)
+        return release
 
-        releases = list()
-        release = {{ workflow_class }}Release(dag_id=self.dag_id, release_date=self.start_date)
-        releases.append(release)
-        return releases
+    def task1(self, release: {{ workflow_class }}Release, **kwargs):
+        """Add your own comments.
 
-    def task1(self, releases: List[{{ workflow_class }}Release], **kwargs):
-        """ Add your own comments. """
-
-        pass
-
-    def cleanup(self, releases: List[{{ workflow_class }}Release], **kwargs):
-        """ Delete downloaded, extracted and transformed files of the release.
-        :param releases: List of {{ workflow_class }}Release instances
+        :param release: A {{ workflow_class }}Release instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
+        pass
 
-        for release in releases:
-            release.cleanup()
+    def cleanup(self, release: {{ workflow_class }}Release, **kwargs):
+        """Delete downloaded, extracted and transformed files of the release.
+
+        :param release: A {{ workflow_class }}Release instance
+        :param kwargs: The context passed from the PythonOperator.
+        :return: None.
+        """
+        release.cleanup()
