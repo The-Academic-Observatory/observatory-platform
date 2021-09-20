@@ -27,7 +27,7 @@ from urllib.parse import quote
 import paramiko
 import pendulum
 import pysftp
-from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
+from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.variable import Variable
