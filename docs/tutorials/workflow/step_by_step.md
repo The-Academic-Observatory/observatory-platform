@@ -305,43 +305,6 @@ airflow_connections:
   new_connection: http://my-username:my-password@
 ```
 
-#### Secrets backend issue, use custom AirflowVariable class
-In the cloud environment that is deployed with terraform, Airflow uses Google Cloud Secret Manager as a secrets
- backend and both the Airflow variable and connections are stored in there as secrets.
- 
-Unfortunately, there is currently an issue with Airflow's method to obtain variables when using the secrets backend. 
-This issue has been resolved by implementing a custom `AirflowVariable` class inside 
-`observatory-platform/observatory/platform/utils/airflow_utils.py`.  
-This class should always be used to get variables instead of the standard Airflow `Variable` class inside `airflow
-.models.variable.py`.
-
-For example, to get a variable:  
-```python
-from observatory.platform.utils.airflow_utils import AirflowVariable, AirflowVars
-
-variable = AirflowVariable.get(AirflowVars.DOWNLOAD_BUCKET)
-```
-
-The problem occurs when Airflow tries to get a variable while the Google Cloud Secrets Manager is set as a secrets
- backend, but the variable is not stored as a Google Cloud Secret. 
-This is the case for some Airflow variables that are often used in the telescopes (test_data_path, data_path, 
-download_bucket, transform_bucket). 
-They are not set in the 'airflow_variables' section of the `config-terraform.yaml` file and this means that these
- variables are not stored as Google Cloud Secrets.
-They do exist as valid Airflow variables, but as environment variables instead of Google Cloud Secrets. 
-The search order for variables/connections for Airflow is not configurable and with a secrets backend enabled the
- order is:   
-```
-secrets backend > environment variables > metastore
-```
-
-The issue is that the current Airflow method to get variables from the secrets backend will return an error when a
- Google Cloud Secret can not be found.
-This error prevents Airflow from searching for a variable in remaining places (environment variables & metastore),
- so the value for a variable can never be resolved if it does not exist as a Google Cloud Secret. 
-The custom `AirflowVariable` class solves this by catching the error in a Try/Except clause, meaning that Airflow
- will continue to look for a variable in the remaining places.
-
 ## 3. Creating a BigQuery schema file
 BigQuery database schema json files are stored in `my-dag/my_dags/database/schema`.  
 They follow the format: `<table_name>_YYYY-MM-DD.json`. 
