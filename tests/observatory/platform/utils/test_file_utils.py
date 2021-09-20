@@ -26,10 +26,10 @@ from observatory.platform.utils.file_utils import (
     find_replace_file,
     get_file_hash,
     get_hasher_,
+    gunzip_files,
     is_gzip,
     load_csv,
     load_jsonl,
-    unzip_files,
     validate_file_hash,
     yield_csv,
     yield_jsonl,
@@ -126,7 +126,7 @@ class TestFileUtils(unittest.TestCase):
 
         self.assertTrue(validate_file_hash(file_path=file_path, expected_hash=expected_hash))
 
-    def test_unzip_files(self):
+    def test_gunzip_files(self):
         fixture_dir = test_fixtures_path("utils")
         filename = "testzip.txt.gz"
         expected_hash = "62d83685cff9cd962ac5abb563c61f38"
@@ -138,20 +138,20 @@ class TestFileUtils(unittest.TestCase):
             dst = os.path.join(tmpdir, filename)
             shutil.copyfile(src, dst)
 
-            unzip_files(file_list=[dst])
+            gunzip_files(file_list=[dst])
             self.assertTrue(validate_file_hash(file_path=output_file, expected_hash=expected_hash))
 
         # Specify save dir
         with CliRunner().isolated_filesystem() as tmpdir:
             dst = os.path.join(tmpdir, filename)
-            unzip_files(file_list=[src], output_dir=tmpdir)
+            gunzip_files(file_list=[src], output_dir=tmpdir)
             self.assertTrue(validate_file_hash(file_path=output_file, expected_hash=expected_hash))
 
         # Skip non gz files
         with CliRunner().isolated_filesystem() as tmpdir:
             dst = os.path.join(tmpdir, filename)
             src_path = os.path.join(fixture_dir, output_file)
-            unzip_files(file_list=[src_path], output_dir=tmpdir)
+            gunzip_files(file_list=[src_path], output_dir=tmpdir)
             self.assertFalse(os.path.exists(dst))
 
     def test_find_replace_file(self):

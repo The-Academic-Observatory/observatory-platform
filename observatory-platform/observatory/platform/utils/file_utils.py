@@ -335,7 +335,7 @@ def zip_files(file_list: List[str]):
     return zip_list
 
 
-def unzip_files(*, file_list: List[str], output_dir: str = None):
+def gunzip_files(*, file_list: List[str], output_dir: str = None):
     """Gunzip the list of files.
 
     :param file_list: List of files to unzip.
