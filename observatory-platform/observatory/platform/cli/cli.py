@@ -15,18 +15,19 @@
 # Author: James Diprose, Aniek Roelofs, Tuan Chien
 
 import os
+import sys
 
 import click
+import subprocess
 
 from observatory.platform.cli.click_utils import INDENT1, INDENT2, INDENT3, indent
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
 from observatory.platform.platform_builder import DEBUG, HOST_GID, HOST_UID
-from observatory.platform.utils.config_utils import (
-    terraform_credentials_path as default_terraform_credentials_path,
-    observatory_home,
-)
+from observatory.platform.utils.config_utils import observatory_home
+from observatory.platform.utils.config_utils import terraform_credentials_path as default_terraform_credentials_path
+from observatory.platform.utils.proc_utils import stream_process
 
 PLATFORM_NAME = "Observatory Platform"
 TERRAFORM_NAME = "Observatory Terraform"
@@ -72,13 +73,7 @@ def cli():
     show_default=True,
 )
 @click.option("--debug", is_flag=True, default=DEBUG, help="Print debugging information.")
-def platform(
-    command: str,
-    config_path: str,
-    host_uid: int,
-    host_gid: int,
-    debug,
-):
+def platform(command: str, config_path: str, host_uid: int, host_gid: int, debug):
     """Run the local Observatory Platform platform.\n
 
     COMMAND: the command to give the platform:\n
@@ -90,12 +85,7 @@ def platform(
     print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end="\r")
     if os.path.isfile(config_path):
         # Make the platform command, which encapsulates functionality for running the observatory
-        platform_cmd = PlatformCommand(
-            config_path,
-            host_uid=host_uid,
-            host_gid=host_gid,
-            debug=debug,
-        )
+        platform_cmd = PlatformCommand(config_path, host_uid=host_uid, host_gid=host_gid, debug=debug)
 
         # Check dependencies
         platform_check_dependencies(platform_cmd, min_line_chars=min_line_chars)
@@ -226,58 +216,167 @@ def generate():
     COMMAND: the commands to run include:\n
       - secrets: generate secrets.\n
       - config: generate configuration files for the Observatory Platform.\n
+      - project: generate a new project directory and required files.\n
+      - workflow: generate all files for a new workflow.
     """
 
     pass
 
 
 @generate.command()
-@click.argument(
-    "project_path",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-)
+@click.argument("project_path", type=click.Path(exists=False, file_okay=False, dir_okay=True))
 @click.argument("package_name", type=str)
-@click.argument("workflow_type", type=click.Choice(["Workflow", "StreamTelescope", "SnapshotTelescope"]))
-@click.argument("workflow_name", type=str)
-def workflow(project_path: str, package_name: str, workflow_type: str, workflow_name: str):
-    """Generate a new workflow.
+@click.argument("author_name", type=str)
+def project(project_path: str, package_name: str, author_name: str):
+    """Generate a new workflows project.
 
     \b
     PROJECT_PATH is the Python project path.
     PACKAGE_NAME is the Python package name.
-    WORKFLOW_TYPE is the type of workflow.
-    WORKFLOW_NAME is the the name of your new workflow.
+    AUTHOR_NAME is the author name, used for readthedocs.
 
     \b
-    For example, the command: observatory generate workflow /path/to/my-workflows-project my_workflows_project Workflow MyWorkflow
+    For example, the command: observatory generate project /path/to/my-workflows-project my_workflows_project
 
     \b Will generate the following files and folders:
 
     \b
     └── my-workflows-project
         ├── docs
+        │   ├── _build
+        │   ├── _static
+        │   ├── _templates
+        │   ├── workflows
+        │   ├── conf.py
+        │   ├── generate_schema_csv.py
         │   ├── index.rst
-        │   └── my_workflow.md
+        │   ├── make.bat
+        │   ├── Makefile
+        │   ├── requirements.txt
+        │   └── test_generate_schema_csv.py
+        ├── {package_name}
+        │   ├── dags
+        │   │   └── __init__.py
+        │   ├── database
+        │   │   ├── schema
+        │   │   │   └── __init__.py
+        │   │   └── __init__.py
+        │   └── workflows
+        │   │   ├── tests
+        │   │   │   └── __init__.py
+        │   │   └── __init__.py
+        │   ├── __init__.py
+        │   └── config.py
+        ├── setup.cfg
+        └── setup.py
+    """
+    cmd = GenerateCommand()
+    cmd.generate_workflows_project(project_path, package_name, author_name)
+
+    if click.confirm(
+        f"Would you like to install the '{package_name}' package inside your new project? This is required for "
+        f"the workflows to function."
+    ):
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "pip", "install", "-e", "."],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=project_path,
+        )
+        stream_process(proc, True)
+
+
+@generate.command()
+@click.argument(
+    "workflow_type", type=click.Choice(["Workflow", "StreamTelescope", "SnapshotTelescope", "OrganisationTelescope"])
+)
+@click.argument("workflow_name", type=str)
+@click.option(
+    "-p",
+    "--project-path",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=os.getcwd(),
+    help="The path to the project directory.",
+    show_default=True,
+)
+def workflow(workflow_type: str, workflow_name: str, project_path: str):
+    """Generate all files for a new workflow.
+
+    \b
+    WORKFLOW_TYPE is the type of workflow.
+    WORKFLOW_NAME is the the name of your new workflow.
+    PROJECT_PATH is the Python project path, default is current directory.
+
+    \b
+    For example, the command: observatory generate workflow /path/to/my-workflows-project my_workflows_project Workflow MyWorkflow
+
+    \b Will generate the files in bold inside your workflows project:
+
+    \b
+    └── my-workflows-project
+        ├── docs
+        │   ├── _build
+        │   ├── _static
+        │   ├── _templates
+        │   ├── workflows
+        │   │   └── \033[1mmy_workflow.md\033[0m
+        │   ├── generate_schema_csv.py
+        │   ├── index.rst
+        │   ├── make.bat
+        │   └── Makefile
         ├── my_workflows_project
         │   ├── dags
         │   │   ├── __init__.py
-        │   │   └── my_workflow.py
-        │   ├── __init__.py
+        │   │   └── \033[1mmy_workflow.py\033[0m
+        │   ├── database
+        │   │   ├── schema
+        │   │   │   ├── __init__.py
+        │   │   │   └── \033[1mmy_workflow_YYYY_MM_DD.json\033[0m
+        │   │   └── __init__.py
         │   └── workflows
-        │       ├── __init__.py
-        │       └── my_workflow.py
-        └── tests
-            └── my_workflows_project
-                ├── __init__.py
-                └── workflows
-                    ├── __init__.py
-                    └── test_my_workflow.py
+        │   │   ├── tests
+        │   │   │   ├── __init__.py
+        │   │   │   └── \033[1mtest_my_workflow.py\033[0m
+        │   │   ├── __init__.py
+        │   │   └── \033[1mmy_workflow.py\033[0m
+        │   ├── __init__.py
+        │   ├── config.py
+        │   └── \033[1midentifiers.py\033[0m (OrganisationTelescope only)
+        ├── setup.cfg
+        └── setup.py
     """
+    print(f"Given workflow type: {workflow_type}")
+    print(f"Given workflow name: {workflow_name}")
+    print(f"Given project path: {project_path}\n")
 
-    # TODO: project path and package name should be inferred somehow
+    # Check if egg-info dir is available
+    egg_info_dir = [d for d in os.listdir(project_path) if d.endswith(".egg-info")]
+    if not egg_info_dir:
+        print(
+            "Invalid workflows project, the given projects directory does not contain an installed python package.\n"
+            "Either run this command from inside a valid workflows project or specify the path to a valid workflows "
+            "project with the '--project-path' option.\n"
+            "A new workflows project can be created using the 'observatory generate project' command."
+        )
+        exit(os.EX_CONFIG)
+    if len(egg_info_dir) > 1:
+        print(
+            "Invalid workflows project, the given projects directory contains more than 1 installed python package.\n"
+            "Either run this command from inside a valid workflows project or specify the path to a valid workflows "
+            "project with the '--project-path' option.\n"
+            "A new workflows project can be created using the 'observatory generate project' command."
+        )
+        exit(os.EX_CONFIG)
+
+    # Get package name
+    top_level_file = os.path.join(project_path, egg_info_dir[0], "top_level.txt")
+    with open(top_level_file, "r") as f:
+        package_name = f.readline().strip()
+        print(f"Found package inside project: {package_name}")
+
     cmd = GenerateCommand()
-    cmd.generate_new_workflow(
-        project_path=project_path, package_name=package_name, workflow_type=workflow_type, workflow_name=workflow_name
+    cmd.generate_workflow(
+        project_path=project_path, package_name=package_name, workflow_type=workflow_type, workflow_class=workflow_name
     )
 
 

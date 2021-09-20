@@ -371,10 +371,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 ti = env.run_task(workflow.list_release_info.__name__, es_dag, execution_date=execution_date)
                 self.assertEqual(expected_state, ti.state)
                 table_id = bigquery_sharded_table_id(self.table_name, release_date)
-                expected_msg = {
-                    "release_date": release_date.format("YYYYMMDD"),
-                    "table_ids": [table_id],
-                }
+                expected_msg = {"release_date": release_date.format("YYYYMMDD"), "table_ids": [table_id]}
                 actual_msg = ti.xcom_pull(
                     key="releases", task_ids=workflow.list_release_info.__name__, include_prior_dates=False
                 )

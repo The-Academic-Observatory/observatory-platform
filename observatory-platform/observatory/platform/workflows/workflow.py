@@ -41,11 +41,7 @@ from observatory.platform.utils.airflow_utils import (
     check_variables,
 )
 from observatory.platform.utils.file_utils import list_files
-from observatory.platform.utils.workflow_utils import (
-    SubFolder,
-    on_failure_callback,
-    workflow_path,
-)
+from observatory.platform.utils.workflow_utils import SubFolder, on_failure_callback, workflow_path
 
 
 class ReleaseFunction(Protocol):
@@ -90,6 +86,7 @@ class AbstractWorkflow(ABC):
         - Run by a ShortCircuitOperator, meaning that a setup task can stop a DAG prematurely, e.g. if there is
         nothing to process.
         - func Needs to return a boolean
+
         :param func: the function that will be called by the ShortCircuitOperator task.
         :return: None.
         """
@@ -115,7 +112,7 @@ class AbstractWorkflow(ABC):
         pass
 
     @abstractmethod
-    def add_sensors(self, sensors: List[BaseSensorOperator]):
+    def add_sensor_chain(self, sensors: List[BaseSensorOperator]):
         """Add a list of sensors to monitor.  The workflow will wait until the monitored sensors all trigger before
         running the tasks.
 
@@ -127,11 +124,10 @@ class AbstractWorkflow(ABC):
     def add_task(self, func: Callable):
         """Add a task, which is used to process releases. A task has the following properties:
 
-        - Has one of the following signatures 'def func(self, release: Release, **kwargs)' or 'def func(self,
-        releases: List[Release], **kwargs)'
-        - kwargs is the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
-        for a list of the keyword arguments that are passed to this argument.
+        - Has one of the following signatures 'def func(self, release: Release, **kwargs)' or 'def func(self, releases: List[Release], **kwargs)'
+        - kwargs is the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to this argument.
         - Run by a PythonOperator.
+
         :param func: the function that will be called by the PythonOperator task.
         :return: None.
         """
@@ -181,6 +177,7 @@ class AbstractWorkflow(ABC):
 
 def make_task_id(func: Callable, kwargs: Dict) -> str:
     """Set a task_id from a func or kwargs.
+
     :param func: the task function.
     :param kwargs: the task kwargs parameter.
     :return: the task id.
@@ -199,6 +196,7 @@ def make_task_id(func: Callable, kwargs: Dict) -> str:
 @dataclasses.dataclass
 class Operator:
     """A container for data to be passed to an Airflow Operator.
+
     :param func: the task function.
     :param kwargs: the task kwargs parameter.
     """
@@ -266,15 +264,15 @@ class Workflow(AbstractWorkflow):
         )
 
     def add_sensor(self, sensor: BaseSensorOperator):
-        """Add a sensor to monitor.  The Workflow will wait until the monitored sensors all trigger before
+        """Add a sensor to monitor. The workflow will wait until the monitored sensors all trigger before
         running the tasks.
 
         :param sensor: A sensor to monitor.
         """
         self.sensors.append(sensor)
 
-    def add_sensors(self, sensors: List[BaseSensorOperator]):
-        """Add a list of sensors to monitor.  The Workflow will wait until the monitored sensors all trigger before
+    def add_sensor_chain(self, sensors: List[BaseSensorOperator]):
+        """Add a list of sensors to monitor. The workflow will wait until the monitored sensors all trigger before
         running the tasks.
 
         :param sensors: List of sensors to monitor.
@@ -292,6 +290,7 @@ class Workflow(AbstractWorkflow):
         - Run by a ShortCircuitOperator, meaning that a setup task can stop a DAG prematurely, e.g. if there is
         nothing to process.
         - func Needs to return a boolean
+
         :param func: the function that will be called by the ShortCircuitOperator task.
         :return: None.
         """
@@ -314,6 +313,7 @@ class Workflow(AbstractWorkflow):
         - kwargs is the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
         for a list of the keyword arguments that are passed to this argument.
         - Run by a PythonOperator.
+
         :param func: the function that will be called by the PythonOperator task.
         :return: None.
         """
@@ -407,10 +407,7 @@ class Workflow(AbstractWorkflow):
                 kwargs_ = copy.copy(op.kwargs)
                 kwargs_["task_id"] = make_task_id(op.func, op.kwargs)
                 task = ShortCircuitOperator(
-                    python_callable=op.func,
-                    queue=self.queue,
-                    default_args=self.default_args,
-                    **kwargs_,
+                    python_callable=op.func, queue=self.queue, default_args=self.default_args, **kwargs_
                 )
                 tasks.append(task)
 
@@ -450,6 +447,7 @@ class AbstractRelease(ABC):
     @abstractmethod
     def download_bucket(self):
         """The download bucket name.
+
         :return: the download bucket name.
         """
         pass
@@ -458,6 +456,7 @@ class AbstractRelease(ABC):
     @abstractmethod
     def transform_bucket(self):
         """The transform bucket name.
+
         :return: the transform bucket name.
         """
         pass
@@ -466,6 +465,7 @@ class AbstractRelease(ABC):
     @abstractmethod
     def download_folder(self) -> str:
         """The download folder path for the release, e.g. /path/to/workflows/download/{dag_id}/{release_id}/
+
         :return: the download folder path.
         """
         pass
@@ -474,6 +474,7 @@ class AbstractRelease(ABC):
     @abstractmethod
     def extract_folder(self) -> str:
         """The extract folder path for the release, e.g. /path/to/workflows/extract/{dag_id}/{release_id}/
+
         :return: the extract folder path.
         """
         pass
@@ -482,6 +483,7 @@ class AbstractRelease(ABC):
     @abstractmethod
     def transform_folder(self) -> str:
         """The transform folder path for the release, e.g. /path/to/workflows/transform/{dag_id}/{release_id}/
+
         :return: the transform folder path.
         """
         pass
@@ -490,6 +492,7 @@ class AbstractRelease(ABC):
     @abstractmethod
     def download_files(self) -> List[str]:
         """List all files downloaded as a part of this release.
+
         :return: list of downloaded files.
         """
         pass
@@ -498,6 +501,7 @@ class AbstractRelease(ABC):
     @abstractmethod
     def extract_files(self) -> List[str]:
         """List all files extracted as a part of this release.
+
         :return: list of extracted files.
         """
         pass
@@ -506,6 +510,7 @@ class AbstractRelease(ABC):
     @abstractmethod
     def transform_files(self) -> List[str]:
         """List all files transformed as a part of this release.
+
         :return: list of transformed files.
         """
         pass
@@ -513,6 +518,7 @@ class AbstractRelease(ABC):
     @abstractmethod
     def cleanup(self) -> None:
         """Delete all files and folders associated with this release.
+
         :return: None.
         """
 
@@ -531,6 +537,7 @@ class Release(AbstractRelease):
         transform_files_regex: str = None,
     ):
         """Construct a Release instance
+
         :param dag_id: the id of the DAG.
         :param release_id: the id of the release.
         :param download_files_regex: regex pattern that is used to find files in download folder
@@ -546,6 +553,7 @@ class Release(AbstractRelease):
     @property
     def download_folder(self) -> str:
         """The download folder path for the release, e.g. /path/to/workflows/download/{dag_id}/{release_id}/
+
         :return: the download folder path.
         """
         return workflow_path(SubFolder.downloaded.value, self.dag_id, self.release_id)
@@ -553,6 +561,7 @@ class Release(AbstractRelease):
     @property
     def extract_folder(self) -> str:
         """The extract folder path for the release, e.g. /path/to/workflows/extract/{dag_id}/{release_id}/
+
         :return: the extract folder path.
         """
         return workflow_path(SubFolder.extracted.value, self.dag_id, self.release_id)
@@ -560,6 +569,7 @@ class Release(AbstractRelease):
     @property
     def transform_folder(self) -> str:
         """The transform folder path for the release, e.g. /path/to/workflows/transform/{dag_id}/{release_id}/
+
         :return: the transform folder path.
         """
         return workflow_path(SubFolder.transformed.value, self.dag_id, self.release_id)
@@ -567,6 +577,7 @@ class Release(AbstractRelease):
     @property
     def download_files(self) -> List[str]:
         """List all files downloaded as a part of this release.
+
         :return: list of downloaded files.
         """
         return list_files(self.download_folder, self.download_files_regex)
@@ -574,6 +585,7 @@ class Release(AbstractRelease):
     @property
     def extract_files(self) -> List[str]:
         """List all files extracted as a part of this release.
+
         :return: list of extracted files.
         """
         return list_files(self.extract_folder, self.extract_files_regex)
@@ -581,6 +593,7 @@ class Release(AbstractRelease):
     @property
     def transform_files(self) -> List[str]:
         """List all files transformed as a part of this release.
+
         :return: list of transformed files.
         """
         return list_files(self.transform_folder, self.transform_files_regex)
@@ -588,6 +601,7 @@ class Release(AbstractRelease):
     @property
     def download_bucket(self):
         """The download bucket name.
+
         :return: the download bucket name.
         """
         return Variable.get(AirflowVars.DOWNLOAD_BUCKET)
@@ -595,12 +609,14 @@ class Release(AbstractRelease):
     @property
     def transform_bucket(self):
         """The transform bucket name.
+
         :return: the transform bucket name.
         """
         return Variable.get(AirflowVars.TRANSFORM_BUCKET)
 
     def cleanup(self) -> None:
         """Delete all files and folders associated with this release.
+
         :return: None.
         """
         for path in [self.download_folder, self.extract_folder, self.transform_folder]:

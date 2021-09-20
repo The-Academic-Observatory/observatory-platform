@@ -43,7 +43,6 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
 
         :return: None
         """
-
         dag = {{ workflow_class }}().make_dag()
         self.assert_dag_structure({"check_dependencies": ["task1"], "task1": ["cleanup"], "cleanup": []}, dag)
 
@@ -52,7 +51,6 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
 
         :return: None
         """
-
         with ObservatoryEnvironment().create():
             dag_file = os.path.join(module_file_path("{{ package_name }}.dags"), "{{ workflow_module }}.py")
             self.assert_dag_load("{{ workflow_module }}", dag_file)
@@ -67,7 +65,7 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
         dataset_id = env.add_dataset()
 
         # Setup Workflow
-        workflow = {{ workflow_class }}()
+        workflow = {{ workflow_class }}(dataset_id=dataset_id)
         dag = workflow.make_dag()
 
         # Create the Observatory environment and run tests

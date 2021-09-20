@@ -1,21 +1,33 @@
 Tutorials
 ----------------------------
 
-Workflow Programming
-#######################
+Developing a telescope
+#########################################
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
-    workflow_prog_intro
-    workflow_prog_stream
-    workflow_prog_snapshot
-    workflow_prog_testing
+    workflow/intro
+    workflow/workflow_class
+    workflow/snapshot_class
+    workflow/stream_class
+    workflow/organisation_class
+    workflow/step_by_step
+    workflow/cli
+    workflow/style
 
-Terraform
-#######################
+Starting an Observatory Platform development environment
+##########################################################
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
-    deploy_terraform
+    observatory_dev
+
+Deploying an Observatory Platform production environment with Terraform
+#########################################################################
+
+.. toctree::
+    :maxdepth: 2
+
+    deploy_terraform.md

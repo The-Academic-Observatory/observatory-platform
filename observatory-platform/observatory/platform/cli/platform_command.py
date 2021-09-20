@@ -15,12 +15,7 @@
 # Author: James Diprose
 
 from observatory.platform.observatory_config import BackendType
-from observatory.platform.platform_builder import (
-    PlatformBuilder,
-    HOST_UID,
-    HOST_GID,
-    DEBUG,
-)
+from observatory.platform.platform_builder import PlatformBuilder, HOST_UID, HOST_GID, DEBUG
 from observatory.platform.utils.url_utils import wait_for_url
 
 

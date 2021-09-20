@@ -31,7 +31,7 @@ def render_template(template_path: str, **kwargs) -> str:
         contents = file.read()
 
     # Fill template with text
-    template = Template(contents)
+    template = Template(contents, keep_trailing_newline=True)
 
     # Render template
     rendered = template.render(**kwargs)

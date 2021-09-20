@@ -12,16 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose, Tuan Chien
+# Author: James Diprose, Tuan Chien, Aniek Roelofs
 
 import logging
+import importlib
+import subprocess
+import sys
 import os
+import re
+import shutil
 import unittest
-
 from click.testing import CliRunner
+from datetime import datetime
+from unittest.mock import patch, call
+from unittest import TestLoader, TestResult
 
 from observatory.platform.cli.cli import generate
-from observatory.platform.cli.generate_command import GenerateCommand
+from observatory.platform.cli.generate_command import GenerateCommand, write_rendered_template
+from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.file_utils import _hash_file
+from observatory.platform.utils.proc_utils import stream_process
 
 
 class TestGenerateCommand(unittest.TestCase):
@@ -53,37 +63,180 @@ class TestGenerateCommand(unittest.TestCase):
             cmd.generate_terraform_config(config_path)
             self.assertTrue(os.path.exists(config_path))
 
-    def test_generate_workflow(self):
-        """Test generate workflow"""
+    @patch("click.confirm")
+    def test_generate_workflows_project(self, mock_cli_confirm):
+        """Test generate a new workflows project
 
-        # Test valid workflow types
-        package_name = "my_workflows_package"
-        workflow_module = "my_test_workflow"
-        workflow_types = ["Workflow", "SnapshotTelescope", "StreamTelescope"]
-        for workflow_type in workflow_types:
-            runner = CliRunner()
-            with runner.isolated_filesystem() as t:
-                result = runner.invoke(generate, ["workflow", t, package_name, workflow_type, "MyTestWorkflow"])
-                self.assertEqual(result.exit_code, 0)
-                expected_files = [
-                    os.path.join(t, package_name, "__init__.py"),
-                    os.path.join(t, package_name, "dags", f"{workflow_module}.py"),
-                    os.path.join(t, package_name, "dags", "__init__.py"),
-                    os.path.join(t, package_name, "workflows", f"{workflow_module}.py"),
-                    os.path.join(t, package_name, "workflows", "__init__.py"),
-                    os.path.join(t, "docs", "index.rst"),
-                    os.path.join(t, "docs", f"{workflow_module}.md"),
-                    os.path.join(t, "tests", package_name, "workflows", "__init__.py"),
-                    os.path.join(t, "tests", package_name, "workflows", f"test_{workflow_module}.py"),
-                    os.path.join(t, "tests", package_name, "__init__.py"),
-                ]
-                for file_path in expected_files:
-                    logging.info(file_path)
-                    self.assertTrue(os.path.isfile(file_path))
-
-        # Test invalid workflow types
+        :return: None.
+        """
+        cmd = GenerateCommand()
         runner = CliRunner()
-        with runner.isolated_filesystem() as t:
-            result = CliRunner().invoke(generate, ["workflow", t, "my_workflows_package", "Unknown", "MyTestTelescope"])
-            self.assertEqual(result.exit_code, 2)
-            self.assertTrue("invalid choice: Unknown" in result.output)
+        with runner.isolated_filesystem():
+            # Test creating new project
+            project_path = os.path.join(os.getcwd(), "my-project")
+            package_name = "my_dags"
+            cmd.generate_workflows_project(project_path, package_name, "Author Name")
+
+            # Check that all directories and __init__.py files exist
+            init_dirs = [
+                package_name,
+                os.path.join(package_name, "dags"),
+                os.path.join(package_name, "database"),
+                os.path.join(package_name, "database", "schema"),
+                os.path.join(package_name, "workflows"),
+                os.path.join(package_name, "workflows", "tests"),
+            ]
+            for d in init_dirs:
+                init_file_path = os.path.join(project_path, d, "__init__.py")
+                self.assertTrue(os.path.isfile(init_file_path))
+                with open(init_file_path, "a") as f:
+                    f.write("test")
+
+            # Check that setup files exist
+            self.assertTrue(os.path.isfile(os.path.join(project_path, "setup.cfg")))
+            self.assertTrue(os.path.isfile(os.path.join(project_path, "setup.py")))
+
+            # Check that config.py file exists
+            self.assertTrue(os.path.isfile(os.path.join(project_path, package_name, "config.py")))
+
+            # Check that all docs files exist
+            docs_dirs = ["_build", "_static", "_templates", "workflows"]
+            for d in docs_dirs:
+                dir_path = os.path.join(project_path, "docs", d)
+                self.assertTrue(os.path.isdir(dir_path))
+
+            docs_files = [
+                "conf.py",
+                "generate_schema_csv.py",
+                "index.rst",
+                "make.bat",
+                "Makefile",
+                "requirements.txt",
+                "test_generate_schema_csv.py",
+            ]
+            for f in docs_files:
+                file_path = os.path.join(project_path, "docs", f)
+                self.assertTrue(os.path.isfile(file_path))
+
+            # Test creating new project when files already exist
+            mock_cli_confirm.return_value = "y"
+            cmd.generate_workflows_project(project_path, package_name, "Author Name")
+
+            # Check that file hash stayed the same (no new empty init files)
+            for d in init_dirs:
+                init_file_path = os.path.join(project_path, d, "__init__.py")
+                self.assertTrue(os.path.isfile(init_file_path))
+                self.assertEqual("098f6bcd4621d373cade4e832627b4f6", _hash_file(init_file_path, "md5"))
+
+            self.assertEqual(3, mock_cli_confirm.call_count)
+
+            # Check that setup files exist
+            self.assertTrue(os.path.isfile(os.path.join(project_path, "setup.cfg")))
+            self.assertTrue(os.path.isfile(os.path.join(project_path, "setup.py")))
+
+            # Check that config.py file exists
+            self.assertTrue(os.path.isfile(os.path.join(project_path, package_name, "config.py")))
+
+    def test_generate_workflow(self):
+        """Test generate workflow command and run unit tests that are generated for each of the workflow types.
+
+        :return: None.
+        """
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            cmd = GenerateCommand()
+
+            # Copy actual observatory platform inside isolated filesystem
+            observatory_dir = os.path.join(os.getcwd(), "observatory-platform")
+            shutil.copytree(module_file_path("observatory.platform"), observatory_dir)
+
+            # Create new workflows project
+            project_path = os.path.join(os.getcwd(), "my-project")
+            package_name = "unittest_dags"
+            result = runner.invoke(generate, ["project", project_path, package_name, "Author Name"], input="n")
+            self.assertEqual(0, result.exit_code)
+
+            # Get expected file dirs
+            dag_dst_dir = os.path.join(project_path, package_name, "dags")
+            workflow_dst_dir = os.path.join(project_path, package_name, "workflows")
+            schema_dst_dir = os.path.join(project_path, package_name, "database", "schema")
+            test_dst_dir = os.path.join(workflow_dst_dir, "tests")
+            doc_dst_dir = os.path.join(project_path, "docs")
+
+            # Test valid workflows
+            for workflow_name, workflow_type in [
+                ("MyWorkflow", "Workflow"),
+                ("MyStream", "StreamTelescope"),
+                ("MySnapshot", "SnapshotTelescope"),
+                ("MyOrganisation", "OrganisationTelescope"),
+            ]:
+                cmd.generate_workflow(project_path, package_name, workflow_type, workflow_name)
+
+                # Get expected file paths
+                workflow_module = re.sub(r"([A-Z])", r"_\1", workflow_name).lower().strip("_")
+                dag_dst_file = os.path.join(dag_dst_dir, f"{workflow_module}.py")
+                workflow_dst_file = os.path.join(workflow_dst_dir, f"{workflow_module}.py")
+                test_dst_file = os.path.join(test_dst_dir, f"test_{workflow_module}.py")
+                index_dst_file = os.path.join(doc_dst_dir, "index.rst")
+                doc_dst_file = os.path.join(doc_dst_dir, "workflows", f"{workflow_module}.md")
+                schema_dst_file = os.path.join(
+                    schema_dst_dir, f"{workflow_module}_{datetime.now().strftime('%Y-%m-%d')}.json"
+                )
+                identifiers_dst_file = os.path.join(project_path, package_name, "identifiers.py")
+
+                # Check whether all expected files are generated
+                for file in [
+                    dag_dst_file,
+                    workflow_dst_file,
+                    test_dst_file,
+                    index_dst_file,
+                    doc_dst_file,
+                    schema_dst_file,
+                ]:
+                    self.assertTrue(os.path.exists(file))
+
+                # Check if identifiers file exists
+                if workflow_type == "OrganisationTelescope":
+                    self.assertTrue(os.path.exists(identifiers_dst_file))
+
+                # Check whether the template files do not contain any errors by running the created test files
+                proc = subprocess.Popen(
+                    [sys.executable, "-m", "unittest", test_dst_file],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    env=dict(os.environ, PYTHONPATH=project_path),
+                )
+                out, err = stream_process(proc, debug=True)
+                self.assertEqual("OK", err.splitlines()[-1])
+
+            # Test that identifiers file is only created if it does not exist
+            cmd.generate_workflow(project_path, package_name, "OrganisationTelescope", "MyOrganisation2")
+            self.assertEqual("7f1de3572c0fb605e4d24e7a2e1c4e30", _hash_file(identifiers_dst_file, "md5"))
+
+            # Test invalid workflow type
+            with self.assertRaises(Exception):
+                cmd.generate_workflow(project_path, package_name, "Invalid", "MyWorkflow")
+
+    @patch("click.confirm")
+    def test_write_rendered_template(self, mock_click_confirm):
+        """Test writing a rendered template file, only overwrite when file exists if confirmed by user
+
+        :param mock_click_confirm: Mock the click.confirm user confirmation
+        :return: None.
+        """
+        with CliRunner().isolated_filesystem():
+            # Create file to test function when file already exists
+            file_path = "test.txt"
+            with open(file_path, "w") as f:
+                f.write("test")
+            self.assertEqual("098f6bcd4621d373cade4e832627b4f6", _hash_file(file_path, "md5"))
+
+            mock_click_confirm.return_value = False
+            write_rendered_template(file_path, template="some text", file_type="test")
+            # Assert that file content stays the same ('test')
+            self.assertEqual("098f6bcd4621d373cade4e832627b4f6", _hash_file(file_path, "md5"))
+
+            mock_click_confirm.return_value = True
+            write_rendered_template(file_path, template="some text", file_type="test")
+            # Assert that file content is now 'some text' instead of 'test'
+            self.assertEqual("552e21cd4cd9918678e3c1a0df491bc3", _hash_file(file_path, "md5"))

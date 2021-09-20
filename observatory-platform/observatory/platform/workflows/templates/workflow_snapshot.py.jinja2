@@ -1,4 +1,4 @@
-{#- Copyright 2020 Curtin University
+{# Copyright 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,18 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Author: Tuan Chien -#}
+# Author: Tuan Chien, Aniek Roelofs -#}
+import pendulum
 from typing import List, Dict
 
-import pendulum
-from observatory.platform.utils.airflow_utils import AirflowVars
+from {{ package_name }}.config import schema_folder as default_schema_folder
 from observatory.platform.workflows.snapshot_telescope import SnapshotRelease, SnapshotTelescope
+from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 
 
-# You could also use the SnapshotRelease directly if it is fit for purpose.
 class {{ workflow_class }}Release(SnapshotRelease):
     def __init__(self, dag_id: str, release_date: pendulum.DateTime):
-        """ Create a {{ workflow_class }}Release instance.
+        """Create a {{ workflow_class }}Release instance.
 
         :param dag_id: the DAG id.
         :param release_date: the date of the release.
@@ -32,23 +32,25 @@ class {{ workflow_class }}Release(SnapshotRelease):
 
 
 class {{ workflow_class }}(SnapshotTelescope):
+    """ {{ workflow_class}} Telescope."""
+
     DAG_ID = "{{ workflow_module }}"
 
     def __init__(
         self,
         dag_id: str = DAG_ID,
-        start_date: pendulum.DateTime = pendulum.datetime(2021, 7, 1),
+        start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = "your_dataset_id",
         dataset_description: str = "The your_dataset dataset: https://dataseturl/",
         load_bigquery_table_kwargs: Dict = None,
         table_descriptions: Dict = None,
+        schema_folder: str = default_schema_folder(),
         airflow_vars: List = None,
         airflow_conns: List = None,
         max_active_runs: int = 1,
     ):
-
-        """ The {{ workflow_class }} telescope
+        """ The{{ workflow_class }} telescope
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
@@ -57,6 +59,7 @@ class {{ workflow_class }}(SnapshotTelescope):
         :param dataset_description: description for the BigQuery dataset.
         :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
+        :param schema_folder: the path to the SQL schema folder.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow.
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
@@ -82,6 +85,7 @@ class {{ workflow_class }}(SnapshotTelescope):
             start_date,
             schedule_interval,
             dataset_id,
+            schema_folder,
             load_bigquery_table_kwargs=load_bigquery_table_kwargs,
             dataset_description=dataset_description,
             table_descriptions=table_descriptions,
@@ -98,19 +102,25 @@ class {{ workflow_class }}(SnapshotTelescope):
 
         # Add ETL tasks
         self.add_task(self.task1)
+        # self.add_task(self.upload_downloaded)  # From SnapshotTelescope
+        # self.add_task(self.upload_transformed)  # From SnapshotTelescope
         # self.add_task(self.bq_load)  # From SnapshotTelescope
         self.add_task(self.cleanup)  # From SnapshotTelescope
 
     def make_release(self, **kwargs) -> List[{{ workflow_class }}Release]:
-        """ Make release instances.
+        """Make release instances.
 
         :param kwargs: the context passed from the PythonOperator.
         :return: a list of {{ workflow_class }}Release instances.
         """
-
         release_date = kwargs["execution_date"]
         return [{{ workflow_class }}Release(self.dag_id, release_date)]
 
     def task1(self, releases: List[{{ workflow_class }}Release], **kwargs):
-        """ Add your own comment. """
+        """Add your own comments.
+
+        :param releases: A list of {{ workflow_class }}Release instances
+        :param kwargs: The context passed from the PythonOperator.
+        :return: None.
+        """
         pass

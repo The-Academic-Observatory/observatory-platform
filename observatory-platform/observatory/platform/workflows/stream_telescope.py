@@ -22,6 +22,8 @@ import pendulum
 from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
+
+from observatory.platform.workflows.workflow import Release, Workflow
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
@@ -33,7 +35,6 @@ from observatory.platform.utils.workflow_utils import (
     table_ids_from_path,
     upload_files_from_list,
 )
-from observatory.platform.workflows.workflow import Release, Workflow
 
 
 class StreamRelease(Release):
@@ -48,6 +49,7 @@ class StreamRelease(Release):
         transform_files_regex: str = None,
     ):
         """Construct a StreamRelease instance
+
         :param dag_id: the id of the DAG.
         :param start_date: the start_date of the release.
         :param end_date: the end_date of the release.
@@ -77,7 +79,7 @@ class StreamTelescope(Workflow):
         queue: str = "default",
         max_retries: int = 3,
         max_active_runs: int = 1,
-        source_format: SourceFormat = SourceFormat.NEWLINE_DELIMITED_JSON,
+        source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
         schema_prefix: str = "",
         schema_version: str = None,
         load_bigquery_table_kwargs: Dict = None,
@@ -141,7 +143,8 @@ class StreamTelescope(Workflow):
         self.batch_load = batch_load
 
     def get_release_info(self, **kwargs) -> bool:
-        """Create a release instance and update the xcom value with the last start date.
+        """Push the release info (start date, end date, first release) using Xcoms.
+
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
@@ -205,6 +208,7 @@ class StreamTelescope(Workflow):
 
     def upload_transformed(self, release: StreamRelease, **kwargs):
         """Upload the transformed files for the given release.
+
         :param release: a StreamRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
@@ -213,6 +217,7 @@ class StreamTelescope(Workflow):
 
     def bq_load_partition(self, release: StreamRelease, **kwargs):
         """For each file listed in transform_files, create a time based partition in BigQuery
+
         :param release: a StreamRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
@@ -225,7 +230,7 @@ class StreamTelescope(Workflow):
         for transform_path in release.transform_files:
             if self.batch_load:
                 transform_blob = batch_blob_name(release.transform_folder)
-                main_table_id, partition_table_id = self.dag_id, f"{self.dag_id}_partitions"
+                main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
             else:
                 transform_blob = blob_name(transform_path)
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
@@ -249,6 +254,7 @@ class StreamTelescope(Workflow):
 
     def bq_delete_old(self, release: StreamRelease, **kwargs):
         """Delete old rows from the 'main' table, based on rows that are in a partition of the 'partitions' table.
+
         :param release: a StreamRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
@@ -268,7 +274,7 @@ class StreamTelescope(Workflow):
             )
             for transform_path in release.transform_files:
                 if self.batch_load:
-                    main_table_id, partition_table_id = self.dag_id, f"{self.dag_id}_partitions"
+                    main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
                     bq_delete_old(
                         start_date,
                         end_date,
@@ -296,6 +302,7 @@ class StreamTelescope(Workflow):
 
     def bq_append_new(self, release: StreamRelease, **kwargs):
         """Append rows to the 'main' table, based on rows that are in a partition of the 'partitions' table.
+
         :param release: a StreamRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
@@ -306,7 +313,7 @@ class StreamTelescope(Workflow):
             for transform_path in release.transform_files:
                 if self.batch_load:
                     transform_blob = batch_blob_name(release.transform_folder)
-                    main_table_id, partition_table_id = self.dag_id, f"{self.dag_id}_partitions"
+                    main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
                 else:
                     transform_blob = blob_name(transform_path)
                     main_table_id, partition_table_id = table_ids_from_path(transform_path)
@@ -334,7 +341,7 @@ class StreamTelescope(Workflow):
             logging.info(f"Appending data to main table from partitions after {start_date} and on or before {end_date}")
             for transform_path in release.transform_files:
                 if self.batch_load:
-                    main_table_id, partition_table_id = self.dag_id, f"{self.dag_id}_partitions"
+                    main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
                     bq_append_from_partition(
                         self.schema_folder,
                         start_date,
@@ -367,6 +374,7 @@ class StreamTelescope(Workflow):
 
     def cleanup(self, release: StreamRelease, **kwargs):
         """Delete downloaded, extracted and transformed files of the release.
+
         :param release: a StreamRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
