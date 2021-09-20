@@ -14,13 +14,10 @@
 
 # Author: Aniek Roelofs, Tuan Chien
 
-from unittest.mock import MagicMock
-from airflow.utils.state import State
-
-from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope, get_data_interval
 import os
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+from airflow.utils.state import State
 
 import pendulum
 from airflow.models.taskinstance import TaskInstance
@@ -28,12 +25,12 @@ from google.cloud.bigquery import SourceFormat
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase
 from observatory.platform.utils.workflow_utils import blob_name, table_ids_from_path
 from observatory.platform.workflows.stream_telescope import (
+    get_data_interval,
     StreamRelease,
     StreamTelescope,
 )
 
 DEFAULT_SCHEMA_PATH = "/path/to/schemas"
-
 
 class TestStreamTelescope(StreamTelescope):
     """
@@ -101,7 +98,7 @@ class TestStreamTelescope(StreamTelescope):
 
 
 class TestTestStreamTelescope(ObservatoryTestCase):
-    """ Tests the StreamTelescope. """
+    """Tests the StreamTelescope."""
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -310,7 +307,6 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                     ]:
                         mocked_function.reset_mock()
 
-
 class MockTelescope(StreamTelescope):
     def __init__(self, start_date: pendulum.DateTime = pendulum.now(), schedule_interval: str = "@monthly"):
         super().__init__(
@@ -411,6 +407,15 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
             self.assertEqual(call_args[1], "data")
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
+    def test_extract(self, m_get):
+        m_get.return_value = "data"
+        telescope = MockTelescope()
+        release = telescope.make_release()
+        release.extract = MagicMock()
+        telescope.extract(release)
+        self.assertEqual(release.extract.call_count, 1)
+
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_transform(self, m_get):
         m_get.return_value = "data"
         telescope = MockTelescope()
@@ -420,10 +425,15 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
         self.assertEqual(releases.transform.call_count, 1)
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
-    def test_extract(self, m_get):
+    def test_upload_transformed(self, m_get):
         m_get.return_value = "data"
-        telescope = MockTelescope()
-        release = telescope.make_release()
-        release.extract = MagicMock()
-        telescope.extract(release)
-        self.assertEqual(release.extract.call_count, 1)
+        with patch("observatory.platform.workflows.stream_telescope.upload_files_from_list") as m_upload:
+            telescope = MockTelescope()
+
+            releases = telescope.make_release()
+            telescope.upload_transformed(releases)
+
+            self.assertEqual(m_upload.call_count, 1)
+            call_args, _ = m_upload.call_args
+            self.assertEqual(call_args[0], [])
+            self.assertEqual(call_args[1], "data")
