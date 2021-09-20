@@ -114,7 +114,7 @@ def get_http_text_response(url: str) -> str:
     HTTP_OK = 200
     response = retry_session().get(url)
     if response.status_code != HTTP_OK:
-        raise ConnectionError(f"Error requesting {url}")
+        raise ConnectionError(f"Error requesting {url}. Status: {response.status_code}")
 
     return response.text
 

@@ -14,8 +14,12 @@
 
 # Author: James Diprose
 
+import logging
+import subprocess
 from subprocess import Popen
-from typing import Tuple
+from typing import List, Tuple, Union
+
+from airflow.exceptions import AirflowException
 
 
 def wait_for_process(proc: Popen) -> Tuple[str, str]:
@@ -52,3 +56,32 @@ def stream_process(proc: Popen, debug: bool) -> Tuple[str, str]:
         if proc.poll() is not None:
             break
     return output_concat, error_concat
+
+
+def run_cmd(cmd: Union[str, List[str]], shell: bool = False, executable: Union[None, str] = None):
+    """Run a command (program).
+
+    :param cmd: Command to run. Either a single string, or a list of strings.
+    :param shell: Whether to use a shell to invoke it.
+    :param executable: If you set shell to True, you have to specify this to the shell path, e.g., /bin/bash
+    """
+
+    p = Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable=executable)
+    stdout, stderr = wait_for_process(p)
+
+    if stdout:
+        logging.info(stdout)
+
+    success = p.returncode == 0
+    if not success:
+        raise AirflowException(f"Command {cmd} failed: {stderr}")
+
+
+def run_bash_cmd(cmd: str):
+    """Run a command in the bash shell and wait until it's done.  Log the output.
+    Raise an exception where there's stderr.
+
+    :param cmd: Command to run.
+    """
+
+    run_cmd(cmd=cmd, shell=True, executable="/bin/bash")
