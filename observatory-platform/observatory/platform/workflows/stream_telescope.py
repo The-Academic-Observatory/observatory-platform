@@ -21,9 +21,9 @@ import pendulum
 from airflow.exceptions import AirflowSkipException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from croniter import croniter
 from google.cloud.bigquery import SourceFormat
 
-from observatory.platform.airflow.data_interval import infer_automated_data_interval
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
@@ -65,6 +65,16 @@ class StreamRelease(Release):
         self.first_release = first_release
         release_id = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
         super().__init__(dag_id, release_id, download_files_regex, extract_files_regex, transform_files_regex)
+
+
+def get_data_interval(
+    execution_date: pendulum.DateTime, schedule_interval: str
+) -> Tuple[pendulum.DateTime, pendulum.DateTime]:
+    """ """
+
+    schedule_interval = croniter(schedule_interval, execution_date)
+    end_date = pendulum.from_timestamp(schedule_interval.get_next())
+    return execution_date, end_date
 
 
 class StreamTelescope(Workflow):
@@ -145,7 +155,7 @@ class StreamTelescope(Workflow):
         self.batch_load = batch_load
 
     def get_release_info(self, **kwargs) -> Tuple[pendulum.DateTime, pendulum.DateTime, bool]:
-        """Create a release instance and update the xcom value with the last start date.
+        """Return release information with the start and end date.
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
@@ -160,8 +170,8 @@ class StreamTelescope(Workflow):
             # When not first release, set start date to be the end date of the previous DAG run
             # Subtract 1 day because end of interval is the start of the next DAG run
             prev_dag_run: DagRun = dag_run.get_previous_dagrun()
-            interval = infer_automated_data_interval(prev_dag_run.execution_date, self.schedule_interval)
-            start_date = interval.end.subtract(days=1).start_of("day")
+            _, prev_end_date = get_data_interval(prev_dag_run.execution_date, self.schedule_interval)
+            start_date = prev_end_date.subtract(days=1).start_of("day")
 
         # Set end date to end of time period, subtract 2 days, because data from same day might not be available yet.
         # and next execution date is the start of the next DAG run
