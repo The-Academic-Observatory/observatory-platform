@@ -26,13 +26,11 @@ from google.cloud.bigquery import SourceFormat
 
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.workflow_utils import (
-    batch_blob_name,
-    blob_name,
     bq_append_from_file,
     bq_append_from_partition,
     bq_delete_old,
     bq_load_ingestion_partition,
-    table_ids_from_path,
+    get_bq_load_info,
     upload_files_from_list,
     is_first_dag_run,
 )
@@ -239,13 +237,8 @@ class StreamTelescope(Workflow):
             # because a first release can be relatively big in size.
             raise AirflowSkipException("Skipped, because first release")
 
-        for transform_path in release.transform_files:
-            if self.batch_load:
-                transform_blob = batch_blob_name(release.transform_folder)
-                main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
-            else:
-                transform_blob = blob_name(transform_path)
-                main_table_id, partition_table_id = table_ids_from_path(transform_path)
+        bq_load_info = get_bq_load_info(self.dag_id, release.transform_folder, release.transform_files, self.batch_load)
+        for transform_blob, main_table_id, partition_table_id in bq_load_info:
             table_description = self.table_descriptions.get(main_table_id, "")
             bq_load_ingestion_partition(
                 self.schema_folder,
@@ -261,8 +254,6 @@ class StreamTelescope(Workflow):
                 table_description=table_description,
                 **self.load_bigquery_table_kwargs,
             )
-            if self.batch_load:
-                return
 
     def bq_delete_old(self, release: StreamRelease, **kwargs):
         """Delete old rows from the 'main' table, based on rows that are in a partition of the 'partitions' table.
@@ -285,28 +276,18 @@ class StreamTelescope(Workflow):
             logging.info(
                 f"Deleting old data from main table using partitions after {start_date} and on or before" f" {end_date}"
             )
-            for transform_path in release.transform_files:
-                if self.batch_load:
-                    main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
-                    bq_delete_old(
-                        start_date,
-                        end_date,
-                        self.dataset_id,
-                        main_table_id,
-                        partition_table_id,
-                        self.merge_partition_field,
-                    )
-                    return
-                else:
-                    main_table_id, partition_table_id = table_ids_from_path(transform_path)
-                    bq_delete_old(
-                        start_date,
-                        end_date,
-                        self.dataset_id,
-                        main_table_id,
-                        partition_table_id,
-                        self.merge_partition_field,
-                    )
+            bq_load_info = get_bq_load_info(
+                self.dag_id, release.transform_folder, release.transform_files, self.batch_load
+            )
+            for _, main_table_id, partition_table_id in bq_load_info:
+                bq_delete_old(
+                    start_date,
+                    end_date,
+                    self.dataset_id,
+                    main_table_id,
+                    partition_table_id,
+                    self.merge_partition_field,
+                )
         else:
             raise AirflowSkipException(
                 f"Skipped, only delete old records every {self.bq_merge_days} days. "
@@ -322,15 +303,11 @@ class StreamTelescope(Workflow):
         """
         ti: TaskInstance = kwargs["ti"]
 
+        bq_load_info = get_bq_load_info(self.dag_id, release.transform_folder, release.transform_files, self.batch_load)
+
         if release.first_release:
             ti.xcom_push(key=self.XCOM_BQ_DATES, value=ti.start_date.strftime("%Y%m%d"))
-            for transform_path in release.transform_files:
-                if self.batch_load:
-                    transform_blob = batch_blob_name(release.transform_folder)
-                    main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
-                else:
-                    transform_blob = blob_name(transform_path)
-                    main_table_id, partition_table_id = table_ids_from_path(transform_path)
+            for transform_blob, main_table_id, partition_table_id in bq_load_info:
                 table_description = self.table_descriptions.get(main_table_id, "")
                 bq_append_from_file(
                     self.schema_folder,
@@ -345,8 +322,6 @@ class StreamTelescope(Workflow):
                     table_description=table_description,
                     **self.load_bigquery_table_kwargs,
                 )
-                if self.batch_load:
-                    return
             return
 
         start_date = pendulum.from_format(
@@ -356,19 +331,7 @@ class StreamTelescope(Workflow):
         if (end_date - start_date).days + 1 >= self.bq_merge_days:
             ti.xcom_push(key=self.XCOM_BQ_DATES, value=ti.start_date.strftime("%Y%m%d"))
             logging.info(f"Appending data to main table from partitions after {start_date} and on or before {end_date}")
-            if self.batch_load:
-                main_table_id, partition_table_id = self.dag_id, f"{self.dag_id}_partitions"
-                bq_append_from_partition(
-                    start_date,
-                    end_date,
-                    self.dataset_id,
-                    main_table_id,
-                    partition_table_id,
-                    self.merge_partition_field,
-                )
-                return
-            for transform_path in release.transform_files:
-                main_table_id, partition_table_id = table_ids_from_path(transform_path)
+            for transform_blob, main_table_id, partition_table_id in bq_load_info:
                 bq_append_from_partition(
                     start_date,
                     end_date,

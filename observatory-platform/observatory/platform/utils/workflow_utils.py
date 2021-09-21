@@ -56,12 +56,10 @@ from observatory.platform.utils.config_utils import find_schema, utils_templates
 from observatory.platform.utils.file_utils import load_file, write_to_file
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
-    copy_bigquery_table,
     create_bigquery_dataset,
     load_bigquery_table,
     run_bigquery_query,
     select_table_shard_dates,
-    upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
@@ -252,6 +250,31 @@ def prepare_bq_load(
     if schema_file_path is None:
         exit(os.EX_CONFIG)
     return project_id, bucket_name, data_location, schema_file_path
+
+
+def get_bq_load_info(
+    dag_id: str, transform_folder: str, transform_files: List[str], batch_load: bool
+) -> List[Tuple[str, str, str]]:
+    """Get (a list of) the transform blob, main table id and partition table id that are used to load data into
+    BigQuery.
+    When the batch_load property of the telescope is set to True, all blobs in the transform folder will be loaded
+    into 1 table at once.
+    When the batch_load property of the telescope is set to False, each blob in the transform folder will be used to
+    create/update an individual table.
+
+    :return: List with tuples of transform_blob, main_table_id and partition_table_id
+    """
+    if batch_load:
+        transform_blob = batch_blob_name(transform_folder)
+        main_table_id, partition_table_id = (dag_id, f"{dag_id}_partitions")
+        bq_info = [(transform_blob, main_table_id, partition_table_id)]
+    else:
+        bq_info = []
+        for transform_path in transform_files:
+            transform_blob = blob_name(transform_path)
+            main_table_id, partition_table_id = table_ids_from_path(transform_path)
+            bq_info.append((transform_blob, main_table_id, partition_table_id))
+    return bq_info
 
 
 def prepare_bq_load_v2(
