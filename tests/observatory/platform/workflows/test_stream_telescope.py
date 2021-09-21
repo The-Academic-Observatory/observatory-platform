@@ -17,6 +17,8 @@
 from unittest.mock import MagicMock, patch
 
 import pendulum
+
+from observatory.platform.airflow.data_interval import infer_automated_data_interval
 from observatory.platform.utils.test_utils import ObservatoryTestCase
 from observatory.platform.workflows.stream_telescope import (
     StreamRelease,
@@ -40,9 +42,31 @@ class MockTelescope(StreamTelescope):
         return StreamRelease(dag_id="dag", start_date=pendulum.now(), end_date=pendulum.now(), first_release=True)
 
 
-class TestSnapshotTelescope(ObservatoryTestCase):
+class TestStreamTelescope(ObservatoryTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    def test_get_data_interval(self):
+        # Daily
+        execution_date = pendulum.datetime(2021, 9, 5)
+        expected_end = pendulum.datetime(2021, 9, 6)
+        start, end = infer_automated_data_interval(execution_date, "@daily")
+        self.assertEqual(execution_date, start)
+        self.assertEqual(expected_end, end)
+
+        # Weekly
+        execution_date = pendulum.datetime(2021, 9, 5)
+        expected_end = pendulum.datetime(2021, 9, 12)
+        start, end = infer_automated_data_interval(execution_date, "@weekly")
+        self.assertEqual(execution_date, start)
+        self.assertEqual(expected_end, end)
+
+        # Monthly
+        execution_date = pendulum.datetime(2021, 9, 1)
+        expected_end = pendulum.datetime(2021, 10, 1)
+        start, end = infer_automated_data_interval(execution_date, "@monthly")
+        self.assertEqual(execution_date, start)
+        self.assertEqual(expected_end, end)
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_download(self, m_get):
