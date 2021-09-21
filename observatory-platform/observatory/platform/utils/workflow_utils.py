@@ -650,10 +650,13 @@ def bq_append_from_file(
         raise AirflowException()
 
 
-def on_failure_callback(**kwargs):
+def on_failure_callback(context):
     """
     Function that is called on failure of an airflow task. Will create a slack webhook and send a notification.
-    :param kwargs:
+
+    :param context: the context passed from the PythonOperator. See
+    https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
+    this  argument.
     :return: None.
     """
 
@@ -666,12 +669,12 @@ def on_failure_callback(**kwargs):
     if environment == Environment.develop.value:
         logging.info("Not sending slack notification in develop environment.")
     else:
-        exception = kwargs.get("exception")
+        exception = context.get("exception")
         formatted_exception = "".join(
             traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
         ).strip()
         comments = f"Task failed, exception:\n{formatted_exception}"
-        slack_hook = create_slack_webhook(comments, project_id, **kwargs)
+        slack_hook = create_slack_webhook(comments, project_id, context)
         slack_hook.execute()
 
 
