@@ -15,15 +15,15 @@
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
 
 import logging
-from datetime import timedelta
-from typing import Dict
+from typing import Dict, Tuple
 
 import pendulum
 from airflow.exceptions import AirflowSkipException
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 
-from observatory.platform.workflows.workflow import Release, Workflow
+from observatory.platform.airflow.data_interval import infer_automated_data_interval
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
@@ -34,7 +34,9 @@ from observatory.platform.utils.workflow_utils import (
     bq_load_ingestion_partition,
     table_ids_from_path,
     upload_files_from_list,
+    is_first_dag_run,
 )
+from observatory.platform.workflows.workflow import Release, Workflow
 
 
 class StreamRelease(Release):
@@ -142,33 +144,31 @@ class StreamTelescope(Workflow):
         self.table_descriptions = table_descriptions if table_descriptions else dict()
         self.batch_load = batch_load
 
-    def get_release_info(self, **kwargs) -> bool:
-        """Push the release info (start date, end date, first release) using Xcoms.
-
+    def get_release_info(self, **kwargs) -> Tuple[pendulum.DateTime, pendulum.DateTime, bool]:
+        """Create a release instance and update the xcom value with the last start date.
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
-        ti: TaskInstance = kwargs["ti"]
 
-        first_release = False
-        release_info = ti.xcom_pull(key=self.RELEASE_INFO, include_prior_dates=True)
-        if not release_info:
-            first_release = True
-            # set start date to the start of the DAG
+        # Check if first release or not
+        first_release = is_first_dag_run(**kwargs)
+        dag_run: DagRun = kwargs["dag_run"]
+        if first_release:
+            # When first release, set start date to the start of the DAG
             start_date = pendulum.instance(kwargs["dag"].default_args["start_date"]).start_of("day")
         else:
-            # set start date to end date of previous DAG run, add 1 day, because end date was processed in prev run.
-            start_date = pendulum.parse(release_info[1]) + timedelta(days=1)
-        # set start date to current day, subtract 1 day, because data from same day might not be available yet.
-        end_date = pendulum.today("UTC") - timedelta(days=1)
+            # When not first release, set start date to be the end date of the previous DAG run
+            # Subtract 1 day because end of interval is the start of the next DAG run
+            prev_dag_run: DagRun = dag_run.get_previous_dagrun()
+            interval = infer_automated_data_interval(prev_dag_run.execution_date, self.schedule_interval)
+            start_date = interval.end.subtract(days=1).start_of("day")
+
+        # Set end date to end of time period, subtract 2 days, because data from same day might not be available yet.
+        # and next execution date is the start of the next DAG run
+        end_date = kwargs["next_execution_date"].subtract(days=2).start_of("day")
         logging.info(f"Start date: {start_date}, end date: {end_date}, first release: {first_release}")
 
-        # Turn dates into strings.  Prefer JSON'able data over pickling in Airflow 2.
-        start_date = start_date.format("YYYYMMDD")
-        end_date = end_date.format("YYYYMMDD")
-
-        ti.xcom_push(self.RELEASE_INFO, (start_date, end_date, first_release))
-        return True
+        return start_date, end_date, first_release
 
     def download(self, release: StreamRelease, **kwargs):
         """Task to download the StreamRelease release.
