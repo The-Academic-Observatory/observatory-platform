@@ -126,17 +126,17 @@ def check_connections(*connections):
     return is_valid
 
 
-def create_slack_webhook(comments: str = "", project_id: str = "?", **kwargs) -> SlackWebhookHook:
+def create_slack_webhook(comments: str = "", project_id: str = "?", context: dict = None) -> SlackWebhookHook:
     """
     Creates a slack webhook using the token in the slack airflow connection.
     :param comments: Additional comments in slack message
     :param project_id: The google cloud project id that will be displayed in the slack message
-    :param kwargs: the context passed from the PythonOperator. See
+    :param context: the context passed from the PythonOperator. See
     https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
     this  argument.
     :return: slack webhook
     """
-    ti: TaskInstance = kwargs["ti"]
+    ti: TaskInstance = context["ti"]
 
     message = """
     :red_circle: Task Alert. 
@@ -149,8 +149,7 @@ def create_slack_webhook(comments: str = "", project_id: str = "?", **kwargs) ->
     """.format(
         task=ti.task_id,
         dag=ti.dag_id,
-        ti=ti,
-        exec_date=kwargs["execution_date"],
+        exec_date=context["execution_date"],
         log_url=ti.log_url,
         comments=comments,
         project_id=project_id,

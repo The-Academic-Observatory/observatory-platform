@@ -27,7 +27,7 @@ from urllib.parse import quote
 import paramiko
 import pendulum
 import pysftp
-from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
+from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.variable import Variable
@@ -853,13 +853,13 @@ class TestTemplateUtils(unittest.TestCase):
         mock_variable_get.side_effect = ["develop", "project_id", "staging", "project_id"]
         mock_create_slack_webhook.return_value = Mock(spec=SlackWebhookHook)
 
-        kwargs = {"exception": AirflowException("Exception message")}
-        on_failure_callback(**kwargs)
+        context = {"exception": AirflowException("Exception message")}
+        on_failure_callback(context)
         mock_create_slack_webhook.assert_not_called()
 
-        on_failure_callback(**kwargs)
+        on_failure_callback(context)
         mock_create_slack_webhook.assert_called_once_with(
-            "Task failed, exception:\n" "airflow.exceptions.AirflowException: Exception message", "project_id", **kwargs
+            "Task failed, exception:\n" "airflow.exceptions.AirflowException: Exception message", "project_id", context
         )
 
 
