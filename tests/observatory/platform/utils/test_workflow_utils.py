@@ -743,7 +743,7 @@ class TestTemplateUtils(unittest.TestCase):
                     telescope.dataset_id,
                     main_table_id,
                     partition_table_id,
-                    telescope.merge_partition_field
+                    telescope.merge_partition_field,
                 )
 
                 expected_query = (
@@ -765,7 +765,7 @@ class TestTemplateUtils(unittest.TestCase):
                     "  FROM\n"
                     "    `{dataset}.{partitioned_table}` AS table WHERE _PARTITIONDATE > '{start_date}' AND _PARTITIONDATE <= '{end_date}'\n"
                     "  GROUP BY\n"
-                    "    id)".format(
+                    "    id)\n".format(
                         dataset=telescope.dataset_id,
                         main_table=main_table_id,
                         partitioned_table=partition_table_id,
