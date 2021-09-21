@@ -1284,7 +1284,7 @@ def make_release_date(**kwargs) -> pendulum.DateTime:
 def is_first_dag_run(**kwargs) -> bool:
     """ Whether the DAG Run is the first run or not """
 
-    return kwargs.get("prev_ds") is None
+    return kwargs["dag_run"].get_previous_dagrun() is None
 
 
 def make_table_name(
