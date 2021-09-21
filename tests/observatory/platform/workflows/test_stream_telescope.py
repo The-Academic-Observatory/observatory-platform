@@ -18,12 +18,8 @@ from unittest.mock import MagicMock, patch
 
 import pendulum
 
-from observatory.platform.airflow.data_interval import infer_automated_data_interval
 from observatory.platform.utils.test_utils import ObservatoryTestCase
-from observatory.platform.workflows.stream_telescope import (
-    StreamRelease,
-    StreamTelescope,
-)
+from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope, get_data_interval
 
 
 class MockTelescope(StreamTelescope):
@@ -50,21 +46,21 @@ class TestStreamTelescope(ObservatoryTestCase):
         # Daily
         execution_date = pendulum.datetime(2021, 9, 5)
         expected_end = pendulum.datetime(2021, 9, 6)
-        start, end = infer_automated_data_interval(execution_date, "@daily")
+        start, end = get_data_interval(execution_date, "@daily")
         self.assertEqual(execution_date, start)
         self.assertEqual(expected_end, end)
 
         # Weekly
         execution_date = pendulum.datetime(2021, 9, 5)
         expected_end = pendulum.datetime(2021, 9, 12)
-        start, end = infer_automated_data_interval(execution_date, "@weekly")
+        start, end = get_data_interval(execution_date, "@weekly")
         self.assertEqual(execution_date, start)
         self.assertEqual(expected_end, end)
 
         # Monthly
         execution_date = pendulum.datetime(2021, 9, 1)
         expected_end = pendulum.datetime(2021, 10, 1)
-        start, end = infer_automated_data_interval(execution_date, "@monthly")
+        start, end = get_data_interval(execution_date, "@monthly")
         self.assertEqual(execution_date, start)
         self.assertEqual(expected_end, end)
 
