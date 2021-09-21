@@ -70,7 +70,8 @@ class StreamRelease(Release):
 def get_data_interval(
     execution_date: pendulum.DateTime, schedule_interval: str
 ) -> Tuple[pendulum.DateTime, pendulum.DateTime]:
-    """ """
+    """Get the data interval for a DAG Run. TODO: replace this in Airflow 2.2 when data intervals are part of
+    the DAG model"""
 
     schedule_interval = croniter(schedule_interval, execution_date)
     end_date = pendulum.from_timestamp(schedule_interval.get_next())
