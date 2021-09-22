@@ -33,6 +33,12 @@ RUN groupmod -g ${HOST_GROUP_ID} airflow
 # Install Python dependencies for Observatory Platform as airflow user
 USER airflow
 
+# Clean up default installed Python packages
+RUN pip freeze | xargs pip uninstall -y
+RUN python -m pip install --upgrade pip
+RUN pip cache purge
+RUN pip install apache-airflow-providers-google==5.1.0
+
 # Install dependencies for all projects
 {% for package in config.python_packages %}
 # Set working directory for {{ package.name }}
@@ -96,6 +102,7 @@ WORKDIR ${AIRFLOW_HOME}
 
 # Copy entry point scripts which install new dependencies at runtime and the Observatory Platform Python package
 USER root
+
 COPY entrypoint-root.sh /entrypoint-root.sh
 COPY entrypoint-airflow.sh /entrypoint-airflow.sh
 RUN chmod +x /entrypoint-root.sh
