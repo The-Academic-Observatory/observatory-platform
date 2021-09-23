@@ -48,7 +48,6 @@ x-environment: &environment
   AIRFLOW__CORE__EXECUTOR: CeleryExecutor
   AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgres+psycopg2://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
   AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
-  AIRFLOW__CORE__AIRFLOW_HOME: /opt/airflow
   AIRFLOW__CORE__LOAD_EXAMPLES: "False"
   AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
   AIRFLOW__CORE__EXECUTE_TASKS_NEW_PYTHON_INTERPRETER: "True"
@@ -59,9 +58,9 @@ x-environment: &environment
   AIRFLOW__CELERY_BROKER_TRANSPORT_OPTIONS__VISIBILITY_TIMEOUT: 259200
   AIRFLOW__API__AUTH_BACKEND: airflow.api.auth.backend.basic_auth
   {%- if config.backend.type.value == 'terraform' %}
-  AIRFLOW__CORE__REMOTE_LOGGING: "True"
-  AIRFLOW__CORE__REMOTE_BASE_LOG_FOLDER: "gs://${AIRFLOW_VAR_AIRFLOW_BUCKET}/logs"
-  AIRFLOW__CORE__REMOTE_LOG_CONN_ID: "google_cloud_observatory"
+  AIRFLOW__LOGGING__REMOTE_LOGGING: "True"
+  AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: "gs://${AIRFLOW_VAR_AIRFLOW_BUCKET}/logs"
+  AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: "google_cloud_observatory"
   AIRFLOW__SECRETS__BACKEND: "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
   AIRFLOW__SECRETS__BACKEND_KWARGS: "{'connections_prefix': 'airflow-connections', 'variables_prefix': 'airflow-variables', 'sep': '-'}"
   {%- endif %}
