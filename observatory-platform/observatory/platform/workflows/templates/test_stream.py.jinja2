@@ -46,8 +46,7 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
         dag = {{ workflow_class }}().make_dag()
         self.assert_dag_structure(
             {
-                "check_dependencies": ["get_release_info"],
-                "get_release_info": ["task1"],
+                "check_dependencies": ["task1"],
                 "task1": ["cleanup"],
                 "cleanup": [],
             },
@@ -81,13 +80,11 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
             # Test the dag run for the first release
             with env.create_dag_run(dag, self.first_execution_date):
                 env.run_task(workflow.check_dependencies.__name__)
-                env.run_task(workflow.get_release_info.__name__)
                 env.run_task(workflow.task1.__name__)
                 env.run_task(workflow.cleanup.__name__)
 
             # Test the dag run for a later release
             with env.create_dag_run(dag, self.second_execution_date):
                 env.run_task(workflow.check_dependencies.__name__)
-                env.run_task(workflow.get_release_info.__name__)
                 env.run_task(workflow.task1.__name__)
                 env.run_task(workflow.cleanup.__name__)

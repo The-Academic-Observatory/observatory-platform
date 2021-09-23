@@ -14,25 +14,35 @@
 
 # Author: Tuan Chien
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pendulum
+from airflow.utils.state import State
 
+from observatory.platform.utils.test_utils import (
+    ObservatoryEnvironment,
+)
 from observatory.platform.utils.test_utils import ObservatoryTestCase
 from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope, get_data_interval
 
 
 class MockTelescope(StreamTelescope):
-    def __init__(self):
+    def __init__(self, start_date: pendulum.DateTime = pendulum.now(), schedule_interval: str = "@monthly"):
         super().__init__(
             dag_id="dag",
-            start_date=pendulum.now(),
-            schedule_interval="@monthly",
+            start_date=start_date,
+            schedule_interval=schedule_interval,
             dataset_id="data",
             merge_partition_field="field",
             bq_merge_days=1,
             schema_folder="folder",
         )
+        self.add_setup_task(self.task)
+
+    def task(self, **kwargs):
+        self.start, self.end, self.first_release = self.get_release_info(**kwargs)
+        print("Hello")
 
     def make_release(self, **kwargs):
         return StreamRelease(dag_id="dag", start_date=pendulum.now(), end_date=pendulum.now(), first_release=True)
@@ -63,6 +73,35 @@ class TestStreamTelescope(ObservatoryTestCase):
         start, end = get_data_interval(execution_date, "@monthly")
         self.assertEqual(execution_date, start)
         self.assertEqual(expected_end, end)
+
+    def test_get_release_info(self):
+        start_date = pendulum.datetime(2020, 9, 1)
+        env = ObservatoryEnvironment(enable_api=False)
+        with env.create():
+            first_execution_date = pendulum.datetime(2021, 9, 1)
+            telescope = MockTelescope(start_date=start_date, schedule_interval="@monthly")
+            dag = telescope.make_dag()
+
+            # First DAG Run
+            with env.create_dag_run(dag=dag, execution_date=first_execution_date):
+                ti = env.run_task("task", dag, execution_date=first_execution_date)
+                self.assertEqual(ti.state, State.SUCCESS)
+                expected_start = start_date
+                expected_end = pendulum.datetime(2021, 9, 29)
+                self.assertEqual(expected_start, telescope.start)
+                self.assertEqual(expected_end, telescope.end)
+                self.assertTrue(telescope.first_release)
+
+            # Second DAG Run
+            second_execution_date = pendulum.datetime(2021, 10, 1)
+            with env.create_dag_run(dag=dag, execution_date=second_execution_date):
+                ti = env.run_task("task", dag, execution_date=second_execution_date)
+                self.assertEqual(ti.state, State.SUCCESS)
+                expected_start = pendulum.datetime(2021, 9, 30)
+                expected_end = pendulum.datetime(2021, 10, 30)
+                self.assertEqual(expected_start, telescope.start)
+                self.assertEqual(expected_end, telescope.end)
+                self.assertFalse(telescope.first_release)
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_download(self, m_get):

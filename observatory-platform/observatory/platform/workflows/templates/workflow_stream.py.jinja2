@@ -107,7 +107,6 @@ class {{ workflow_class }}(StreamTelescope):
 
         # Add setup tasks
         self.add_setup_task(self.check_dependencies)
-        self.add_setup_task(self.get_release_info)
 
         # Add ETL tasks
         self.add_task(self.task1)  # User provided
@@ -127,14 +126,10 @@ class {{ workflow_class }}(StreamTelescope):
         :param kwargs: The context passed from the PythonOperator.
         :return: {{ workflow_class }}Release
         """
-        ti: TaskInstance = kwargs["ti"]
-        start_date, end_date, first_release = ti.xcom_pull(key={{ workflow_class }}.RELEASE_INFO, include_prior_dates=True)
 
-        start_date = pendulum.parse(start_date)
-        end_date = pendulum.parse(end_date)
+        start_date, end_date, first_release = self.get_release_info(**kwargs)
 
-        release = {{ workflow_class }}Release(self.dag_id, start_date, end_date, first_release)
-        return release
+        return {{ workflow_class }}Release(self.dag_id, start_date, end_date, first_release)
 
     def task1(self, release: {{ workflow_class }}Release, **kwargs):
         """Add your own comments.
