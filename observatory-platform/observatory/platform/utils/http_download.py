@@ -167,7 +167,6 @@ async def worker_(name: str, downloads: asyncio.Queue, errors: List[Exception], 
             continue
 
         # Download the file
-        # filename = download_info["filename"]
         url = download_info["url"]
         logging.info(f"{name}: downloading {url}")
 
@@ -260,9 +259,6 @@ def download_file(
     :param headers: Any custom header you want to use in HTTP session.
     :return: True on sucess, False on failure.
     """
-
-    # if filename is None:
-    #     filename = get_filename_from_url(url=url)
 
     download_dict = {"url": url, "filename": filename}
     if hash_algorithm is not None:
