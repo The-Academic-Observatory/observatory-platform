@@ -19,7 +19,11 @@ import shutil
 from unittest.mock import patch
 
 from click.testing import CliRunner
-from observatory.platform.utils.http_download import download_file, download_files
+from observatory.platform.utils.http_download import (
+    DownloadInfo,
+    download_file,
+    download_files,
+)
 from observatory.platform.utils.test_utils import (
     HttpServer,
     ObservatoryTestCase,
@@ -82,8 +86,8 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                 dst2 = "test2.txt"
 
                 download_list = [
-                    {"url": url1, "filename": dst1},
-                    {"url": url2, "filename": dst2},
+                    DownloadInfo(url=url1, filename=dst1),
+                    DownloadInfo(url=url2, filename=dst2),
                 ]
                 download_files(download_list=download_list)
                 self.assert_file_integrity(dst1, hash1, algorithm)
