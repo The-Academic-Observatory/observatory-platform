@@ -27,13 +27,16 @@ from urllib.parse import quote
 import paramiko
 import pendulum
 import pysftp
-from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.variable import Variable
+from airflow.operators.bash import BashOperator
+from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
+from airflow.utils.state import State
 from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
+
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import (
     gzip_file_crc,
@@ -45,7 +48,6 @@ from observatory.platform.utils.test_utils import (
     random_id,
     test_fixtures_path,
 )
-from observatory.platform.utils.url_utils import get_observatory_http_header
 from observatory.platform.utils.workflow_utils import (
     PeriodCount,
     ScheduleOptimiser,
@@ -75,6 +77,7 @@ from observatory.platform.utils.workflow_utils import (
     table_ids_from_path,
     upload_files_from_list,
     workflow_path,
+    is_first_dag_run,
 )
 from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
@@ -1011,6 +1014,45 @@ class TestWorkflowUtils(unittest.TestCase):
         expected_release_date = pendulum.datetime(2021, 11, 10)
         actual_release_date = make_release_date(**{"next_execution_date": next_execution_date})
         self.assertEqual(expected_release_date, actual_release_date)
+
+    def test_is_first_dag_run(self):
+        """Test is_first_dag_run"""
+
+        env = ObservatoryEnvironment(enable_api=False)
+        with env.create():
+            first_execution_date = pendulum.datetime(2021, 9, 5)
+            with DAG(
+                dag_id="hello_world_dag",
+                schedule_interval="@daily",
+                default_args={"owner": "airflow", "start_date": first_execution_date},
+                catchup=True,
+            ) as dag:
+                task = BashOperator(task_id="task", bash_command="echo 'hello'")
+
+            # First DAG Run
+            with env.create_dag_run(dag=dag, execution_date=first_execution_date) as first_dag_run:
+                # Should be true the first DAG run. Check before and after a task.
+                is_first = is_first_dag_run(**{"dag_run": first_dag_run})
+                self.assertTrue(is_first)
+
+                ti = env.run_task("task", dag, execution_date=first_execution_date)
+                self.assertEqual(ti.state, State.SUCCESS)
+
+                is_first = is_first_dag_run(**{"dag_run": first_dag_run})
+                self.assertTrue(is_first)
+
+            # Second DAG Run
+            second_execution_date = pendulum.datetime(2021, 9, 12)
+            with env.create_dag_run(dag=dag, execution_date=second_execution_date) as second_dag_run:
+                # Should be false on second DAG Run, check before and after a task.
+                is_first = is_first_dag_run(**{"dag_run": second_dag_run})
+                self.assertFalse(is_first)
+
+                ti = env.run_task("task", dag, execution_date=second_execution_date)
+                self.assertEqual(ti.state, State.SUCCESS)
+
+                is_first = is_first_dag_run(**{"dag_run": second_dag_run})
+                self.assertFalse(is_first)
 
     @patch("observatory.platform.utils.workflow_utils.select_table_shard_dates")
     def test_make_table_name(self, mock_sel_table_suffixes):
