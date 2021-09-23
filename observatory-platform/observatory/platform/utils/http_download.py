@@ -53,8 +53,7 @@ from observatory.platform.utils.url_utils import get_filename_from_url
 async def download_http_file_(*, download_info: Dict, headers=None):
     """Download a single file from a HTTP GET request.
 
-    :param url: URL to download.
-    :param dst_file: File to save download to.
+    :param download_info: Download information.
     :param headers: Optional headers to use when making get request, e.g., if providing custom User Agent.
     """
 
@@ -238,7 +237,7 @@ def download_files(*, download_list: List[Union[str, Dict]], num_connections: in
     if len(download_list) == 0:
         return
 
-    # We got a list of url instead of a dict of urls and filenames. Convert to dict.
+    # Convert list of urls to download info dict.
     if isinstance(download_list[0], str):
         download_info = [{"url": url, "filename": None} for url in download_list]
         download_list = download_info
