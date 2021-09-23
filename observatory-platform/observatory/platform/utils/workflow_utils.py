@@ -1278,7 +1278,7 @@ def add_partition_date(
 def make_release_date(**kwargs) -> pendulum.DateTime:
     """Make a release date"""
 
-    return kwargs["next_execution_date"].start_of("day").subtract(microseconds=1).start_of("day")
+    return kwargs["next_execution_date"].subtract(days=1).start_of("day")
 
 
 def is_first_dag_run(**kwargs) -> bool:
