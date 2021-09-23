@@ -39,6 +39,7 @@
 import asyncio
 import logging
 import os
+from cgi import parse_header
 from queue import Queue
 from typing import Any, Dict, List, Union
 
@@ -49,7 +50,7 @@ from observatory.platform.utils.url_utils import get_filename_from_url
 
 
 @backoff.on_exception(backoff.expo, aiohttp.ClientError, max_tries=11, max_time=60)
-async def download_http_file_(*, url: str, dst_file=None, headers=None):
+async def download_http_file_(*, download_info: Dict, headers=None):
     """Download a single file from a HTTP GET request.
 
     :param url: URL to download.
@@ -59,10 +60,20 @@ async def download_http_file_(*, url: str, dst_file=None, headers=None):
 
     READ_BUFFER_SIZE = 2 ** 16  # 64 KiB
 
-    dst_file = dst_file if dst_file is not None else get_filename_from_url(url)
+    url = download_info["url"]
+    dst_file = download_info["filename"]
 
     async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
         async with session.get(url) as resp:
+            if dst_file is None:
+                _, params = parse_header(resp.headers.get("Content-Disposition", ""))
+                if params != "" and "filename" in params:
+                    dst_file = params["filename"]
+                else:
+                    dst_file = get_filename_from_url(url=url)
+
+                download_info["filename"] = dst_file
+
             with open(dst_file, "wb") as f:
                 while True:
                     chunk = await resp.content.read(READ_BUFFER_SIZE)
@@ -82,6 +93,9 @@ def skip_download(*, download_info: Dict) -> bool:
     hash = download_info["hash"] if "hash" in download_info else None
     hash_algorithm = download_info["hash_algorithm"] if "hash_algorithm" in download_info else None
     filename = download_info["filename"]
+
+    if filename is None:
+        return False
 
     if hash_algorithm is not None and os.path.exists(filename):
         valid = validate_file_hash(file_path=filename, expected_hash=hash, algorithm=hash_algorithm)
@@ -110,6 +124,9 @@ def requeue_once_if_bad_hash(
     hash = download_info["hash"] if "hash" in download_info else None
     hash_algorithm = download_info["hash_algorithm"] if "hash_algorithm" in download_info else None
     filename = download_info["filename"]
+
+    if filename is None:
+        return
 
     if hash_algorithm is not None and exception is None:
         valid = validate_file_hash(file_path=filename, expected_hash=hash, algorithm=hash_algorithm)
@@ -150,14 +167,13 @@ async def worker_(name: str, downloads: asyncio.Queue, errors: List[Exception], 
             continue
 
         # Download the file
-        filename = download_info["filename"]
+        # filename = download_info["filename"]
         url = download_info["url"]
-
         logging.info(f"{name}: downloading {url}")
 
         exception = None
         try:
-            await download_http_file_(url=url, dst_file=filename, headers=headers)
+            await download_http_file_(download_info=download_info, headers=headers)
         except Exception as e:
             errors.append(e)
             exception = e
@@ -225,7 +241,7 @@ def download_files(*, download_list: List[Union[str, Dict]], num_connections: in
 
     # We got a list of url instead of a dict of urls and filenames. Convert to dict.
     if isinstance(download_list[0], str):
-        download_info = [{"url": url, "filename": get_filename_from_url(url)} for url in download_list]
+        download_info = [{"url": url, "filename": None} for url in download_list]
         download_list = download_info
 
     success = asyncio.run(
@@ -245,8 +261,8 @@ def download_file(
     :return: True on sucess, False on failure.
     """
 
-    if filename is None:
-        filename = get_filename_from_url(url=url)
+    # if filename is None:
+    #     filename = get_filename_from_url(url=url)
 
     download_dict = {"url": url, "filename": filename}
     if hash_algorithm is not None:

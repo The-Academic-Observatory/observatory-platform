@@ -132,3 +132,18 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                 success = download_file(url=url1, hash=hash1, hash_algorithm="md5")
                 self.assertTrue(success)
                 self.assert_file_integrity(file1, hash1, algorithm)
+
+                # Skip download because exists
+                with patch("observatory.platform.utils.http_download.download_http_file_") as m_down:
+                    success = download_file(url=url1, filename=file1, hash=hash1, hash_algorithm="md5")
+                    self.assertTrue(success)
+                    self.assert_file_integrity(file1, hash1, algorithm)
+                    self.assertEqual(m_down.call_count, 0)
+
+            # Get filename from Content-Disposition
+            with CliRunner().isolated_filesystem() as tmpdir:
+                with patch("observatory.platform.utils.http_download.parse_header") as m_header:
+                    m_header.return_value = (None, {"filename": "testfile"})
+                    success = download_file(url=url1, hash=hash1, hash_algorithm="md5")
+                    self.assertTrue(success)
+                    self.assert_file_integrity("testfile", hash1, algorithm)
