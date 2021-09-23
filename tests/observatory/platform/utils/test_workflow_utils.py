@@ -29,6 +29,7 @@ import pendulum
 import pysftp
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
+from airflow.models.dag import DAG
 from airflow.models.variable import Variable
 from airflow.operators.bash import BashOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
