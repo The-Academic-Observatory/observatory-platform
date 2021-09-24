@@ -46,6 +46,7 @@ from typing import Any, Dict, List, Union
 
 import aiohttp
 import backoff
+import validators
 from observatory.platform.utils.file_utils import validate_file_hash
 from observatory.platform.utils.url_utils import get_filename_from_url
 
@@ -224,7 +225,7 @@ async def download_http_files_(
     workers = list()
     num_workers = min(num_connections, len(download_list))
     for i in range(num_workers):
-        name = f"worker {i}"
+        name = f"{i}"
         worker = asyncio.create_task(worker_(name, downloads, errors, headers))
         workers.append(worker)
 
@@ -265,21 +266,20 @@ def download_files(
     if len(download_list) == 0:
         return
 
-    download_info_list = []
-
     # Convert list of urls to download info dict.
-    if isinstance(download_list[0], str):
-        for url in download_list:
-            download_info = DownloadInfo(
-                url=url,
-                prefix_dir=prefix_dir,
+    for i, info in enumerate(download_list):
+        if isinstance(info, str):
+            info = DownloadInfo(
+                url=info,
+                prefix_dir=prefix_dir
             )
-            download_info_list.append(download_info)
-    else:
-        download_info_list = download_list
+            download_list[i] = info
+
+        elif not isinstance(info, DownloadInfo):
+            raise Exception(f"Expecting a DownloadInfo object. Received a {type(info)}.")
 
     success = asyncio.run(
-        download_http_files_(download_list=download_info_list, num_connections=num_connections, headers=headers),
+        download_http_files_(download_list=download_list, num_connections=num_connections, headers=headers),
         debug=True,
     )
     return success
