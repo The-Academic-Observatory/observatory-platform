@@ -19,13 +19,13 @@ import os
 import click
 
 from observatory.platform.cli.click_utils import indent, INDENT1, INDENT2
-from observatory.platform.observatory_config import TerraformConfig, TerraformVariable
+from observatory.platform.observatory_config import TerraformConfig, TerraformAPIConfig, TerraformVariable
 from observatory.platform.terraform_api import TerraformApi
-from observatory.platform.terraform_builder import TerraformBuilder
+from observatory.platform.terraform_builder import TerraformBuilder, TerraformAPIBuilder
 
 
 class TerraformCommand:
-    def __init__(self, config_path: str, terraform_credentials_path: str, debug: bool = False):
+    def __init__(self, config_path: str, terraform_credentials_path: str, config_type: str, debug: bool = False):
         """Create a TerraformCommand, which can be used to create and update terraform workspaces.
 
         :param config_path: the path to the Terraform Config file.
@@ -43,9 +43,14 @@ class TerraformCommand:
         self.config_is_valid = False
         self.config = None
         if self.config_exists:
-            self.config = TerraformConfig.load(config_path)
+            if config_type == "terraform":
+                self.config = TerraformConfig.load(config_path)
+                self.terraform_builder = TerraformBuilder(config_path, debug=debug)
+            else:
+                self.config = TerraformAPIConfig.load(config_path)
+                self.terraform_builder = TerraformAPIBuilder(config_path, debug=debug)
+
             self.config_is_valid = self.config.is_valid
-            self.terraform_builder = TerraformBuilder(config_path, debug=debug)
 
     @property
     def is_environment_valid(self):
@@ -110,8 +115,7 @@ class TerraformCommand:
 
         :return: None.
         """
-        self.terraform_builder.gcloud_activate_service_account()
-        self.terraform_builder.gcloud_builds_submit()
+        self.terraform_builder.build_api_image()
 
     @property
     def verbosity(self):
@@ -134,7 +138,9 @@ class TerraformCommand:
         print(indent(f"Organization: {organization}", INDENT1))
         print(
             indent(
-                f"- Name: {workspace} (prefix: '{TerraformConfig.WORKSPACE_PREFIX}' + suffix: '{environment}')", INDENT1
+                f"- Name: {workspace} (prefix: '{self.config.WORKSPACE_PREFIX}' + api name: '{self.config.api.name}' + "
+                f"suffix: '{environment}')",
+                INDENT1,
             )
         )
         print(indent(f"- Settings: ", INDENT1))
