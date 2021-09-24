@@ -117,7 +117,7 @@ class TerraformVariable:
 
 
 class TerraformApi:
-    TERRAFORM_WORKSPACE_VERSION = "0.13.5"
+    TERRAFORM_WORKSPACE_VERSION = "1.0.5"
     VERBOSITY_WARNING = 0
     VERBOSITY_INFO = 1
     VERBOSITY_DEBUG = 2
