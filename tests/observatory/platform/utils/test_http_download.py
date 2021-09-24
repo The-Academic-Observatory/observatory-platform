@@ -14,6 +14,7 @@
 
 # Author: Tuan Chien
 
+import logging
 import os
 import shutil
 from unittest.mock import patch
@@ -145,6 +146,7 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                     self.assertEqual(m_down.call_count, 0)
 
             # Get filename from Content-Disposition
+            logging.info("Content-Disposition test")
             with CliRunner().isolated_filesystem() as tmpdir:
                 with patch("observatory.platform.utils.http_download.parse_header") as m_header:
                     m_header.return_value = (None, {"filename": "testfile"})
