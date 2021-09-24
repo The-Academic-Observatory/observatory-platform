@@ -1,0 +1,29 @@
+# The backend type: terraform
+# The environment type: develop, staging or production
+backend:
+  type: terraform-api
+  environment: develop
+
+# Terraform settings
+terraform:
+  organization: my-terraform-org-name <--
+
+# Google Cloud settings
+google_cloud:
+  project_id: my-gcp-id <--
+  credentials: /path/to/google_application_credentials.json <--
+  region: us-west1 <--
+  zone: us-west1-a <--
+  data_location: us <--
+
+# API specific settings
+api:
+  name: academic-observatory <--
+  package_path: /path/to/package/academic_observatory_workflows_api <--
+  domain_name: api.observatory.academy <--
+  subdomain: project_id
+
+# Elasticsearch
+elasticsearch:
+  host: https://address.region.gcp.cloud.es.io:port <--
+  api_key: API_KEY <--

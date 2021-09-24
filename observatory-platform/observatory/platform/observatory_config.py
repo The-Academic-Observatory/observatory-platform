@@ -101,6 +101,7 @@ class BackendType(Enum):
 
     local = "local"
     terraform = "terraform"
+    terraform_api = "terraform-api"
 
 
 class Environment(Enum):
@@ -603,11 +604,15 @@ class Api:
         based on the environment, there is no subdomain for the production environment.
     """
 
+    name: str
+    package: str
     domain_name: str
     subdomain: str
 
     def to_hcl(self):
-        return to_hcl({"domain_name": self.domain_name, "subdomain": self.subdomain})
+        return to_hcl(
+            {"name": self.name, "package": self.package, "domain_name": self.domain_name, "subdomain": self.subdomain}
+        )
 
     @staticmethod
     def from_dict(dict_: Dict) -> Api:
@@ -617,9 +622,11 @@ class Api:
         :return: the CloudSqlDatabase instance.
         """
 
+        name = dict_.get("name")
+        package = dict_.get("package")
         domain_name = dict_.get("domain_name")
         subdomain = dict_.get("subdomain")
-        return Api(domain_name, subdomain)
+        return Api(name, package, domain_name, subdomain)
 
 
 def is_base64(text: bytes) -> bool:
@@ -714,6 +721,18 @@ def customise_pointer(field, value, error):
 
     if isinstance(value, str) and value.endswith(" <--"):
         error(field, "Customise value ending with ' <--'")
+
+
+def path_exists(field, value, error):
+    """Throw an error when the given value does not exist as a path
+
+    :param field: the field.
+    :param value: the value.
+    :param error: ?
+    :return: None.
+    """
+    if not os.path.exists(value):
+        error(field, f"Given path '{value}' does not exist")
 
 
 class ObservatoryConfigValidator(Validator):
@@ -1373,6 +1392,113 @@ class TerraformConfig(ObservatoryConfig):
         f.write("\n")
 
 
+class TerraformAPIConfig(ObservatoryConfig):
+    WORKSPACE_PREFIX = "observatory-"
+
+    def __init__(
+        self,
+        backend: Backend = None,
+        observatory: Observatory = None,
+        google_cloud: GoogleCloud = None,
+        terraform: Terraform = None,
+        elasticsearch: ElasticSearch = None,
+        api: Api = None,
+        validator: ObservatoryConfigValidator = None,
+    ):
+        """Create a TerraformConfig instance.
+
+        :param backend: the backend config.
+        :param observatory: the Observatory config.
+        :param google_cloud: the Google Cloud config.
+        :param terraform: the Terraform config.
+        :param validator: an ObservatoryConfigValidator instance.
+        """
+
+        super().__init__(
+            backend=backend,
+            observatory=observatory,
+            google_cloud=google_cloud,
+            terraform=terraform,
+            validator=validator,
+        )
+        self.elasticsearch = elasticsearch
+        self.api = api
+
+    @property
+    def terraform_workspace_id(self):
+        """The Terraform workspace id.
+
+        :return: the terraform workspace id.
+        """
+
+        return TerraformAPIConfig.WORKSPACE_PREFIX + self.api.name + "-" + self.backend.environment.value
+
+    def terraform_variables(self) -> List[TerraformVariable]:
+        """Create a list of TerraformVariable instances from the TerraformAPIConfig.
+
+        :return: a list of TerraformVariable instances.
+        """
+
+        sensitive = True
+        return [
+            TerraformVariable("environment", self.backend.environment.value),
+            TerraformVariable("google_cloud", self.google_cloud.to_hcl(), sensitive=sensitive, hcl=True),
+            TerraformVariable("elasticsearch", self.elasticsearch.to_hcl(), sensitive=sensitive, hcl=True),
+            TerraformVariable("api", self.api.to_hcl(), hcl=True),
+        ]
+
+    @classmethod
+    def from_dict(cls, dict_: Dict) -> TerraformAPIConfig:
+        """Make an TerraformAPIConfig instance from a dictionary.
+
+        If the dictionary is invalid, then an ObservatoryConfig instance will be returned with no properties set,
+        except for the validator, which contains validation errors.
+
+        :param dict_: the input dictionary that has been read via yaml.safe_load.
+        :return: the TerraformConfig instance.
+        """
+
+        schema = make_schema(BackendType.terraform_api)
+        validator = ObservatoryConfigValidator()
+        is_valid = validator.validate(dict_, schema)
+
+        if is_valid:
+            (
+                backend,
+                observatory,
+                google_cloud,
+                terraform,
+                airflow_variables,
+                airflow_connections,
+                workflows_projects,
+            ) = ObservatoryConfig._parse_fields(dict_)
+
+            elasticsearch = ElasticSearch.from_dict(dict_.get("elasticsearch", dict()))
+            api = Api.from_dict(dict_.get("api", dict()))
+
+            return TerraformAPIConfig(
+                backend,
+                observatory,
+                google_cloud=google_cloud,
+                terraform=terraform,
+                elasticsearch=elasticsearch,
+                api=api,
+                validator=validator,
+            )
+        else:
+            return TerraformAPIConfig(validator=validator)
+
+    @staticmethod
+    def save_default(config_path: str):
+        """Save a default TerraformAPIConfig file.
+
+        :param config_path: the path where the config file should be saved.
+        :return: None.
+        """
+
+        ObservatoryConfig._save_default(config_path, "config-terraform-api.yaml.jinja2")
+
+
 def make_schema(backend_type: BackendType) -> Dict:
     """Make a schema for an Observatory or Terraform config file.
 
@@ -1381,7 +1507,10 @@ def make_schema(backend_type: BackendType) -> Dict:
     """
 
     schema = dict()
+    is_backend_local = backend_type == BackendType.local
     is_backend_terraform = backend_type == BackendType.terraform
+    is_backend_terraform_api = backend_type == BackendType.terraform_api
+    is_backend_terraform_or_api = backend_type == BackendType.terraform or backend_type == BackendType.terraform_api
 
     # Backend settings
     schema["backend"] = {
@@ -1395,40 +1524,44 @@ def make_schema(backend_type: BackendType) -> Dict:
 
     # Terraform settings
     schema["terraform"] = {
-        "required": is_backend_terraform,
+        "required": is_backend_terraform_or_api,
         "type": "dict",
         "schema": {"organization": {"required": True, "type": "string", "check_with": customise_pointer}},
     }
 
     # Google Cloud settings
     schema["google_cloud"] = {
-        "required": is_backend_terraform,
+        "required": is_backend_terraform_or_api,
         "type": "dict",
         "schema": {
-            "project_id": {"required": is_backend_terraform, "type": "string", "check_with": customise_pointer},
+            "project_id": {"required": is_backend_terraform_or_api, "type": "string", "check_with": customise_pointer},
             "credentials": {
-                "required": is_backend_terraform,
+                "required": is_backend_terraform_or_api,
                 "type": "string",
                 "check_with": customise_pointer,
                 "google_application_credentials": True,
             },
             "region": {
-                "required": is_backend_terraform,
+                "required": is_backend_terraform_or_api,
                 "type": "string",
                 "regex": r"^\w+\-\w+\d+$",
                 "check_with": customise_pointer,
             },
             "zone": {
-                "required": is_backend_terraform,
+                "required": is_backend_terraform_or_api,
                 "type": "string",
                 "regex": r"^\w+\-\w+\d+\-[a-z]{1}$",
                 "check_with": customise_pointer,
             },
-            "data_location": {"required": is_backend_terraform, "type": "string", "check_with": customise_pointer},
+            "data_location": {
+                "required": is_backend_terraform_or_api,
+                "type": "string",
+                "check_with": customise_pointer,
+            },
         },
     }
 
-    if not is_backend_terraform:
+    if is_backend_local:
         schema["google_cloud"]["schema"]["buckets"] = {
             "required": False,
             "type": "dict",
@@ -1439,7 +1572,7 @@ def make_schema(backend_type: BackendType) -> Dict:
     # Observatory settings
     package_types = ["editable", "sdist", "pypi"]
     schema["observatory"] = {
-        "required": True,
+        "required": is_backend_local or is_backend_terraform,
         "type": "dict",
         "schema": {
             "package": {"required": True, "type": "string"},
@@ -1535,7 +1668,7 @@ def make_schema(backend_type: BackendType) -> Dict:
         },
     }
 
-    if is_backend_terraform:
+    if is_backend_terraform_or_api:
         schema["elasticsearch"] = {
             "required": True,
             "type": "dict",
@@ -1552,7 +1685,18 @@ def make_schema(backend_type: BackendType) -> Dict:
             "required": True,
             "type": "dict",
             "schema": {
-                "domain_name": {"required": True, "type": "string"},
+                "name": {
+                    "required": is_backend_terraform_api,
+                    "type": "string",
+                    "check_with": customise_pointer,
+                    "maxlength": 15,
+                },
+                "package": {
+                    "required": is_backend_terraform_api,
+                    "type": "string",
+                    "check_with": (customise_pointer, path_exists),
+                },
+                "domain_name": {"required": True, "type": "string", "check_with": customise_pointer},
                 "subdomain": {"required": True, "type": "string", "allowed": ["project_id", "environment"]},
             },
         }
