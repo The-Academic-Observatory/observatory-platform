@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from datetime import timedelta
 from typing import List, Union
 from unittest.mock import patch
 
@@ -285,6 +286,16 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 # Test previous ti is set
                 self.assertEqual(ti1.job_id, ti2.previous_ti.job_id)
 
+    def test_create_dag_run_timedelta(self):
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        telescope = TelescopeTest(schedule_interval=timedelta(days=1))
+        dag = telescope.make_dag()
+        execution_date = pendulum.datetime(2021,1,1)
+        expected_dag_date = pendulum.datetime(2021,1,2)
+        with env.create():
+            with env.create_dag_run(dag, execution_date):
+                self.assertIsNotNone(env.dag_run)
+                self.assertEqual(expected_dag_date.date(), env.dag_run.start_date.date())
 
 class TestObservatoryTestCase(unittest.TestCase):
     """Test the ObservatoryTestCase class"""

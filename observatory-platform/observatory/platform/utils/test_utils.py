@@ -70,7 +70,7 @@ import time
 import unittest
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from multiprocessing import Process
@@ -96,6 +96,7 @@ from click.testing import CliRunner
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
@@ -374,7 +375,12 @@ class ObservatoryEnvironment:
         :return: None.
         """
         # Get start date, which is one schedule interval after execution date
-        start_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(pendulum.DateTime)
+        if isinstance(dag.normalized_schedule_interval, (timedelta, relativedelta)):
+            start_date = (
+                datetime.fromtimestamp(execution_date.timestamp(), pendulum.tz.UTC) + dag.normalized_schedule_interval
+            )
+        else:
+            start_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(pendulum.DateTime)
         frozen_time = freeze_time(start_date, tick=True)
 
         run_id = "manual__{0}".format(execution_date.isoformat())
