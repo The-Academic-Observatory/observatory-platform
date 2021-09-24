@@ -33,12 +33,14 @@ from observatory.platform.utils.config_utils import (
     terraform_credentials_path as default_terraform_credentials_path,
 )
 from observatory.platform.utils.proc_utils import stream_process
+from observatory.platform.observatory_config import BackendType
 
 PLATFORM_NAME = "Observatory Platform"
 TERRAFORM_NAME = "Observatory Terraform"
 
 LOCAL_CONFIG_PATH = os.path.join(observatory_home(), "config.yaml")
 TERRAFORM_CONFIG_PATH = os.path.join(observatory_home(), "config-terraform.yaml")
+TERRAFORM_API_CONFIG_PATH = os.path.join(observatory_home(), "config-terraform-api.yaml")
 
 
 @click.group()
@@ -395,7 +397,7 @@ def secrets(command: str):
 
 
 @generate.command()
-@click.argument("command", type=click.Choice(["local", "terraform"]))
+@click.argument("command", type=click.Choice(["local", "terraform", "terraform-api"]))
 @click.option(
     "--config-path",
     type=click.Path(exists=False, file_okay=True, dir_okay=False),
@@ -424,6 +426,7 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     COMMAND: the type of config file to generate:\n
       - local: generate a config file for running the Observatory Platform locally.\n
       - terraform: generate a config file for running the Observatory Platform with Terraform.\n
+      - terraform-api: generate a config file for deploying an API with Terraform.\n
 
     :param interactive: whether to interactively ask for configuration options.
     :param ao_wf: Whether academic_observatory_workflows was installed using the installer script.
@@ -438,8 +441,6 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     if config_path is None:
         config_path = LOCAL_CONFIG_PATH if command == "local" else TERRAFORM_CONFIG_PATH
 
-    config_name = "Observatory config" if command == "local" else "Terraform config"
-
     workflows = []
     if ao_wf:
         workflows.append("academic-observatory-workflows")
@@ -447,14 +448,22 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
         workflows.append("oaebu-workflows")
 
     cmd_func = None
-    if command == "local" and not interactive:
-        cmd_func = cmd.generate_local_config
-    elif command == "terraform" and not interactive:
-        cmd_func = cmd.generate_terraform_config
-    elif command == "local" and interactive:
-        cmd_func = cmd.generate_local_config_interactive
-    else:
-        cmd_func = cmd.generate_terraform_config_interactive
+    config_name = ""
+    if command == "local":
+        config_name = "Observatory Config"
+        if interactive:
+            cmd_func = cmd.generate_local_config_interactive
+        else:
+            cmd_func = cmd.generate_local_config
+    elif command == "terraform":
+        config_name = "Terraform Config"
+        if interactive:
+            cmd_func = cmd.generate_terraform_config
+        else:
+            cmd_func = cmd.generate_terraform_config
+    elif command == "terraform-api":
+        config_name = "Terraform API Config"
+        cmd_func = cmd.generate_terraform_api_config
 
     if not os.path.exists(config_path) or click.confirm(
         f'The file "{config_path}" exists, do you want to overwrite it?'
@@ -479,21 +488,28 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     help="",
     show_default=True,
 )
+@click.option(
+    "--config-type",
+    type=click.Choice(["terraform", "terraform-api"]),
+    default="terraform",
+    help="The api " "config " "type, " "either 'terraform' or 'terraform-api'.",
+)
 @click.option("--debug", is_flag=True, default=DEBUG, help="Print debugging information.")
-def terraform(command, config_path, terraform_credentials_path, debug):
+def terraform(command, config_path, terraform_credentials_path, config_type, debug):
     """Commands to manage the deployment of the Observatory Platform with Terraform Cloud.\n
 
     COMMAND: the type of config file to generate:\n
       - create-workspace: create a Terraform Cloud workspace.\n
       - update-workspace: update a Terraform Cloud workspace.\n
       - build-image: build a Google Compute image for the Terraform deployment with Packer.\n
+      - build-api-image: build a Docker image for the API in the Google Cloud container registry.\n
       - build-terraform: build the Terraform files.\n
     """
 
     # The minimum number of characters per line
     min_line_chars = 80
 
-    terraform_cmd = TerraformCommand(config_path, terraform_credentials_path, debug=debug)
+    terraform_cmd = TerraformCommand(config_path, terraform_credentials_path, config_type=config_type, debug=debug)
     generate_cmd = GenerateCommand()
 
     # Check dependencies
@@ -557,7 +573,10 @@ def terraform_check_dependencies(
         print(indent("- file not found, create one by running 'terraform login'", INDENT2))
 
     print(indent("Packer", INDENT1))
-    if terraform_cmd.terraform_builder.packer_exe_path is not None:
+    if (
+        terraform_cmd.config.backend.type == BackendType.terraform
+        and terraform_cmd.terraform_builder.packer_exe_path is not None
+    ):
         print(indent(f"- path: {terraform_cmd.terraform_builder.packer_exe_path}", INDENT2))
     else:
         print(indent("- not installed, please install https://www.packer.io/docs/install", INDENT2))

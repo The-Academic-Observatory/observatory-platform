@@ -127,6 +127,22 @@ class GenerateCommand:
 
         click.echo(f'{file_type} saved to: "{config_path}"')
 
+    def generate_terraform_api_config(self, config_path: str):
+        """Command line user interface for generating a Terraform Config config-terraform-api.yaml.
+
+        :param config_path: the path where the config file should be saved.
+        :return: None
+        """
+
+        file_type = "Terraform API Config"
+        click.echo(f"Generating {file_type}...")
+        TerraformAPIConfig.save_default(config_path)
+        click.echo(f'{file_type} saved to: "{config_path}"')
+        click.echo(
+            "Please customise the parameters with '<--' in the config file. "
+            "Parameters commented out with '#' are optional."
+        )
+
     def generate_workflows_project(self, project_path: str, package_name: str, author_name: str):
         """Create all directories, init files and a setup.cfg + setup.py file for a new workflows project.
 
