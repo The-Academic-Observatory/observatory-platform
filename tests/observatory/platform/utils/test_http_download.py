@@ -153,3 +153,5 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                     success = download_file(url=url1, hash=hash1, hash_algorithm="md5")
                     self.assertTrue(success)
                     self.assert_file_integrity("testfile", hash1, algorithm)
+
+            logging.info("End Content-Disposition test")
