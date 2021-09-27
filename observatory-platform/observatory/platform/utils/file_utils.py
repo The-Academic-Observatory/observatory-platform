@@ -56,63 +56,6 @@ def list_files(path: str, regex: str = None) -> List[str]:
     return paths
 
 
-# Third party code.  Remove soon in a ticket.
-def _hash_file(fpath, algorithm="sha256", chunk_size=65535):
-    """Calculates a file sha256 or md5 hash.
-
-    # Example
-
-    ```python
-        >>> from keras.utils.data_utils import _hash_file
-        >>> _hash_file('/path/to/file.zip')
-        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
-    ```
-
-    # Arguments
-        fpath: path to the file being validated
-        algorithm: hash algorithm, one of 'auto', 'sha256', or 'md5'.
-            The default 'auto' detects the hash algorithm in use.
-        chunk_size: Bytes to read at a time, important for large files.
-
-    # Returns
-        The file hash
-    """
-    if (algorithm == "sha256") or (algorithm == "auto" and len(hash) == 64):
-        hasher = hashlib.sha256()
-    else:
-        hasher = hashlib.md5()
-
-    with open(fpath, "rb") as fpath_file:
-        for chunk in iter(lambda: fpath_file.read(chunk_size), b""):
-            hasher.update(chunk)
-
-    return hasher.hexdigest()
-
-
-# Third party code.  Remove soon in a ticket.
-def validate_file(fpath, file_hash, algorithm="auto", chunk_size=65535):
-    """Validates a file against a sha256 or md5 hash.
-    # Arguments
-        fpath: path to the file being validated
-        file_hash:  The expected hash string of the file.
-            The sha256 and md5 hash algorithms are both supported.
-        algorithm: Hash algorithm, one of 'auto', 'sha256', or 'md5'.
-            The default 'auto' detects the hash algorithm in use.
-        chunk_size: Bytes to read at a time, important for large files.
-    # Returns
-        Whether the file is valid
-    """
-    if (algorithm == "sha256") or (algorithm == "auto" and len(file_hash) == 64):
-        hasher = "sha256"
-    else:
-        hasher = "md5"
-
-    if str(_hash_file(fpath, hasher, chunk_size)) == str(file_hash):
-        return True
-    else:
-        return False
-
-
 def get_hasher_(algorithm: str) -> HASH:
     """Get the hasher for the specified algorithm.
 
