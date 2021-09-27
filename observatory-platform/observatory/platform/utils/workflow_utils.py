@@ -1278,8 +1278,13 @@ def add_partition_date(
 def make_release_date(**kwargs) -> pendulum.DateTime:
     """Make a release date"""
 
-    d = kwargs["next_execution_date"].subtract(microseconds=1).date()
-    return pendulum.datetime(d.year, d.month, d.day)
+    return kwargs["next_execution_date"].subtract(days=1).start_of("day")
+
+
+def is_first_dag_run(**kwargs) -> bool:
+    """ Whether the DAG Run is the first run or not """
+
+    return kwargs["dag_run"].get_previous_dagrun() is None
 
 
 def make_table_name(
