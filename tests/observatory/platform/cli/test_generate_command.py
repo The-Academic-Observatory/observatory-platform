@@ -30,11 +30,12 @@ from unittest import TestLoader, TestResult
 from observatory.platform.cli.cli import generate
 from observatory.platform.cli.generate_command import GenerateCommand, write_rendered_template
 from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.utils.file_utils import _hash_file
+from observatory.platform.utils.file_utils import get_file_hash
 from observatory.platform.utils.proc_utils import stream_process
+from observatory.platform.utils.test_utils import ObservatoryTestCase
 
 
-class TestGenerateCommand(unittest.TestCase):
+class TestGenerateCommand(ObservatoryTestCase):
     def test_generate_fernet_key(self):
         cmd = GenerateCommand()
 
@@ -126,7 +127,7 @@ class TestGenerateCommand(unittest.TestCase):
             for d in init_dirs:
                 init_file_path = os.path.join(project_path, d, "__init__.py")
                 self.assertTrue(os.path.isfile(init_file_path))
-                self.assertEqual("098f6bcd4621d373cade4e832627b4f6", _hash_file(init_file_path, "md5"))
+                self.assert_file_integrity(init_file_path, "098f6bcd4621d373cade4e832627b4f6", "md5")
 
             self.assertEqual(3, mock_cli_confirm.call_count)
 
@@ -211,7 +212,7 @@ class TestGenerateCommand(unittest.TestCase):
 
             # Test that identifiers file is only created if it does not exist
             cmd.generate_workflow(project_path, package_name, "OrganisationTelescope", "MyOrganisation2")
-            self.assertEqual("7f1de3572c0fb605e4d24e7a2e1c4e30", _hash_file(identifiers_dst_file, "md5"))
+            self.assert_file_integrity(identifiers_dst_file, "7f1de3572c0fb605e4d24e7a2e1c4e30", "md5")
 
             # Test invalid workflow type
             with self.assertRaises(Exception):
@@ -229,14 +230,14 @@ class TestGenerateCommand(unittest.TestCase):
             file_path = "test.txt"
             with open(file_path, "w") as f:
                 f.write("test")
-            self.assertEqual("098f6bcd4621d373cade4e832627b4f6", _hash_file(file_path, "md5"))
+            self.assert_file_integrity(file_path, "098f6bcd4621d373cade4e832627b4f6", "md5")
 
             mock_click_confirm.return_value = False
             write_rendered_template(file_path, template="some text", file_type="test")
             # Assert that file content stays the same ('test')
-            self.assertEqual("098f6bcd4621d373cade4e832627b4f6", _hash_file(file_path, "md5"))
+            self.assert_file_integrity(file_path, "098f6bcd4621d373cade4e832627b4f6", "md5")
 
             mock_click_confirm.return_value = True
             write_rendered_template(file_path, template="some text", file_type="test")
             # Assert that file content is now 'some text' instead of 'test'
-            self.assertEqual("552e21cd4cd9918678e3c1a0df491bc3", _hash_file(file_path, "md5"))
+            self.assert_file_integrity(file_path, "552e21cd4cd9918678e3c1a0df491bc3", "md5")

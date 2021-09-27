@@ -105,8 +105,8 @@ from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import (
-    _hash_file,
     crc32c_base64_hash,
+    get_file_hash,
     gzip_file_crc,
     list_to_jsonl_gz,
 )
@@ -629,14 +629,11 @@ class ObservatoryTestCase(unittest.TestCase):
 
         self.assertTrue(os.path.isfile(file_path))
 
-        if algorithm == "md5":
-            hash_func = partial(_hash_file, algorithm="md5")
-        elif algorithm == "gzip_crc":
-            hash_func = gzip_file_crc
+        if algorithm == "gzip_crc":
+            actual_hash = gzip_file_crc(file_path)
         else:
-            raise ValueError(f"Unknown hash algorithm: {algorithm}")
+            actual_hash = get_file_hash(file_path=file_path, algorithm=algorithm)
 
-        actual_hash = hash_func(file_path)
         self.assertEqual(expected_hash, actual_hash)
 
     def assert_cleanup(self, download_folder: str, extract_folder: str, transform_folder: str):
