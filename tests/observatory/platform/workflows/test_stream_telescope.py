@@ -87,7 +87,7 @@ class TestStreamTelescope(ObservatoryTestCase):
                 ti = env.run_task("task", dag, execution_date=first_execution_date)
                 self.assertEqual(ti.state, State.SUCCESS)
                 expected_start = start_date
-                expected_end = pendulum.datetime(2021, 9, 29)
+                expected_end = pendulum.datetime(2021, 9, 30)
                 self.assertEqual(expected_start, telescope.start)
                 self.assertEqual(expected_end, telescope.end)
                 self.assertTrue(telescope.first_release)
