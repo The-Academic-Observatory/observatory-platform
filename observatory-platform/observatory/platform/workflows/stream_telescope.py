@@ -173,8 +173,8 @@ class StreamTelescope(Workflow):
             _, prev_end_date = get_data_interval(prev_dag_run.execution_date, self.schedule_interval)
             start_date = prev_end_date.start_of("day")
 
-        # Set end date to end of time period, subtract 1 day, because data from same day might not be available yet.
-        # and next execution date is the start of the next DAG run
+        # Set end date to end of time period, subtract 1 day, because next execution date is the date
+        # the DAG will actually run
         end_date = kwargs["next_execution_date"].subtract(days=1).start_of("day")
         logging.info(f"Start date: {start_date}, end date: {end_date}, first release: {first_release}")
 
