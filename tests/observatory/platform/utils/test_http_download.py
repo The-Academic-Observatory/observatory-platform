@@ -14,12 +14,17 @@
 
 # Author: Tuan Chien
 
+import logging
 import os
 import shutil
 from unittest.mock import patch
 
 from click.testing import CliRunner
-from observatory.platform.utils.http_download import download_file, download_files
+from observatory.platform.utils.http_download import (
+    DownloadInfo,
+    download_file,
+    download_files,
+)
 from observatory.platform.utils.test_utils import (
     HttpServer,
     ObservatoryTestCase,
@@ -82,8 +87,8 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                 dst2 = "test2.txt"
 
                 download_list = [
-                    {"url": url1, "filename": dst1},
-                    {"url": url2, "filename": dst2},
+                    DownloadInfo(url=url1, filename=dst1),
+                    DownloadInfo(url=url2, filename=dst2),
                 ]
                 download_files(download_list=download_list)
                 self.assert_file_integrity(dst1, hash1, algorithm)
@@ -132,3 +137,21 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                 success = download_file(url=url1, hash=hash1, hash_algorithm="md5")
                 self.assertTrue(success)
                 self.assert_file_integrity(file1, hash1, algorithm)
+
+                # Skip download because exists
+                with patch("observatory.platform.utils.http_download.download_http_file_") as m_down:
+                    success = download_file(url=url1, filename=file1, hash=hash1, hash_algorithm="md5")
+                    self.assertTrue(success)
+                    self.assert_file_integrity(file1, hash1, algorithm)
+                    self.assertEqual(m_down.call_count, 0)
+
+            # Get filename from Content-Disposition
+            with CliRunner().isolated_filesystem() as tmpdir:
+                with patch("observatory.platform.utils.http_download.parse_header") as m_header:
+                    m_header.return_value = (None, {"filename": "testfile"})
+                    success = download_file(url=url1, hash=hash1, hash_algorithm="md5")
+                    self.assertTrue(success)
+                    self.assert_file_integrity("testfile", hash1, algorithm)
+
+    def test_download_files_bad_input(self):
+        self.assertRaises(Exception, download_files, download_list=[{"url": "myurl", "filename": "myfilename"}])

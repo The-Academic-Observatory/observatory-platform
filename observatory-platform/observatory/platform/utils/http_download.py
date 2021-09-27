@@ -39,30 +39,57 @@
 import asyncio
 import logging
 import os
+from cgi import parse_header
+from dataclasses import dataclass
 from queue import Queue
 from typing import Any, Dict, List, Union
 
 import aiohttp
 import backoff
+import validators
 from observatory.platform.utils.file_utils import validate_file_hash
 from observatory.platform.utils.url_utils import get_filename_from_url
 
 
+@dataclass
+class DownloadInfo:
+    """Metadata needed to download a file."""
+
+    url: str  # URL to download
+    filename: Union[str, None] = None  # Destination file
+    hash: Union[str, None] = None  # Hash code for file integrity checking
+    hash_algorithm: Union[str, None] = None  # Hash algorithm for the hash
+    prefix_dir: str = ""  # Prefix the filename path with this
+    retry: bool = False  # Whether to retry download
+
+
 @backoff.on_exception(backoff.expo, aiohttp.ClientError, max_tries=11, max_time=60)
-async def download_http_file_(*, url: str, dst_file=None, headers=None):
+async def download_http_file_(*, download_info: DownloadInfo, headers=None):
     """Download a single file from a HTTP GET request.
 
-    :param url: URL to download.
-    :param dst_file: File to save download to.
+    :param download_info: Download information.
     :param headers: Optional headers to use when making get request, e.g., if providing custom User Agent.
     """
 
     READ_BUFFER_SIZE = 2 ** 16  # 64 KiB
 
-    dst_file = dst_file if dst_file is not None else get_filename_from_url(url)
+    url = download_info.url
+    dst_file = download_info.filename
 
     async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
         async with session.get(url) as resp:
+            if dst_file is None:
+                _, params = parse_header(resp.headers.get("Content-Disposition", ""))
+                if params != "" and "filename" in params:
+                    dst_file = params["filename"]
+                else:
+                    dst_file = get_filename_from_url(url=url)
+
+                download_info.filename = dst_file
+                dst_file = os.path.join(download_info.prefix_dir, dst_file)
+
+            logging.info(f"downloading {url} to {dst_file}")
+
             with open(dst_file, "wb") as f:
                 while True:
                     chunk = await resp.content.read(READ_BUFFER_SIZE)
@@ -79,9 +106,12 @@ def skip_download(*, download_info: Dict) -> bool:
     :return: Whether we should skip the download for this file.
     """
 
-    hash = download_info["hash"] if "hash" in download_info else None
-    hash_algorithm = download_info["hash_algorithm"] if "hash_algorithm" in download_info else None
-    filename = download_info["filename"]
+    hash = download_info.hash
+    hash_algorithm = download_info.hash_algorithm
+    filename = download_info.filename
+
+    if filename is None:
+        return False
 
     if hash_algorithm is not None and os.path.exists(filename):
         valid = validate_file_hash(file_path=filename, expected_hash=hash, algorithm=hash_algorithm)
@@ -95,7 +125,7 @@ def skip_download(*, download_info: Dict) -> bool:
 
 
 def requeue_once_if_bad_hash(
-    *, download_info: Dict, exception: Union[None, Exception], downloads: asyncio.Queue, errors: List[Exception]
+    *, download_info: DownloadInfo, exception: Union[None, Exception], downloads: asyncio.Queue, errors: List[Exception]
 ):
     """If a hash was supplied, it checks if the file downloaded passes hash validation. If it doesn't, then on the
     first failure, it will requeue the download.  Otherwise, it will produce an error message and give up on that
@@ -107,22 +137,25 @@ def requeue_once_if_bad_hash(
     :param errors: Queue of encountered error objects for later processing.
     """
 
-    hash = download_info["hash"] if "hash" in download_info else None
-    hash_algorithm = download_info["hash_algorithm"] if "hash_algorithm" in download_info else None
-    filename = download_info["filename"]
+    hash = download_info.hash
+    hash_algorithm = download_info.hash_algorithm
+    filename = download_info.filename
+
+    if filename is None:
+        return
 
     if hash_algorithm is not None and exception is None:
         valid = validate_file_hash(file_path=filename, expected_hash=hash, algorithm=hash_algorithm)
 
         # Requeue download the first time there's a bad hash.
-        if not valid and "retry" not in download_info:
+        if not valid and download_info.retry == False:
             warning_msg = f"File {filename} and hash {hash} do not match. Retrying download."
             logging.warning(warning_msg)
-            download_info["retry"] = True
+            download_info.retry = True
             downloads.put_nowait(download_info)
 
         # Error out if this is not the first attempt.
-        elif not valid and "retry" in download_info:
+        elif not valid and download_info.retry:
             error_msg = f"File {filename} has a bad hash after retrying download. Giving up."
             errors.append(Exception(error_msg))
 
@@ -150,14 +183,12 @@ async def worker_(name: str, downloads: asyncio.Queue, errors: List[Exception], 
             continue
 
         # Download the file
-        filename = download_info["filename"]
-        url = download_info["url"]
-
+        url = download_info.url
         logging.info(f"{name}: downloading {url}")
 
         exception = None
         try:
-            await download_http_file_(url=url, dst_file=filename, headers=headers)
+            await download_http_file_(download_info=download_info, headers=headers)
         except Exception as e:
             errors.append(e)
             exception = e
@@ -168,7 +199,12 @@ async def worker_(name: str, downloads: asyncio.Queue, errors: List[Exception], 
         downloads.task_done()
 
 
-async def download_http_files_(*, download_list: List[Any], num_connections: str = 8, headers: Dict = None) -> bool:
+async def download_http_files_(
+    *,
+    download_list: List[DownloadInfo],
+    num_connections: str = 8,
+    headers: Dict = None,
+) -> bool:
     """Download a list of files via HTTP asynchronously.  Supports multiple connections
     and custom headers.
 
@@ -189,7 +225,7 @@ async def download_http_files_(*, download_list: List[Any], num_connections: str
     workers = list()
     num_workers = min(num_connections, len(download_list))
     for i in range(num_workers):
-        name = f"worker {i}"
+        name = f"{i}"
         worker = asyncio.create_task(worker_(name, downloads, errors, headers))
         workers.append(worker)
 
@@ -210,48 +246,72 @@ async def download_http_files_(*, download_list: List[Any], num_connections: str
     return success
 
 
-def download_files(*, download_list: List[Union[str, Dict]], num_connections: int = 8, headers: Dict = None) -> bool:
+def download_files(
+    *,
+    download_list: List[Union[str, DownloadInfo]],
+    num_connections: int = 8,
+    headers: Dict = None,
+    prefix_dir: str = "",
+) -> bool:
     """Download a list of files. Can support simultaneous connections and custom HTTP headers.
 
     :param download_list: List of download jobs. You can specify a list of url strings, or a dictionary of the form
     {"url": "urlstring", "filename": "savedfile", "hash" : "hashcode", "hash_algorithm": "hash algorithm"}
     :param num_connections: Maximum number of concurrent connections.
     :param headers: Custom HTTP header to use for downloading.
+    :param prefix_dir: A directory to prefix the filename path with.
     :return: True on sucess, False on failure.
     """
 
     if len(download_list) == 0:
         return
 
-    # We got a list of url instead of a dict of urls and filenames. Convert to dict.
-    if isinstance(download_list[0], str):
-        download_info = [{"url": url, "filename": get_filename_from_url(url)} for url in download_list]
-        download_list = download_info
+    # Convert list of urls to download info dict.
+    for i, info in enumerate(download_list):
+        if isinstance(info, str):
+            info = DownloadInfo(
+                url=info,
+                prefix_dir=prefix_dir
+            )
+            download_list[i] = info
+
+        elif not isinstance(info, DownloadInfo):
+            raise Exception(f"Expecting a DownloadInfo object. Received a {type(info)}.")
 
     success = asyncio.run(
-        download_http_files_(download_list=download_list, num_connections=num_connections, headers=headers), debug=True
+        download_http_files_(download_list=download_list, num_connections=num_connections, headers=headers),
+        debug=True,
     )
     return success
 
 
 def download_file(
-    *, url: str, filename: str = None, headers: Dict = None, hash: str = None, hash_algorithm: str = None
+    *,
+    url: str,
+    filename: str = None,
+    headers: Dict = None,
+    hash: str = None,
+    hash_algorithm: str = None,
+    prefix_dir: str = "",
 ) -> bool:
     """Download a single file from a url.
 
     :param url: URL to download file from.
     :param filename: Destination file.
     :param headers: Any custom header you want to use in HTTP session.
+    :param prefix_dir: A directory to prefix the filename path with.
     :return: True on sucess, False on failure.
     """
 
-    if filename is None:
-        filename = get_filename_from_url(url=url)
+    download_info = DownloadInfo(
+        url=url,
+        filename=filename,
+        prefix_dir=prefix_dir,
+    )
 
-    download_dict = {"url": url, "filename": filename}
     if hash_algorithm is not None:
-        download_dict["hash_algorithm"] = hash_algorithm
-        download_dict["hash"] = hash
+        download_info.hash = hash
+        download_info.hash_algorithm = hash_algorithm
 
-    success = download_files(download_list=[download_dict], num_connections=1, headers=headers)
+    success = download_files(download_list=[download_info], num_connections=1, headers=headers)
     return success

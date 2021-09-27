@@ -23,8 +23,6 @@ import urllib.request
 from typing import Any, Dict, List, Tuple, Union
 from urllib.parse import ParseResult, urljoin, urlparse
 
-import aiohttp
-import backoff
 import requests
 import tldextract
 import xmltodict
