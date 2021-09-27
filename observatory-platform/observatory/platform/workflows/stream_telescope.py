@@ -169,14 +169,13 @@ class StreamTelescope(Workflow):
             start_date = pendulum.instance(kwargs["dag"].default_args["start_date"]).start_of("day")
         else:
             # When not first release, set start date to be the end date of the previous DAG run
-            # Subtract 1 day because end of interval is the start of the next DAG run
             prev_dag_run: DagRun = dag_run.get_previous_dagrun()
             _, prev_end_date = get_data_interval(prev_dag_run.execution_date, self.schedule_interval)
-            start_date = prev_end_date.subtract(days=1).start_of("day")
+            start_date = prev_end_date.start_of("day")
 
-        # Set end date to end of time period, subtract 2 days, because data from same day might not be available yet.
+        # Set end date to end of time period, subtract 1 day, because data from same day might not be available yet.
         # and next execution date is the start of the next DAG run
-        end_date = kwargs["next_execution_date"].subtract(days=2).start_of("day")
+        end_date = kwargs["next_execution_date"].subtract(days=1).start_of("day")
         logging.info(f"Start date: {start_date}, end date: {end_date}, first release: {first_release}")
 
         return start_date, end_date, first_release
