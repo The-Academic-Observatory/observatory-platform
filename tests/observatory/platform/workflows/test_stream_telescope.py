@@ -20,9 +20,9 @@ from unittest.mock import MagicMock, patch, call
 from airflow.utils.state import State
 
 import pendulum
-from airflow.models.taskinstance import TaskInstance
 from google.cloud.bigquery import SourceFormat
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase
+from observatory.platform.utils.airflow_utils import get_prev_start_date_success_task
 from observatory.platform.utils.workflow_utils import batch_blob_name, blob_name, get_bq_load_info, table_ids_from_path
 from observatory.platform.workflows.stream_telescope import (
     get_data_interval,
@@ -31,6 +31,7 @@ from observatory.platform.workflows.stream_telescope import (
 )
 
 DEFAULT_SCHEMA_PATH = "/path/to/schemas"
+
 
 class TestStreamTelescope(StreamTelescope):
     """
@@ -75,7 +76,7 @@ class TestStreamTelescope(StreamTelescope):
             batch_load=batch_load,
         )
 
-        self.add_setup_task_chain([self.check_dependencies, self.get_release_info])
+        self.add_setup_task_chain([self.check_dependencies])
         self.add_task(self.transform)
         self.add_task(self.upload_transformed)
         self.add_task(self.bq_load_partition)
@@ -85,16 +86,9 @@ class TestStreamTelescope(StreamTelescope):
         """Make a Release instance
 
         :param kwargs: The context passed from the PythonOperator.
-        :return: CrossrefEventsRelease
+        :return: StreamRelease instance.
         """
-        ti: TaskInstance = kwargs["ti"]
-        start_date, end_date, first_release = ti.xcom_pull(
-            key=TestStreamTelescope.RELEASE_INFO, include_prior_dates=True
-        )
-
-        start_date = pendulum.parse(start_date)
-        end_date = pendulum.parse(end_date)
-
+        start_date, end_date, first_release = self.get_release_info(**kwargs)
         release = StreamRelease(self.dag_id, start_date, end_date, first_release)
         return release
 
@@ -196,15 +190,10 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                         env.run_task(telescope.check_dependencies.__name__)
 
                         # Test start and end date for release info
-                        ti = env.run_task(telescope.get_release_info.__name__)
-                        start_date, end_date, first_release = ti.xcom_pull(
-                            key=TestStreamTelescope.RELEASE_INFO,
-                            task_ids=telescope.get_release_info.__name__,
-                            include_prior_dates=False,
+                        next_execution_date = pendulum.instance(dag.next_dagrun_after_date(env.dag_run.execution_date))
+                        start_date, end_date, first_release = telescope.get_release_info(
+                            dag=dag, dag_run=env.dag_run, next_execution_date=next_execution_date
                         )
-
-                        start_date = pendulum.parse(start_date)
-                        end_date = pendulum.parse(end_date)
 
                         self.assertEqual(run["first_release"], first_release)
                         if first_release:
@@ -283,17 +272,15 @@ class TestTestStreamTelescope(ObservatoryTestCase):
 
                         # Test whether the correct bq delete functions are called for different runs
                         ti = env.run_task(telescope.bq_delete_old.__name__)
-                        if run["bq_delete_old"]:
+                        if first_release:
+                            # First release the task is run but does not execute the bq_delete_old function
+                            self.assertEqual(0, bq_delete_old.call_count)
+                            self.assertEqual("success", ti.state)
+                        elif run["bq_delete_old"]:
                             self.assertEqual(len(bq_load_info), bq_delete_old.call_count)
 
-                            # Use previous ti, because after running task new xcoms have been pushed
-                            previous_ti = ti.get_previous_ti()
-                            start_date = pendulum.from_format(
-                                previous_ti.xcom_pull(
-                                    key=telescope.XCOM_BQ_DATES, task_ids=ti.task_id, include_prior_dates=True
-                                ),
-                                "YYYYMMDD",
-                            )
+                            # Start date is 2020-01-02, start date of last successful task instance (the first run)
+                            start_date = pendulum.instance(get_prev_start_date_success_task(env.dag_run, ti.task_id))
                             end_date = pendulum.instance(ti.start_date)
                             expected_calls = []
                             for _, main_table_id, partition_table_id in bq_load_info:
@@ -317,15 +304,8 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                         ti = env.run_task(telescope.bq_append_new.__name__)
                         if run["bq_append_from_partition"]:
                             self.assertEqual(len(bq_load_info), bq_append_from_partition.call_count)
-
-                            # Use previous ti, because after running task new xcoms have been pushed
-                            previous_ti = ti.get_previous_ti()
-                            start_date = pendulum.from_format(
-                                previous_ti.xcom_pull(
-                                    key=telescope.XCOM_BQ_DATES, task_ids=ti.task_id, include_prior_dates=True
-                                ),
-                                "YYYYMMDD",
-                            )
+                            # Start date is 2020-01-02, start date of last successful task instance (the first run)
+                            start_date = pendulum.instance(get_prev_start_date_success_task(env.dag_run, ti.task_id))
                             end_date = pendulum.instance(ti.start_date)
                             expected_calls = []
                             for _, main_table_id, partition_table_id in bq_load_info:
@@ -387,6 +367,7 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                         ]:
                             mocked_function.reset_mock()
 
+
 class MockTelescope(StreamTelescope):
     def __init__(self, start_date: pendulum.DateTime = pendulum.now(), schedule_interval: str = "@monthly"):
         super().__init__(
@@ -404,7 +385,7 @@ class MockTelescope(StreamTelescope):
         self.start, self.end, self.first_release = self.get_release_info(**kwargs)
         print("Hello")
 
-    def make_release(self, **kwargs):
+    def make_release(self, **kwargs) -> StreamRelease:
         return StreamRelease(dag_id="dag", start_date=pendulum.now(), end_date=pendulum.now(), first_release=True)
 
 
