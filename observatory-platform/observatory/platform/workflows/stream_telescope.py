@@ -77,8 +77,6 @@ def get_data_interval(
 
 
 class StreamTelescope(Workflow):
-    XCOM_BQ_DATES = "xcom_bq_dates"
-
     def __init__(
         self,
         dag_id: str,
