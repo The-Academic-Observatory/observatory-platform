@@ -37,7 +37,7 @@ USER airflow
 RUN pip freeze | xargs pip uninstall -y
 RUN python -m pip install --upgrade pip
 RUN pip cache purge
-RUN pip install apache-airflow-providers-google==5.1.0
+RUN pip install apache-airflow-providers-google==5.1.0 --no-deps
 
 # Install dependencies for all projects
 {% for package in config.python_packages %}

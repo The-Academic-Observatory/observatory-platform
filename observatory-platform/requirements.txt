@@ -14,6 +14,7 @@ google-cloud-bigquery==2.1.*
 google-api-python-client==2.0.*
 google-cloud-storage==1.35.*
 google-auth-oauthlib>=0.4.5,<1
+google-cloud-secret-manager<2.0.0,>=0.2.0 # for Google Cloud Secret Manager backend
 
 # Elasticsearch
 elasticsearch>=7.13.3,<8
