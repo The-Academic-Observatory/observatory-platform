@@ -138,12 +138,15 @@ networks:
     external: true
 {%- endif %}
 
+
+{% if config.observatory.package_type != 'docker' -%}
 x-build: &build
   context: .
   dockerfile: Dockerfile.observatory
   args:
     - HOST_USER_ID=${HOST_USER_ID}
     - HOST_GROUP_ID=${HOST_GROUP_ID}
+{%- endif %}
 
 services:
   redis:
@@ -160,7 +163,11 @@ services:
       retries: 50
 
   flower:
-    build: *build
+    {% if config.observatory.package_type == 'docker' -%}
+      image: ${OBSERVATORY_DOCKER_IMAGE}
+    {%- else %}
+      build: *build
+    {%- endif %}
     environment: *environment
     volumes: *volumes
     restart: always
@@ -187,7 +194,11 @@ services:
     {%- endif %}
 
   webserver:
-    build: *build
+    {% if config.observatory.package_type == 'docker' -%}
+      image: ${OBSERVATORY_DOCKER_IMAGE}
+    {%- else %}
+      build: *build
+    {%- endif %}
     environment: *environment
     volumes: *volumes
     restart: always
@@ -214,7 +225,11 @@ services:
       retries: 30
 
   scheduler:
-    build: *build
+    {% if config.observatory.package_type == 'docker' -%}
+      image: ${OBSERVATORY_DOCKER_IMAGE}
+    {%- else %}
+      build: *build
+    {%- endif %}
     environment: *environment
     volumes: *volumes
     restart: always
@@ -230,7 +245,11 @@ services:
     command: scheduler
 
   worker_local:
-    build: *build
+    {% if config.observatory.package_type == 'docker' -%}
+      image: ${OBSERVATORY_DOCKER_IMAGE}
+    {%- else %}
+      build: *build
+    {%- endif %}
     environment: *environment
     volumes: *volumes
     restart: always
@@ -244,7 +263,11 @@ services:
     command: celery worker -q default
 
   worker_remote:
-    build: *build
+    {% if config.observatory.package_type == 'docker' -%}
+      image: ${OBSERVATORY_DOCKER_IMAGE}
+    {%- else %}
+      build: *build
+    {%- endif %}
     environment: *environment
     volumes: *volumes
     restart: always

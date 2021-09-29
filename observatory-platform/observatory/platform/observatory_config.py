@@ -1146,13 +1146,14 @@ def make_schema(backend_type: BackendType) -> Dict:
         }
 
     # Observatory settings
-    package_types = ["editable", "sdist", "pypi"]
+    python_package_types = ["editable", "sdist", "pypi"]
+    observatory_package_types = python_package_types + ["docker"]
     schema["observatory"] = {
         "required": True,
         "type": "dict",
         "schema": {
             "package": {"required": True, "type": "string"},
-            "package_type": {"required": True, "type": "string", "allowed": package_types},
+            "package_type": {"required": True, "type": "string", "allowed": observatory_package_types},
             "airflow_fernet_key": {"required": True, "type": "string"},
             "airflow_secret_key": {"required": True, "type": "string"},
             "airflow_ui_user_password": {"required": is_backend_terraform, "type": "string"},
@@ -1169,7 +1170,7 @@ def make_schema(backend_type: BackendType) -> Dict:
             "docker_compose_project_name": {"required": False, "type": "string"},
             "enable_elk": {"required": False, "type": "boolean"},
             "api_package": {"required": False, "type": "string"},
-            "api_package_type": {"required": False, "type": "string", "allowed": package_types},
+            "api_package_type": {"required": False, "type": "string", "allowed": python_package_types},
         },
     }
 
@@ -1235,7 +1236,7 @@ def make_schema(backend_type: BackendType) -> Dict:
                     "type": "string",
                 },
                 "package": {"required": True, "type": "string"},
-                "package_type": {"required": True, "type": "string", "allowed": package_types},
+                "package_type": {"required": True, "type": "string", "allowed": python_package_types},
                 "dags_module": {
                     "required": True,
                     "type": "string",

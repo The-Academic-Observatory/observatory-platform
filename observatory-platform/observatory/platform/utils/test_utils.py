@@ -71,7 +71,6 @@ import unittest
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from multiprocessing import Process
 from typing import Dict, List
@@ -100,6 +99,9 @@ from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
+from pendulum import DateTime
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
+
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
@@ -117,8 +119,6 @@ from observatory.platform.utils.gc_utils import (
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.workflow_utils import find_schema
-from pendulum import DateTime
-from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 
 def random_id():
