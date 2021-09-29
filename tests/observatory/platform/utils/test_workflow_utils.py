@@ -1025,26 +1025,26 @@ class TestWorkflowUtils(unittest.TestCase):
             # First DAG Run
             with env.create_dag_run(dag=dag, execution_date=first_execution_date) as first_dag_run:
                 # Should be true the first DAG run. Check before and after a task.
-                is_first = is_first_dag_run(**{"dag_run": first_dag_run})
+                is_first = is_first_dag_run(first_dag_run)
                 self.assertTrue(is_first)
 
                 ti = env.run_task("task", dag, execution_date=first_execution_date)
                 self.assertEqual(ti.state, State.SUCCESS)
 
-                is_first = is_first_dag_run(**{"dag_run": first_dag_run})
+                is_first = is_first_dag_run(first_dag_run)
                 self.assertTrue(is_first)
 
             # Second DAG Run
             second_execution_date = pendulum.datetime(2021, 9, 12)
             with env.create_dag_run(dag=dag, execution_date=second_execution_date) as second_dag_run:
                 # Should be false on second DAG Run, check before and after a task.
-                is_first = is_first_dag_run(**{"dag_run": second_dag_run})
+                is_first = is_first_dag_run(second_dag_run)
                 self.assertFalse(is_first)
 
                 ti = env.run_task("task", dag, execution_date=second_execution_date)
                 self.assertEqual(ti.state, State.SUCCESS)
 
-                is_first = is_first_dag_run(**{"dag_run": second_dag_run})
+                is_first = is_first_dag_run(second_dag_run)
                 self.assertFalse(is_first)
 
     @patch("observatory.platform.utils.workflow_utils.select_table_shard_dates")

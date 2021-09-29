@@ -40,7 +40,7 @@ import pysftp
 import six
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import DagBag, Variable
+from airflow.models import DagBag, Variable, DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from dateutil.relativedelta import relativedelta
@@ -1307,10 +1307,14 @@ def make_release_date(**kwargs) -> pendulum.DateTime:
     return kwargs["next_execution_date"].subtract(days=1).start_of("day")
 
 
-def is_first_dag_run(**kwargs) -> bool:
-    """ Whether the DAG Run is the first run or not """
+def is_first_dag_run(dag_run: DagRun) -> bool:
+    """Whether the DAG Run is the first run or not
 
-    return kwargs["dag_run"].get_previous_dagrun() is None
+    :param dag_run: A Dag Run instance
+    :return: Whether the DAG run is the first run or not
+    """
+
+    return dag_run.get_previous_dagrun() is None
 
 
 def make_table_name(
