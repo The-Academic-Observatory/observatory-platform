@@ -24,7 +24,7 @@ from airflow.models.taskinstance import TaskInstance
 from croniter import croniter
 from google.cloud.bigquery import SourceFormat
 
-from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.airflow_utils import AirflowVars, get_prev_start_date_success_task
 from observatory.platform.utils.workflow_utils import (
     bq_append_from_file,
     bq_append_from_partition,
@@ -162,8 +162,8 @@ class StreamTelescope(Workflow):
         """
 
         # Check if first release or not
-        first_release = is_first_dag_run(**kwargs)
         dag_run: DagRun = kwargs["dag_run"]
+        first_release = is_first_dag_run(dag_run)
         if first_release:
             # When first release, set start date to the start of the DAG
             start_date = pendulum.instance(kwargs["dag"].default_args["start_date"]).start_of("day")
@@ -262,17 +262,17 @@ class StreamTelescope(Workflow):
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
-        ti: TaskInstance = kwargs["ti"]
         if release.first_release:
-            ti.xcom_push(key=self.XCOM_BQ_DATES, value=ti.start_date.strftime("%Y%m%d"))
-            raise AirflowSkipException("Skipped, because first release")
+            # Can't use AirflowSkipException, because the task needs to be in a success state to determine when to
+            # delete next
+            logging.info("Nothing to delete, because first release")
+            return
 
-        start_date = pendulum.from_format(
-            ti.xcom_pull(key=self.XCOM_BQ_DATES, task_ids=ti.task_id, include_prior_dates=True), "YYYYMMDD"
-        )
+        dag_run: DagRun = kwargs["dag_run"]
+        ti: TaskInstance = kwargs["ti"]
+        start_date = pendulum.instance(get_prev_start_date_success_task(dag_run, ti.task_id))
         end_date = pendulum.instance(ti.start_date)
         if (end_date - start_date).days + 1 >= self.bq_merge_days:
-            ti.xcom_push(key=self.XCOM_BQ_DATES, value=ti.start_date.strftime("%Y%m%d"))
             logging.info(
                 f"Deleting old data from main table using partitions after {start_date} and on or before" f" {end_date}"
             )
@@ -301,12 +301,9 @@ class StreamTelescope(Workflow):
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
-        ti: TaskInstance = kwargs["ti"]
-
         bq_load_info = get_bq_load_info(self.dag_id, release.transform_folder, release.transform_files, self.batch_load)
 
         if release.first_release:
-            ti.xcom_push(key=self.XCOM_BQ_DATES, value=ti.start_date.strftime("%Y%m%d"))
             for transform_blob, main_table_id, partition_table_id in bq_load_info:
                 table_description = self.table_descriptions.get(main_table_id, "")
                 bq_append_from_file(
@@ -324,12 +321,11 @@ class StreamTelescope(Workflow):
                 )
             return
 
-        start_date = pendulum.from_format(
-            ti.xcom_pull(key=self.XCOM_BQ_DATES, task_ids=ti.task_id, include_prior_dates=True), "YYYYMMDD"
-        )
+        dag_run: DagRun = kwargs["dag_run"]
+        ti: TaskInstance = kwargs["ti"]
+        start_date = pendulum.instance(get_prev_start_date_success_task(dag_run, ti.task_id))
         end_date = pendulum.instance(ti.start_date)
         if (end_date - start_date).days + 1 >= self.bq_merge_days:
-            ti.xcom_push(key=self.XCOM_BQ_DATES, value=ti.start_date.strftime("%Y%m%d"))
             logging.info(f"Appending data to main table from partitions after {start_date} and on or before {end_date}")
             for transform_blob, main_table_id, partition_table_id in bq_load_info:
                 bq_append_from_partition(
