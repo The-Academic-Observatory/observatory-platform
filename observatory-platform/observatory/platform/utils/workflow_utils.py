@@ -441,7 +441,7 @@ def bq_load_ingestion_partition(
     given it will automatically partition by ingestion datetime.
 
     :param schema_folder: the path to the SQL schema folder.
-    :param end_date: End date used to find the schema.
+    :param end_date: Release end date, used to find the schema and to create table id.
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
     :param main_table_id: Main table id.
@@ -460,7 +460,7 @@ def bq_load_ingestion_partition(
     uri = f"gs://{bucket_name}/{transform_blob}"
 
     # Include date in table id, so data in table is not overwritten
-    partition_table_id = create_date_table_id(partition_table_id, pendulum.today(), partition_type)
+    partition_table_id = create_date_table_id(partition_table_id, end_date, partition_type)
     success = load_bigquery_table(
         uri,
         dataset_id,

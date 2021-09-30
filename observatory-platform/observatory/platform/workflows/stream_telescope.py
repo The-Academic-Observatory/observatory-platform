@@ -269,7 +269,7 @@ class StreamTelescope(Workflow):
         dag_run: DagRun = kwargs["dag_run"]
         ti: TaskInstance = kwargs["ti"]
         start_date = pendulum.instance(get_prev_start_date_success_task(dag_run, ti.task_id))
-        end_date = pendulum.instance(ti.start_date)
+        end_date = release.end_date
         if (end_date - start_date).days + 1 >= self.bq_merge_days:
             logging.info(
                 f"Deleting old data from main table using partitions after {start_date} and on or before" f" {end_date}"
@@ -322,7 +322,7 @@ class StreamTelescope(Workflow):
         dag_run: DagRun = kwargs["dag_run"]
         ti: TaskInstance = kwargs["ti"]
         start_date = pendulum.instance(get_prev_start_date_success_task(dag_run, ti.task_id))
-        end_date = pendulum.instance(ti.start_date)
+        end_date = release.end_date
         if (end_date - start_date).days + 1 >= self.bq_merge_days:
             logging.info(f"Appending data to main table from partitions after {start_date} and on or before {end_date}")
             for transform_blob, main_table_id, partition_table_id in bq_load_info:
