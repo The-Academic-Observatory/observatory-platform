@@ -44,10 +44,10 @@ class TestStreamTelescope(StreamTelescope):
         self,
         dag_id: str = DAG_ID,
         start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
-        schedule_interval: str = "@daily",
+        schedule_interval: str = "@weekly",
         dataset_id: str = "dataset_id",
         merge_partition_field: str = "id",
-        bq_merge_days: int = 7,
+        bq_merge_days: int = 14,
         schema_folder: str = DEFAULT_SCHEMA_PATH,
         source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
         schema_prefix: str = "prefix",
@@ -136,38 +136,18 @@ class TestTestStreamTelescope(ObservatoryTestCase):
         """Test the telescope end to end and that all bq load tasks run as expected.
         :return: None.
         """
-        run1 = {
-            "date": pendulum.datetime(year=2020, month=1, day=1),
-            "first_release": True,
-            "bq_append_from_file": True,
-            "bq_load_partition": False,
-            "bq_delete_old": False,
-            "bq_append_from_partition": False,
-        }
-        run2 = {
-            "date": pendulum.datetime(year=2020, month=1, day=2),
-            "first_release": False,
-            "bq_append_from_file": False,
-            "bq_load_partition": True,
-            "bq_delete_old": False,
-            "bq_append_from_partition": False,
-        }
+        # First release, append from file and don't update main table
+        run1 = {"date": pendulum.datetime(year=2020, month=7, day=26), "first_release": True, "merge": False}
+        # Second release, load partition and update main table
+        run2 = {"date": pendulum.datetime(year=2020, month=10, day=4), "first_release": False, "merge": True}
+        # Third release, load partition and don't update main table (days between merge is less than bq_merge_days)
         run3 = {
-            "date": pendulum.datetime(year=2020, month=1, day=8),
+            "date": pendulum.datetime(year=2020, month=10, day=11),
             "first_release": False,
-            "bq_append_from_file": False,
-            "bq_load_partition": True,
-            "bq_delete_old": True,
-            "bq_append_from_partition": True,
+            "merge": False,
         }
-        run4 = {
-            "date": pendulum.datetime(year=2020, month=1, day=9),
-            "first_release": False,
-            "bq_append_from_file": False,
-            "bq_load_partition": True,
-            "bq_delete_old": False,
-            "bq_append_from_partition": False,
-        }
+        # Fourth release, load partition and update main table (test when days between merge is exactly bq_merge_days)
+        run4 = {"date": pendulum.datetime(year=2020, month=10, day=25), "first_release": False, "merge": True}
 
         # Setup Observatory environment
         env = ObservatoryEnvironment(self.project_id, self.data_location)
@@ -243,7 +223,10 @@ class TestTestStreamTelescope(ObservatoryTestCase):
 
                         # Test whether the correct bq load functions are called for different runs
                         ti = env.run_task(telescope.bq_load_partition.__name__)
-                        if run["bq_load_partition"]:
+                        if first_release:
+                            self.assertEqual(0, bq_load_ingestion_partition.call_count)
+                            self.assertEqual("skipped", ti.state)
+                        else:
                             self.assertEqual(len(bq_load_info), bq_load_ingestion_partition.call_count)
                             expected_calls = []
                             for transform_blob, main_table_id, partition_table_id in bq_load_info:
@@ -266,9 +249,6 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                                 )
                                 bq_load_ingestion_partition.assert_has_calls(expected_calls, any_order=True)
                             self.assertEqual("success", ti.state)
-                        else:
-                            self.assertEqual(0, bq_load_ingestion_partition.call_count)
-                            self.assertEqual("skipped", ti.state)
 
                         # Test whether the correct bq delete functions are called for different runs
                         ti = env.run_task(telescope.bq_delete_old.__name__)
@@ -276,12 +256,11 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                             # First release the task is run but does not execute the bq_delete_old function
                             self.assertEqual(0, bq_delete_old.call_count)
                             self.assertEqual("success", ti.state)
-                        elif run["bq_delete_old"]:
+                        elif run["merge"]:
                             self.assertEqual(len(bq_load_info), bq_delete_old.call_count)
 
-                            # Start date is 2020-01-02, start date of last successful task instance (the first run)
                             start_date = pendulum.instance(get_prev_start_date_success_task(env.dag_run, ti.task_id))
-                            end_date = pendulum.instance(ti.start_date)
+                            end_date = release.end_date
                             expected_calls = []
                             for _, main_table_id, partition_table_id in bq_load_info:
                                 expected_calls.append(
@@ -302,26 +281,7 @@ class TestTestStreamTelescope(ObservatoryTestCase):
 
                         # Test whether the correct bq append functions are called for different runs
                         ti = env.run_task(telescope.bq_append_new.__name__)
-                        if run["bq_append_from_partition"]:
-                            self.assertEqual(len(bq_load_info), bq_append_from_partition.call_count)
-                            # Start date is 2020-01-02, start date of last successful task instance (the first run)
-                            start_date = pendulum.instance(get_prev_start_date_success_task(env.dag_run, ti.task_id))
-                            end_date = pendulum.instance(ti.start_date)
-                            expected_calls = []
-                            for _, main_table_id, partition_table_id in bq_load_info:
-                                expected_calls.append(
-                                    call(
-                                        start_date,
-                                        end_date,
-                                        telescope.dataset_id,
-                                        main_table_id,
-                                        partition_table_id,
-                                        telescope.merge_partition_field,
-                                    )
-                                )
-                            bq_append_from_partition.assert_has_calls(expected_calls, any_order=True)
-                            self.assertEqual("success", ti.state)
-                        elif run["bq_append_from_file"]:
+                        if first_release:
                             self.assertEqual(len(bq_load_info), bq_append_from_file.call_count)
                             expected_calls = []
                             for transform_blob, main_table_id, partition_table_id in bq_load_info:
@@ -342,6 +302,25 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                                     )
                                 )
                             bq_append_from_file.assert_has_calls(expected_calls, any_order=True)
+                            self.assertEqual("success", ti.state)
+                        elif run["merge"]:
+                            self.assertEqual(len(bq_load_info), bq_append_from_partition.call_count)
+
+                            start_date = pendulum.instance(get_prev_start_date_success_task(env.dag_run, ti.task_id))
+                            end_date = release.end_date
+                            expected_calls = []
+                            for _, main_table_id, partition_table_id in bq_load_info:
+                                expected_calls.append(
+                                    call(
+                                        start_date,
+                                        end_date,
+                                        telescope.dataset_id,
+                                        main_table_id,
+                                        partition_table_id,
+                                        telescope.merge_partition_field,
+                                    )
+                                )
+                            bq_append_from_partition.assert_has_calls(expected_calls, any_order=True)
                             self.assertEqual("success", ti.state)
                         else:
                             self.assertEqual(0, bq_append_from_partition.call_count)
