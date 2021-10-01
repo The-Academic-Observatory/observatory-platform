@@ -18,15 +18,17 @@
 Airflow utility functions (independent of telescope or google cloud usage)
 """
 
+import datetime
 import logging
 from typing import Any, List, Optional, Union
 
 import validators
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection, TaskInstance, Variable
+from airflow.models import Connection, TaskInstance, Variable, DagRun
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookHook
 from airflow.utils.db import create_session
+from airflow.utils.state import TaskInstanceState
 
 
 class AirflowVars:
@@ -157,6 +159,34 @@ def create_slack_webhook(comments: str = "", project_id: str = "?", context: dic
     slack_conn = BaseHook.get_connection(AirflowConns.SLACK)
     slack_hook = SlackWebhookHook(http_conn_id=slack_conn.conn_id, webhook_token=slack_conn.password, message=message)
     return slack_hook
+
+
+def get_prev_start_date_success_task(dag_run: DagRun, task_id: str) -> Optional[datetime.datetime]:
+    """Get the start date of the previous task that is in a success state. This cannot be done with
+    ti.get_previous_ti(TaskInstanceState.SUCCESS), because this method uses the state of the Dag Run, instead of the
+    state of the task instance itself.
+
+    :param dag_run: The current Dag Run
+    :param task_id: The task id
+    :return: The start date
+    """
+    prev_state = None
+    start_date = None
+    while prev_state != TaskInstanceState.SUCCESS:
+        # Get the previous dag run and task instance
+        prev_dag_run = dag_run.get_previous_dagrun()
+        if prev_dag_run:
+            prev_ti = prev_dag_run.get_task_instance(task_id)
+        else:
+            return None
+
+        # Get the state and start date of prev dag run
+        prev_state = prev_ti.state
+        start_date = prev_ti.start_date
+
+        # Update dag run to be the previous dag run
+        dag_run = prev_dag_run
+    return start_date
 
 
 def set_task_state(success: bool, task_id: str):
