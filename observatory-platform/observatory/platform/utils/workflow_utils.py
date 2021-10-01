@@ -264,12 +264,13 @@ def get_bq_load_info(
 
     :return: List with tuples of transform_blob, main_table_id and partition_table_id
     """
+    bq_info = []
     if batch_load:
-        transform_blob = batch_blob_name(transform_folder)
-        main_table_id, partition_table_id = (dag_id, f"{dag_id}_partitions")
-        bq_info = [(transform_blob, main_table_id, partition_table_id)]
+        if transform_files:
+            transform_blob = batch_blob_name(transform_folder)
+            main_table_id, partition_table_id = (dag_id, f"{dag_id}_partitions")
+            bq_info = [(transform_blob, main_table_id, partition_table_id)]
     else:
-        bq_info = []
         for transform_path in transform_files:
             transform_blob = blob_name(transform_path)
             main_table_id, partition_table_id = table_ids_from_path(transform_path)
