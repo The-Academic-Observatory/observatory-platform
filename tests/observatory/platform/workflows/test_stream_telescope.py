@@ -147,7 +147,7 @@ class TestTestStreamTelescope(ObservatoryTestCase):
             "merge": False,
         }
         # Fourth release, load partition and update main table (test when days between merge is exactly bq_merge_days)
-        run4 = {"date": pendulum.datetime(year=2020, month=10, day=25), "first_release": False, "merge": True}
+        run4 = {"date": pendulum.datetime(year=2020, month=10, day=18), "first_release": False, "merge": True}
 
         # Setup Observatory environment
         env = ObservatoryEnvironment(self.project_id, self.data_location)
@@ -259,7 +259,9 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                         elif run["merge"]:
                             self.assertEqual(len(bq_load_info), bq_delete_old.call_count)
 
-                            start_date = pendulum.instance(get_prev_start_date_success_task(env.dag_run, ti.task_id))
+                            start_date = pendulum.instance(
+                                get_prev_start_date_success_task(env.dag_run, ti.task_id)
+                            ).start_of("day")
                             end_date = release.end_date
                             expected_calls = []
                             for _, main_table_id, partition_table_id in bq_load_info:
@@ -306,7 +308,9 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                         elif run["merge"]:
                             self.assertEqual(len(bq_load_info), bq_append_from_partition.call_count)
 
-                            start_date = pendulum.instance(get_prev_start_date_success_task(env.dag_run, ti.task_id))
+                            start_date = pendulum.instance(
+                                get_prev_start_date_success_task(env.dag_run, ti.task_id)
+                            ).start_of("day")
                             end_date = release.end_date
                             expected_calls = []
                             for _, main_table_id, partition_table_id in bq_load_info:
