@@ -268,11 +268,11 @@ class StreamTelescope(Workflow):
 
         dag_run: DagRun = kwargs["dag_run"]
         ti: TaskInstance = kwargs["ti"]
-        start_date = pendulum.instance(get_prev_start_date_success_task(dag_run, ti.task_id))
-        end_date = release.end_date
-        if (end_date - start_date).days + 1 >= self.bq_merge_days:
+        start_date = pendulum.instance(get_prev_start_date_success_task(dag_run, ti.task_id)).start_of("day")
+        now = pendulum.instance(ti.start_date).start_of("day")
+        if (now - start_date).days >= self.bq_merge_days:
             logging.info(
-                f"Deleting old data from main table using partitions after {start_date} and on or before" f" {end_date}"
+                f"Deleting old data from main table using partitions after {start_date} and on or before {release.end_date}"
             )
             bq_load_info = get_bq_load_info(
                 self.dag_id, release.transform_folder, release.transform_files, self.batch_load
@@ -280,7 +280,7 @@ class StreamTelescope(Workflow):
             for _, main_table_id, partition_table_id in bq_load_info:
                 bq_delete_old(
                     start_date,
-                    end_date,
+                    release.end_date,
                     self.dataset_id,
                     main_table_id,
                     partition_table_id,
@@ -289,7 +289,7 @@ class StreamTelescope(Workflow):
         else:
             raise AirflowSkipException(
                 f"Skipped, only delete old records every {self.bq_merge_days} days. "
-                f"Last delete was {(end_date - start_date).days + 1} days ago on {start_date}"
+                f"Last delete was {(now - start_date).days} days ago on {start_date}"
             )
 
     def bq_append_new(self, release: StreamRelease, **kwargs):
@@ -321,14 +321,16 @@ class StreamTelescope(Workflow):
 
         dag_run: DagRun = kwargs["dag_run"]
         ti: TaskInstance = kwargs["ti"]
-        start_date = pendulum.instance(get_prev_start_date_success_task(dag_run, ti.task_id))
-        end_date = release.end_date
-        if (end_date - start_date).days + 1 >= self.bq_merge_days:
-            logging.info(f"Appending data to main table from partitions after {start_date} and on or before {end_date}")
+        start_date = pendulum.instance(get_prev_start_date_success_task(dag_run, ti.task_id)).start_of("day")
+        now = pendulum.instance(ti.start_date).start_of("day")
+        if (now - start_date).days >= self.bq_merge_days:
+            logging.info(
+                f"Appending data to main table from partitions after {start_date} and on or before {release.end_date}"
+            )
             for transform_blob, main_table_id, partition_table_id in bq_load_info:
                 bq_append_from_partition(
                     start_date,
-                    end_date,
+                    release.end_date,
                     self.dataset_id,
                     main_table_id,
                     partition_table_id,
@@ -336,9 +338,8 @@ class StreamTelescope(Workflow):
                 )
         else:
             raise AirflowSkipException(
-                f"Skipped, not first release and only append new records every "
-                f"{self.bq_merge_days} days. Last append was {(end_date - start_date).days + 1} "
-                f"days ago on {start_date}"
+                f"Skipped, not first release and only append new records every {self.bq_merge_days} days. "
+                f"Last append was {(now - start_date).days} days ago on {start_date}"
             )
 
     def cleanup(self, release: StreamRelease, **kwargs):
