@@ -24,15 +24,13 @@ from airflow.models.taskinstance import TaskInstance
 from croniter import croniter
 from google.cloud.bigquery import SourceFormat
 
-from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.airflow_utils import AirflowVars, get_prev_start_date_success_task
 from observatory.platform.utils.workflow_utils import (
-    batch_blob_name,
-    blob_name,
     bq_append_from_file,
     bq_append_from_partition,
     bq_delete_old,
     bq_load_ingestion_partition,
-    table_ids_from_path,
+    get_bq_load_info,
     upload_files_from_list,
     is_first_dag_run,
 )
@@ -162,8 +160,8 @@ class StreamTelescope(Workflow):
         """
 
         # Check if first release or not
-        first_release = is_first_dag_run(**kwargs)
         dag_run: DagRun = kwargs["dag_run"]
+        first_release = is_first_dag_run(dag_run)
         if first_release:
             # When first release, set start date to the start of the DAG
             start_date = pendulum.instance(kwargs["dag"].default_args["start_date"]).start_of("day")
@@ -237,13 +235,8 @@ class StreamTelescope(Workflow):
             # because a first release can be relatively big in size.
             raise AirflowSkipException("Skipped, because first release")
 
-        for transform_path in release.transform_files:
-            if self.batch_load:
-                transform_blob = batch_blob_name(release.transform_folder)
-                main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
-            else:
-                transform_blob = blob_name(transform_path)
-                main_table_id, partition_table_id = table_ids_from_path(transform_path)
+        bq_load_info = get_bq_load_info(self.dag_id, release.transform_folder, release.transform_files, self.batch_load)
+        for transform_blob, main_table_id, partition_table_id in bq_load_info:
             table_description = self.table_descriptions.get(main_table_id, "")
             bq_load_ingestion_partition(
                 self.schema_folder,
@@ -259,8 +252,6 @@ class StreamTelescope(Workflow):
                 table_description=table_description,
                 **self.load_bigquery_table_kwargs,
             )
-            if self.batch_load:
-                return
 
     def bq_delete_old(self, release: StreamRelease, **kwargs):
         """Delete old rows from the 'main' table, based on rows that are in a partition of the 'partitions' table.
@@ -269,45 +260,36 @@ class StreamTelescope(Workflow):
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
-        ti: TaskInstance = kwargs["ti"]
         if release.first_release:
-            # don't use AirflowSkipException, to ensure that task is in 'success' state, this is used below in
-            # ti.previous_start_date_success
-            logging.info("Skipped, because first release")
+            # Can't use AirflowSkipException, because the task needs to be in a success state to determine when to
+            # delete next
+            logging.info("Nothing to delete, because first release")
             return
 
-        start_date = pendulum.instance(ti.previous_start_date_success)
-        end_date = pendulum.instance(ti.start_date)
+        dag_run: DagRun = kwargs["dag_run"]
+        ti: TaskInstance = kwargs["ti"]
+        start_date = pendulum.instance(get_prev_start_date_success_task(dag_run, ti.task_id))
+        end_date = release.end_date
         if (end_date - start_date).days + 1 >= self.bq_merge_days:
             logging.info(
                 f"Deleting old data from main table using partitions after {start_date} and on or before" f" {end_date}"
             )
-            for transform_path in release.transform_files:
-                if self.batch_load:
-                    main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
-                    bq_delete_old(
-                        start_date,
-                        end_date,
-                        self.dataset_id,
-                        main_table_id,
-                        partition_table_id,
-                        self.merge_partition_field,
-                    )
-                    return
-                else:
-                    main_table_id, partition_table_id = table_ids_from_path(transform_path)
-                    bq_delete_old(
-                        start_date,
-                        end_date,
-                        self.dataset_id,
-                        main_table_id,
-                        partition_table_id,
-                        self.merge_partition_field,
-                    )
+            bq_load_info = get_bq_load_info(
+                self.dag_id, release.transform_folder, release.transform_files, self.batch_load
+            )
+            for _, main_table_id, partition_table_id in bq_load_info:
+                bq_delete_old(
+                    start_date,
+                    end_date,
+                    self.dataset_id,
+                    main_table_id,
+                    partition_table_id,
+                    self.merge_partition_field,
+                )
         else:
             raise AirflowSkipException(
                 f"Skipped, only delete old records every {self.bq_merge_days} days. "
-                f"Last delete was {(end_date - start_date).days + 1} days ago on {ti.previous_start_date_success}"
+                f"Last delete was {(end_date - start_date).days + 1} days ago on {start_date}"
             )
 
     def bq_append_new(self, release: StreamRelease, **kwargs):
@@ -317,16 +299,10 @@ class StreamTelescope(Workflow):
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
-        ti: TaskInstance = kwargs["ti"]
+        bq_load_info = get_bq_load_info(self.dag_id, release.transform_folder, release.transform_files, self.batch_load)
 
         if release.first_release:
-            for transform_path in release.transform_files:
-                if self.batch_load:
-                    transform_blob = batch_blob_name(release.transform_folder)
-                    main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
-                else:
-                    transform_blob = blob_name(transform_path)
-                    main_table_id, partition_table_id = table_ids_from_path(transform_path)
+            for transform_blob, main_table_id, partition_table_id in bq_load_info:
                 table_description = self.table_descriptions.get(main_table_id, "")
                 bq_append_from_file(
                     self.schema_folder,
@@ -341,45 +317,28 @@ class StreamTelescope(Workflow):
                     table_description=table_description,
                     **self.load_bigquery_table_kwargs,
                 )
-                if self.batch_load:
-                    return
             return
 
-        start_date = pendulum.instance(ti.previous_start_date_success)
-        end_date = pendulum.instance(ti.start_date)
+        dag_run: DagRun = kwargs["dag_run"]
+        ti: TaskInstance = kwargs["ti"]
+        start_date = pendulum.instance(get_prev_start_date_success_task(dag_run, ti.task_id))
+        end_date = release.end_date
         if (end_date - start_date).days + 1 >= self.bq_merge_days:
             logging.info(f"Appending data to main table from partitions after {start_date} and on or before {end_date}")
-            for transform_path in release.transform_files:
-                if self.batch_load:
-                    main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
-                    bq_append_from_partition(
-                        self.schema_folder,
-                        start_date,
-                        end_date,
-                        self.dataset_id,
-                        main_table_id,
-                        partition_table_id,
-                        self.schema_prefix,
-                        self.schema_version,
-                    )
-                    return
-                else:
-                    main_table_id, partition_table_id = table_ids_from_path(transform_path)
-                    bq_append_from_partition(
-                        self.schema_folder,
-                        start_date,
-                        end_date,
-                        self.dataset_id,
-                        main_table_id,
-                        partition_table_id,
-                        self.schema_prefix,
-                        self.schema_version,
-                    )
+            for transform_blob, main_table_id, partition_table_id in bq_load_info:
+                bq_append_from_partition(
+                    start_date,
+                    end_date,
+                    self.dataset_id,
+                    main_table_id,
+                    partition_table_id,
+                    self.merge_partition_field,
+                )
         else:
             raise AirflowSkipException(
                 f"Skipped, not first release and only append new records every "
                 f"{self.bq_merge_days} days. Last append was {(end_date - start_date).days + 1} "
-                f"days ago on {ti.previous_start_date_success}"
+                f"days ago on {start_date}"
             )
 
     def cleanup(self, release: StreamRelease, **kwargs):

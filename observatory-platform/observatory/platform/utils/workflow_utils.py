@@ -40,7 +40,7 @@ import pysftp
 import six
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import DagBag, Variable
+from airflow.models import DagBag, Variable, DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from dateutil.relativedelta import relativedelta
@@ -56,12 +56,10 @@ from observatory.platform.utils.config_utils import find_schema, utils_templates
 from observatory.platform.utils.file_utils import load_file, write_to_file
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
-    copy_bigquery_table,
     create_bigquery_dataset,
     load_bigquery_table,
     run_bigquery_query,
     select_table_shard_dates,
-    upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.gc_utils import upload_file_to_cloud_storage
@@ -254,6 +252,31 @@ def prepare_bq_load(
     return project_id, bucket_name, data_location, schema_file_path
 
 
+def get_bq_load_info(
+    dag_id: str, transform_folder: str, transform_files: List[str], batch_load: bool
+) -> List[Tuple[str, str, str]]:
+    """Get (a list of) the transform blob, main table id and partition table id that are used to load data into
+    BigQuery.
+    When the batch_load property of the telescope is set to True, all blobs in the transform folder will be loaded
+    into 1 table at once.
+    When the batch_load property of the telescope is set to False, each blob in the transform folder will be used to
+    create/update an individual table.
+
+    :return: List with tuples of transform_blob, main_table_id and partition_table_id
+    """
+    if batch_load:
+        transform_blob = batch_blob_name(transform_folder)
+        main_table_id, partition_table_id = (dag_id, f"{dag_id}_partitions")
+        bq_info = [(transform_blob, main_table_id, partition_table_id)]
+    else:
+        bq_info = []
+        for transform_path in transform_files:
+            transform_blob = blob_name(transform_path)
+            main_table_id, partition_table_id = table_ids_from_path(transform_path)
+            bq_info.append((transform_blob, main_table_id, partition_table_id))
+    return bq_info
+
+
 def prepare_bq_load_v2(
     schema_folder: str,
     project_id: str,
@@ -418,7 +441,7 @@ def bq_load_ingestion_partition(
     given it will automatically partition by ingestion datetime.
 
     :param schema_folder: the path to the SQL schema folder.
-    :param end_date: End date.
+    :param end_date: Release end date, used to find the schema and to create table id.
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
     :param main_table_id: Main table id.
@@ -437,7 +460,7 @@ def bq_load_ingestion_partition(
     uri = f"gs://{bucket_name}/{transform_blob}"
 
     # Include date in table id, so data in table is not overwritten
-    partition_table_id = create_date_table_id(partition_table_id, pendulum.today(), partition_type)
+    partition_table_id = create_date_table_id(partition_table_id, end_date, partition_type)
     success = load_bigquery_table(
         uri,
         dataset_id,
@@ -533,6 +556,7 @@ def bq_delete_old(
     """Will run a BigQuery query that deletes rows from the main table that are matched with rows from
     specific partitions of the partition table.
     The query is created from a template and the given info.
+
     :param start_date: Start date, excluded.
     :param end_date: End date, included.
     :param dataset_id: Dataset id.
@@ -563,43 +587,45 @@ def bq_delete_old(
 
 
 def bq_append_from_partition(
-    schema_folder: str,
     start_date: pendulum.DateTime,
     end_date: pendulum.DateTime,
     dataset_id: str,
     main_table_id: str,
     partition_table_id: str,
-    prefix: str = "",
-    schema_version: str = None,
+    merge_partition_field: str,
 ):
-    """Appends rows to the main table by coping specific partitions from the partition table to the main table.
-    :param schema_folder: the SQL schema path.
+    """Will run a BigQuery query that inserts rows from specific partitions of the partitioned table. If there are rows
+    with the same id (merge_partition_field) in multiple partitions, only the row with that id from the latest
+    partition will be added.
+    The query is created from a template and the given info.
+
     :param start_date: Start date, excluded.
     :param end_date: End date, included.
     :param dataset_id: Dataset id.
     :param main_table_id: Main table id.
     :param partition_table_id: Partition table id.
-    :param prefix: The prefix for the schema.
-    :param schema_version: Schema version.
+    :param merge_partition_field: Merge partition field.
     :return: None.
     """
-    project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
-        schema_folder, dataset_id, main_table_id, end_date, prefix, schema_version
+    start_date = start_date.strftime("%Y-%m-%d")
+    end_date = end_date.strftime("%Y-%m-%d")
+    # Get merge variables
+    dataset_id = dataset_id
+    main_table = main_table_id
+    partitioned_table = partition_table_id
+    merge_condition_field = merge_partition_field
+
+    template_path = os.path.join(utils_templates_path(), make_sql_jinja2_filename("insert_from_partitions"))
+    query = render_template(
+        template_path,
+        dataset=dataset_id,
+        main_table=main_table,
+        partitioned_table=partitioned_table,
+        merge_condition_field=merge_condition_field,
+        start_date=start_date,
+        end_date=end_date,
     )
-    # exclude start date and include end date in period
-    period = pendulum.period(start_date.date() + timedelta(days=1), end_date.date())
-    logging.info(f"Getting table partitions: ")
-    source_table_ids = []
-    for dt in period:
-        table_id = f"{project_id}.{dataset_id}.{partition_table_id}${dt.strftime('%Y%m%d')}"
-        source_table_ids.append(table_id)
-        logging.info(f"Adding table_id: {table_id}")
-    destination_table_id = f"{project_id}.{dataset_id}.{main_table_id}"
-    success = copy_bigquery_table(
-        source_table_ids, destination_table_id, data_location, bigquery.WriteDisposition.WRITE_APPEND
-    )
-    if not success:
-        raise AirflowException()
+    run_bigquery_query(query)
 
 
 def bq_append_from_file(
@@ -1281,10 +1307,14 @@ def make_release_date(**kwargs) -> pendulum.DateTime:
     return kwargs["next_execution_date"].subtract(days=1).start_of("day")
 
 
-def is_first_dag_run(**kwargs) -> bool:
-    """ Whether the DAG Run is the first run or not """
+def is_first_dag_run(dag_run: DagRun) -> bool:
+    """Whether the DAG Run is the first run or not
 
-    return kwargs["dag_run"].get_previous_dagrun() is None
+    :param dag_run: A Dag Run instance
+    :return: Whether the DAG run is the first run or not
+    """
+
+    return dag_run.get_previous_dagrun() is None
 
 
 def make_table_name(
