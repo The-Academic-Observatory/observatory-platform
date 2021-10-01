@@ -572,7 +572,7 @@ class TestTemplateUtils(unittest.TestCase):
                     telescope.dataset_description,
                 )
                 date_table_id = create_date_table_id(
-                    partition_table_id, pendulum.today(), bigquery.TimePartitioningType.DAY
+                    partition_table_id, release.end_date, bigquery.TimePartitioningType.DAY
                 )
                 mock_load_bigquery_table.assert_called_once_with(
                     "gs://bucket_name/telescopes/dag_id/2021_02_01-2021_03_01/file.txt",
