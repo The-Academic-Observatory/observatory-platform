@@ -490,6 +490,19 @@ def terraform(command, config_path, terraform_credentials_path, debug):
             terraform_cmd.update_workspace()
 
 
+@cli.command(context_settings=dict(max_content_width=120))
+@click.argument(
+    "command",
+    type=click.Choice(["dockerfile"]),
+)
+def build(command: str):
+
+    if command == "dockerfile":
+        pass
+
+
+
+
 def terraform_check_dependencies(
     terraform_cmd: TerraformCommand, generate_cmd: GenerateCommand, min_line_chars: int = 80
 ):
