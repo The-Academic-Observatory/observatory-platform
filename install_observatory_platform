@@ -1,9 +1,6 @@
 #!/bin/bash
 
-# Defines
-
-source installer_functions.sh
-
+source observatory_platform_installer_fn
 
 #### ENTRY POINT ####
 
@@ -15,14 +12,19 @@ set_os_arch
 check_system
 configure_install_options
 install_system_deps
+
+source $venv_observatory_platform/bin/activate
+
 install_observatory_platform
 install_observatory_api
 install_academic_observatory_workflows
-
+install_oaebu_workflows
 generate_observatory_config
+
+deactivate
 
 echo "=================================================================================================================================="
 echo "Installation complete."
-echo "Please restart your computer for the docker installation to take effect."
+echo "Please restart your computer for the Docker installation to take effect."
 echo -e "You can start the observatory platform after the restart by first activating the Python virtual environment with:\n  source $(pwd)/$venv_observatory_platform/bin/activate"
-echo -e "Once activated, you can start the observatory with:\n  observatory platform start"
+echo -e "Once activated, you can start the observatory with: observatory platform start"

@@ -116,7 +116,6 @@ function configure_install_options() {
         echo -e "Installation configuration summary:"
         echo "----------------------------------------------------------"
         echo "Operating system: $os_human, architecture: $arch"
-        echo "Observatory platform version: $observatory_version"
         echo "Install Observatory Platform: y"
         echo "Install extra developer testing packages: $install_test_extras"
         echo "Install Observatory API: $install_oapi"
@@ -145,9 +144,9 @@ function configure_install_options() {
 }
 
 function install_google_cloud_sdk() {
-    echo "==========================="
+    echo "---------------------------"
     echo "Installing Google Cloud SDK"
-    echo "==========================="
+    echo "---------------------------"
 
     local url="https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${google_cloud_sdk_version}-${os}-${gcloud_sdk_arch}.tar.gz"
     sudo curl -L $url -o /usr/local/bin/google-cloud-sdk.tar.gz
@@ -159,6 +158,22 @@ function install_google_cloud_sdk() {
 }
 
 function install_terraform_deps() {
+    ## Package versions to install
+
+    terraform_version="1.0.5"
+    packer_version="1.6.0"
+    google_cloud_sdk_version="330.0.0"
+
+    terraform_arch=$arch
+    if [ "$arch" = "x86_64" ]; then
+        terraform_arch="amd64"
+    fi
+
+    gcloud_sdk_arch=$arch
+    if [ "$arch" = "arm64" ]; then
+        gcloud_sdk_arch="arm"
+    fi
+
     echo "================================="
     echo "Installing Terraform dependencies"
     echo "================================="
@@ -272,16 +287,9 @@ function install_system_deps() {
     elif [ "$os" = "darwin" ]; then
         install_macos_system_deps
     fi
-
-    # Need to wait for system deps to be installed before we can guarantee this works.
-    export observatory_version=$(python3 -c "from importlib_metadata import metadata; print(metadata('observatory-platform').get('Version'))")
-
 }
 
 function install_observatory_platform() {
-    echo "Activating the virtual environment for the observatory platform"
-    source $venv_observatory_platform/bin/activate
-
     echo "--------------------------------------------------"
     echo "Updating the virtual environment's Python packages"
     echo "--------------------------------------------------"
@@ -297,10 +305,6 @@ function install_observatory_platform() {
     else
         pip install -e observatory-platform
     fi
-
-    echo -e "Deactivating observatory platform virtual environment"
-    deactivate
-    echo -e "\n"
 }
 
 function install_observatory_api() {
@@ -308,36 +312,17 @@ function install_observatory_api() {
         return 0
     fi
 
-    echo "Activating the virtual environment for the observatory platform"
-    source $venv_observatory_platform/bin/activate
-
     echo "=========================="
     echo "Installing Observatory API"
     echo "=========================="
 
     pip3 install -e observatory-api
-
-    echo -e "Deactivating observatory platform virtual environment"
-    deactivate
-    echo -e "\n"
 }
 
 function install_academic_observatory_workflows() {
     if [ "$install_ao_workflows" = "n" ]; then
         return 0
     fi
-
-    echo "Activating the virtual environment for the observatory platform"
-    source $venv_observatory_platform/bin/activate
-
-    echo "=========================================="
-    echo "Cloning the academic observatory workflows"
-    echo "=========================================="
-
-    mkdir -p workflows
-    cd workflows
-    git clone git@github.com:The-Academic-Observatory/academic-observatory-workflows.git
-    cd ..
 
     echo "========================================="
     echo "Installing academic observatory workflows"
@@ -355,19 +340,12 @@ function install_academic_observatory_workflows() {
     else
         pip3 install -e workflows/academic-observatory-workflows
     fi
-
-    echo -e "Deactivating observatory platform virtual environment"
-    deactivate
-    echo -e "\n"
 }
 
-function install_academic_observatory_workflows() {
-    if [ "$install_ao_workflows" = "n" ]; then
+function install_oaebu_workflows() {
+    if [ "$install_oaebu_workflows" = "n" ]; then
         return 0
     fi
-
-    echo "Activating the virtual environment for the observatory platform"
-    source $venv_observatory_platform/bin/activate
 
     echo "=========================="
     echo "Installing oaebu workflows"
@@ -385,34 +363,34 @@ function install_academic_observatory_workflows() {
     else
         pip3 install -e workflows/oaebu-workflows
     fi
-
-    echo -e "Deactivating observatory platform virtual environment"
-    deactivate
-    echo -e "\n"
 }
 
 
 function generate_observatory_config() {
-    echo "Activating the virtual environment for the observatory platform"
-    source $venv_observatory_platform/bin/activate
-
     local interactive=""
+    local ao_wf=""
+    local oaebu_wf=""
+    local oapi=""
 
     if [ "$config_observatory_base" = "y" ]; then
         interactive="--interactive"
+    fi
+
+    if [ "$install_ao_workflows" = "y" ]; then
+        ao_wf="--ao-wf"
+    fi
+
+    if [ "$install_oaebu_workflows" = "y" ]; then
+        oaebu_wf="--oaebu-wf"
+    fi
+
+    if [ "$install_oapi" = "y" ]; then
+        oapi="--oapi"
     fi
 
     echo "============================="
     echo "Generating Observatory config"
     echo "============================="
 
-    if [ "$config_type" = "local" ]; then
-       observatory generate config local $interactive
-    elif [ "$config_type" = "terraform" ]; then
-        observatory generate config terraform $interactive
-    fi
-
-    echo -e "Deactivating observatory platform virtual environment"
-    deactivate
-    echo -e "\n"
+    observatory generate config $config_type $interactive $ao_wf $oaebu_wf $oapi
 }

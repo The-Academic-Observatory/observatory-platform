@@ -1,0 +1,13 @@
+#!/bin/bash
+
+source observatory_platform_installer_fn
+
+#### ENTRY POINT ####
+
+set_os_arch
+check_system
+
+config_observatory_base="y"
+
+ask_config_type
+generate_observatory_config

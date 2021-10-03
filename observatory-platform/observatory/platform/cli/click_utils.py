@@ -30,3 +30,12 @@ def indent(string: str, num_spaces: int) -> str:
 
     assert num_spaces > 0, "indent: num_spaces must be > 0"
     return string.rjust(len(string) + num_spaces)
+
+
+def comment(string: str) -> str:
+    """Add a Python comment character in front of a string.
+    :param string: String to comment out.
+    :return: Commented string.
+    """
+
+    return f"# {string}"
