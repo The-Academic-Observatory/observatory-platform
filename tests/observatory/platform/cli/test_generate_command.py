@@ -272,18 +272,19 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         self.assertEqual(mock_build.call_args.kwargs["backend_type"], BackendType.terraform)
         self.assertEqual(mock_build.call_args.kwargs["workflows"], ["academic-observatory-workflows"])
 
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_backend")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_observatory")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_terraform")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_google_cloud")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_connections")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_variables")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_workflows_projects")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_cloud_sql_database")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_main_vm")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_worker_vm")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_elasticsearch")
+    @patch("observatory.platform.cli.generate_command.module_file_path")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_api")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_elasticsearch")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_worker_vm")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_main_vm")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_cloud_sql_database")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_workflows_projects")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_variables")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_connections")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_google_cloud")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_terraform")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_observatory")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_backend")
     def test_build(
         self,
         m_backend,
@@ -298,7 +299,15 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         m_airflow_worker_m,
         m_elasticsearch,
         m_api,
+        m_mfp,
     ):
+        def mock_mfp(*arg, **kwargs):
+            if arg[0] == "academic_observatory_workflows.dags":
+                return "/ao_workflows/path"
+            else:
+                return "oaebu_workflows/path"
+
+        m_mfp.side_effect = mock_mfp
         workflows = []
         local_nodags = InteractiveConfigBuilder.build(backend_type=BackendType.local, workflows=workflows, oapi=False)
         self.assertTrue(isinstance(local_nodags, ObservatoryConfig))
@@ -310,6 +319,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         self.assertEqual(len(local_dags.workflows_projects), 2)
         self.assertEqual(local_dags.workflows_projects[0], DefaultWorkflowsProject.academic_observatory_workflows())
         self.assertEqual(local_dags.workflows_projects[1], DefaultWorkflowsProject.oaebu_workflows())
+        print(local_dags.workflows_projects)
 
         terraform_nodags = InteractiveConfigBuilder.build(backend_type=BackendType.terraform, workflows=[], oapi=False)
         self.assertTrue(isinstance(terraform_nodags, TerraformConfig))
