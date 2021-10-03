@@ -80,14 +80,14 @@ class TestObservatoryGenerate(unittest.TestCase):
             result = runner.invoke(cli, ["generate", "config", "local", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
             self.assertFalse(os.path.isfile(config_path))
-            self.assertIn("Not generating Observatory Config", result.output)
+            self.assertIn("Not generating Observatory config\n", result.output)
 
             # Test generate terraform config
             config_path = os.path.abspath("config-terraform.yaml")
             result = runner.invoke(cli, ["generate", "config", "terraform", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
             self.assertFalse(os.path.isfile(config_path))
-            self.assertIn("Not generating Terraform Config", result.output)
+            self.assertIn("Not generating Terraform config\n", result.output)
 
     @patch("observatory.platform.cli.cli.stream_process")
     @patch("observatory.platform.cli.cli.subprocess.Popen")
