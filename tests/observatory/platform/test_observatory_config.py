@@ -1080,7 +1080,7 @@ class TestKeyCheckers(unittest.TestCase):
         text = "This is invalid "
         valid, message = is_secret_key(text)
         self.assertFalse(valid)
-        self.assertEqual(message, f"Key is not base64.")
+        self.assertEqual(message, f"Key {text} is not base64.")
 
     def test_is_fernet_key(self):
         text = "invalid key"
