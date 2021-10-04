@@ -337,7 +337,7 @@ function install_academic_observatory_workflows() {
     if [ ! -d "workflows/academic-observatory-workflows" ]; then
         mkdir -p workflows
         cd workflows
-        git clone git@github.com:The-Academic-Observatory/oaebu-workflows.git
+        git clone git@github.com:The-Academic-Observatory/academic-observatory-workflows.git
         cd ..
     fi
 
