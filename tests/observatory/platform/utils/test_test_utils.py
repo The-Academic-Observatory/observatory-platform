@@ -139,6 +139,9 @@ class TestObservatoryEnvironment(unittest.TestCase):
         env._delete_bucket(bucket_id)
         self.assertFalse(bucket.exists())
 
+        # Test double delete is handled gracefully
+        env._delete_bucket(bucket_id)
+
         # No Google Cloud variables raises error
         bucket_id = random_id()
         with self.assertRaises(AssertionError):

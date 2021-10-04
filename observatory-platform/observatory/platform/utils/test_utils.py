@@ -78,6 +78,7 @@ from typing import Dict, List
 from unittest.mock import patch
 
 import croniter
+import google
 import httpretty
 import paramiko
 import pendulum
@@ -290,6 +291,8 @@ class ObservatoryEnvironment:
             bucket.delete(force=True)
         except requests.exceptions.ReadTimeout:
             pass
+        except google.api_core.exceptions.NotFound:
+            logging.warning(f"Bucket {bucket_id} not found. Did you mean to call _delete_bucket on the same bucket twice?")
 
     def add_dataset(self, prefix: str = "") -> str:
         """Add a BigQuery dataset to the Observatory environment.
