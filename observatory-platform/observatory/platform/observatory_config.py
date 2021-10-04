@@ -651,12 +651,7 @@ def is_secret_key(key: str) -> Tuple[bool, Union[str, None]]:
         message = f"Secret key should be length >=16, but is length {key_length}."
         return False, message
 
-    valid = is_base64(key_bytes)
-
-    if not valid:
-        message = f"Key {key} is not base64."
-
-    return valid, message
+    return True, message
 
 
 def is_fernet_key(key: str) -> Tuple[bool, Union[str, None]]:
