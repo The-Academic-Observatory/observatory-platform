@@ -87,11 +87,17 @@ function ask_config_type() {
 }
 
 function ask_config_observatory_base() {
+    question="Do you want to configure Observatory platform basic settings during config file generation? Note that if you do not configure it now, you need to configure all the sections tagged [Required] later on by editing the config.yaml or config-terraform.yaml file. [Y/n]: "
+    options=("y" "n")
+    default_option="y"
+    config_observatory_base=$(ask_question "$question" "$default_option" "${options[@]}")
+}
 
-        question="Do you want to configure Observatory platform basic settings during config file generation? Note that if you do not configure it now, you need to configure all the sections tagged [Required] later on by editing the config.yaml or config-terraform.yaml file. [Y/n]: "
-        options=("y" "n")
-        default_option="y"
-        config_observatory_base=$(ask_question "$question" "$default_option" "${options[@]}")
+function ask_config_path_custom() {
+    question="Path to save generated config file to [leave blank for default config path]: "
+    default_option=""
+    read -p "$question" config_path
+    config_path=${config_path:-$default_option}
 }
 
 function configure_install_options() {
@@ -274,7 +280,7 @@ function install_macos_system_deps() {
     echo "Installing Docker"
     echo "-----------------"
 
-    brew cask install docker
+    brew install --cask docker
 
     if [ "$config_type" = "terraform" ]; then
         install_terraform_deps
@@ -365,12 +371,14 @@ function install_oaebu_workflows() {
     fi
 }
 
-
 function generate_observatory_config() {
+    ask_config_path_custom
+
     local interactive=""
     local ao_wf=""
     local oaebu_wf=""
     local oapi=""
+    local config_path_arg=""
 
     if [ "$config_observatory_base" = "y" ]; then
         interactive="--interactive"
@@ -388,9 +396,13 @@ function generate_observatory_config() {
         oapi="--oapi"
     fi
 
+    if [ "$config_path" != "" ]; then
+        config_path_arg="--config-path $config_path"
+    fi
+
     echo "============================="
     echo "Generating Observatory config"
     echo "============================="
 
-    observatory generate config $config_type $interactive $ao_wf $oaebu_wf $oapi
+    observatory generate config $config_type $config_path_arg $interactive $ao_wf $oaebu_wf $oapi
 }
