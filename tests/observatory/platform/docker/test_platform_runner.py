@@ -40,7 +40,7 @@ from observatory.platform.observatory_config import (
     WorkflowsProject,
 )
 from observatory.platform.observatory_config import save_yaml, module_file_path
-from observatory.platform.platform_builder import PlatformBuilder
+from observatory.platform.docker.platform_runner import PlatformRunner
 
 
 class MockFromEnv(Mock):
@@ -54,10 +54,10 @@ class MockFromEnv(Mock):
         raise requests.exceptions.ConnectionError()
 
 
-def make_expected_env(cmd: PlatformBuilder) -> Dict:
+def make_expected_env(cmd: PlatformRunner) -> Dict:
     """Make an expected environment.
 
-    :param cmd: the PlatformBuilder.
+    :param cmd: the PlatformRunner.
     :return: the environment.
     """
 
@@ -80,7 +80,7 @@ def make_expected_env(cmd: PlatformBuilder) -> Dict:
     }
 
 
-class TestPlatformBuilder(unittest.TestCase):
+class TestPlatformRunner(unittest.TestCase):
     def setUp(self) -> None:
         self.is_env_local = True
         self.observatory_platform_path = module_file_path("observatory.platform", nav_back_steps=-3)
@@ -109,12 +109,12 @@ class TestPlatformBuilder(unittest.TestCase):
 
             # Raise FileExistsError because is no config.yaml
             with self.assertRaises(FileExistsError):
-                PlatformBuilder(config_path=config_path)
+                PlatformRunner(config_path=config_path)
 
             # Environment should be valid because there is a config.yaml
             # Assumes that Docker is setup on the system where the tests are run
             config_path = self.save_config(t)
-            cmd = PlatformBuilder(config_path=config_path)
+            cmd = PlatformRunner(config_path=config_path)
             self.assertTrue(cmd.is_environment_valid)
 
     def test_docker_module_path(self):
@@ -122,7 +122,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
-            cmd = PlatformBuilder(config_path=config_path)
+            cmd = PlatformRunner(config_path=config_path)
             expected_path = str(pathlib.Path(*pathlib.Path(docker_module.__file__).resolve().parts[:-1]).resolve())
             self.assertEqual(expected_path, cmd.docker_module_path)
 
@@ -131,7 +131,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
-            cmd = PlatformBuilder(config_path=config_path)
+            cmd = PlatformRunner(config_path=config_path)
             result = cmd.docker_exe_path
             self.assertIsNotNone(result)
             self.assertTrue(result.endswith("docker"))
@@ -141,7 +141,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
-            cmd = PlatformBuilder(config_path=config_path)
+            cmd = PlatformRunner(config_path=config_path)
             result = cmd.docker_compose_path
             self.assertIsNotNone(result)
             self.assertTrue(result.endswith("docker-compose"))
@@ -154,7 +154,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
-            cmd = PlatformBuilder(config_path=config_path)
+            cmd = PlatformRunner(config_path=config_path)
             self.assertTrue(cmd.is_docker_running)
 
     @patch("observatory.platform.platform_builder.docker.from_env")
@@ -165,7 +165,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
-            cmd = PlatformBuilder(config_path=config_path)
+            cmd = PlatformRunner(config_path=config_path)
             self.assertFalse(cmd.is_docker_running)
 
     def test_make_observatory_files(self):
@@ -173,7 +173,7 @@ class TestPlatformBuilder(unittest.TestCase):
 
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
-            cmd = PlatformBuilder(config_path=config_path)
+            cmd = PlatformRunner(config_path=config_path)
             cmd.build()
 
             # Test that the expected files have been written
@@ -197,7 +197,7 @@ class TestPlatformBuilder(unittest.TestCase):
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
-            cmd = PlatformBuilder(config_path=config_path)
+            cmd = PlatformRunner(config_path=config_path)
 
             # Make the environment
             expected_env = make_expected_env(cmd)
@@ -217,7 +217,7 @@ class TestPlatformBuilder(unittest.TestCase):
         # Check that the environment variables are set properly for a complete config file
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
-            cmd = PlatformBuilder(config_path=config_path)
+            cmd = PlatformRunner(config_path=config_path)
 
             # Manually override the platform command with a more fleshed out config file
             bucket = CloudStorageBucket(id="download_bucket", name="my-download-bucket-name")
@@ -285,7 +285,7 @@ class TestPlatformBuilder(unittest.TestCase):
         # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
             config_path = self.save_config(t)
-            cmd = PlatformBuilder(config_path=config_path)
+            cmd = PlatformRunner(config_path=config_path)
             cmd.debug = True
 
             # Build the platform

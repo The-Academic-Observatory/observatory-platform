@@ -83,6 +83,7 @@ class BackendType(Enum):
 
     local = "local"
     terraform = "terraform"
+    build = "build"
 
 
 class Environment(Enum):
@@ -157,8 +158,8 @@ class Observatory:
 
     package: str
     package_type: str
-    airflow_fernet_key: str
-    airflow_secret_key: str
+    airflow_fernet_key: str = None
+    airflow_secret_key: str = None
     airflow_ui_user_email: str = "airflow@airflow.com"
     airflow_ui_user_password: str = "airflow"
     observatory_home: str = default_observatory_home()
@@ -200,8 +201,8 @@ class Observatory:
 
         package = dict_.get("package")
         package_type = dict_.get("package_type")
-        airflow_fernet_key = dict_.get("airflow_fernet_key")
-        airflow_secret_key = dict_.get("airflow_secret_key")
+        airflow_fernet_key = dict_.get("airflow_fernet_key", Observatory.airflow_fernet_key)
+        airflow_secret_key = dict_.get("airflow_secret_key", Observatory.airflow_secret_key)
         airflow_ui_user_email = dict_.get("airflow_ui_user_email", Observatory.airflow_ui_user_email)
         airflow_ui_user_password = dict_.get("airflow_ui_user_password", Observatory.airflow_ui_user_password)
         observatory_home = dict_.get("observatory_home", Observatory.observatory_home)
@@ -221,8 +222,8 @@ class Observatory:
         return Observatory(
             package,
             package_type,
-            airflow_fernet_key,
-            airflow_secret_key,
+            airflow_fernet_key=airflow_fernet_key,
+            airflow_secret_key=airflow_secret_key,
             airflow_ui_user_password=airflow_ui_user_password,
             airflow_ui_user_email=airflow_ui_user_email,
             observatory_home=observatory_home,
@@ -1091,6 +1092,7 @@ def make_schema(backend_type: BackendType) -> Dict:
 
     schema = dict()
     is_backend_terraform = backend_type == BackendType.terraform
+    is_backend_build = backend_type == BackendType.build
 
     # Backend settings
     schema["backend"] = {
@@ -1154,8 +1156,8 @@ def make_schema(backend_type: BackendType) -> Dict:
         "schema": {
             "package": {"required": True, "type": "string"},
             "package_type": {"required": True, "type": "string", "allowed": observatory_package_types},
-            "airflow_fernet_key": {"required": True, "type": "string"},
-            "airflow_secret_key": {"required": True, "type": "string"},
+            "airflow_fernet_key": {"required": not is_backend_build, "type": "string"},
+            "airflow_secret_key": {"required": not is_backend_build, "type": "string"},
             "airflow_ui_user_password": {"required": is_backend_terraform, "type": "string"},
             "airflow_ui_user_email": {"required": is_backend_terraform, "type": "string"},
             "observatory_home": {"required": False, "type": "string"},

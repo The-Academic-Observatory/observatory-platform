@@ -22,7 +22,7 @@ from typing import Union
 import docker
 import requests
 
-from observatory.platform.docker.compose import ComposeRunner
+from observatory.platform.docker.compose_runner import ComposeRunner
 from observatory.platform.observatory_config import (
     ObservatoryConfig,
     BackendType,
@@ -36,7 +36,7 @@ HOST_GID = os.getgid()
 DEBUG = False
 
 
-class PlatformBuilder(ComposeRunner):
+class PlatformRunner(ComposeRunner):
     def __init__(
         self,
         *,
@@ -47,7 +47,7 @@ class PlatformBuilder(ComposeRunner):
         debug: bool = DEBUG,
         backend_type: BackendType = BackendType.local,
     ):
-        """Create a PlatformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
+        """Create a PlatformRunner instance, which is used to build, start and stop an Observatory Platform instance.
 
         :param config_path: The path to the config.yaml configuration file.
         :param host_uid: The user id of the host system. Used to set the user id in the Docker containers.

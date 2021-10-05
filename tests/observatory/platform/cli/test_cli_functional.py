@@ -14,16 +14,13 @@
 
 # Author: James Diprose
 
-import glob
 import json
 import logging
 import os
 import shutil
-import subprocess
 import time
 import unittest
 import uuid
-from subprocess import Popen
 from typing import Set
 from unittest.mock import patch
 
@@ -43,8 +40,7 @@ from observatory.platform.observatory_config import (
     module_file_path,
     WorkflowsProject,
 )
-from observatory.platform.utils.proc_utils import stream_process
-from observatory.platform.utils.test_utils import test_fixtures_path, find_free_port, save_empty_file
+from observatory.platform.utils.test_utils import test_fixtures_path, find_free_port, save_empty_file, build_sdist
 from observatory.platform.utils.url_utils import wait_for_url
 
 
@@ -73,32 +69,6 @@ def list_dag_ids(
         dag_ids = [dag["dag_id"] for dag in dags]
 
     return set(dag_ids)
-
-
-def build_sdist(package_path: str) -> str:
-    """Build a Python source distribution and return the path to the tar file.
-
-    :param package_path:
-    :return:
-    """
-
-    # Remove dist directory
-    build_dir = os.path.join(package_path, "dist")
-    shutil.rmtree(build_dir, ignore_errors=True)
-
-    # Set PBR version
-    env = os.environ.copy()
-    env["PBR_VERSION"] = "0.0.1"
-
-    proc: Popen = Popen(
-        ["python3", "setup.py", "sdist"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=package_path, env=env
-    )
-    output, error = stream_process(proc, True)
-    assert proc.returncode == 0, f"build_sdist failed: {package_path}"
-
-    # Get path to sdist
-    results = glob.glob(os.path.join(build_dir, "*.tar.gz"))
-    return results[0]
 
 
 class TestCliFunctional(unittest.TestCase):

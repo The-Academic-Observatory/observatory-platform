@@ -60,11 +60,13 @@
 
 import contextlib
 import datetime
+import glob
 import logging
 import os
 import shutil
 import socket
 import socketserver
+import subprocess
 import threading
 import time
 import unittest
@@ -73,6 +75,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from multiprocessing import Process
+from subprocess import Popen
 from typing import Dict, List
 from unittest.mock import patch
 
@@ -104,8 +107,10 @@ from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
+from observatory.platform.observatory_config import (
+    module_file_path,
+)
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import (
     crc32c_base64_hash,
     get_file_hash,
@@ -118,6 +123,7 @@ from observatory.platform.utils.gc_utils import (
     load_bigquery_table,
     upload_files_to_cloud_storage,
 )
+from observatory.platform.utils.proc_utils import stream_process
 from observatory.platform.utils.workflow_utils import find_schema
 
 
@@ -953,3 +959,29 @@ class HttpServer:
             yield self.process
         finally:
             self.stop()
+
+
+def build_sdist(package_path: str) -> str:
+    """Build a Python source distribution and return the path to the tar file.
+
+    :param package_path:
+    :return:
+    """
+
+    # Remove dist directory
+    build_dir = os.path.join(package_path, "dist")
+    shutil.rmtree(build_dir, ignore_errors=True)
+
+    # Set PBR version
+    env = os.environ.copy()
+    env["PBR_VERSION"] = "0.0.1"
+
+    proc: Popen = Popen(
+        ["python3", "setup.py", "sdist"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=package_path, env=env
+    )
+    output, error = stream_process(proc, True)
+    assert proc.returncode == 0, f"build_sdist failed: {package_path}"
+
+    # Get path to sdist
+    results = glob.glob(os.path.join(build_dir, "*.tar.gz"))
+    return results[0]

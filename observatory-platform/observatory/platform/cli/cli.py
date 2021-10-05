@@ -21,10 +21,11 @@ import click
 import subprocess
 
 from observatory.platform.cli.click_utils import INDENT1, INDENT2, INDENT3, indent
+from observatory.platform.cli.build_command import BuildCommand
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
-from observatory.platform.platform_builder import DEBUG, HOST_GID, HOST_UID
+from observatory.platform.docker.platform_runner import DEBUG, HOST_GID, HOST_UID
 from observatory.platform.utils.config_utils import observatory_home
 from observatory.platform.utils.config_utils import terraform_credentials_path as default_terraform_credentials_path
 from observatory.platform.utils.proc_utils import stream_process
@@ -497,8 +498,10 @@ def terraform(command, config_path, terraform_credentials_path, debug):
 )
 def build(command: str):
 
+    cmd = BuildCommand()
+
     if command == "dockerfile":
-        pass
+
 
 
 
