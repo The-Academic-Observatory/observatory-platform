@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import unittest
 from datetime import timedelta
@@ -24,7 +25,6 @@ from unittest.mock import patch
 
 import croniter
 import httpretty
-import logging
 import pendulum
 import pysftp
 import timeout_decorator
@@ -139,6 +139,9 @@ class TestObservatoryEnvironment(unittest.TestCase):
         env._delete_bucket(bucket_id)
         self.assertFalse(bucket.exists())
 
+        # Test double delete is handled gracefully
+        env._delete_bucket(bucket_id)
+
         # No Google Cloud variables raises error
         bucket_id = random_id()
         with self.assertRaises(AssertionError):
@@ -197,7 +200,8 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 ti = env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
                 self.assertFalse(ti.log.propagate)
 
-        # Test environment with logging enabled
+            # Test environment with logging enabled
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
         with env.create(task_logging=True):
             with env.create_dag_run(dag, execution_date):
                 # Test add_variable
@@ -213,7 +217,8 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 ti = env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
                 self.assertTrue(ti.log.propagate)
 
-        # Test that previous tasks have to be finished to run next task
+            # Test that previous tasks have to be finished to run next task
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
         with env.create(task_logging=True):
             with env.create_dag_run(dag, execution_date):
                 # Add_variable
@@ -283,6 +288,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 self.assertEqual(ti1.job_id, ti2.previous_ti.job_id)
 
         # Use DAG run without freezing time
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
         with env.create():
             # Test add_variable
             env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
@@ -316,12 +322,13 @@ class TestObservatoryEnvironment(unittest.TestCase):
         env = ObservatoryEnvironment(self.project_id, self.data_location)
         telescope = TelescopeTest(schedule_interval=timedelta(days=1))
         dag = telescope.make_dag()
-        execution_date = pendulum.datetime(2021,1,1)
-        expected_dag_date = pendulum.datetime(2021,1,2)
+        execution_date = pendulum.datetime(2021, 1, 1)
+        expected_dag_date = pendulum.datetime(2021, 1, 2)
         with env.create():
             with env.create_dag_run(dag, execution_date):
                 self.assertIsNotNone(env.dag_run)
                 self.assertEqual(expected_dag_date.date(), env.dag_run.start_date.date())
+
 
 class TestObservatoryTestCase(unittest.TestCase):
     """Test the ObservatoryTestCase class"""
