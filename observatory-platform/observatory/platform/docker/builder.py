@@ -100,17 +100,15 @@ class Template:
 
 
 class Builder(BuilderInterface):
-    def __init__(self, *, build_path: str, debug: bool = False):
+    def __init__(self, *, build_path: str):
         """BuilderInterface implementation.
 
         :param build_path: the path where the system will be built.
-        :param debug: whether to run in debug mode or not.
         """
 
         self.build_path = build_path
         self.templates: List[Template] = []
         self.files: List[File] = []
-        self.debug = debug
 
     def add_template(self, *, path: str, **kwargs):
         """Add a Jinja template that will be rendered to the build directory before running Docker Compose commands.
@@ -131,6 +129,18 @@ class Builder(BuilderInterface):
         """
 
         self.files.append(File(path=path, output_file_name=output_file_name))
+
+    def render_template(self, template: Template, output_file_path: str):
+        """Render a file using a Jinja template and save.
+
+        :param template: the template.
+        :param output_file_path: the output path.
+        :return: None.
+        """
+
+        render = render_template(template.path, **template.kwargs)
+        with open(output_file_path, "w") as f:
+            f.write(render)
 
     def make_files(self):
         """Render all Jinja templates and copy all files into the build directory.
@@ -153,14 +163,4 @@ class Builder(BuilderInterface):
             output_path = os.path.join(self.build_path, file.output_file_name)
             shutil.copy(file.path, output_path)
 
-    def render_template(self, template: Template, output_file_path: str):
-        """Render a file using a Jinja template and save.
 
-        :param template: the template.
-        :param output_file_path: the output path.
-        :return: None.
-        """
-
-        render = render_template(template.path, **template.kwargs)
-        with open(output_file_path, "w") as f:
-            f.write(render)

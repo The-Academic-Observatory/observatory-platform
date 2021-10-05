@@ -1,7 +1,5 @@
 
 
-
-
 class DockerBuildCommand:
 
     def __init__(self):

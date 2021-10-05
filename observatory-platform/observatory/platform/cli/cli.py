@@ -21,7 +21,7 @@ import click
 import subprocess
 
 from observatory.platform.cli.click_utils import INDENT1, INDENT2, INDENT3, indent
-from observatory.platform.cli.build_command import BuildCommand
+from observatory.platform.cli.build_command import DockerBuildCommand
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
@@ -498,12 +498,10 @@ def terraform(command, config_path, terraform_credentials_path, debug):
 )
 def build(command: str):
 
-    cmd = BuildCommand()
+    cmd = DockerBuildCommand()
 
     if command == "dockerfile":
-
-
-
+        pass
 
 
 def terraform_check_dependencies(

@@ -55,7 +55,8 @@ class ComposeRunner(Builder):
         :param debug: whether to run in debug mode or not.
         """
 
-        super().__init__(build_path=build_path, debug=debug)
+        super().__init__(build_path=build_path)
+        self.debug = debug
         self.compose_template_path = compose_template_path
         self.add_template(path=compose_template_path, **compose_template_kwargs)
 
