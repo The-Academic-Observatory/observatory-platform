@@ -104,7 +104,7 @@ class Backend:
     """
 
     type: BackendType
-    environment: Environment
+    environment: Environment = None
 
     @staticmethod
     def from_dict(dict_: Dict) -> Backend:
@@ -115,7 +115,9 @@ class Backend:
         """
 
         backend_type = BackendType(dict_.get("type"))
-        environment = Environment(dict_.get("environment"))
+        environment = dict_.get("environment")
+        if environment is not None:
+            environment = Environment(environment)
 
         return Backend(
             backend_type,
@@ -653,43 +655,16 @@ class ValidationError:
     value: Any
 
 
-class ObservatoryConfig:
+class BuildConfig:
     def __init__(
         self,
         backend: Backend = None,
         observatory: Observatory = None,
-        google_cloud: GoogleCloud = None,
-        terraform: Terraform = None,
-        airflow_variables: List[AirflowVariable] = None,
-        airflow_connections: List[AirflowConnection] = None,
         workflows_projects: List[WorkflowsProject] = None,
         validator: ObservatoryConfigValidator = None,
     ):
-        """Create an ObservatoryConfig instance.
-
-        :param backend: the backend config.
-        :param observatory: the Observatory config.
-        :param google_cloud: the Google Cloud config.
-        :param terraform: the Terraform config.
-        :param airflow_variables: a list of Airflow variables.
-        :param airflow_connections: a list of Airflow connections.
-        :param workflows_projects: a list of DAGs projects.
-        :param validator: an ObservatoryConfigValidator instance.
-        """
-
         self.backend = backend
         self.observatory = observatory
-        self.google_cloud = google_cloud
-        self.terraform = terraform
-
-        self.airflow_variables = airflow_variables
-        if airflow_variables is None:
-            self.airflow_variables = []
-
-        self.airflow_connections = airflow_connections
-        if airflow_variables is None:
-            self.airflow_connections = []
-
         self.workflows_projects = workflows_projects
         if workflows_projects is None:
             self.workflows_projects = []
@@ -755,6 +730,108 @@ class ObservatoryConfig:
             )
 
         return packages
+
+    @staticmethod
+    def _parse_fields(
+        dict_: Dict,
+    ) -> Tuple[Backend, Observatory, List[WorkflowsProject],]:
+        backend = Backend.from_dict(dict_.get("backend", dict()))
+        observatory = Observatory.from_dict(dict_.get("observatory", dict()))
+        workflows_projects = WorkflowsProject.parse_dags_projects(dict_.get("workflows_projects", list()))
+
+        return backend, observatory, workflows_projects
+
+    @classmethod
+    def load(cls, path: str):
+        """Load a configuration file.
+
+        :return: the ObservatoryConfig instance (or a subclass of ObservatoryConfig)
+        """
+
+        dict_ = dict()
+
+        try:
+            with open(path, "r") as f:
+                dict_ = yaml.safe_load(f)
+        except yaml.YAMLError:
+            print(f"Error parsing {path}")
+        except FileNotFoundError:
+            print(f"No such file or directory: {path}")
+        except cerberus.validator.DocumentError as e:
+            print(f"cerberus.validator.DocumentError: {e}")
+
+        return cls.from_dict(dict_)
+
+    @classmethod
+    def from_dict(cls, dict_: Dict) -> BuildConfig:
+        """Constructs a BuildConfig instance from a dictionary.
+
+        If the dictionary is invalid, then an ObservatoryConfig instance will be returned with no properties set,
+        except for the validator, which contains validation errors.
+
+        :param dict_: the input dictionary.
+        :return: the ObservatoryConfig instance.
+        """
+
+        schema = make_schema(BackendType.build)
+        validator = ObservatoryConfigValidator()
+        is_valid = validator.validate(dict_, schema)
+
+        if is_valid:
+            (
+                backend,
+                observatory,
+                workflows_projects,
+            ) = BuildConfig._parse_fields(dict_)
+
+            return BuildConfig(
+                backend,
+                observatory,
+                workflows_projects=workflows_projects,
+                validator=validator,
+            )
+        else:
+            return BuildConfig(validator=validator)
+
+
+class ObservatoryConfig(BuildConfig):
+    def __init__(
+        self,
+        backend: Backend = None,
+        observatory: Observatory = None,
+        google_cloud: GoogleCloud = None,
+        terraform: Terraform = None,
+        airflow_variables: List[AirflowVariable] = None,
+        airflow_connections: List[AirflowConnection] = None,
+        workflows_projects: List[WorkflowsProject] = None,
+        validator: ObservatoryConfigValidator = None,
+    ):
+        """Create an ObservatoryConfig instance.
+
+        :param backend: the backend config.
+        :param observatory: the Observatory config.
+        :param google_cloud: the Google Cloud config.
+        :param terraform: the Terraform config.
+        :param airflow_variables: a list of Airflow variables.
+        :param airflow_connections: a list of Airflow connections.
+        :param workflows_projects: a list of DAGs projects.
+        :param validator: an ObservatoryConfigValidator instance.
+        """
+
+        super(ObservatoryConfig, self).__init__(
+            backend=backend, observatory=observatory, workflows_projects=workflows_projects, validator=validator
+        )
+
+        self.google_cloud = google_cloud
+        self.terraform = terraform
+
+        self.airflow_variables = airflow_variables
+        if airflow_variables is None:
+            self.airflow_variables = []
+
+        self.airflow_connections = airflow_connections
+        if airflow_variables is None:
+            self.airflow_connections = []
 
     @property
     def dags_module_names(self):
@@ -885,27 +962,6 @@ class ObservatoryConfig:
             )
         else:
             return ObservatoryConfig(validator=validator)
-
-    @classmethod
-    def load(cls, path: str):
-        """Load a configuration file.
-
-        :return: the ObservatoryConfig instance (or a subclass of ObservatoryConfig)
-        """
-
-        dict_ = dict()
-
-        try:
-            with open(path, "r") as f:
-                dict_ = yaml.safe_load(f)
-        except yaml.YAMLError:
-            print(f"Error parsing {path}")
-        except FileNotFoundError:
-            print(f"No such file or directory: {path}")
-        except cerberus.validator.DocumentError as e:
-            print(f"cerberus.validator.DocumentError: {e}")
-
-        return cls.from_dict(dict_)
 
 
 class TerraformConfig(ObservatoryConfig):
@@ -1092,7 +1148,7 @@ def make_schema(backend_type: BackendType) -> Dict:
 
     schema = dict()
     is_backend_terraform = backend_type == BackendType.terraform
-    is_backend_build = backend_type == BackendType.build
+    is_runner = backend_type != BackendType.build
 
     # Backend settings
     schema["backend"] = {
@@ -1100,7 +1156,11 @@ def make_schema(backend_type: BackendType) -> Dict:
         "type": "dict",
         "schema": {
             "type": {"required": True, "type": "string", "allowed": [backend_type.value]},
-            "environment": {"required": True, "type": "string", "allowed": ["develop", "staging", "production"]},
+            "environment": {
+                "required": is_runner,
+                "type": "string",
+                "allowed": ["develop", "staging", "production"],
+            },
         },
     }
 
@@ -1156,8 +1216,8 @@ def make_schema(backend_type: BackendType) -> Dict:
         "schema": {
             "package": {"required": True, "type": "string"},
             "package_type": {"required": True, "type": "string", "allowed": observatory_package_types},
-            "airflow_fernet_key": {"required": not is_backend_build, "type": "string"},
-            "airflow_secret_key": {"required": not is_backend_build, "type": "string"},
+            "airflow_fernet_key": {"required": is_runner, "type": "string"},
+            "airflow_secret_key": {"required": is_runner, "type": "string"},
             "airflow_ui_user_password": {"required": is_backend_terraform, "type": "string"},
             "airflow_ui_user_email": {"required": is_backend_terraform, "type": "string"},
             "observatory_home": {"required": False, "type": "string"},

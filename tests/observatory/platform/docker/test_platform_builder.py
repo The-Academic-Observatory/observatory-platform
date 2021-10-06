@@ -26,7 +26,7 @@ from click.testing import CliRunner
 
 from observatory.platform.docker.platform_builder import PlatformBuilder
 from observatory.platform.observatory_config import (
-    ObservatoryConfig,
+    BuildConfig,
     Backend,
     Observatory,
     WorkflowsProject,
@@ -80,7 +80,7 @@ class TestPlatformBuilder(unittest.TestCase):
                         dags_module=f"{stringcase.snakecase(self.workflows_package_name)}.dags",
                     )
                 ]
-                config = ObservatoryConfig(
+                config = BuildConfig(
                     backend=backend, observatory=observatory, workflows_projects=workflows_projects
                 )
 

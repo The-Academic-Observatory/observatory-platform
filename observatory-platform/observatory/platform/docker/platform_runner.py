@@ -194,6 +194,10 @@ class PlatformRunner(ComposeRunner):
         # Sets the name
         env["COMPOSE_PROJECT_NAME"] = self.config.observatory.docker_compose_project_name
 
+        # Set Docker image name
+        if self.config.observatory.package_type == "docker":
+            env["OBSERVATORY_DOCKER_IMAGE"] = self.config.observatory.package
+
         # Host settings
         env["HOST_USER_ID"] = str(self.host_uid)
         env["HOST_GROUP_ID"] = str(self.host_gid)

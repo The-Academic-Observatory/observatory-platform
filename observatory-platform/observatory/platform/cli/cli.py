@@ -21,7 +21,7 @@ import click
 import subprocess
 
 from observatory.platform.cli.click_utils import INDENT1, INDENT2, INDENT3, indent
-from observatory.platform.cli.build_command import DockerBuildCommand
+from observatory.platform.cli.build_command import BuildCommand
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
@@ -494,14 +494,16 @@ def terraform(command, config_path, terraform_credentials_path, debug):
 @cli.command(context_settings=dict(max_content_width=120))
 @click.argument(
     "command",
-    type=click.Choice(["dockerfile"]),
+    type=click.Choice(["observatory-image", "api-image", "vm-imageS"]),
 )
-def build(command: str):
+@click.argument("config-path", type=click.Path(exists=True, file_okay=True, dir_okay=False))
+@click.argument("tag", type=click.STRING)
+def build(command: str, config_path: str, tag: str):
 
-    cmd = DockerBuildCommand()
+    cmd = BuildCommand(config_path)
 
-    if command == "dockerfile":
-        pass
+    if command == "observatory-image":
+        cmd.build_observatory_image(tag)
 
 
 def terraform_check_dependencies(

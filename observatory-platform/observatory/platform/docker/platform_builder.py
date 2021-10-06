@@ -20,7 +20,7 @@ import docker
 from click.testing import CliRunner
 
 from observatory.platform.docker.builder import Builder
-from observatory.platform.observatory_config import ObservatoryConfig
+from observatory.platform.observatory_config import BuildConfig
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.jinja2_utils import make_jinja2_filename
 
@@ -32,7 +32,7 @@ class PlatformBuilder:
     ENTRYPOINT_ROOT = "entrypoint-root.sh"
     ELASTICSEARCH = "elasticsearch.yml"
 
-    def __init__(self, *, config: ObservatoryConfig, tag: str):
+    def __init__(self, *, config: BuildConfig, tag: str):
         """Platform builder constructor."""
 
         self.config = config
@@ -69,6 +69,7 @@ class PlatformBuilder:
             )
 
             # Add all project requirements files for local projects
+            print(self.config.observatory)
             for package in self.config.python_packages:
                 if package.type == "editable":
                     # Add requirements.sh
