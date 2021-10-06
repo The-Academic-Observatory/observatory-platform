@@ -15,20 +15,22 @@
 # Author: Aniek Roelofs, Tuan Chien
 
 import os
+import shutil
 from datetime import timedelta
-from unittest.mock import MagicMock, patch, call
-from airflow.utils.state import State
+from unittest.mock import MagicMock, call, patch
 
 import pendulum
-from google.cloud.bigquery import SourceFormat
-from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase
-from observatory.platform.utils.airflow_utils import get_prev_start_date_success_task
-from observatory.platform.utils.workflow_utils import batch_blob_name, blob_name, get_bq_load_info, table_ids_from_path
-from observatory.platform.workflows.stream_telescope import (
-    get_data_interval,
-    StreamRelease,
-    StreamTelescope,
+from airflow.utils.state import State
+from google.cloud.bigquery import SourceFormat, TimePartitioningType
+from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, test_fixtures_path
+from observatory.platform.utils.workflow_utils import (
+    batch_blob_name,
+    blob_name,
+    create_date_table_id,
+    get_bq_load_info,
+    table_ids_from_path,
 )
+from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope, get_data_interval
 
 DEFAULT_SCHEMA_PATH = "/path/to/schemas"
 
@@ -47,7 +49,6 @@ class TestStreamTelescope(StreamTelescope):
         schedule_interval: str = "@weekly",
         dataset_id: str = "dataset_id",
         merge_partition_field: str = "id",
-        bq_merge_days: int = 14,
         schema_folder: str = DEFAULT_SCHEMA_PATH,
         source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
         schema_prefix: str = "prefix",
@@ -66,7 +67,6 @@ class TestStreamTelescope(StreamTelescope):
             schedule_interval,
             dataset_id,
             merge_partition_field,
-            bq_merge_days,
             schema_folder,
             source_format=source_format,
             schema_prefix=schema_prefix,
@@ -93,17 +93,20 @@ class TestStreamTelescope(StreamTelescope):
         return release
 
     def transform(self, release: StreamRelease, **kwargs):
-        """Create 2 transform files.
+        """Create 2 transform files by copying files from fixtures directory.
 
         :param release: a StreamRelease instance.
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
-        with open(os.path.join(release.transform_folder, "1.jsonl"), "w") as f1, open(
-            os.path.join(release.transform_folder, "2.jsonl"), "w"
-        ) as f2:
-            f1.write(release.release_id)
-            f2.write(release.release_id)
+        for file_no in ["1", "2"]:
+            run_no = "1" if release.first_release else "2"
+
+            src_path = os.path.join(
+                test_fixtures_path("workflows"), f"stream_telescope_run{run_no}_file{file_no}.jsonl"
+            )
+            dst_path = os.path.join(release.transform_folder, f"stream_telescope_file{file_no}.jsonl")
+            shutil.copy(src_path, dst_path)
 
 
 class TestTestStreamTelescope(ObservatoryTestCase):
@@ -120,12 +123,150 @@ class TestTestStreamTelescope(ObservatoryTestCase):
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
 
+    @patch("observatory.platform.utils.workflow_utils.find_schema")
+    def test_telescope(self, mock_find_schema):
+        """Test the telescope end to end and that all bq load tasks run as expected.
+
+        :return: None.
+        """
+        # Mock find schema, because schema is in fixtures directory
+        mock_find_schema.return_value = os.path.join(test_fixtures_path("workflows"), "stream_telescope_schema.json")
+
+        # First release, append from file and don't update main table
+        run1 = {"date": pendulum.datetime(year=2020, month=7, day=26), "first_release": True}
+        # Second release, load partition and update main table
+        run2 = {"date": pendulum.datetime(year=2020, month=10, day=4), "first_release": False}
+
+        # Setup Telescopes, first one without batch_load and second one with batch_load
+        batch_load_settings = [True, False]
+        for batch_load in batch_load_settings:
+            with self.subTest(batch_load=batch_load):
+                # Setup Observatory environment
+                env = ObservatoryEnvironment(self.project_id, self.data_location)
+                dataset_id = env.add_dataset()
+
+                telescope = TestStreamTelescope(dataset_id=dataset_id, batch_load=batch_load)
+                dag = telescope.make_dag()
+                release = None
+
+                # Create the Observatory environment and run tests
+                with env.create(task_logging=True):
+                    for run in [run1, run2]:
+                        with env.create_dag_run(dag, run["date"]):
+                            # Test that all dependencies are specified: no error should be thrown
+                            env.run_task(telescope.check_dependencies.__name__)
+
+                            # Test start and end date for release info
+                            next_execution_date = pendulum.instance(
+                                dag.next_dagrun_after_date(env.dag_run.execution_date)
+                            )
+                            start_date, end_date, first_release = telescope.get_release_info(
+                                dag=dag, dag_run=env.dag_run, next_execution_date=next_execution_date
+                            )
+
+                            self.assertEqual(run["first_release"], first_release)
+                            if run == run1:
+                                self.assertEqual(start_date, dag.default_args["start_date"])
+                                self.assertEqual(end_date, pendulum.today("UTC") - timedelta(days=1))
+                            else:
+                                self.assertEqual(release.end_date + timedelta(days=1), start_date)
+                                self.assertEqual(pendulum.today("UTC") - timedelta(days=1), end_date)
+
+                            # Use release info for other tasks
+                            release = StreamRelease(
+                                telescope.dag_id,
+                                start_date,
+                                end_date,
+                                first_release,
+                            )
+
+                            env.run_task(telescope.transform.__name__)
+                            self.assertEqual(2, len(release.transform_files))
+
+                            # Test that files upload is called
+                            env.run_task(telescope.upload_transformed.__name__)
+                            for file in release.transform_files:
+                                self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
+
+                            # Get bq_load_info
+                            bq_load_info = get_bq_load_info(
+                                telescope.dag_id,
+                                release.transform_folder,
+                                release.transform_files,
+                                telescope.batch_load,
+                            )
+                            if batch_load:
+                                transform_blob = batch_blob_name(release.transform_folder)
+                                main_table_id, partition_table_id = (telescope.dag_id, f"{telescope.dag_id}_partitions")
+                                self.assertListEqual(
+                                    [(transform_blob, main_table_id, partition_table_id)], bq_load_info
+                                )
+                            else:
+                                expected_bq_info = []
+                                for transform_path in release.transform_files:
+                                    transform_blob = blob_name(transform_path)
+                                    main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                                    expected_bq_info.append((transform_blob, main_table_id, partition_table_id))
+                                self.assertEqual(expected_bq_info, bq_load_info)
+
+                            # Test that data is loaded into partition table
+                            ti = env.run_task(telescope.bq_load_partition.__name__)
+                            if run == run1:
+                                self.assertEqual("skipped", ti.state)
+                            else:
+                                for _, _, partition_table_id in bq_load_info:
+                                    partition_table_id = create_date_table_id(
+                                        partition_table_id, release.end_date, TimePartitioningType.DAY
+                                    )
+                                    table_id = f"{self.project_id}.{dataset_id}.{partition_table_id}"
+                                    if batch_load:
+                                        self.assert_table_integrity(table_id, 4)
+                                    else:
+                                        self.assert_table_integrity(table_id, 2)
+
+                            # Test that row(s) is deleted from the main table in the second run
+                            ti = env.run_task(telescope.bq_delete_old.__name__)
+                            if run == run1:
+                                self.assertEqual("skipped", ti.state)
+                            else:
+                                for _, main_table_id, _ in bq_load_info:
+                                    table_id = f"{self.project_id}.{dataset_id}.{main_table_id}"
+                                    if batch_load:
+                                        self.assert_table_integrity(table_id, 2)
+                                    else:
+                                        self.assert_table_integrity(table_id, 1)
+
+                            # Test that data is loaded from a file in the first run and two rows are appended to the
+                            # main table in the second run
+                            env.run_task(telescope.bq_append_new.__name__)
+                            for _, main_table_id, _ in bq_load_info:
+                                table_id = f"{self.project_id}.{dataset_id}.{main_table_id}"
+                                if batch_load:
+                                    if run == run1:
+                                        self.assert_table_integrity(table_id, 4)
+                                    else:
+                                        self.assert_table_integrity(table_id, 6)
+                                else:
+                                    if run == run1:
+                                        self.assert_table_integrity(table_id, 2)
+                                    else:
+                                        self.assert_table_integrity(table_id, 3)
+
+                            # Test that all telescope data deleted
+                            download_folder, extract_folder, transform_folder = (
+                                release.download_folder,
+                                release.extract_folder,
+                                release.transform_folder,
+                            )
+                            env.run_task(telescope.cleanup.__name__)
+                            self.assert_cleanup(download_folder, extract_folder, transform_folder)
+
     @patch("observatory.platform.workflows.stream_telescope.bq_append_from_file")
     @patch("observatory.platform.workflows.stream_telescope.bq_append_from_partition")
     @patch("observatory.platform.workflows.stream_telescope.bq_delete_old")
     @patch("observatory.platform.workflows.stream_telescope.bq_load_ingestion_partition")
     @patch("observatory.platform.workflows.stream_telescope.upload_files_from_list")
-    def test_telescope(
+    def test_telescope_function_calls(
         self,
         upload_files_from_list,
         bq_load_ingestion_partition,
@@ -133,218 +274,196 @@ class TestTestStreamTelescope(ObservatoryTestCase):
         bq_append_from_partition,
         bq_append_from_file,
     ):
-        """Test the telescope end to end and that all bq load tasks run as expected.
+        """Test the telescope end to end and that all functions are called with the correct params.
+
         :return: None.
         """
         # First release, append from file and don't update main table
-        run1 = {"date": pendulum.datetime(year=2020, month=7, day=26), "first_release": True, "merge": False}
+        run1 = {"date": pendulum.datetime(year=2020, month=7, day=26), "first_release": True}
         # Second release, load partition and update main table
-        run2 = {"date": pendulum.datetime(year=2020, month=10, day=4), "first_release": False, "merge": True}
-        # Third release, load partition and don't update main table (days between merge is less than bq_merge_days)
-        run3 = {
-            "date": pendulum.datetime(year=2020, month=10, day=11),
-            "first_release": False,
-            "merge": False,
-        }
-        # Fourth release, load partition and update main table (test when days between merge is exactly bq_merge_days)
-        run4 = {"date": pendulum.datetime(year=2020, month=10, day=25), "first_release": False, "merge": True}
-
-        # Setup Observatory environment
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
-        dataset_id = env.add_dataset()
+        run2 = {"date": pendulum.datetime(year=2020, month=10, day=4), "first_release": False}
 
         # Setup Telescopes, first one without batch_load and second one with batch_load
-        telescopes = [
-            TestStreamTelescope(dataset_id=dataset_id),
-            TestStreamTelescope(dataset_id=dataset_id, batch_load=True),
-        ]
-        for batch_load, telescope in enumerate(telescopes):
-            dag = telescope.make_dag()
-            release = None
+        batch_load_settings = [False, True]
+        for batch_load in batch_load_settings:
+            with self.subTest(batch_load=batch_load):
+                # Setup Observatory environment
+                env = ObservatoryEnvironment(self.project_id, self.data_location)
+                dataset_id = env.add_dataset()
 
-            # Create the Observatory environment and run tests
-            with env.create(task_logging=True):
-                for run in [run1, run2, run3, run4]:
-                    with env.create_dag_run(dag, run["date"]):
-                        # Test that all dependencies are specified: no error should be thrown
-                        env.run_task(telescope.check_dependencies.__name__)
+                telescope = TestStreamTelescope(dataset_id=dataset_id, batch_load=batch_load)
+                dag = telescope.make_dag()
+                release = None
 
-                        # Test start and end date for release info
-                        next_execution_date = pendulum.instance(dag.next_dagrun_after_date(env.dag_run.execution_date))
-                        start_date, end_date, first_release = telescope.get_release_info(
-                            dag=dag, dag_run=env.dag_run, next_execution_date=next_execution_date
-                        )
+                # Create the Observatory environment and run tests
+                with env.create(task_logging=True):
+                    for run in [run1, run2]:
+                        with env.create_dag_run(dag, run["date"]):
+                            # Test that all dependencies are specified: no error should be thrown
+                            env.run_task(telescope.check_dependencies.__name__)
 
-                        self.assertEqual(run["first_release"], first_release)
-                        if first_release:
-                            self.assertEqual(start_date, dag.default_args["start_date"])
-                            self.assertEqual(end_date, pendulum.today("UTC") - timedelta(days=1))
-                        else:
-                            self.assertEqual(release.end_date + timedelta(days=1), start_date)
-                            self.assertEqual(pendulum.today("UTC") - timedelta(days=1), end_date)
+                            # Test start and end date for release info
+                            next_execution_date = pendulum.instance(
+                                dag.next_dagrun_after_date(env.dag_run.execution_date)
+                            )
+                            start_date, end_date, first_release = telescope.get_release_info(
+                                dag=dag, dag_run=env.dag_run, next_execution_date=next_execution_date
+                            )
 
-                        # Use release info for other tasks
-                        release = StreamRelease(
-                            telescope.dag_id,
-                            start_date,
-                            end_date,
-                            first_release,
-                        )
-                        transform_paths = [
-                            os.path.join(release.transform_folder, "1.jsonl"),
-                            os.path.join(release.transform_folder, "2.jsonl"),
-                        ]
+                            self.assertEqual(run["first_release"], first_release)
+                            if run == run1:
+                                self.assertEqual(start_date, dag.default_args["start_date"])
+                                self.assertEqual(end_date, pendulum.today("UTC") - timedelta(days=1))
+                            else:
+                                self.assertEqual(release.end_date + timedelta(days=1), start_date)
+                                self.assertEqual(pendulum.today("UTC") - timedelta(days=1), end_date)
 
-                        env.run_task(telescope.transform.__name__)
-                        for path in transform_paths:
-                            self.assertTrue(os.path.exists(path))
+                            # Use release info for other tasks
+                            release = StreamRelease(
+                                telescope.dag_id,
+                                start_date,
+                                end_date,
+                                first_release,
+                            )
 
-                        # Test that files upload is called
-                        env.run_task(telescope.upload_transformed.__name__)
-                        upload_files_from_list.assert_called_once_with(
-                            release.transform_files, release.transform_bucket
-                        )
+                            env.run_task(telescope.transform.__name__)
+                            self.assertEqual(2, len(release.transform_files))
 
-                        # Test that bq load info for bq load functions is as expected
-                        bq_load_info = get_bq_load_info(
-                            telescope.dag_id, release.transform_folder, release.transform_files, telescope.batch_load
-                        )
-                        if batch_load:
-                            transform_blob = batch_blob_name(release.transform_folder)
-                            main_table_id, partition_table_id = (telescope.dag_id, f"{telescope.dag_id}_partitions")
-                            self.assertListEqual([(transform_blob, main_table_id, partition_table_id)], bq_load_info)
-                        else:
-                            expected_bq_info = []
-                            for transform_path in release.transform_files:
-                                transform_blob = blob_name(transform_path)
-                                main_table_id, partition_table_id = table_ids_from_path(transform_path)
-                                expected_bq_info.append((transform_blob, main_table_id, partition_table_id))
-                            self.assertEqual(expected_bq_info, bq_load_info)
+                            # Test that files upload is called
+                            env.run_task(telescope.upload_transformed.__name__)
+                            upload_files_from_list.assert_called_once_with(
+                                release.transform_files, release.transform_bucket
+                            )
 
-                        # Test whether the correct bq load functions are called for different runs
-                        ti = env.run_task(telescope.bq_load_partition.__name__)
-                        if first_release:
-                            self.assertEqual(0, bq_load_ingestion_partition.call_count)
-                            self.assertEqual("skipped", ti.state)
-                        else:
-                            self.assertEqual(len(bq_load_info), bq_load_ingestion_partition.call_count)
-                            expected_calls = []
-                            for transform_blob, main_table_id, partition_table_id in bq_load_info:
-                                table_description = telescope.table_descriptions.get(main_table_id, "")
-                                expected_calls.append(
-                                    call(
-                                        telescope.schema_folder,
-                                        release.end_date,
-                                        transform_blob,
-                                        telescope.dataset_id,
-                                        main_table_id,
-                                        partition_table_id,
-                                        telescope.source_format,
-                                        telescope.schema_prefix,
-                                        telescope.schema_version,
-                                        telescope.dataset_description,
-                                        table_description=table_description,
-                                        **telescope.load_bigquery_table_kwargs,
-                                    )
+                            # Test that bq load info for bq load functions is as expected
+                            bq_load_info = get_bq_load_info(
+                                telescope.dag_id,
+                                release.transform_folder,
+                                release.transform_files,
+                                telescope.batch_load,
+                            )
+                            if batch_load:
+                                transform_blob = batch_blob_name(release.transform_folder)
+                                main_table_id, partition_table_id = (telescope.dag_id, f"{telescope.dag_id}_partitions")
+                                self.assertListEqual(
+                                    [(transform_blob, main_table_id, partition_table_id)], bq_load_info
                                 )
-                                bq_load_ingestion_partition.assert_has_calls(expected_calls, any_order=True)
-                            self.assertEqual("success", ti.state)
+                            else:
+                                expected_bq_info = []
+                                for transform_path in release.transform_files:
+                                    transform_blob = blob_name(transform_path)
+                                    main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                                    expected_bq_info.append((transform_blob, main_table_id, partition_table_id))
+                                self.assertEqual(expected_bq_info, bq_load_info)
 
-                        # Test whether the correct bq delete functions are called for different runs
-                        ti = env.run_task(telescope.bq_delete_old.__name__)
-                        if first_release:
-                            # First release the task is run but does not execute the bq_delete_old function
-                            self.assertEqual(0, bq_delete_old.call_count)
-                            self.assertEqual("success", ti.state)
-                        elif run["merge"]:
-                            self.assertEqual(len(bq_load_info), bq_delete_old.call_count)
-
-                            start_date = pendulum.instance(get_prev_start_date_success_task(env.dag_run, ti.task_id))
-                            end_date = release.end_date
-                            expected_calls = []
-                            for _, main_table_id, partition_table_id in bq_load_info:
-                                expected_calls.append(
-                                    call(
-                                        start_date,
-                                        end_date,
-                                        telescope.dataset_id,
-                                        main_table_id,
-                                        partition_table_id,
-                                        telescope.merge_partition_field,
+                            # Test whether the correct bq load functions are called for different runs
+                            ti = env.run_task(telescope.bq_load_partition.__name__)
+                            if run == run1:
+                                self.assertEqual(0, bq_load_ingestion_partition.call_count)
+                                self.assertEqual("skipped", ti.state)
+                            else:
+                                self.assertEqual(len(bq_load_info), bq_load_ingestion_partition.call_count)
+                                expected_calls = []
+                                for transform_blob, main_table_id, partition_table_id in bq_load_info:
+                                    table_description = telescope.table_descriptions.get(main_table_id, "")
+                                    expected_calls.append(
+                                        call(
+                                            telescope.schema_folder,
+                                            release.end_date,
+                                            transform_blob,
+                                            telescope.dataset_id,
+                                            main_table_id,
+                                            partition_table_id,
+                                            telescope.source_format,
+                                            telescope.schema_prefix,
+                                            telescope.schema_version,
+                                            telescope.dataset_description,
+                                            table_description=table_description,
+                                            **telescope.load_bigquery_table_kwargs,
+                                        )
                                     )
-                                )
-                            bq_delete_old.assert_has_calls(expected_calls, any_order=True)
-                            self.assertEqual("success", ti.state)
-                        else:
-                            self.assertEqual(0, bq_delete_old.call_count)
-                            self.assertEqual("skipped", ti.state)
+                                    bq_load_ingestion_partition.assert_has_calls(expected_calls, any_order=True)
+                                self.assertEqual("success", ti.state)
 
-                        # Test whether the correct bq append functions are called for different runs
-                        ti = env.run_task(telescope.bq_append_new.__name__)
-                        if first_release:
-                            self.assertEqual(len(bq_load_info), bq_append_from_file.call_count)
-                            expected_calls = []
-                            for transform_blob, main_table_id, partition_table_id in bq_load_info:
-                                table_description = telescope.table_descriptions.get(main_table_id, "")
-                                expected_calls.append(
-                                    call(
-                                        telescope.schema_folder,
-                                        release.end_date,
-                                        transform_blob,
-                                        telescope.dataset_id,
-                                        main_table_id,
-                                        telescope.source_format,
-                                        telescope.schema_prefix,
-                                        telescope.schema_version,
-                                        telescope.dataset_description,
-                                        table_description=table_description,
-                                        **telescope.load_bigquery_table_kwargs,
+                            # Test whether the correct bq delete functions are called for different runs
+                            ti = env.run_task(telescope.bq_delete_old.__name__)
+                            if run == run1:
+                                # First release the task is run but does not execute the bq_delete_old function
+                                self.assertEqual(0, bq_delete_old.call_count)
+                                self.assertEqual("skipped", ti.state)
+                            else:
+                                self.assertEqual(len(bq_load_info), bq_delete_old.call_count)
+                                expected_calls = []
+                                for _, main_table_id, partition_table_id in bq_load_info:
+                                    expected_calls.append(
+                                        call(
+                                            release.end_date,
+                                            telescope.dataset_id,
+                                            main_table_id,
+                                            partition_table_id,
+                                            telescope.merge_partition_field,
+                                        )
                                     )
-                                )
-                            bq_append_from_file.assert_has_calls(expected_calls, any_order=True)
-                            self.assertEqual("success", ti.state)
-                        elif run["merge"]:
-                            self.assertEqual(len(bq_load_info), bq_append_from_partition.call_count)
+                                bq_delete_old.assert_has_calls(expected_calls, any_order=True)
+                                self.assertEqual("success", ti.state)
 
-                            start_date = pendulum.instance(get_prev_start_date_success_task(env.dag_run, ti.task_id))
-                            end_date = release.end_date
-                            expected_calls = []
-                            for _, main_table_id, partition_table_id in bq_load_info:
-                                expected_calls.append(
-                                    call(
-                                        start_date,
-                                        end_date,
-                                        telescope.dataset_id,
-                                        main_table_id,
-                                        partition_table_id,
-                                        telescope.merge_partition_field,
+                            # Test whether the correct bq append functions are called for different runs
+                            ti = env.run_task(telescope.bq_append_new.__name__)
+                            if run == run1:
+                                self.assertEqual(len(bq_load_info), bq_append_from_file.call_count)
+                                expected_calls = []
+                                for transform_blob, main_table_id, partition_table_id in bq_load_info:
+                                    table_description = telescope.table_descriptions.get(main_table_id, "")
+                                    expected_calls.append(
+                                        call(
+                                            telescope.schema_folder,
+                                            release.end_date,
+                                            transform_blob,
+                                            telescope.dataset_id,
+                                            main_table_id,
+                                            telescope.source_format,
+                                            telescope.schema_prefix,
+                                            telescope.schema_version,
+                                            telescope.dataset_description,
+                                            table_description=table_description,
+                                            **telescope.load_bigquery_table_kwargs,
+                                        )
                                     )
-                                )
-                            bq_append_from_partition.assert_has_calls(expected_calls, any_order=True)
-                            self.assertEqual("success", ti.state)
-                        else:
-                            self.assertEqual(0, bq_append_from_partition.call_count)
-                            self.assertEqual(0, bq_append_from_file.call_count)
-                            self.assertEqual("skipped", ti.state)
+                                bq_append_from_file.assert_has_calls(expected_calls, any_order=True)
+                                self.assertEqual("success", ti.state)
+                            else:
+                                self.assertEqual(len(bq_load_info), bq_append_from_partition.call_count)
 
-                        # Test that all telescope data deleted
-                        download_folder, extract_folder, transform_folder = (
-                            release.download_folder,
-                            release.extract_folder,
-                            release.transform_folder,
-                        )
-                        env.run_task(telescope.cleanup.__name__)
-                        self.assert_cleanup(download_folder, extract_folder, transform_folder)
+                                expected_calls = []
+                                for _, main_table_id, partition_table_id in bq_load_info:
+                                    expected_calls.append(
+                                        call(
+                                            release.end_date,
+                                            telescope.dataset_id,
+                                            main_table_id,
+                                            partition_table_id,
+                                        )
+                                    )
+                                bq_append_from_partition.assert_has_calls(expected_calls, any_order=True)
+                                self.assertEqual("success", ti.state)
+                            # Test that all telescope data deleted
+                            download_folder, extract_folder, transform_folder = (
+                                release.download_folder,
+                                release.extract_folder,
+                                release.transform_folder,
+                            )
+                            env.run_task(telescope.cleanup.__name__)
+                            self.assert_cleanup(download_folder, extract_folder, transform_folder)
 
-                        # Reset mocked functions
-                        for mocked_function in [
-                            upload_files_from_list,
-                            bq_load_ingestion_partition,
-                            bq_delete_old,
-                            bq_append_from_partition,
-                            bq_append_from_file,
-                        ]:
-                            mocked_function.reset_mock()
+                            # Reset mocked functions
+                            for mocked_function in [
+                                upload_files_from_list,
+                                bq_load_ingestion_partition,
+                                bq_delete_old,
+                                bq_append_from_partition,
+                                bq_append_from_file,
+                            ]:
+                                mocked_function.reset_mock()
 
 
 class MockTelescope(StreamTelescope):
@@ -355,7 +474,6 @@ class MockTelescope(StreamTelescope):
             schedule_interval=schedule_interval,
             dataset_id="data",
             merge_partition_field="field",
-            bq_merge_days=1,
             schema_folder="folder",
         )
         self.add_setup_task(self.task)
