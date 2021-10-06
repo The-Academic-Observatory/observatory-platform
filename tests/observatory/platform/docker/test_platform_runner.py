@@ -146,7 +146,7 @@ class TestPlatformRunner(unittest.TestCase):
             self.assertIsNotNone(result)
             self.assertTrue(result.endswith("docker-compose"))
 
-    @patch("observatory.platform.platform_builder.docker.from_env")
+    @patch("observatory.platform.docker.platform_runner.docker.from_env")
     def test_is_docker_running_true(self, mock_from_env):
         """Test the property is_docker_running returns True when Docker is running"""
 
@@ -157,7 +157,7 @@ class TestPlatformRunner(unittest.TestCase):
             cmd = PlatformRunner(config_path=config_path)
             self.assertTrue(cmd.is_docker_running)
 
-    @patch("observatory.platform.platform_builder.docker.from_env")
+    @patch("observatory.platform.docker.platform_runner.docker.from_env")
     def test_is_docker_running_false(self, mock_from_env):
         """Test the property is_docker_running returns False when Docker is not running"""
 

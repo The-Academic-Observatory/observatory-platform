@@ -63,7 +63,7 @@ class TestPlatformCommand(unittest.TestCase):
             ),
         )
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
+    @patch("observatory.platform.docker.platform_runner.ObservatoryConfig.load")
     def test_ui_url(self, mock_config_load):
         with CliRunner().isolated_filesystem() as t:
             # Save empty config
@@ -79,7 +79,7 @@ class TestPlatformCommand(unittest.TestCase):
 
             self.assertEqual(f"http://localhost:{self.airflow_ui_port}", cmd.ui_url)
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
+    @patch("observatory.platform.docker.platform_runner.ObservatoryConfig.load")
     @patch("urllib.request.urlopen")
     def test_wait_for_airflow_ui_success(self, mock_url_open, mock_config_load):
         # Mock the status code return value: 200 should succeed
@@ -103,7 +103,7 @@ class TestPlatformCommand(unittest.TestCase):
             self.assertTrue(state)
             self.assertAlmostEquals(0, duration, delta=0.5)
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
+    @patch("observatory.platform.docker.platform_runner.ObservatoryConfig.load")
     @patch("urllib.request.urlopen")
     def test_wait_for_airflow_ui_failed(self, mock_url_open, mock_config_load):
         # Mock the status code return value: 500 should fail

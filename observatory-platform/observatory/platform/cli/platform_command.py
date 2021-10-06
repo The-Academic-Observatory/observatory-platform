@@ -14,12 +14,12 @@
 
 # Author: James Diprose
 
+from observatory.platform.docker.platform_runner import PlatformRunner, HOST_UID, HOST_GID, DEBUG
 from observatory.platform.observatory_config import BackendType
-from observatory.platform.platform_builder import PlatformBuilder, HOST_UID, HOST_GID, DEBUG
 from observatory.platform.utils.url_utils import wait_for_url
 
 
-class PlatformCommand(PlatformBuilder):
+class PlatformCommand(PlatformRunner):
     def __init__(self, config_path: str, host_uid: int = HOST_UID, host_gid: int = HOST_GID, debug: bool = DEBUG):
         """Create a PlatformCommand, which can be used to start and stop Observatory Platform instances.
 

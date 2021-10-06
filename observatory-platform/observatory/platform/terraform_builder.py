@@ -24,8 +24,8 @@ from typing import Tuple
 
 from observatory.api.server.openapi_renderer import OpenApiRenderer
 from observatory.platform.cli.click_utils import indent, INDENT1
+from observatory.platform.docker.platform_runner import PlatformRunner
 from observatory.platform.observatory_config import TerraformConfig, BackendType
-from observatory.platform.platform_builder import PlatformBuilder
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.proc_utils import stream_process
@@ -57,7 +57,7 @@ class TerraformBuilder:
             self.config_is_valid = self.config.is_valid
             if self.config_is_valid:
                 self.build_path = os.path.join(self.config.observatory.observatory_home, "build", "terraform")
-                self.platform_builder = PlatformBuilder(
+                self.platform_runner = PlatformRunner(
                     config_path=config_path,
                     docker_build_path=os.path.join(self.build_path, "docker"),
                     backend_type=BackendType.terraform,
@@ -146,7 +146,7 @@ class TerraformBuilder:
         """
 
         self.make_files()
-        self.platform_builder.make_files()
+        self.platform_runner.make_files()
 
     def build_image(self) -> Tuple[str, str, int]:
         """Build the Observatory Platform Google Compute image with Packer.
