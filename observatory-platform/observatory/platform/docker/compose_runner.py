@@ -15,8 +15,8 @@
 # Author: James Diprose
 
 import dataclasses
+import os
 import subprocess
-from abc import abstractmethod
 from subprocess import Popen
 from typing import Dict, List
 
@@ -56,17 +56,20 @@ class ComposeRunner(Builder):
         """
 
         super().__init__(build_path=build_path)
+        if compose_template_kwargs is None:
+            compose_template_kwargs = dict()
+
         self.debug = debug
         self.compose_template_path = compose_template_path
         self.add_template(path=compose_template_path, **compose_template_kwargs)
 
-    @abstractmethod
     def make_environment(self) -> Dict:
         """Make the environment variables.
 
         :return: environment dictionary.
         """
-        pass
+
+        return os.environ.copy()
 
     @property
     def compose_file_name(self):
