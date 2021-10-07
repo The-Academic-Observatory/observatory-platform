@@ -106,7 +106,7 @@ def platform(command: str, config_path: str, host_uid: int, host_gid: int, debug
         print(indent("config.yaml:", INDENT1))
         print(indent(f"- file not found, generating a default file on path: {config_path}", INDENT2))
         generate_cmd = GenerateCommand()
-        generate_cmd.generate_local_config(config_path)
+        generate_cmd.generate_local_config(config_path, editable=False, workflows=[], oapi=False)
         exit(os.EX_CONFIG)
 
 
@@ -424,7 +424,10 @@ def secrets(command: str):
 @click.option(
     "--oapi", flag_value=True, help="Indicates that the observatory api was installed through the cli installer script"
 )
-def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu_wf: bool, oapi: bool):
+@click.option(
+    "--editable", flag_value=True, help="Indicates the observatory platform is editable"
+)
+def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu_wf: bool, oapi: bool, editable: bool):
     """Generate config files for the Observatory Platform.\n
 
     COMMAND: the type of config file to generate:\n
@@ -435,6 +438,7 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     :param ao_wf: Whether academic_observatory_workflows was installed using the installer script.
     :param oaebu_wf: Whether oaebu_workflows was installed using the installer script.
     :param oapi: Whether the Observatory API was installed using the installer script.
+    :param editable: Whether the observatory platform is editable.  
     """
 
     # Make the generate command, which encapsulates functionality for generating data
@@ -464,7 +468,7 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     if not os.path.exists(config_path) or click.confirm(
         f'The file "{config_path}" exists, do you want to overwrite it?'
     ):
-        cmd_func(config_path, workflows=workflows, oapi=oapi)
+        cmd_func(config_path, workflows=workflows, oapi=oapi, editable=editable)
     else:
         click.echo(f"Not generating {config_name}")
 
@@ -553,7 +557,7 @@ def terraform_check_dependencies(
                 print(indent(f"- {key}: {value}", INDENT3))
     else:
         print(indent("- file not found, generating a default file", INDENT2))
-        generate_cmd.generate_terraform_config(terraform_cmd.config_path)
+        generate_cmd.generate_terraform_config(terraform_cmd.config_path, editable=False, workflows=[], oapi=False)
 
     print(indent("Terraform credentials file:", INDENT1))
     if terraform_cmd.terraform_credentials_exists:

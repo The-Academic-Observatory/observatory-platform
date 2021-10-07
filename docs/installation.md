@@ -22,8 +22,11 @@ and reboot the computer for Docker changes to take effect.
 ## Installation type
 
 There are two types of installations. `local` and `terraform`. The `local` installation allows you to run the observatory platform on the locally installed machine. The `terraform` installation deploys the platform to the cloud. See the documentation section on Terraform deployment for more details.
+
 ## Installation via pip
-If you want to install the observatory platform through pip, make sure you install the system dependencies first.  Once the system dependencies are installed, we recommend creating a Python virtual environment and installing the observatory in that, i.e.,
+Users who just want to use the observatory platform are encouraged to install the platform through pip. For developers who want to edit the observatory platform, install from source instead.
+
+To install with pip, make sure you install the system dependencies first.  Once the system dependencies are installed, we recommend creating a Python virtual environment and installing the observatory in that, i.e.,
 
 ```bash
 virtualenv venv  # Creates the virtual environment
@@ -53,8 +56,8 @@ To exit the virtual environment run
 deactivate
 ```
 
-## Installation via GitHub repo
-If you want to install the observatory platform from the github repository, make sure you have `git` installed (`sudo apt install git` on Ubuntu if you do not).
+## Installation from source via GitHub repo
+To install from the GitHub repository, make sure you have `git` installed (`sudo apt install git`).  This method is useful if you want to do development or make modifications to the observatory platform.
 
 
 ### Clone the repository
@@ -74,7 +77,7 @@ You will be prompted by the installer script to customise the installation, e.g.
 
 ## Configuring the Observatory Platform
 
-If you have installed the observatory platform through the **github repository**, the `install.sh` script will prompt you for options to configure the platform.  You can select to do this interactively by answering a bunch of questions, or for a default configuration to be generated, and to manually edit the configuration file at a later time.
+If you have installed the observatory platform through the **GitHub repository**, the `install_observatory_platform` script will prompt you for options to configure the platform.  You can select to do this interactively by answering a bunch of questions, or for a default configuration to be generated, and to manually edit the configuration file at a later time.
 
 If you have installed the observatory platform through `pip`, you can go through the same question and answer process as the GitHub installation method by running
 ```

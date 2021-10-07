@@ -19,12 +19,11 @@ from __future__ import annotations
 
 import base64
 import binascii
-import io
 import json
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, ClassVar, Dict, List, Tuple, Union
+from typing import Any, Callable, ClassVar, Dict, List, TextIO, Tuple, Union
 
 import cerberus.validator
 import yaml
@@ -175,7 +174,7 @@ class Observatory:
     """
 
     package: str = "observatory-platform"
-    package_type: str = "editable"
+    package_type: str = "pypi"
     airflow_fernet_key: str = field(default_factory=generate_fernet_key)
     airflow_secret_key: str = field(default_factory=generate_secret_key)
     airflow_ui_user_email: str = "airflow@airflow.com"
@@ -776,11 +775,7 @@ class ObservatoryConfig:
         """
 
         self.backend = backend if backend is not None else Backend()
-        self.observatory = (
-            observatory
-            if observatory is not None
-            else Observatory(package="observatory-platform", package_type="editable")
-        )
+        self.observatory = observatory if observatory is not None else Observatory()
         self.google_cloud = google_cloud
         self.terraform = terraform
 
@@ -1006,7 +1001,7 @@ class ObservatoryConfig:
             self.save_airflow_variables(f)
             self.save_workflows_projects(f)
 
-    def save_backend(self, f: io.IOBase):
+    def save_backend(self, f: TextIO):
         """Write the backend configuration section to the config file.
 
         :param f: File object for the config file.
@@ -1024,7 +1019,7 @@ class ObservatoryConfig:
         f.writelines(lines)
         f.write("\n")
 
-    def save_observatory(self, f: io.IOBase):
+    def save_observatory(self, f: TextIO):
         """Write the Observatory configuration section to the config file.
 
         :param f: File object for the config file.
@@ -1044,7 +1039,7 @@ class ObservatoryConfig:
         f.writelines(lines)
         f.write("\n")
 
-    def save_terraform(self, f: io.IOBase):
+    def save_terraform(self, f: TextIO):
         """Write the Terraform configuration section to the config file.
 
         :param f: File object for the config file.
@@ -1059,7 +1054,7 @@ class ObservatoryConfig:
         f.writelines(output)
         f.write("\n")
 
-    def save_google_cloud(self, f: io.IOBase):
+    def save_google_cloud(self, f: TextIO):
         """Write the Google Cloud configuration section to the config file.
 
         :param f: File object for the config file.
@@ -1079,7 +1074,7 @@ class ObservatoryConfig:
         f.writelines(output)
         f.write("\n")
 
-    def save_airflow_connections(self, f: io.IOBase):
+    def save_airflow_connections(self, f: TextIO):
         """Write the Airflow connections configuration section to the config file.
 
         :param f: File object for the config file.
@@ -1094,7 +1089,7 @@ class ObservatoryConfig:
         f.writelines(output)
         f.write("\n")
 
-    def save_airflow_variables(self, f: io.IOBase):
+    def save_airflow_variables(self, f: TextIO):
         """Write the Airflow variables configuration section to the config file.
 
         :param f: File object for the config file.
@@ -1109,7 +1104,7 @@ class ObservatoryConfig:
         f.writelines(output)
         f.write("\n")
 
-    def save_workflows_projects(self, f: io.IOBase):
+    def save_workflows_projects(self, f: TextIO):
         """Write the DAGs projects configuration section to the config file.
 
         :param f: File object for the config file.
@@ -1309,7 +1304,7 @@ class TerraformConfig(ObservatoryConfig):
             self.save_elasticsearch(f)
             self.save_api(f)
 
-    def save_cloud_sql_database(self, f: io.IOBase):
+    def save_cloud_sql_database(self, f: TextIO):
         """Write the cloud SQL database configuration section to the config file.
 
         :param f: File object for the config file.
@@ -1321,7 +1316,7 @@ class TerraformConfig(ObservatoryConfig):
         f.writelines(lines)
         f.write("\n")
 
-    def save_airflow_main_vm(self, f: io.IOBase):
+    def save_airflow_main_vm(self, f: TextIO):
         """Write the Airflow main VM configuration section to the config file.
 
         :param f: File object for the config file.
@@ -1333,7 +1328,7 @@ class TerraformConfig(ObservatoryConfig):
         f.writelines(lines)
         f.write("\n")
 
-    def save_airflow_worker_vm(self, f: io.IOBase):
+    def save_airflow_worker_vm(self, f: TextIO):
         """Write the Airflow worker VM configuration section to the config file.
 
         :param f: File object for the config file.
@@ -1345,7 +1340,7 @@ class TerraformConfig(ObservatoryConfig):
         f.writelines(lines)
         f.write("\n")
 
-    def save_elasticsearch(self, f: io.IOBase):
+    def save_elasticsearch(self, f: TextIO):
         """Write the ElasticSearch configuration section to the config file.
 
         :param f: File object for the config file.
@@ -1357,7 +1352,7 @@ class TerraformConfig(ObservatoryConfig):
         f.writelines(lines)
         f.write("\n")
 
-    def save_api(self, f: io.IOBase):
+    def save_api(self, f: TextIO):
         """Write the API configuration section to the config file.
 
         :param f: File object for the config file.

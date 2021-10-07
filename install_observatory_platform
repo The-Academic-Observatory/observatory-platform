@@ -14,6 +14,7 @@ configure_install_options
 install_system_deps
 
 source $venv_observatory_platform/bin/activate
+export installer_script="y"
 
 install_observatory_platform
 install_observatory_api

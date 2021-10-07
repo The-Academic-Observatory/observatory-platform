@@ -379,6 +379,7 @@ function generate_observatory_config() {
     local oaebu_wf=""
     local oapi=""
     local config_path_arg=""
+    local editable=""
 
     if [ "$config_observatory_base" = "y" ]; then
         interactive="--interactive"
@@ -400,9 +401,13 @@ function generate_observatory_config() {
         config_path_arg="--config-path $config_path"
     fi
 
+    if [ "$installer_script" = "y" ]; then
+        editable="--editable"
+    fi
+
     echo "============================="
     echo "Generating Observatory config"
     echo "============================="
 
-    observatory generate config $config_type $config_path_arg $interactive $ao_wf $oaebu_wf $oapi
+    observatory generate config $config_type $config_path_arg $editable $interactive $ao_wf $oaebu_wf $oapi
 }
