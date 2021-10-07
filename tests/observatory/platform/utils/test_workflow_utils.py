@@ -692,13 +692,11 @@ class TestTemplateUtils(unittest.TestCase):
             mock_variable_get.side_effect = side_effect
 
             telescope, release = setup(MockStreamTelescope)
-            start_date_str = release.start_date.strftime("%Y-%m-%d")
-            end_date_str = release.end_date.strftime("%Y-%m-%d")
+            ingestion_date_str = release.end_date.strftime("%Y-%m-%d")
 
             for transform_path in release.transform_files:
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
                 bq_delete_old(
-                    release.start_date,
                     release.end_date,
                     telescope.dataset_id,
                     main_table_id,
@@ -710,7 +708,7 @@ class TestTemplateUtils(unittest.TestCase):
                     "MERGE\n"
                     "  `{dataset}.{main_table}` M\n"
                     "USING\n"
-                    "  (SELECT {merge_condition_field} AS id FROM `{dataset}.{partitioned_table}` WHERE _PARTITIONDATE > '{start_date}' AND _PARTITIONDATE <= '{end_date}') P\n"
+                    "  (SELECT {merge_condition_field} AS id FROM `{dataset}.{partitioned_table}` WHERE _PARTITIONDATE = '{ingestion_date}') P\n"
                     "ON\n"
                     "  M.{merge_condition_field} = P.id\n"
                     "WHEN MATCHED THEN\n"
@@ -719,62 +717,48 @@ class TestTemplateUtils(unittest.TestCase):
                         main_table=main_table_id,
                         partitioned_table=partition_table_id,
                         merge_condition_field=telescope.merge_partition_field,
-                        start_date=start_date_str,
-                        end_date=end_date_str,
+                        ingestion_date=ingestion_date_str,
                     )
                 )
                 mock_run_bigquery_query.assert_called_once_with(expected_query)
 
-    @patch("observatory.platform.utils.workflow_utils.run_bigquery_query")
+    @patch("observatory.platform.utils.workflow_utils.copy_bigquery_table")
     @patch("airflow.models.variable.Variable.get")
-    def test_bq_append_from_partition(self, mock_variable_get, mock_run_bigquery_query):
+    def test_bq_append_from_partition(self, mock_variable_get, mock_copy_bigquery_table):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
 
             telescope, release = setup(MockStreamTelescope)
-            start_date_str = release.start_date.strftime("%Y-%m-%d")
-            end_date_str = release.end_date.strftime("%Y-%m-%d")
+            ingestion_date = pendulum.datetime(2020, 2, 3)
 
             for transform_path in release.transform_files:
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
                 bq_append_from_partition(
-                    release.start_date,
-                    release.end_date,
+                    ingestion_date,
                     telescope.dataset_id,
                     main_table_id,
                     partition_table_id,
-                    telescope.merge_partition_field,
                 )
 
-                expected_query = (
-                    "# Add entries from selected partitions to main table.\n"
-                    "# If there are rows with the same id in multiple partitions, only the row with that id from the latest partition will be added\n"
-                    "INSERT INTO `{dataset}.{main_table}`\n"
-                    "SELECT\n"
-                    "  agg.table.*\n"
-                    "FROM (\n"
-                    "  SELECT\n"
-                    "    {merge_condition_field} as id,\n"
-                    "    # Create an array with table values grouped by id and ordered by partitiondate, then get the entry from latest partition date\n"
-                    "    ARRAY_AGG(\n"
-                    "      STRUCT(table)\n"
-                    "      ORDER BY\n"
-                    "        _PARTITIONDATE DESC\n"
-                    "        )[SAFE_OFFSET(0)]\n"
-                    "    AS agg\n"
-                    "  FROM\n"
-                    "    `{dataset}.{partitioned_table}` AS table WHERE _PARTITIONDATE > '{start_date}' AND _PARTITIONDATE <= '{end_date}'\n"
-                    "  GROUP BY\n"
-                    "    id)\n".format(
-                        dataset=telescope.dataset_id,
-                        main_table=main_table_id,
-                        partitioned_table=partition_table_id,
-                        merge_condition_field=telescope.merge_partition_field,
-                        start_date=start_date_str,
-                        end_date=end_date_str,
-                    )
+                source_table_id = f"project.{telescope.dataset_id}.{partition_table_id}$20200203"
+
+                # Test successful copy
+                mock_copy_bigquery_table.assert_called_once_with(
+                    source_table_id,
+                    f"project.{telescope.dataset_id}.{main_table_id}",
+                    "US",
+                    bigquery.WriteDisposition.WRITE_APPEND,
                 )
-                mock_run_bigquery_query.assert_called_once_with(expected_query)
+
+                # Test that exception is raised when copying of table fails
+                mock_copy_bigquery_table.return_value = False
+                with self.assertRaises(AirflowException):
+                    bq_append_from_partition(
+                        ingestion_date,
+                        telescope.dataset_id,
+                        main_table_id,
+                        partition_table_id,
+                    )
 
     @patch("observatory.platform.utils.workflow_utils.load_bigquery_table")
     @patch("observatory.platform.utils.workflow_utils.prepare_bq_load")
