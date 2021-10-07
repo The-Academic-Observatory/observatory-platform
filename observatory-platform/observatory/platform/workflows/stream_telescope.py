@@ -20,11 +20,10 @@ from typing import Dict, Tuple
 import pendulum
 from airflow.exceptions import AirflowSkipException
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 from croniter import croniter
 from google.cloud.bigquery import SourceFormat
 
-from observatory.platform.utils.airflow_utils import AirflowVars, get_prev_start_date_success_task
+from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.workflow_utils import (
     bq_append_from_file,
     bq_append_from_partition,
