@@ -424,9 +424,7 @@ def secrets(command: str):
 @click.option(
     "--oapi", flag_value=True, help="Indicates that the observatory api was installed through the cli installer script"
 )
-@click.option(
-    "--editable", flag_value=True, help="Indicates the observatory platform is editable"
-)
+@click.option("--editable", flag_value=True, help="Indicates the observatory platform is editable")
 def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu_wf: bool, oapi: bool, editable: bool):
     """Generate config files for the Observatory Platform.\n
 
@@ -438,7 +436,7 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     :param ao_wf: Whether academic_observatory_workflows was installed using the installer script.
     :param oaebu_wf: Whether oaebu_workflows was installed using the installer script.
     :param oapi: Whether the Observatory API was installed using the installer script.
-    :param editable: Whether the observatory platform is editable.  
+    :param editable: Whether the observatory platform is editable.
     """
 
     # Make the generate command, which encapsulates functionality for generating data

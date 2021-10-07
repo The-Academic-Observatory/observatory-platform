@@ -1004,13 +1004,15 @@ class InteractiveConfigBuilder:
         click.echo("Configuring the Observatory API")
 
         text = (
-            "Custom domain name for the API, used for the google cloud endpoints service, e.g., api.observatory.academy"
+            "Custom domain name for the API, used for the google cloud endpoints service"
         )
-        domain_name = click.prompt(text=text, type=str)
+        default = "api.observatory.academy"
+        domain_name = click.prompt(text=text, type=str, default=default, show_default=True)
 
         text = "Subdomain scheme"
+        default = "project_id"
         choices = click.Choice(choices=["project_id", "environment"], case_sensitive=False)
-        subdomain = click.prompt(text=text, type=choices, show_default=True, show_choices=True)
+        subdomain = click.prompt(text=text, type=choices, default=default, show_default=True, show_choices=True)
 
         config.api = Api(
             domain_name=domain_name,
