@@ -116,7 +116,7 @@ class MyTestStreamTelescope(StreamTelescope):
         return release
 
     def transform(self, release: StreamRelease, **kwargs):
-        """Create 2 transform files by copying files from fixtures directory.
+        """Create 2 transform files by writing file_content to a jsonl file.
 
         :param release: a StreamRelease instance.
         :param kwargs: The context passed from the PythonOperator.
@@ -128,10 +128,6 @@ class MyTestStreamTelescope(StreamTelescope):
             with jsonlines.open(dst_path, "w") as f:
                 content = self.file_content[run][file]
                 f.write_all(content)
-            # src_path = os.path.join(
-            #     test_fixtures_path("workflows"), f"stream_telescope_run{run_no}_file{file_no}.jsonl"
-            # )
-            # shutil.copy(src_path, dst_path)
 
 
 class TestStreamTelescope(ObservatoryTestCase):
