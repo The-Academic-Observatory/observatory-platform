@@ -324,7 +324,7 @@ function install_observatory_platform() {
     echo "==========================================="
 
     if [ "$mode" = "source" ]; then
-        git clone --branch main git@github.com:The-Academic-Observatory/observatory-platform.git
+        git clone git@github.com:The-Academic-Observatory/observatory-platform.git
         cd observatory-platform
     fi
 

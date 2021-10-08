@@ -47,8 +47,9 @@ from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.proc_utils import stream_process
 
 # Terminal formatting
-BOLD = '\033[1m'
-END = '\033[0m'
+BOLD = "\033[1m"
+END = "\033[0m"
+
 
 class DefaultWorkflowsProject:
     """Get Workflows Project configuration for when it was selected via the installer script (editable type)."""
@@ -75,6 +76,7 @@ class DefaultWorkflowsProject:
             package_name=package_name, package=package, package_type=package_type, dags_module=dags_module
         )
 
+
 class GenerateCommand:
     def generate_local_config(self, config_path: str, *, editable: str, workflows: List[str], oapi: bool):
         """Command line user interface for generating an Observatory Config config.yaml.
@@ -94,8 +96,8 @@ class GenerateCommand:
         if editable:
             InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
 
-        if oapi:
-            InteractiveConfigBuilder.set_editable_observatory_api(config.observatory)
+            if oapi:
+                InteractiveConfigBuilder.set_editable_observatory_api(config.observatory)
 
         config.save(path=config_path)
 
@@ -118,8 +120,8 @@ class GenerateCommand:
         if editable:
             InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
 
-        if oapi:
-            InteractiveConfigBuilder.set_editable_observatory_api(config.observatory)
+            if oapi:
+                InteractiveConfigBuilder.set_editable_observatory_api(config.observatory)
 
         config.save(path=config_path)
 
@@ -292,7 +294,9 @@ class GenerateCommand:
         file_type = "Observatory Config"
         click.echo(f"Generating {file_type}...")
 
-        config = InteractiveConfigBuilder.build(backend_type=BackendType.local, workflows=workflows, oapi=oapi, editable=editable)
+        config = InteractiveConfigBuilder.build(
+            backend_type=BackendType.local, workflows=workflows, oapi=oapi, editable=editable
+        )
 
         if editable:
             InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
@@ -300,7 +304,9 @@ class GenerateCommand:
         config.save(config_path)
         click.echo(f'{file_type} saved to: "{config_path}"')
 
-    def generate_terraform_config_interactive(self, config_path: str, *, workflows: List[str], oapi: bool, editable: bool):
+    def generate_terraform_config_interactive(
+        self, config_path: str, *, workflows: List[str], oapi: bool, editable: bool
+    ):
         """Construct an Observatory Terraform config file through user assisted configuration.
 
         :param config_path: Configuration file path.
@@ -312,7 +318,9 @@ class GenerateCommand:
         file_type = "Terraform Config"
         click.echo(f"Generating {file_type}...")
 
-        config = InteractiveConfigBuilder.build(backend_type=BackendType.terraform, workflows=workflows, oapi=oapi, editable=editable)
+        config = InteractiveConfigBuilder.build(
+            backend_type=BackendType.terraform, workflows=workflows, oapi=oapi, editable=editable
+        )
 
         if editable:
             InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
@@ -474,7 +482,7 @@ class InteractiveConfigBuilder:
 
     @staticmethod
     def set_editable_observatory_platform(observatory: Observatory):
-        """ Set observatory package settings to editable.
+        """Set observatory package settings to editable.
 
         :param observatory: Observatory object to change.
         """
@@ -484,7 +492,7 @@ class InteractiveConfigBuilder:
 
     @staticmethod
     def set_editable_observatory_api(observatory: Observatory):
-        """ Set observatory api package settings to editable.
+        """Set observatory api package settings to editable.
 
         :param observatory: Observatory object to change.
         """
@@ -494,7 +502,7 @@ class InteractiveConfigBuilder:
 
     @staticmethod
     def get_installed_workflows(workflows: List[str]) -> List[WorkflowsProject]:
-        """ Add the workflows projects installed by the installer script.
+        """Add the workflows projects installed by the installer script.
 
         :param workflows: List of installed workflows (via installer script).
         :return: List of WorkflowsProjects installed by the installer.
@@ -581,13 +589,13 @@ class InteractiveConfigBuilder:
 
         if editable:
             InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
-        else:
-            # Fill in if used installer script
-            text = "What type of observatory platform installation did you perform? A git clone is an editable type, and a pip install is a pypi type."
-            choices = click.Choice(choices=["editable", "sdist", "pypi"], case_sensitive=False)
-            default = "pypi"
-            package_type = click.prompt(text=text, type=choices, default=default, show_default=True, show_choices=True)
-            config.observatory.package_type = package_type
+        # else:
+        #     # Fill in if used installer script
+        #     text = "What type of observatory platform installation did you perform? A git clone is an editable type, and a pip install is a pypi type."
+        #     choices = click.Choice(choices=["editable", "sdist", "pypi"], case_sensitive=False)
+        #     default = "pypi"
+        #     package_type = click.prompt(text=text, type=choices, default=default, show_default=True, show_choices=True)
+        #     config.observatory.package_type = package_type
 
         text = "Enter an Airflow Fernet key (leave blank to autogenerate)"
         default = ""
@@ -674,9 +682,9 @@ class InteractiveConfigBuilder:
         config.observatory.enable_elk = True if enable_elk == "y" else False
 
         # If installed by installer script, we can fill in details
-        if oapi:
+        if oapi and editable:
             InteractiveConfigBuilder.set_editable_observatory_api(config.observatory)
-        else:
+        elif not oapi:
             text = "Observatory API package name"
             default = config.observatory.api_package
             api_package = click.prompt(text=text, type=str, default=default, show_default=True)
@@ -896,7 +904,7 @@ class InteractiveConfigBuilder:
         click.echo("Configuring the Google Cloud SQL Database")
 
         text = "Google CloudSQL db tier"
-        default="db-custom-2-7680"
+        default = "db-custom-2-7680"
         tier = click.prompt(text=text, type=str, default=default, show_default=True)
 
         text = "Google CloudSQL backup start time"
@@ -922,7 +930,7 @@ class InteractiveConfigBuilder:
         machine_type = click.prompt(text=text, type=str, default=default, show_default=True)
 
         text = "Disk size (GB)"
-        default=50
+        default = 50
         disk_size = click.prompt(text=text, type=int, default=default, show_default=True)
 
         text = "Disk type"
@@ -947,15 +955,15 @@ class InteractiveConfigBuilder:
 
         :param config: Configuration object to edit.
         """
-        
+
         click.echo(BOLD + "Configuring settings for the worker VM" + END)
 
         text = "Machine type"
-        default="n1-standard-8"
+        default = "n1-standard-8"
         machine_type = click.prompt(text=text, type=str, default=default, show_default=True)
 
         text = "Disk size (GB)"
-        default=3000
+        default = 3000
         disk_size = click.prompt(text=text, type=int, default=default, show_default=True)
 
         text = "Disk type"
@@ -1003,9 +1011,7 @@ class InteractiveConfigBuilder:
 
         click.echo("Configuring the Observatory API")
 
-        text = (
-            "Custom domain name for the API, used for the google cloud endpoints service"
-        )
+        text = "Custom domain name for the API, used for the google cloud endpoints service"
         default = "api.observatory.academy"
         domain_name = click.prompt(text=text, type=str, default=default, show_default=True)
 
