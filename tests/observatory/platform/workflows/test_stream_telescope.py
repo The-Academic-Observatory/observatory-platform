@@ -15,7 +15,7 @@
 # Author: Aniek Roelofs, Tuan Chien
 
 import os
-import shutil
+import jsonlines
 from datetime import timedelta
 from unittest.mock import MagicMock, call, patch
 
@@ -35,7 +35,7 @@ from observatory.platform.workflows.stream_telescope import StreamRelease, Strea
 DEFAULT_SCHEMA_PATH = "/path/to/schemas"
 
 
-class TestStreamTelescope(StreamTelescope):
+class MyTestStreamTelescope(StreamTelescope):
     """
     Generic Workflow telescope for running tasks.
     """
@@ -82,6 +82,29 @@ class TestStreamTelescope(StreamTelescope):
         self.add_task(self.bq_load_partition)
         self.add_task_chain([self.bq_delete_old, self.bq_append_new, self.cleanup], trigger_rule="none_failed")
 
+        self.file_content = {
+            "run1": {
+                "file1": [
+                    {"id": "id1", "source": "file1", "description": "This row should stay unchanged"},
+                    {"id": "id2", "source": "file1", "description": "This row should be deleted"},
+                ],
+                "file2": [
+                    {"id": "id4", "source": "file1", "description": "This row should stay unchanged"},
+                    {"id": "id5", "source": "file1", "description": "This row should be deleted"},
+                ],
+            },
+            "run2": {
+                "file1": [
+                    {"id": "id2", "source": "file2", "description": "This row was updated from file 2"},
+                    {"id": "id3", "source": "file2", "description": "This row is new from file 2"},
+                ],
+                "file2": [
+                    {"id": "id5", "source": "file2", "description": "This row was updated from file 2"},
+                    {"id": "id6", "source": "file2", "description": "This row is new from file 2"},
+                ],
+            },
+        }
+
     def make_release(self, **kwargs) -> StreamRelease:
         """Make a Release instance
 
@@ -99,17 +122,19 @@ class TestStreamTelescope(StreamTelescope):
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
-        for file_no in ["1", "2"]:
-            run_no = "1" if release.first_release else "2"
+        run = "run1" if release.first_release else "run2"
+        for file in ["file1", "file2"]:
+            dst_path = os.path.join(release.transform_folder, f"stream_telescope_{file}.jsonl")
+            with jsonlines.open(dst_path, "w") as f:
+                content = self.file_content[run][file]
+                f.write_all(content)
+            # src_path = os.path.join(
+            #     test_fixtures_path("workflows"), f"stream_telescope_run{run_no}_file{file_no}.jsonl"
+            # )
+            # shutil.copy(src_path, dst_path)
 
-            src_path = os.path.join(
-                test_fixtures_path("workflows"), f"stream_telescope_run{run_no}_file{file_no}.jsonl"
-            )
-            dst_path = os.path.join(release.transform_folder, f"stream_telescope_file{file_no}.jsonl")
-            shutil.copy(src_path, dst_path)
 
-
-class TestTestStreamTelescope(ObservatoryTestCase):
+class TestStreamTelescope(ObservatoryTestCase):
     """Tests the StreamTelescope."""
 
     def __init__(self, *args, **kwargs):
@@ -119,7 +144,7 @@ class TestTestStreamTelescope(ObservatoryTestCase):
         :param kwargs: keyword arguments.
         """
 
-        super(TestTestStreamTelescope, self).__init__(*args, **kwargs)
+        super(TestStreamTelescope, self).__init__(*args, **kwargs)
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
 
@@ -145,7 +170,7 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                 env = ObservatoryEnvironment(self.project_id, self.data_location)
                 dataset_id = env.add_dataset()
 
-                telescope = TestStreamTelescope(dataset_id=dataset_id, batch_load=batch_load)
+                telescope = MyTestStreamTelescope(dataset_id=dataset_id, batch_load=batch_load)
                 dag = telescope.make_dag()
                 release = None
 
@@ -220,9 +245,16 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                                     )
                                     table_id = f"{self.project_id}.{dataset_id}.{partition_table_id}"
                                     if batch_load:
-                                        self.assert_table_integrity(table_id, 4)
+                                        expected_content = (
+                                            telescope.file_content["run2"]["file1"]
+                                            + telescope.file_content["run2"]["file2"]
+                                        )
                                     else:
-                                        self.assert_table_integrity(table_id, 2)
+                                        if "file1" in table_id:
+                                            expected_content = telescope.file_content["run2"]["file1"]
+                                        else:
+                                            expected_content = telescope.file_content["run2"]["file2"]
+                                    self.assert_table_content(table_id, expected_content)
 
                             # Test that row(s) is deleted from the main table in the second run
                             ti = env.run_task(telescope.bq_delete_old.__name__)
@@ -232,25 +264,57 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                                 for _, main_table_id, _ in bq_load_info:
                                     table_id = f"{self.project_id}.{dataset_id}.{main_table_id}"
                                     if batch_load:
-                                        self.assert_table_integrity(table_id, 2)
+                                        expected_content = [
+                                            telescope.file_content["run1"]["file1"][0],
+                                            telescope.file_content["run1"]["file2"][0],
+                                        ]
                                     else:
-                                        self.assert_table_integrity(table_id, 1)
+                                        if "file1" in table_id:
+                                            expected_content = [telescope.file_content["run1"]["file1"][0]]
+                                        else:
+                                            expected_content = [telescope.file_content["run1"]["file2"][0]]
+                                    self.assert_table_content(table_id, expected_content)
 
                             # Test that data is loaded from a file in the first run and two rows are appended to the
                             # main table in the second run
                             env.run_task(telescope.bq_append_new.__name__)
                             for _, main_table_id, _ in bq_load_info:
                                 table_id = f"{self.project_id}.{dataset_id}.{main_table_id}"
-                                if batch_load:
-                                    if run == run1:
-                                        self.assert_table_integrity(table_id, 4)
+                                if run == run1:
+                                    if batch_load:
+                                        expected_content = (
+                                            telescope.file_content["run1"]["file1"]
+                                            + telescope.file_content["run1"]["file2"]
+                                        )
                                     else:
-                                        self.assert_table_integrity(table_id, 6)
+                                        if "file1" in table_id:
+                                            expected_content = telescope.file_content["run1"]["file1"]
+                                        else:
+                                            expected_content = telescope.file_content["run1"]["file2"]
                                 else:
-                                    if run == run1:
-                                        self.assert_table_integrity(table_id, 2)
+                                    if batch_load:
+                                        expected_content = [
+                                            telescope.file_content["run1"]["file1"][0],
+                                            telescope.file_content["run2"]["file1"][0],
+                                            telescope.file_content["run2"]["file1"][1],
+                                            telescope.file_content["run1"]["file2"][0],
+                                            telescope.file_content["run2"]["file2"][0],
+                                            telescope.file_content["run2"]["file2"][1],
+                                        ]
                                     else:
-                                        self.assert_table_integrity(table_id, 3)
+                                        if "file1" in table_id:
+                                            expected_content = [
+                                                telescope.file_content["run1"]["file1"][0],
+                                                telescope.file_content["run2"]["file1"][0],
+                                                telescope.file_content["run2"]["file1"][1],
+                                            ]
+                                        else:
+                                            expected_content = [
+                                                telescope.file_content["run1"]["file2"][0],
+                                                telescope.file_content["run2"]["file2"][0],
+                                                telescope.file_content["run2"]["file2"][1],
+                                            ]
+                                self.assert_table_content(table_id, expected_content)
 
                             # Test that all telescope data deleted
                             download_folder, extract_folder, transform_folder = (
@@ -291,7 +355,7 @@ class TestTestStreamTelescope(ObservatoryTestCase):
                 env = ObservatoryEnvironment(self.project_id, self.data_location)
                 dataset_id = env.add_dataset()
 
-                telescope = TestStreamTelescope(dataset_id=dataset_id, batch_load=batch_load)
+                telescope = MyTestStreamTelescope(dataset_id=dataset_id, batch_load=batch_load)
                 dag = telescope.make_dag()
                 release = None
 
