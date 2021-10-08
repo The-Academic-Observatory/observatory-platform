@@ -645,11 +645,12 @@ class ObservatoryTestCase(unittest.TestCase):
 
         self.assertIsNotNone(rows)
         if expected_content is not None:
-            expected_content_copy = copy.deepcopy(expected_content)
-            for row in expected_content_copy[:]:
+            for row in expected_content:
                 self.assertIn(row, actual_content)
-                expected_content_copy.remove(row)
-            self.assertListEqual([], expected_content_copy)
+                actual_content.remove(row)
+            self.assertListEqual(
+                [], actual_content, msg=f"Rows in actual content that are not in expected content: {actual_content}"
+            )
 
     def assert_file_integrity(self, file_path: str, expected_hash: str, algorithm: str):
         """Assert that a file exists and it has the correct hash.
