@@ -503,7 +503,7 @@ def build(command: str, config_path: str, tag: str):
     cmd = BuildCommand(config_path)
 
     if command == "observatory-image":
-        cmd.build_observatory_image(tag)
+        cmd.build_image(tag)
 
 
 def terraform_check_dependencies(

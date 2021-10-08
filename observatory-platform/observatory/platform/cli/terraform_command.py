@@ -21,10 +21,11 @@ import click
 from observatory.platform.cli.click_utils import indent, INDENT1, INDENT2
 from observatory.platform.observatory_config import TerraformConfig, TerraformVariable
 from observatory.platform.terraform_api import TerraformApi
-from observatory.platform.terraform_builder import TerraformBuilder
+from observatory.platform.terraform.terraform_builder import TerraformBuilder
 
 
 class TerraformCommand:
+
     def __init__(self, config_path: str, terraform_credentials_path: str, debug: bool = False):
         """Create a TerraformCommand, which can be used to create and update terraform workspaces.
 
@@ -97,21 +98,21 @@ class TerraformCommand:
 
         self.terraform_builder.build_terraform()
 
-    def build_image(self):
-        """Build a Google Compute image for the Terraform deployment with Packer.
-
-        :return: None.
-        """
-
-        self.terraform_builder.build_image()
-
-    def build_google_container_image(self):
-        """Build a Docker image stored in the Google Container registry using gcloud builds.
-
-        :return: None.
-        """
-        self.terraform_builder.gcloud_activate_service_account()
-        self.terraform_builder.gcloud_builds_submit()
+    # def build_image(self):
+    #     """Build a Google Compute image for the Terraform deployment with Packer.
+    #
+    #     :return: None.
+    #     """
+    #
+    #     self.terraform_builder.build_image()
+    #
+    # def build_google_container_image(self):
+    #     """Build a Docker image stored in the Google Container registry using gcloud builds.
+    #
+    #     :return: None.
+    #     """
+    #     self.terraform_builder.gcloud_activate_service_account()
+    #     self.terraform_builder.gcloud_builds_submit()
 
     @property
     def verbosity(self):

@@ -85,15 +85,6 @@ class TerraformBuilder:
 
         return shutil.which("packer")
 
-    @property
-    def gcloud_exe_path(self) -> str:
-        """The path to the Google Cloud SDK executable.
-
-        :return: the path or None.
-        """
-
-        return shutil.which("gcloud")
-
     def make_files(self):
         # Clear terraform/packages path
         if os.path.exists(self.packages_build_path):
@@ -118,16 +109,6 @@ class TerraformBuilder:
         # Make OpenAPI specification
         self.make_open_api_template()
 
-    def make_startup_script(self, is_airflow_main_vm: bool, file_name: str):
-        # Load and render template
-        template_path = os.path.join(self.terraform_path, "startup.tpl.jinja2")
-        render = render_template(template_path, is_airflow_main_vm=is_airflow_main_vm)
-
-        # Save file
-        output_path = os.path.join(self.terraform_build_path, file_name)
-        with open(output_path, "w") as f:
-            f.write(render)
-
     def make_open_api_template(self):
         # Load and render template
         specification_path = os.path.join(self.api_path, "openapi.yaml.jinja2")
@@ -147,92 +128,3 @@ class TerraformBuilder:
 
         self.make_files()
         self.platform_runner.make_files()
-
-    def build_image(self) -> Tuple[str, str, int]:
-        """Build the Observatory Platform Google Compute image with Packer.
-
-        :return: output and error stream results and proc return code.
-        """
-
-        # Make Terraform files
-        self.build_terraform()
-
-        # Load template
-        template_vars = {
-            "credentials_file": self.config.google_cloud.credentials,
-            "project_id": self.config.google_cloud.project_id,
-            "zone": self.config.google_cloud.zone,
-            "environment": self.config.backend.environment.value,
-        }
-        variables = []
-        for key, val in template_vars.items():
-            variables.append("-var")
-            variables.append(f"{key}={val}")
-
-        # Build the containers first
-        args = ["packer", "build"] + variables + ["-force", "observatory-image.json"]
-
-        if self.debug:
-            print("Executing subprocess:")
-            print(indent(f"Command: {subprocess.list2cmdline(args)}", INDENT1))
-            print(indent(f"Cwd: {self.terraform_build_path}", INDENT1))
-
-        proc: Popen = subprocess.Popen(
-            args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.terraform_build_path
-        )
-
-        # Wait for results
-        # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
-        # image building is
-        output, error = stream_process(proc, True)
-        return output, error, proc.returncode
-
-    def gcloud_activate_service_account(self) -> Tuple[str, str, int]:
-        args = ["gcloud", "auth", "activate-service-account", "--key-file", self.config.google_cloud.credentials]
-
-        if self.debug:
-            print("Executing subprocess:")
-            print(indent(f"Command: {subprocess.list2cmdline(args)}", INDENT1))
-            print(indent(f"Cwd: {self.api_package_path}", INDENT1))
-
-        proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.api_package_path)
-
-        # Wait for results
-        # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
-        # image building is
-        output, error = stream_process(proc, True)
-        return output, error, proc.returncode
-
-    def gcloud_builds_submit(self) -> Tuple[str, str, int]:
-        # Build the google container image
-        project_id = self.config.google_cloud.project_id
-        # --gcs-logs-dir is specified to avoid storage.objects.get access error, see:
-        # https://github.com/google-github-actions/setup-gcloud/issues/105
-        # the _cloudbuild bucket is created already to store the build image
-        args = [
-            "gcloud",
-            "builds",
-            "submit",
-            "--tag",
-            f"gcr.io/{project_id}/observatory-api",
-            "--project",
-            project_id,
-            "--gcs-log-dir",
-            f"gs://{project_id}_cloudbuild/logs",
-        ]
-        if self.debug:
-            print("Executing subprocess:")
-            print(indent(f"Command: {subprocess.list2cmdline(args)}", INDENT1))
-            print(indent(f"Cwd: {self.api_package_path}", INDENT1))
-
-        proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.api_package_path)
-
-        # Wait for results
-        # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
-        # image building is
-        output, error = stream_process(proc, True)
-
-        info_filepath = os.path.join(self.terraform_build_path, "api_image_build.txt")
-        with open(info_filepath, "w") as f:
-            f.writelines(line + "\n" for line in output.splitlines()[-2:])
-        return output, error, proc.returncode

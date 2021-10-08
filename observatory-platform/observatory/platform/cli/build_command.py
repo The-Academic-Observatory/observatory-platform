@@ -5,7 +5,9 @@ from observatory.platform.docker.platform_builder import PlatformBuilder
 
 
 class BuildCommand:
-    def __init__(self, config_path: str):
+    def __init__(self, config_path):
+        # self.config = config
+
         # Load config
         config_exists = os.path.exists(config_path)
         if not config_exists:
@@ -16,13 +18,11 @@ class BuildCommand:
             self.config_is_valid = self.config.is_valid
             print(self.config.errors)
 
-    def build_observatory_image(self, tag: str):
-        print(self.config_is_valid)
+    def build_image(self, tag: str):
         pb = PlatformBuilder(config=self.config, tag=tag)
         pb.build()
 
     def build_vm_image(self):
         pass
 
-    def build_api_image(self):
-        pass
+
