@@ -1,7 +1,0 @@
-#!/bin/bash
-
-source observatory_platform_installer_fn
-
-set_os_arch
-check_system
-install_terraform_deps

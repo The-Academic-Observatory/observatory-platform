@@ -1,6 +1,6 @@
 #!/bin/bash
 
-venv_observatory_platform="venv"
+venv_observatory_platform="observatory_venv"
 
 function set_os_arch() {
     os=$(uname -s)
@@ -58,11 +58,26 @@ function check_system() {
     fi
 }
 
+function ask_install_mode() {
+    question="Do you wish to install with pypi (pip) or from source? If you want to just run the observatory platform, pypi is recommended. If you intend to modify or develop the platform, source is recommended.[Pypi/source]: "
+    options=("pypi" "source")
+    default_option="pypi"
+    mode=$(ask_question "$question" "$default_option" "${options[@]}")
+
+    if [ "$mode" = "source" ]; then
+        pip_install_env_flag="-e"
+    fi
+}
+
 function ask_install_observatory_tests() {
     question="Do you wish to install extra developer testing packages? [Y/n]: "
     options=("y" "n")
     default_option="y"
     install_test_extras=$(ask_question "$question" "$default_option" "${options[@]}")
+
+    if [ "$install_test_extras" = "y" ]; then
+        test_suffix="[tests]"
+    fi
 }
 
 function ask_install_academic_observatory_workflows() {
@@ -110,6 +125,7 @@ function configure_install_options() {
         # Configure options
         install_oapi="y"
 
+        ask_install_mode
         ask_install_observatory_tests
         ask_install_academic_observatory_workflows
         ask_install_oaebu_workflows
@@ -123,6 +139,7 @@ function configure_install_options() {
         echo "----------------------------------------------------------"
         echo "Operating system: $os_human, architecture: $arch"
         echo "Install Observatory Platform: y"
+        echo "Installation type: $mode"
         echo "Install extra developer testing packages: $install_test_extras"
         echo "Install Observatory API: $install_oapi"
         echo "Install Academic Observatory Workflows: $install_ao_workflows"
@@ -306,11 +323,12 @@ function install_observatory_platform() {
     echo "Installing the observatory-platform package"
     echo "==========================================="
 
-    if [ "$install_test_extras" = "y" ]; then
-        pip install -e observatory-platform[tests]
-    else
-        pip install -e observatory-platform
+    if [ "$mode" = "source" ]; then
+        git clone --branch INF-32/installer_script_after_repo_separation git@github.com:The-Academic-Observatory/observatory-platform.git
+        cd observatory-platform
     fi
+
+    pip3 install ${pip_install_env_flag} observatory-platform${test_suffix}
 }
 
 function install_observatory_api() {
@@ -322,7 +340,8 @@ function install_observatory_api() {
     echo "Installing Observatory API"
     echo "=========================="
 
-    pip3 install -e observatory-api
+    pip3 install ${pip_install_env_flag} observatory-api${test_suffix}
+
 }
 
 function install_academic_observatory_workflows() {
@@ -334,18 +353,17 @@ function install_academic_observatory_workflows() {
     echo "Installing academic observatory workflows"
     echo "========================================="
 
-    if [ ! -d "workflows/academic-observatory-workflows" ]; then
+    local prefix=""
+
+    if [ "$mode" = "source" ]; then
         mkdir -p workflows
         cd workflows
         git clone git@github.com:The-Academic-Observatory/academic-observatory-workflows.git
         cd ..
+        prefix="workflows/"
     fi
 
-    if [ "$install_test_extras" = "y" ]; then
-        pip3 install -e workflows/academic-observatory-workflows[tests]
-    else
-        pip3 install -e workflows/academic-observatory-workflows
-    fi
+    pip3 install ${pip_install_env_flag} ${prefix}academic-observatory-workflows${test_suffix}
 }
 
 function install_oaebu_workflows() {
@@ -357,18 +375,17 @@ function install_oaebu_workflows() {
     echo "Installing oaebu workflows"
     echo "=========================="
 
-    if [ ! -d "workflows/oaebu-workflows" ]; then
+    local prefix=""
+
+    if [ "$mode" = "source" ]; then
         mkdir -p workflows
         cd workflows
         git clone git@github.com:The-Academic-Observatory/oaebu-workflows.git
         cd ..
+        prefix="workflows/"
     fi
 
-    if [ "$install_test_extras" = "y" ]; then
-        pip3 install -e workflows/oaebu-workflows[tests]
-    else
-        pip3 install -e workflows/oaebu-workflows
-    fi
+    pip3 install ${pip_install_env_flag} ${prefix}oaebu-workflows${test_suffix}
 }
 
 function generate_observatory_config() {
@@ -401,7 +418,7 @@ function generate_observatory_config() {
         config_path_arg="--config-path $config_path"
     fi
 
-    if [ "$installer_script" = "y" ]; then
+    if [ "$mode" = "source" ]; then
         editable="--editable"
     fi
 
@@ -409,5 +426,32 @@ function generate_observatory_config() {
     echo "Generating Observatory config"
     echo "============================="
 
-    observatory generate config $config_type $config_path_arg $editable $interactive $ao_wf $oaebu_wf $oapi
+    observatory generate config $config_path_arg $editable $interactive $ao_wf $oaebu_wf $oapi $config_type
 }
+
+#### ENTRY POINT ####
+
+echo "=================================================================================================================================="
+echo "Installing Academic Observatory Platform. You may be prompted at some stages to enter in a password to install system dependencies"
+echo "=================================================================================================================================="
+
+set_os_arch
+check_system
+configure_install_options
+install_system_deps
+
+source $venv_observatory_platform/bin/activate
+
+install_observatory_platform
+install_observatory_api
+install_academic_observatory_workflows
+install_oaebu_workflows
+generate_observatory_config
+
+deactivate
+
+echo "=================================================================================================================================="
+echo "Installation complete."
+echo "Please restart your computer for the Docker installation to take effect."
+echo -e "You can start the observatory platform after the restart by first activating the Python virtual environment with:\n  source $(pwd)/$venv_observatory_platform/bin/activate"
+echo -e "Once activated, you can start the observatory with: observatory platform start"
