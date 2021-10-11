@@ -1,21 +1,9 @@
 
 
-
-
 class VmImageBuilder:
 
     def __init__(self):
         pass
-
-    def make_startup_script(self, is_airflow_main_vm: bool, file_name: str):
-        # Load and render template
-        template_path = os.path.join(self.terraform_path, "startup.tpl.jinja2")
-        render = render_template(template_path, is_airflow_main_vm=is_airflow_main_vm)
-
-        # Save file
-        output_path = os.path.join(self.terraform_build_path, file_name)
-        with open(output_path, "w") as f:
-            f.write(render)
 
     def build_image(self) -> Tuple[str, str, int]:
         """Build the Observatory Platform Google Compute image with Packer.

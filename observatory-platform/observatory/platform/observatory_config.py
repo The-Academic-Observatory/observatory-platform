@@ -31,8 +31,7 @@ from cryptography.fernet import Fernet
 
 from observatory.platform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.utils.config_utils import observatory_home as default_observatory_home
+from observatory.platform.utils.config_utils import observatory_home as default_observatory_home, module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
 
 
@@ -138,6 +137,7 @@ class Observatory:
     """The Observatory settings for the Observatory Platform.
 
     Attributes:
+        :param docker_image: the docker image to use to run the system.
         :param package: the observatory platform package, either a local path to a Python source package (editable type),
         path to a sdist (sdist) or a PyPI package name and version (pypi).
         :param package_type: the package type, editable, sdist, pypi.
@@ -158,8 +158,9 @@ class Observatory:
         :param enable_elk: whether to enable the elk stack or not.
     """
 
-    package: str
-    package_type: str
+    docker_image: str = None
+    package: str = None
+    package_type: str = None
     airflow_fernet_key: str = None
     airflow_secret_key: str = None
     airflow_ui_user_email: str = "airflow@airflow.com"
@@ -175,12 +176,13 @@ class Observatory:
     docker_network_is_external: bool = False
     docker_compose_project_name: str = "observatory"
     enable_elk: bool = True
-    api_package: str = "observatory-api"
-    api_package_type: str = "pypi"
+    api_package: str = None
+    api_package_type: str = None
 
     def to_hcl(self):
         return to_hcl(
             {
+                "docker_image": self.docker_image,
                 "airflow_fernet_key": self.airflow_fernet_key,
                 "airflow_secret_key": self.airflow_secret_key,
                 "airflow_ui_user_password": self.airflow_ui_user_password,
@@ -201,8 +203,9 @@ class Observatory:
         :return: the Airflow instance.
         """
 
-        package = dict_.get("package")
-        package_type = dict_.get("package_type")
+        docker_image = dict_.get("docker_image", Observatory.docker_image)
+        package = dict_.get("package", Observatory.package)
+        package_type = dict_.get("package_type", Observatory.package_type)
         airflow_fernet_key = dict_.get("airflow_fernet_key", Observatory.airflow_fernet_key)
         airflow_secret_key = dict_.get("airflow_secret_key", Observatory.airflow_secret_key)
         airflow_ui_user_email = dict_.get("airflow_ui_user_email", Observatory.airflow_ui_user_email)
@@ -222,8 +225,9 @@ class Observatory:
         api_package_type = dict_.get("api_package_type", Observatory.api_package_type)
 
         return Observatory(
-            package,
-            package_type,
+            docker_image=docker_image,
+            package=package,
+            package_type=package_type,
             airflow_fernet_key=airflow_fernet_key,
             airflow_secret_key=airflow_secret_key,
             airflow_ui_user_password=airflow_ui_user_password,
@@ -586,13 +590,15 @@ class Api:
         domain_name: the custom domain name of the API
         subdomain: the subdomain of the API, can be either based on the google project id or the environment. When
         based on the environment, there is no subdomain for the production environment.
+        docker_image: the docker image to run the API with.
     """
 
     domain_name: str
     subdomain: str
+    docker_image: str
 
     def to_hcl(self):
-        return to_hcl({"domain_name": self.domain_name, "subdomain": self.subdomain})
+        return to_hcl({"domain_name": self.domain_name, "subdomain": self.subdomain, "docker_image": self.docker_image})
 
     @staticmethod
     def from_dict(dict_: Dict) -> Api:
@@ -604,7 +610,8 @@ class Api:
 
         domain_name = dict_.get("domain_name")
         subdomain = dict_.get("subdomain")
-        return Api(domain_name, subdomain)
+        docker_image = dict_.get("docker_image")
+        return Api(domain_name, subdomain, docker_image)
 
 
 def customise_pointer(field, value, error):
@@ -1147,6 +1154,7 @@ def make_schema(backend_type: BackendType) -> Dict:
     """
 
     schema = dict()
+    is_backend_build = backend_type == BackendType.build
     is_backend_terraform = backend_type == BackendType.terraform
     is_runner = backend_type != BackendType.build
 
@@ -1209,13 +1217,15 @@ def make_schema(backend_type: BackendType) -> Dict:
 
     # Observatory settings
     python_package_types = ["editable", "sdist", "pypi"]
-    observatory_package_types = python_package_types + ["docker"]
     schema["observatory"] = {
         "required": True,
         "type": "dict",
         "schema": {
-            "package": {"required": True, "type": "string"},
-            "package_type": {"required": True, "type": "string", "allowed": observatory_package_types},
+            "docker_image": {"required": False, "type": "string"},
+            "package": {"required": False, "type": "string"},
+            "package_type": {"required": False, "type": "string", "allowed": python_package_types},
+            "api_package": {"required": False, "type": "string"},
+            "api_package_type": {"required": False, "type": "string", "allowed": python_package_types},
             "airflow_fernet_key": {"required": is_runner, "type": "string"},
             "airflow_secret_key": {"required": is_runner, "type": "string"},
             "airflow_ui_user_password": {"required": is_backend_terraform, "type": "string"},
@@ -1231,8 +1241,6 @@ def make_schema(backend_type: BackendType) -> Dict:
             "docker_network_is_external": {"required": False, "type": "boolean"},
             "docker_compose_project_name": {"required": False, "type": "string"},
             "enable_elk": {"required": False, "type": "boolean"},
-            "api_package": {"required": False, "type": "string"},
-            "api_package_type": {"required": False, "type": "string", "allowed": python_package_types},
         },
     }
 
@@ -1326,6 +1334,7 @@ def make_schema(backend_type: BackendType) -> Dict:
             "schema": {
                 "domain_name": {"required": True, "type": "string"},
                 "subdomain": {"required": True, "type": "string", "allowed": ["project_id", "environment"]},
+                "docker_image": {"required": True, "type": "string"},
             },
         }
 

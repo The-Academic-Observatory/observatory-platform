@@ -4,10 +4,12 @@ Settings related to the Observatory API
 
 domain_name: the custom domain name for the API, used for the google cloud endpoints service
 subdomain: can be either 'project_id' or 'environment', used to determine a prefix for the domain_name
+docker_image: the api docker image
 EOF
   type = object({
     domain_name = string
     subdomain = string
+    docker_image = string
   })
 }
 
@@ -47,7 +49,7 @@ EOF
 }
 
 variable "elasticsearch" {
-    description = <<EOF
+  description = <<EOF
 Elasticsearch login information
 
 api_key: The elasticsearch api key

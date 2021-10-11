@@ -532,8 +532,7 @@ locals {
   }, var.airflow_variables)
 
   metadata_variables = {
-    observatory_docker_image = var.observatory.package_type,
-    observatory_docker_image = var.observatory.package_type,
+    docker_image = var.observatory.docker_image,
     project_id = var.google_cloud.project_id
     postgres_hostname = google_sql_database_instance.observatory_db_instance.private_ip_address
     redis_hostname = module.airflow_main_vm.private_ip_address

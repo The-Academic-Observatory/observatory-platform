@@ -15,23 +15,23 @@
 # Author: James Diprose
 
 from observatory.platform.docker.platform_runner import PlatformRunner, HOST_UID, HOST_GID, DEBUG
-from observatory.platform.observatory_config import BackendType
+from observatory.platform.observatory_config import ObservatoryConfig
 from observatory.platform.utils.url_utils import wait_for_url
 
 
 class PlatformCommand(PlatformRunner):
-    def __init__(self, config_path: str, host_uid: int = HOST_UID, host_gid: int = HOST_GID, debug: bool = DEBUG):
+    def __init__(
+        self, config: ObservatoryConfig, host_uid: int = HOST_UID, host_gid: int = HOST_GID, debug: bool = DEBUG
+    ):
         """Create a PlatformCommand, which can be used to start and stop Observatory Platform instances.
 
-        :param config_path: The path to the config.yaml configuration file.
+        :param config: The path to the observatory config.
         :param host_uid: The user id of the host system. Used to set the user id in the Docker containers.
         :param host_gid: The group id of the host system. Used to set the group id in the Docker containers.
         :param debug: Print debugging information.
         """
 
-        super().__init__(
-            config_path=config_path, host_uid=host_uid, host_gid=host_gid, debug=debug, backend_type=BackendType.local
-        )
+        super().__init__(config=config, host_uid=host_uid, host_gid=host_gid, debug=debug)
 
     @property
     def ui_url(self) -> str:

@@ -36,10 +36,10 @@ def copy_dir(source_path: str, destination_path: str, ignore):
 
 
 class TerraformBuilder:
-    def __init__(self, config_path: str, debug: bool = False):
+    def __init__(self, config: TerraformConfig, debug: bool = False):
         """Create a TerraformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
 
-        :param config_path: the path to the config.yaml configuration file.
+        :param config: the TerraformConfig.
         :param debug: whether to print debug statements.
         """
 
@@ -48,24 +48,15 @@ class TerraformBuilder:
         self.api_path = module_file_path("observatory.api.server")
         self.debug = debug
 
-        # Load config
-        config_exists = os.path.exists(config_path)
-        if not config_exists:
-            raise FileExistsError(f"Terraform config file does not exist: {config_path}")
-        else:
-            self.config: TerraformConfig = TerraformConfig.load(config_path)
-            self.config_is_valid = self.config.is_valid
-            if self.config_is_valid:
-                self.build_path = os.path.join(self.config.observatory.observatory_home, "build", "terraform")
-                self.platform_runner = PlatformRunner(
-                    config_path=config_path,
-                    docker_build_path=os.path.join(self.build_path, "docker"),
-                    backend_type=BackendType.terraform,
-                )
-                self.packages_build_path = os.path.join(self.build_path, "packages")
-                self.terraform_build_path = os.path.join(self.build_path, "terraform")
-                os.makedirs(self.packages_build_path, exist_ok=True)
-                os.makedirs(self.terraform_build_path, exist_ok=True)
+        self.build_path = os.path.join(config.observatory.observatory_home, "build", "terraform")
+        self.platform_runner = PlatformRunner(
+            config=config,
+            docker_build_path=os.path.join(self.build_path, "docker"),
+            backend_type=BackendType.terraform,
+        )
+        self.packages_build_path = os.path.join(self.build_path, "packages")
+        self.terraform_build_path = os.path.join(self.build_path, "terraform")
+        os.makedirs(self.packages_build_path, exist_ok=True)
 
     @property
     def is_environment_valid(self) -> bool:
@@ -74,7 +65,7 @@ class TerraformBuilder:
         :return: whether the environment for building the Packer image is valid.
         """
 
-        return all([self.packer_exe_path is not None, self.config_is_valid, self.config is not None])
+        return all([self.packer_exe_path is not None])
 
     @property
     def packer_exe_path(self) -> str:
@@ -108,6 +99,16 @@ class TerraformBuilder:
 
         # Make OpenAPI specification
         self.make_open_api_template()
+
+    def make_startup_script(self, is_airflow_main_vm: bool, file_name: str):
+        # Load and render template
+        template_path = os.path.join(self.terraform_path, "startup.tpl.jinja2")
+        render = render_template(template_path, is_airflow_main_vm=is_airflow_main_vm)
+
+        # Save file
+        output_path = os.path.join(self.terraform_build_path, file_name)
+        with open(output_path, "w") as f:
+            f.write(render)
 
     def make_open_api_template(self):
         # Load and render template

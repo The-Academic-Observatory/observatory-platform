@@ -139,7 +139,7 @@ networks:
 {%- endif %}
 
 
-{% if config.observatory.package_type != 'docker' -%}
+{% if config.observatory.docker_image is None -%}
 x-build: &build
   context: .
   dockerfile: Dockerfile.observatory
@@ -163,7 +163,7 @@ services:
       retries: 50
 
   flower:
-    {% if config.observatory.package_type == 'docker' -%}
+    {% if config.observatory.docker_image is not None -%}
       image: ${OBSERVATORY_DOCKER_IMAGE}
     {%- else %}
       build: *build
@@ -194,7 +194,7 @@ services:
     {%- endif %}
 
   webserver:
-    {% if config.observatory.package_type == 'docker' -%}
+    {% if config.observatory.docker_image is not None -%}
       image: ${OBSERVATORY_DOCKER_IMAGE}
     {%- else %}
       build: *build
@@ -225,7 +225,7 @@ services:
       retries: 30
 
   scheduler:
-    {% if config.observatory.package_type == 'docker' -%}
+    {% if config.observatory.docker_image is not None -%}
       image: ${OBSERVATORY_DOCKER_IMAGE}
     {%- else %}
       build: *build
@@ -245,7 +245,7 @@ services:
     command: scheduler
 
   worker_local:
-    {% if config.observatory.package_type == 'docker' -%}
+    {% if config.observatory.docker_image is not None -%}
       image: ${OBSERVATORY_DOCKER_IMAGE}
     {%- else %}
       build: *build
@@ -263,7 +263,7 @@ services:
     command: celery worker -q default
 
   worker_remote:
-    {% if config.observatory.package_type == 'docker' -%}
+    {% if config.observatory.docker_image is not None -%}
       image: ${OBSERVATORY_DOCKER_IMAGE}
     {%- else %}
       build: *build

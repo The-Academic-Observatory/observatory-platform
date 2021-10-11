@@ -15,13 +15,14 @@
 # Author: James Diprose, Aniek Roelofs, Tuan Chien
 
 import os
+import subprocess
 import sys
+from typing import ClassVar, Union
 
 import click
-import subprocess
-
-from observatory.platform.cli.click_utils import INDENT1, INDENT2, INDENT3, indent
+from observatory.platform.observatory_config import ObservatoryConfig, TerraformConfig, BuildConfig
 from observatory.platform.cli.build_command import BuildCommand
+from observatory.platform.cli.click_utils import INDENT1, INDENT2, INDENT3, indent
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
@@ -395,6 +396,32 @@ def secrets(command: str):
         print(cmd.generate_fernet_key())
 
 
+def load_config(cls: ClassVar, config_path: str) -> Union[TerraformConfig, ObservatoryConfig]:
+    """ Load a config file.
+
+    :param cls: the config file class.
+    :param config_path: the path to the config file.
+    :return: the config file.
+    """
+
+    # Load config
+    config_exists = os.path.exists(config_path)
+    if not config_exists:
+        raise FileExistsError(f"Observatory config file does not exist: {config_path}")
+    else:
+        return cls.load(config_path)
+
+        # print(indent(f"- path: {config_path}", INDENT2))
+        # if cfg.is_valid:
+        #     print(indent("- file valid", INDENT2))
+        # else:
+        #     print(indent("- file invalid", INDENT2))
+        #     for key, value in cfg.validator.errors.items():
+        #         print(indent(f"- {key}: {value}", INDENT3))
+
+
+
+
 @generate.command()
 @click.argument("command", type=click.Choice(["local", "terraform"]))
 @click.option(
@@ -458,12 +485,8 @@ def terraform(command, config_path, terraform_credentials_path, debug):
     COMMAND: the type of config file to generate:\n
       - create-workspace: create a Terraform Cloud workspace.\n
       - update-workspace: update a Terraform Cloud workspace.\n
-      - build-image: build a Google Compute image for the Terraform deployment with Packer.\n
       - build-terraform: build the Terraform files.\n
     """
-
-    # The minimum number of characters per line
-    min_line_chars = 80
 
     terraform_cmd = TerraformCommand(config_path, terraform_credentials_path, debug=debug)
     generate_cmd = GenerateCommand()
@@ -475,35 +498,39 @@ def terraform(command, config_path, terraform_credentials_path, debug):
     if command == "build-terraform":
         # Build image with packer
         terraform_cmd.build_terraform()
-    elif command == "build-image":
-        # Build image with packer
-        terraform_cmd.build_image()
-    elif command == "build-api-image":
-        # Build docker image stored in google container registry
-        terraform_cmd.build_google_container_image()
-    else:
+    elif command == "create-workspace":
         # Create a new workspace
-        if command == "create-workspace":
-            terraform_cmd.create_workspace()
-
+        terraform_cmd.create_workspace()
+    elif command == "update-workspace":
         # Update an existing workspace
-        elif command == "update-workspace":
-            terraform_cmd.update_workspace()
+        terraform_cmd.update_workspace()
 
 
 @cli.command(context_settings=dict(max_content_width=120))
 @click.argument(
     "command",
-    type=click.Choice(["observatory-image", "api-image", "vm-imageS"]),
+    type=click.Choice(["observatory-image", "vm-image"]),
 )
 @click.argument("config-path", type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.argument("tag", type=click.STRING)
 def build(command: str, config_path: str, tag: str):
+    """Build a resource.\n
 
-    cmd = BuildCommand(config_path)
+    COMMAND: the type of resource to build:\n
+      - observatory-image: build the observatory docker container.\n
+      - vm-image: the Google Cloud VM image.\n
+    """
+
+    cfg = load_config(BuildConfig, config_path)
+
+    # check dependencies
+
+    cmd = BuildCommand(cfg)
 
     if command == "observatory-image":
         cmd.build_image(tag)
+    elif command == "vm-image":
+        cmd.build_vm_image(tag)
 
 
 def terraform_check_dependencies(

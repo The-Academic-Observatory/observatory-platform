@@ -25,9 +25,7 @@ import requests
 from observatory.platform.docker.compose_runner import ComposeRunner
 from observatory.platform.observatory_config import (
     ObservatoryConfig,
-    BackendType,
     TerraformConfig,
-    Observatory,
 )
 from observatory.platform.utils.config_utils import module_file_path
 
@@ -40,89 +38,69 @@ class PlatformRunner(ComposeRunner):
     def __init__(
         self,
         *,
-        config_path: str,
+        config: Union[ObservatoryConfig, TerraformConfig],
         host_uid: int = HOST_UID,
         host_gid: int = HOST_GID,
         docker_build_path: str = None,
         debug: bool = DEBUG,
-        backend_type: BackendType = BackendType.local,
     ):
         """Create a PlatformRunner instance, which is used to build, start and stop an Observatory Platform instance.
 
-        :param config_path: The path to the config.yaml configuration file.
+        :param config: the config.
         :param host_uid: The user id of the host system. Used to set the user id in the Docker containers.
         :param host_gid: The group id of the host system. Used to set the group id in the Docker containers.
         :param docker_build_path: the Docker build path.
         :param debug: Print debugging information.
-        :param backend_type: whether we are running the local or terraform environment.
         """
 
-        self.config_path = config_path
+        self.config = config
         self.host_uid = host_uid
         self.host_gid = host_gid
-        self.backend_type = backend_type
 
-        # Set config class based on type of backend
-        self.config_class = ObservatoryConfig
-        if backend_type == BackendType.terraform:
-            self.config_class = TerraformConfig
+        # Set default values when config is invalid
+        observatory_home = self.config.observatory.observatory_home
 
-        # Load config
-        config_exists = os.path.exists(config_path)
-        if not config_exists:
-            raise FileExistsError(f"Observatory config file does not exist: {config_path}")
-        else:
-            self.config_is_valid = False
-            self.config: Union[ObservatoryConfig, TerraformConfig] = self.config_class.load(config_path)
-            self.config_is_valid = self.config.is_valid
+        if docker_build_path is None:
+            docker_build_path = os.path.join(observatory_home, "build", "docker")
 
-            # Set default values when config is invalid
-            observatory_home = Observatory.observatory_home
-            if self.config_is_valid:
-                observatory_home = self.config.observatory.observatory_home
+        super().__init__(
+            compose_template_path=os.path.join(self.docker_module_path, "docker-compose.observatory.yml.jinja2"),
+            build_path=docker_build_path,
+            compose_template_kwargs={"config": self.config},
+            debug=debug,
+        )
 
-            if docker_build_path is None:
-                docker_build_path = os.path.join(observatory_home, "build", "docker")
+        # Add files
+        self.add_template(
+            path=os.path.join(self.docker_module_path, "Dockerfile.observatory.jinja2"), config=self.config
+        )
+        self.add_template(
+            path=os.path.join(self.docker_module_path, "entrypoint-airflow.sh.jinja2"), config=self.config
+        )
+        self.add_file(
+            path=os.path.join(self.docker_module_path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh"
+        )
+        self.add_file(
+            path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
+        )
 
-            super().__init__(
-                compose_template_path=os.path.join(self.docker_module_path, "docker-compose.observatory.yml.jinja2"),
-                build_path=docker_build_path,
-                compose_template_kwargs={"config": self.config},
-                debug=debug,
-            )
+        # Add all project requirements files for local projects
+        for package in self.config.python_packages:
+            if package.type == "editable":
+                # Add requirements.sh
+                self.add_file(
+                    path=os.path.join(package.host_package, "requirements.sh"),
+                    output_file_name=f"requirements.{package.name}.sh",
+                )
 
-            # Add files
-            self.add_template(
-                path=os.path.join(self.docker_module_path, "Dockerfile.observatory.jinja2"), config=self.config
-            )
-            self.add_template(
-                path=os.path.join(self.docker_module_path, "entrypoint-airflow.sh.jinja2"), config=self.config
-            )
-            self.add_file(
-                path=os.path.join(self.docker_module_path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh"
-            )
-            self.add_file(
-                path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
-            )
-
-            # Add all project requirements files for local projects
-            if self.config is not None and self.config_is_valid:
-                for package in self.config.python_packages:
-                    if package.type == "editable":
-                        # Add requirements.sh
-                        self.add_file(
-                            path=os.path.join(package.host_package, "requirements.sh"),
-                            output_file_name=f"requirements.{package.name}.sh",
-                        )
-
-                        # Add project requirements files for local projects
-                        self.add_file(
-                            path=os.path.join(package.host_package, "requirements.txt"),
-                            output_file_name=f"requirements.{package.name}.txt",
-                        )
-                    elif package.type == "sdist":
-                        # Add sdist package file
-                        self.add_file(path=package.host_package, output_file_name=package.docker_package)
+                # Add project requirements files for local projects
+                self.add_file(
+                    path=os.path.join(package.host_package, "requirements.txt"),
+                    output_file_name=f"requirements.{package.name}.txt",
+                )
+            elif package.type == "sdist":
+                # Add sdist package file
+                self.add_file(path=package.host_package, output_file_name=package.docker_package)
 
     @property
     def is_environment_valid(self) -> bool:
@@ -131,15 +109,7 @@ class PlatformRunner(ComposeRunner):
         :return: whether the environment for building the Observatory Platform is valid.
         """
 
-        return all(
-            [
-                self.docker_exe_path is not None,
-                self.docker_compose_path is not None,
-                self.is_docker_running,
-                self.config_is_valid,
-                self.config is not None,
-            ]
-        )
+        return all([self.docker_exe_path is not None, self.docker_compose_path is not None, self.is_docker_running])
 
     @property
     def docker_module_path(self) -> str:

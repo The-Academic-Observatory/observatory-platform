@@ -48,8 +48,10 @@ class PlatformBuilder:
         return module_file_path("observatory.platform.docker")
 
     def build(self) -> bool:
+        """ Build the Docker image.
 
-        # create temporary directory
+        :return: whether the image built successfully or not.
+        """
 
         with CliRunner().isolated_filesystem() as t:
             # Create builder and add files
@@ -69,7 +71,6 @@ class PlatformBuilder:
             )
 
             # Add all project requirements files for local projects
-            print(self.config.observatory)
             for package in self.config.python_packages:
                 if package.type == "editable":
                     # Add requirements.sh

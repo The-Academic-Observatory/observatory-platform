@@ -7,6 +7,7 @@ variable "observatory" {
   description = <<EOF
 The Observatory settings.
 
+docker_image: the Observatory Docker image.
 airflow_fernet_key: the Fernet key.
 airflow_secret_key: the secret key used for the Flask Airflow Webserver.
 airflow_ui_user_password: the password for the Apache Airflow UI admin user.
@@ -14,6 +15,7 @@ airflow_ui_user_email: the email address for the Apache Airflow UI admin user.
 postgres_password: the Postgres SQL password.
 EOF
   type = object({
+    docker_image = string
     airflow_fernet_key = string
     airflow_secret_key = string
     airflow_ui_user_email = string
@@ -108,6 +110,7 @@ EOF
   type = object({
     api_key = string
     host = string
+    api_key = string
   })
 }
 
@@ -117,9 +120,11 @@ Settings related to the Observatory API
 
 domain_name: the custom domain name for the API, used for the google cloud endpoints service
 subdomain: can be either 'project_id' or 'environment', used to determine a prefix for the domain_name
+docker_image: the API docker image
 EOF
   type = object({
     domain_name = string
     subdomain = string
+    docker_image = string
   })
 }

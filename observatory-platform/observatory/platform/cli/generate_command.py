@@ -14,18 +14,18 @@
 
 # Author: James Diprose, Aniek Roelofs, Tuan Chien
 import os
-import shutil
 import re
+import shutil
+import subprocess
 from datetime import datetime
 from typing import Tuple
 
 import click
-import subprocess
 from cryptography.fernet import Fernet
 
 from observatory.platform.observatory_config import ObservatoryConfig, TerraformConfig
-from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.proc_utils import stream_process
 
 

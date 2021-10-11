@@ -1,0 +1,23 @@
+name: Build VM Image
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+    tags:
+      - '*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: the-academic-observatory/observatory-api
+
+jobs:
+  packer:
+    runs-on: ubuntu-latest
+    name: packer
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v2
+

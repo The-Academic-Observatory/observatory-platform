@@ -1,28 +1,42 @@
-import os
+# Copyright 2021 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-from observatory.platform.observatory_config import BuildConfig
+# Author: James Diprose
+
 from observatory.platform.docker.platform_builder import PlatformBuilder
+from observatory.platform.observatory_config import BuildConfig
 
 
 class BuildCommand:
-    def __init__(self, config_path):
-        # self.config = config
+    def __init__(self, config: BuildConfig):
+        """Create the build command.
 
-        # Load config
-        config_exists = os.path.exists(config_path)
-        if not config_exists:
-            raise FileExistsError(f"Observatory config file does not exist: {config_path}")
-        else:
-            self.config_is_valid = False
-            self.config: BuildConfig = BuildConfig.load(config_path)
-            self.config_is_valid = self.config.is_valid
-            print(self.config.errors)
+        :param config: the build config.
+        """
+
+        self.config = config
 
     def build_image(self, tag: str):
+        """Build the observatory docker image.
+
+        :param tag: the Docker tag.
+        :return:  None
+        """
+
         pb = PlatformBuilder(config=self.config, tag=tag)
         pb.build()
 
     def build_vm_image(self):
+
         pass
-
-

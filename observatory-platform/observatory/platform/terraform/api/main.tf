@@ -54,15 +54,6 @@ module "observatory_db_uri" {
   service_account_email = google_service_account.api-backend_service_account.email
 }
 
-# Create data resource to keep track of latest image change
-data "archive_file" "build_image_info"{
-  # the only available type
-  type = "zip"
-  source_file = "./api_image_build.txt"
-  output_path = "./api_image_build.zip"
-}
-
-
 resource "google_cloud_run_service" "api_backend" {
   name     = "api-backend"
   location = var.google_cloud.region
@@ -70,7 +61,7 @@ resource "google_cloud_run_service" "api_backend" {
   template {
     spec {
       containers {
-        image = "gcr.io/${var.google_cloud.project_id}/observatory-api"
+        image = var.api.docker_image
         env {
           name = "ES_API_KEY"
           value = "sm://${var.google_cloud.project_id}/elasticsearch-api_key"
@@ -89,8 +80,6 @@ resource "google_cloud_run_service" "api_backend" {
     metadata {
       annotations = {
         "autoscaling.knative.dev/maxScale" = "10"
-        # make resource dependent on sha256 of file describing image info
-        build_image = data.archive_file.build_image_info.output_base64sha256
         "run.googleapis.com/vpc-access-egress" : "private-ranges-only"
         "run.googleapis.com/vpc-access-connector" = "projects/${var.google_cloud.project_id}/locations/${var.google_cloud.region}/connectors/${var.vpc_connector_name}"
       }
