@@ -15,18 +15,23 @@
 # Author: James Diprose, Aniek Roelofs, Tuan Chien
 
 import os
+import subprocess
 import sys
 
 import click
-import subprocess
-
 from observatory.platform.cli.click_utils import INDENT1, INDENT2, INDENT3, indent
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
+from observatory.platform.observatory_config import (
+    generate_fernet_key,
+    generate_secret_key,
+)
 from observatory.platform.platform_builder import DEBUG, HOST_GID, HOST_UID
 from observatory.platform.utils.config_utils import observatory_home
-from observatory.platform.utils.config_utils import terraform_credentials_path as default_terraform_credentials_path
+from observatory.platform.utils.config_utils import (
+    terraform_credentials_path as default_terraform_credentials_path,
+)
 from observatory.platform.utils.proc_utils import stream_process
 
 PLATFORM_NAME = "Observatory Platform"
@@ -101,7 +106,7 @@ def platform(command: str, config_path: str, host_uid: int, host_gid: int, debug
         print(indent("config.yaml:", INDENT1))
         print(indent(f"- file not found, generating a default file on path: {config_path}", INDENT2))
         generate_cmd = GenerateCommand()
-        generate_cmd.generate_local_config(config_path)
+        generate_cmd.generate_local_config(config_path, editable=False, workflows=[], oapi=False)
         exit(os.EX_CONFIG)
 
 
@@ -381,17 +386,19 @@ def workflow(workflow_type: str, workflow_name: str, project_path: str):
 
 
 @generate.command()
-@click.argument("command", type=click.Choice(["fernet-key"]))
+@click.argument("command", type=click.Choice(["fernet-key", "secret-key"]))
 def secrets(command: str):
     """Generate secrets for the Observatory Platform.\n
 
     COMMAND: the type of secret to generate:\n
       - fernet-key: generate a random Fernet Key.\n
+      - secret-key: generate a random secret key.\n
     """
 
     if command == "fernet-key":
-        cmd = GenerateCommand()
-        print(cmd.generate_fernet_key())
+        print(generate_fernet_key())
+    else:
+        print(generate_secret_key())
 
 
 @generate.command()
@@ -403,34 +410,63 @@ def secrets(command: str):
     help="The path to the config file to generate.",
     show_default=True,
 )
-def config(command: str, config_path: str):
+@click.option("--interactive", flag_value=True, help="Configuration through an interactive Q&A mode")
+@click.option(
+    "--ao-wf",
+    flag_value=True,
+    help="Indicates that the academic-observatory-workflows was installed through the cli installer script",
+)
+@click.option(
+    "--oaebu-wf",
+    flag_value=True,
+    help="Indicates that the oaebu-workflows was installed through the cli installer script",
+)
+@click.option(
+    "--oapi", flag_value=True, help="Indicates that the observatory api was installed through the cli installer script"
+)
+@click.option("--editable", flag_value=True, help="Indicates the observatory platform is editable")
+def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu_wf: bool, oapi: bool, editable: bool):
     """Generate config files for the Observatory Platform.\n
 
     COMMAND: the type of config file to generate:\n
       - local: generate a config file for running the Observatory Platform locally.\n
       - terraform: generate a config file for running the Observatory Platform with Terraform.\n
+
+    :param interactive: whether to interactively ask for configuration options.
+    :param ao_wf: Whether academic_observatory_workflows was installed using the installer script.
+    :param oaebu_wf: Whether oaebu_workflows was installed using the installer script.
+    :param oapi: Whether the Observatory API was installed using the installer script.
+    :param editable: Whether the observatory platform is editable.
     """
 
     # Make the generate command, which encapsulates functionality for generating data
     cmd = GenerateCommand()
 
+    if config_path is None:
+        config_path = LOCAL_CONFIG_PATH if command == "local" else TERRAFORM_CONFIG_PATH
+
+    config_name = "Observatory config" if command == "local" else "Terraform config"
+
+    workflows = []
+    if ao_wf:
+        workflows.append("academic-observatory-workflows")
+    if oaebu_wf:
+        workflows.append("oaebu-workflows")
+
     cmd_func = None
-    config_name = ""
-    if command == "local":
-        if config_path is None:
-            config_path = LOCAL_CONFIG_PATH
+    if command == "local" and not interactive:
         cmd_func = cmd.generate_local_config
-        config_name = "Observatory Config"
-    elif command == "terraform":
-        if config_path is None:
-            config_path = TERRAFORM_CONFIG_PATH
+    elif command == "terraform" and not interactive:
         cmd_func = cmd.generate_terraform_config
-        config_name = "Terraform Config"
+    elif command == "local" and interactive:
+        cmd_func = cmd.generate_local_config_interactive
+    else:
+        cmd_func = cmd.generate_terraform_config_interactive
 
     if not os.path.exists(config_path) or click.confirm(
         f'The file "{config_path}" exists, do you want to overwrite it?'
     ):
-        cmd_func(config_path)
+        cmd_func(config_path, workflows=workflows, oapi=oapi, editable=editable)
     else:
         click.echo(f"Not generating {config_name}")
 
@@ -519,7 +555,7 @@ def terraform_check_dependencies(
                 print(indent(f"- {key}: {value}", INDENT3))
     else:
         print(indent("- file not found, generating a default file", INDENT2))
-        generate_cmd.generate_terraform_config(terraform_cmd.config_path)
+        generate_cmd.generate_terraform_config(terraform_cmd.config_path, editable=False, workflows=[], oapi=False)
 
     print(indent("Terraform credentials file:", INDENT1))
     if terraform_cmd.terraform_credentials_exists:

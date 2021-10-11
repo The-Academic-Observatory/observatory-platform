@@ -1,105 +1,25 @@
 # Installation
-Observatory Platform supports Python 3.7 and above on Linux and MacOS.
+Observatory Platform supports Python 3.8, Ubuntu Linux 20.04 and MacOS 10.14, on x86 architecture.  
 
-Dependencies:
-* Python 3.7
-* pip
-* virtualenv 20 or greater
-* Docker Engine or Docker Desktop.
+## System dependencies
+* Python 3.8
+* Pip
+* Docker
+* virtualenv
+* curl
 
-See below for more details.
-
-## System dependencies: Ubuntu 18.04
-Update packages list and install software-properties-common:
-```bash
-sudo apt update
-sudo apt install software-properties-common
+Make sure you first have curl and bash installed on your system. MacOS comes with curl and bash. If you need to install curl on Ubuntu, run `sudo apt install -y curl`. Then run the following in a terminal:
+```
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/The-Academic-Observatory/observatory-platform/main/install.sh)"
+chmod +x install.sh
+./install.sh
 ```
 
-Add deadsnakes PPA which contains Python 3.7 for Ubuntu 18.04; press `Enter` when prompted:
-```bash
-sudo add-apt-repository ppa:deadsnakes/ppa
-```
+The installer script will prompt you with a series of questions to customise your installation, and optionally configure the observatory.  At some point you might be asked to enter your user password in order to install system dependencies.  If you only want to run the observatory platform, then select the `pypi` installation type. If you want to modify or develop the platform, select the `source` installation type.
 
-Install Python 3.7:
-```bash
-sudo apt install python3.7 python3.7-dev
-```
+The script will create a Python virtual environment in the `observatory_venv` directory.
 
-Install pip:
-```bash
-curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-python3.7 get-pip.py
-```
+There are two types of observatory platform deployments. `local` and `terraform`. The `local` installation allows you to run the observatory platform on the locally installed machine. The `terraform` installation deploys the platform to the cloud. See the documentation section on Terraform deployment for more details.
 
-Install virtualenv 20 or greater:
-```
-pip install --upgrade virtualenv
-```
+You will also have the option of installing additional workflows. See the the GitHub pages for the [academic-observatory-workflows](https://github.com/The-Academic-Observatory/academic-observatory-workflows) and the [oaebu-workflows](https://github.com/The-Academic-Observatory/oaebu-workflows) for more information.
 
-Install Docker Engine:
-* Following the [Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/) tutorial.
-* Make sure that Docker can be run without sudo, e.g. `sudo usermod -aG docker your-username`
-
-## System dependencies: MacOS
-Install [Homebrew](https://brew.sh/) with the following command:
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
-```
-
-Install Python 3.7 with brew:
-```bash
-brew install python@3.7
-```
-
-Add Python 3.7 to path:
-```bash
-echo 'export PATH="/usr/local/opt/python@3.7/bin:$PATH"' >> ~/.bash_profile
-```
-
-Install virtualenv 20 or greater:
-```
-pip3.7 install --upgrade virtualenv
-```
-
-Install Docker Desktop:
-* Follow the [Install Docker Desktop on Mac](https://docs.docker.com/docker-for-mac/install/) tutorial.
-
-## Installing the Observatory Platform
-Make sure that you have followed the above instructions for installing the observatory-platform dependencies,
-for your respective platform.
-
-Clone the project:
-```bash
-git clone https://github.com/The-Academic-Observatory/observatory-platform
-```
-
-Enter the `observatory-platform` directory:
-```bash
-cd observatory-platform
-```
-
-Checkout the develop branch:
-```
-git checkout develop
-```
-
-Create a virtual environment:
-```bash
-virtualenv -p python3.7 venv
-```
-
-Activate the virtual environment:
-```bash
-source venv/bin/activate
-```
-
-Install the `observatory-api` package:
-```bash
-pip3 install -e observatory-api
-```
-
-Install the `observatory-platform` package:
-```bash
-pip3 install -e observatory-platform
-```

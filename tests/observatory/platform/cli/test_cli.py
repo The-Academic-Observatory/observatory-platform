@@ -22,12 +22,16 @@ from typing import Any, List
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
-
-from observatory.platform.cli.cli import cli, generate
+from observatory.platform.cli.cli import (
+    LOCAL_CONFIG_PATH,
+    TERRAFORM_CONFIG_PATH,
+    cli,
+    generate,
+)
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.docker.compose import ProcessOutput
 from observatory.platform.observatory_config import TerraformConfig, ValidationError
-from observatory.platform.platform_builder import HOST_UID, HOST_GID, DEBUG
+from observatory.platform.platform_builder import DEBUG, HOST_GID, HOST_UID
 from observatory.platform.terraform_api import TerraformApi
 from observatory.platform.utils.test_utils import random_id
 
@@ -41,6 +45,9 @@ class TestObservatoryGenerate(unittest.TestCase):
         # Test generate fernet key
         runner = CliRunner()
         result = runner.invoke(cli, ["generate", "secrets", "fernet-key"])
+        self.assertEqual(result.exit_code, os.EX_OK)
+
+        result = runner.invoke(cli, ["generate", "secrets", "secret-key"])
         self.assertEqual(result.exit_code, os.EX_OK)
 
         # Test that files are generated
@@ -73,14 +80,14 @@ class TestObservatoryGenerate(unittest.TestCase):
             result = runner.invoke(cli, ["generate", "config", "local", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
             self.assertFalse(os.path.isfile(config_path))
-            self.assertIn("Not generating Observatory Config", result.output)
+            self.assertIn("Not generating Observatory config\n", result.output)
 
             # Test generate terraform config
             config_path = os.path.abspath("config-terraform.yaml")
             result = runner.invoke(cli, ["generate", "config", "terraform", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
             self.assertFalse(os.path.isfile(config_path))
-            self.assertIn("Not generating Terraform Config", result.output)
+            self.assertIn("Not generating Terraform config\n", result.output)
 
     @patch("observatory.platform.cli.cli.stream_process")
     @patch("observatory.platform.cli.cli.subprocess.Popen")
@@ -152,6 +159,101 @@ class TestObservatoryGenerate(unittest.TestCase):
             result = runner.invoke(generate, ["workflow", workflow_type, workflow_name, "-p", project_dir])
             self.assertEqual(78, result.exit_code)
             mock_generate_workflow.assert_not_called()
+
+    @patch("observatory.platform.cli.cli.click.confirm")
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_terraform_config_interactive")
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_local_config_interactive")
+    def test_generate_default_configs(self, m_gen_config, m_gen_terra, m_click):
+        m_click.return_value = True
+        runner = CliRunner()
+
+        # Default local
+        result = runner.invoke(cli, ["generate", "config", "local", "--interactive"])
+        self.assertEqual(result.exit_code, os.EX_OK)
+        self.assertEqual(m_gen_config.call_count, 1)
+        self.assertEqual(m_gen_config.call_args.kwargs["workflows"], [])
+        self.assertEqual(m_gen_config.call_args.args[0], LOCAL_CONFIG_PATH)
+
+        # Default terraform
+        result = runner.invoke(cli, ["generate", "config", "terraform", "--interactive"])
+        self.assertEqual(result.exit_code, os.EX_OK)
+        self.assertEqual(m_gen_terra.call_count, 1)
+        self.assertEqual(m_gen_terra.call_args.kwargs["workflows"], [])
+        self.assertEqual(m_gen_terra.call_args.args[0], TERRAFORM_CONFIG_PATH)
+
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_local_config_interactive")
+    def test_generate_local_interactive(self, m_gen_config):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            config_path = os.path.abspath("config.yaml")
+            result = runner.invoke(cli, ["generate", "config", "local", "--config-path", config_path, "--interactive"])
+            self.assertEqual(result.exit_code, os.EX_OK)
+            self.assertEqual(m_gen_config.call_count, 1)
+            self.assertEqual(m_gen_config.call_args.kwargs["workflows"], [])
+            self.assertEqual(m_gen_config.call_args.args[0], config_path)
+
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_local_config_interactive")
+    def test_generate_local_interactive_install_oworkflows(self, m_gen_config):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            config_path = os.path.abspath("config.yaml")
+            result = runner.invoke(
+                cli,
+                args=[
+                    "generate",
+                    "config",
+                    "local",
+                    "--config-path",
+                    config_path,
+                    "--interactive",
+                    "--ao-wf",
+                    "--oaebu-wf",
+                ],
+            )
+            self.assertEqual(result.exit_code, os.EX_OK)
+            self.assertEqual(m_gen_config.call_count, 1)
+            self.assertEqual(
+                m_gen_config.call_args.kwargs["workflows"], ["academic-observatory-workflows", "oaebu-workflows"]
+            )
+            self.assertEqual(m_gen_config.call_args.args[0], config_path)
+
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_terraform_config_interactive")
+    def test_generate_terraform_interactive(self, m_gen_config):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            config_path = os.path.abspath("config.yaml")
+            result = runner.invoke(
+                cli, ["generate", "config", "terraform", "--config-path", config_path, "--interactive"]
+            )
+            self.assertEqual(result.exit_code, os.EX_OK)
+            self.assertEqual(m_gen_config.call_count, 1)
+            self.assertEqual(m_gen_config.call_args.kwargs["workflows"], [])
+            self.assertEqual(m_gen_config.call_args.args[0], config_path)
+
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_terraform_config_interactive")
+    def test_generate_terraform_interactive_install_oworkflows(self, m_gen_config):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            config_path = os.path.abspath("config.yaml")
+            result = runner.invoke(
+                cli,
+                [
+                    "generate",
+                    "config",
+                    "terraform",
+                    "--config-path",
+                    config_path,
+                    "--interactive",
+                    "--ao-wf",
+                    "--oaebu-wf",
+                ],
+            )
+            self.assertEqual(result.exit_code, os.EX_OK)
+            self.assertEqual(m_gen_config.call_count, 1)
+            self.assertEqual(
+                m_gen_config.call_args.kwargs["workflows"], ["academic-observatory-workflows", "oaebu-workflows"]
+            )
+            self.assertEqual(m_gen_config.call_args.args[0], config_path)
 
 
 class MockConfig(Mock):
@@ -460,8 +562,8 @@ class TestObservatoryTerraform(unittest.TestCase):
                     "observatory": {
                         "package": "observatory-platform",
                         "package_type": "pypi",
-                        "airflow_fernet_key": "random-fernet-key",
-                        "airflow_secret_key": "random-secret-key",
+                        "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
+                        "airflow_secret_key": "a" * 16,
                         "airflow_ui_user_password": "password",
                         "airflow_ui_user_email": "password",
                         "postgres_password": "my-password",
@@ -491,6 +593,7 @@ class TestObservatoryTerraform(unittest.TestCase):
                     "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
                 }
             )
+
             self.assertTrue(config.is_valid)
             mock_load_config.return_value = config
 
