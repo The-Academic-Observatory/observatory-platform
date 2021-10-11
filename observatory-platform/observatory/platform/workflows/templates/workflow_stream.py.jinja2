@@ -47,7 +47,6 @@ class {{ workflow_class }}(StreamTelescope):
         dataset_id: str = "your_dataset_id",
         dataset_description: str = "The your_dataset_name dataset: https://dataseturl",
         merge_partition_field: str = "id",
-        bq_merge_days: int = 7,
         batch_load: bool = True,
         load_bigquery_table_kwargs: Dict = None,
         table_descriptions: Dict = None,
@@ -63,7 +62,6 @@ class {{ workflow_class }}(StreamTelescope):
         :param dataset_id: the dataset id.
         :param dataset_description: the dataset description.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
-        :param bq_merge_days: how often partitions should be merged (every x days)
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
         :param schema_folder: the path to the SQL schema folder.
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
@@ -92,7 +90,6 @@ class {{ workflow_class }}(StreamTelescope):
             schedule_interval,
             dataset_id,
             merge_partition_field,
-            bq_merge_days,
             schema_folder,
             batch_load=batch_load,
             load_bigquery_table_kwargs=load_bigquery_table_kwargs,

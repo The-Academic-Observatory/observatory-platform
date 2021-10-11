@@ -15,19 +15,16 @@
 # Author: James Diprose, Aniek Roelofs
 
 import unittest
-from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
-from airflow.models import DagRun, TaskInstance, BaseOperator, DAG
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from observatory.platform.utils.airflow_utils import (
     create_slack_webhook,
     get_airflow_connection_password,
     get_airflow_connection_url,
-    get_prev_start_date_success_task,
     set_task_state,
 )
 
@@ -112,33 +109,3 @@ class TestAirflowUtils(unittest.TestCase):
             m_basehook.get_connection = MagicMock(return_value=MockConnection(""))
             password = get_airflow_connection_password("")
             self.assertEqual(password, "password")
-
-    def test_get_prev_start_date_success_task(self):
-        """Test the get_prev_start_date_success_task function
-
-        :return: None.
-        """
-        execution_date = datetime(2021, 1, 1, tzinfo=timezone.utc)
-        dag_run = DagRun("dag_id", execution_date=execution_date)
-
-        # Test that start date is None when there is no previous dag run
-        with patch.object(DagRun, "get_previous_dagrun", return_value=None):
-            start_date = get_prev_start_date_success_task(dag_run, "task_id")
-            self.assertIsNone(start_date)
-
-        # Create two task instances with different states
-        with DAG("dag_id", start_date=datetime(2020, 1, 1)):
-            task = BaseOperator(task_id="task_id")
-        ti_skipped = TaskInstance(task, execution_date=execution_date)
-        ti_skipped.start_date = datetime(2020, 8, 1)
-        ti_skipped.state = "skipped"
-
-        ti_success = TaskInstance(task, execution_date=execution_date)
-        ti_success.start_date = datetime(2021, 1, 1)
-        ti_success.state = "success"
-
-        # Test that the start date is the start date of the successful task
-        with patch.object(DagRun, "get_previous_dagrun", return_value=DagRun):
-            with patch.object(DagRun, "get_task_instance", side_effect=[ti_skipped, ti_success]):
-                start_date = get_prev_start_date_success_task(dag_run, "task_id")
-                self.assertEqual(ti_success.start_date, start_date)

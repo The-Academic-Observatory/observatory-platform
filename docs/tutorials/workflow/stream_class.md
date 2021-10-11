@@ -10,8 +10,8 @@ A 'stream' telescope is defined by the fact that there is one main table with da
  constantly kept up to date with a stream of data. 
 The telescope has a start and end date (rather than just a release date) and these are based on when the previous DAG
  run was started (start) and on the current run date (end). 
-The `get_release_info` method can be used to push these start and end dates as XCOMs.
-These XCOMs can then be pulled in the `make_release` method that always has to be implemented and used to create
+The `get_release_info` method can be used to retrieve these start and end dates.
+These dates can then be used in the `make_release` method that always has to be implemented and used to create
  the release instance.
  
 Because there is one main table that is kept up to date, the first time the telescope runs is slightly different to any
@@ -20,54 +20,54 @@ For the first release, all available data is downloaded and loaded into the BigQ
  storage bucket using the `bq_append_new` method. 
 In this first run, the data is not loaded into a separate partition.
 
-For any later releases, any new data since the last run as well as any updated/deleted data is loaded into a separate
+For later releases, any new data since the last run as well as any updated/deleted data is loaded into a separate
  partition in the BigQuery 'partitions' table. 
-Then, there are 2 tasks to replace the old data (from the partitions) with the new, updated data in the main table.
-These updates might not be done every DAG run, the update frequency is controlled by the stream telescope property
- `bq_merge_days`. 
-The telescope keeps track of the number of days since the last merge, by checking when the relevant task had the last
- 'success' state. 
+The partitions in this table are ingestion time based partitions, meaning that the partition date is based on when
+ the data was loaded into BigQuery, instead of on one of the table fields.
+The ingestion date is derived from the release end date, so that the partition date will always correspond to the
+ release, even when multiple releases are ingested into BigQuery on the same day. 
+Then, there are 2 tasks to replace the old data in the main table with the new, updated data from the partition.
  
-When it is time to update the main table, a SQL merge query will find any rows in the main table that match the rows
- in the relevant table partitions and delete those matching rows from the main table. 
-This is done with the `bq_delete_old` method.  
-Next, all rows from the relevant table partitions are appended to the main table.
-This is done with the `bq_append_new` method. 
-These two tasks together have added any new rows to the main table and updated any old rows in place.
+The first task is called `bq_delete_old`. 
+This task will use an SQL merge query to find any matching rows between the main table and the relevant table
+ partition and will then delete those matching rows from the main table.  
+The second task is called `bq_append_new`.
+This task will copy all rows of the relevant partition into the main table.  
+Any new rows are now added to the main table and any old rows have been updated in place.
 
-As an example, let's assume there is a stream telescope with `bq_merge_days` set to 14 and the `schedule_interval` 
- set to `@weekly`. 
-Below is an overview of the expected states for each of the BigQuery load tasks for different run dates.
+As an example, let's assume there is a stream telescope with the `schedule_interval` set to `@weekly` and the
+ following two DAG runs. 
+Below is an overview of the expected states for each of the BigQuery load tasks for the different run dates.
 
-On 2021-01-01. First release:   
+On 2021-01-01. First run:   
  * bq_load_partition - skipped
- * bq_delete_old - success (does not do anything, but set to success to keep track of days since last merge)
+ * bq_delete_old - skipped
  * bq_append_new - success (loads data from file into main table)
 
-On 2021-01-08. Later release, no merge yet:  
+On 2021-01-08. Second run:  
  * bq_load_partition - success (loads new/updated data into partition)
- * bq_delete_old - skipped
- * bq_append_new - skipped
+ * bq_delete_old - success (use partition created in the previous step to delete data from main table)
+ * bq_append_new - success (copy partition created in the previous step into the mmain table
  
-On 2021-01-15. Later release and merge:
- * bq_load_partition - success (loads new/updated data into partition)
- * bq_delete_old - success (deletes matching data of 2 partitions (2021-01-08 and 2021-01-15) from main table)
- * bq_append_new - success (appends all data of 2 partitions (2021-01-08 and 2021-01-15) to main table)
-
-The DAGs created with the stream telescope have catchup set to False by default, setting the catchup to True will
- break the functionality of updating the BigQuery tables as explained above.
+The DAGs created with the stream telescope have catchup set to False by default.
+Setting catchup to True will not break the tasks related to loading data into BigQuery, however the
+ `get_release_info` task will have to be customised.
+This is to prevent that the start and end dates are not the same when multiple releases are created by DAG runs executed
+ on the same day.
+See the Unpaywall telescope for an example of the Stream Telescope where catchup is set to True.
   
 Examples of stream telescopes found in the Observatory Platform include:
  * Crossref Events
  * DOAB
  * OAPEN Metadata
  * ORCID
+ * Unpaywall
 
 ### Implemented methods
 The following methods are implemented and can all be added as general tasks:
 
 ### get_release_info
-Gets release info and pushes info as an XCOM.
+Gets release info from the DAG and DAG run info.
 The release info includes the start date, end date and a boolean to describe whether this is the first release.
 
 The start date is set to the start date of the telescope if it is the first release.
@@ -87,11 +87,9 @@ For any later releases it loads each blob that is in the release directory of th
 This BigQuery table has the `_partitions` suffix.
 
 ### bq_delete_old
-For the first release, this task will be skipped (but in the success state). 
-For any later releases, it will be skipped if the days since the last successful execution of this task is smaller
- than the number of days set by the `bq_merge_days` property. 
-If not skipped, it runs an SQL merge query which matches rows from one or more table partitions with rows in the main
- table, the matching is done based on the `merge_partition_field` property. 
+For the first release, this task will be skipped. 
+For any later releases, it runs an SQL merge query which matches rows from one or more table partitions with rows in
+ the main table, the matching is done based on the `merge_partition_field` property. 
 When there is a matching row, this row will be deleted from the main table. 
 All partitions that have been added since the last successful execution of this task will be processed. 
 When adding this task, the task specific setting `trigger_rule` should be set to 'none_failed'. 
@@ -100,9 +98,8 @@ This ensures that any downstream tasks (such as clean up) will still be executed
 ### bq_append_new
 For the first release, this task will load each blob that is in the release directory of the transform bucket into a
  separate main BigQuery table. 
-For any later releases, it will load one or more table partitions from the BigQuery partitions table (mentioned in
- bq_load_partition) into the main BigQuery table. 
-All partitions that have been added since the last successful execution of this task will be processed.   
+For any later releases, it will load the partition created in `bq_load_partition` from the BigQuery partitions table
+ into the main BigQuery table. 
 When adding this task, the task specific setting `trigger_rule` should be set to 'none_failed'.  
 This ensures that any downstream tasks (such as clean up) will still be executed successfully.  
 
@@ -160,7 +157,6 @@ class MyStream(StreamTelescope):
         dataset_id: str = "your_dataset_id",
         dataset_description: str = "The your_dataset_name dataset: https://dataseturl",
         merge_partition_field: str = "id",
-        bq_merge_days: int = 7,
         batch_load: bool = True,
         load_bigquery_table_kwargs: Dict = None,
         table_descriptions: Dict = None,
@@ -176,7 +172,6 @@ class MyStream(StreamTelescope):
         :param dataset_id: the dataset id.
         :param dataset_description: the dataset description.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
-        :param bq_merge_days: how often partitions should be merged (every x days)
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions.
         :param schema_folder: the path to the SQL schema folder.
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
@@ -205,7 +200,6 @@ class MyStream(StreamTelescope):
             schedule_interval,
             dataset_id,
             merge_partition_field,
-            bq_merge_days,
             schema_folder,
             batch_load=batch_load,
             load_bigquery_table_kwargs=load_bigquery_table_kwargs,
