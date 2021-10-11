@@ -10,6 +10,10 @@ The dependencies that are required include:
 * [Google Cloud SDK](https://cloud.google.com/sdk/docs#install_the_latest_cloud_tools_version_cloudsdk_current_version): the Google
 Cloud SDK including the gcloud command line tool.
 
+If you installed the observatory platform through the installer script, and selected the Terraform configuration, the dependencies were installed for you.
+
+If you wish to manually install the dependencies yourself, see the details below.
+
 ### Linux
 Install Packer:
 ```bash

@@ -17,12 +17,10 @@
 import os
 import subprocess
 import unittest
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
-
-from observatory.platform.observatory_config import save_yaml, module_file_path
+from observatory.platform.observatory_config import module_file_path, save_yaml
 from observatory.platform.terraform_builder import TerraformBuilder
 from observatory.platform.utils.proc_utils import stream_process
 
@@ -52,8 +50,8 @@ class TestTerraformBuilder(unittest.TestCase):
             "observatory": {
                 "package": self.observatory_platform_path,
                 "package_type": "editable",
-                "airflow_fernet_key": "random-fernet-key",
-                "airflow_secret_key": "random-secret-key",
+                "airflow_fernet_key": "ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
+                "airflow_secret_key": "a" * 16,
                 "airflow_ui_user_password": "password",
                 "airflow_ui_user_email": "password",
                 "postgres_password": "my-password",

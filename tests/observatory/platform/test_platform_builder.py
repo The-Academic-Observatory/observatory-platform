@@ -21,25 +21,25 @@ import unittest
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
+import observatory.platform.docker as docker_module
 import requests
 from click.testing import CliRunner
-
-import observatory.platform.docker as docker_module
-from observatory.platform.cli.cli import HOST_UID, HOST_GID
+from observatory.platform.cli.cli import HOST_GID, HOST_UID
 from observatory.platform.observatory_config import (
-    ObservatoryConfig,
-    Observatory,
-    CloudStorageBucket,
-    Terraform,
-    Backend,
-    Environment,
-    BackendType,
-    GoogleCloud,
-    AirflowVariable,
     AirflowConnection,
+    AirflowVariable,
+    Backend,
+    BackendType,
+    CloudStorageBucket,
+    Environment,
+    GoogleCloud,
+    Observatory,
+    ObservatoryConfig,
+    Terraform,
     WorkflowsProject,
+    module_file_path,
+    save_yaml,
 )
-from observatory.platform.observatory_config import save_yaml, module_file_path
 from observatory.platform.platform_builder import PlatformBuilder
 
 
@@ -93,8 +93,8 @@ class TestPlatformBuilder(unittest.TestCase):
             "observatory": {
                 "package": self.observatory_platform_path,
                 "package_type": "editable",
-                "airflow_fernet_key": "random-fernet-key",
-                "airflow_secret_key": "random-secret-key",
+                "airflow_fernet_key": "ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
+                "airflow_secret_key": "a" * 16,
                 "observatory_home": t,
             },
         }
@@ -234,8 +234,8 @@ class TestPlatformBuilder(unittest.TestCase):
             observatory = Observatory(
                 package="/path/to/observatory-platform",
                 package_type="editable",
-                airflow_fernet_key="DOJLLgvRnhy51gxLbxznn4w7MxD5kZ53bOZEoPr8wCg=",
-                airflow_secret_key="f95d60dc61b3a2b703ece8904b93947af88c2f609df8855514af097ea254",
+                airflow_fernet_key="ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
+                airflow_secret_key="a" * 16,
                 observatory_home=t,
             )
             google_cloud = GoogleCloud(

@@ -12,28 +12,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose, Aniek Roelofs
+# Author: James Diprose, Aniek Roelofs, Tuan Chien
 
 
 from __future__ import annotations
 
+import base64
 import binascii
 import json
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, ClassVar, Dict, List, Tuple, Union
+from typing import Any, Callable, ClassVar, Dict, List, TextIO, Tuple, Union
 
 import cerberus.validator
 import yaml
 from cerberus import Validator
 from cryptography.fernet import Fernet
-
+from observatory.platform.cli.click_utils import (
+    INDENT1,
+    INDENT2,
+    INDENT3,
+    comment,
+    indent,
+)
 from observatory.platform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.utils.config_utils import observatory_home as default_observatory_home
+from observatory.platform.utils.config_utils import (
+    observatory_home as default_observatory_home,
+)
 from observatory.platform.utils.jinja2_utils import render_template
+
+
+def generate_fernet_key() -> str:
+    """Generate a Fernet key.
+
+    :return: A newly generated Fernet key.
+    """
+
+    return Fernet.generate_key().decode("utf8")
 
 
 def generate_secret_key(length: int = 30) -> str:
@@ -43,7 +61,7 @@ def generate_secret_key(length: int = 30) -> str:
     :return: the random key.
     """
 
-    return str(binascii.b2a_hex(os.urandom(length)))
+    return binascii.b2a_hex(os.urandom(length)).decode("utf-8")
 
 
 def save_yaml(file_path: str, dict_: Dict):
@@ -102,8 +120,8 @@ class Backend:
         environment: what type of environment is being deployed (develop, staging or production).
     """
 
-    type: BackendType
-    environment: Environment
+    type: BackendType = BackendType.local
+    environment: Environment = Environment.develop
 
     @staticmethod
     def from_dict(dict_: Dict) -> Backend:
@@ -155,10 +173,10 @@ class Observatory:
         :param enable_elk: whether to enable the elk stack or not.
     """
 
-    package: str
-    package_type: str
-    airflow_fernet_key: str
-    airflow_secret_key: str
+    package: str = "observatory-platform"
+    package_type: str = "pypi"
+    airflow_fernet_key: str = field(default_factory=generate_fernet_key)
+    airflow_secret_key: str = field(default_factory=generate_secret_key)
     airflow_ui_user_email: str = "airflow@airflow.com"
     airflow_ui_user_password: str = "airflow"
     observatory_home: str = default_observatory_home()
@@ -352,7 +370,7 @@ class WorkflowsProject:
     dags_module: str
 
     @staticmethod
-    def parse_dags_projects(list: List) -> List[WorkflowsProject]:
+    def parse_workflows_projects(list: List) -> List[WorkflowsProject]:
         """Parse the workflows_projects list object into a list of WorkflowsProject instances.
 
         :param list: the list.
@@ -604,6 +622,86 @@ class Api:
         return Api(domain_name, subdomain)
 
 
+def is_base64(text: bytes) -> bool:
+    """Check if the string is base64.
+    :param text: Text to check.
+    :return: Whether it is base64.
+    """
+
+    try:
+        base64.decodebytes(text)
+    except:
+        return False
+
+    return True
+
+
+def is_secret_key(key: str) -> Tuple[bool, Union[str, None]]:
+    """Check if the Airflow Flask webserver secret key is valid.
+    :param key: Key to check.
+    :return: Validity, and an error message if not valid.
+    """
+
+    key_bytes = bytes(key, "utf-8")
+    message = None
+
+    key_length = len(key_bytes)
+    if key_length < 16:
+        message = f"Secret key should be length >=16, but is length {key_length}."
+        return False, message
+
+    return True, message
+
+
+def is_fernet_key(key: str) -> Tuple[bool, Union[str, None]]:
+    """Check if the Fernet key is valid.
+    :param key: Key to check.
+    :return: Validity, and an error message if not valid.
+    """
+
+    key_bytes = bytes(key, "utf-8")
+
+    try:
+        decoded_key = base64.urlsafe_b64decode(key_bytes)
+    except:
+        message = f"Key {key} could not be urlsafe b64decoded."
+        return False, message
+
+    key_length = len(decoded_key)
+    if key_length != 32:
+        message = f"Decoded Fernet key should be length 32, but is length {key_length}."
+        return False, message
+
+    message = None
+    return True, message
+
+
+def check_schema_field_fernet_key(field: str, value: str, error: Callable):
+    """
+    :param field: Field name.
+    :param value: Field value.
+    :param error: Error handler passed in by Cerberus.
+    """
+
+    valid, message = is_fernet_key(value)
+
+    if not valid:
+        error(field, f"is not a valid Fernet key. Reason: {message}")
+
+
+def check_schema_field_secret_key(field: str, value: str, error: Callable):
+    """
+    :param field: Field name.
+    :param value: Field value.
+    :param error: Error handler passed in by Cerberus.
+    """
+
+    valid, message = is_secret_key(value)
+
+    if not valid:
+        error(field, f"is not a valid secret key. Reason: {message}")
+
+
 def customise_pointer(field, value, error):
     """Throw an error when a field contains the value ' <--' which means that the user should customise the
     value in the config file.
@@ -676,8 +774,8 @@ class ObservatoryConfig:
         :param validator: an ObservatoryConfigValidator instance.
         """
 
-        self.backend = backend
-        self.observatory = observatory
+        self.backend = backend if backend is not None else Backend()
+        self.observatory = observatory if observatory is not None else Observatory()
         self.google_cloud = google_cloud
         self.terraform = terraform
 
@@ -694,6 +792,8 @@ class ObservatoryConfig:
             self.workflows_projects = []
 
         self.validator = validator
+
+        self.schema = make_schema(self.backend.type)
 
     @property
     def is_valid(self) -> bool:
@@ -810,41 +910,9 @@ class ObservatoryConfig:
         terraform = Terraform.from_dict(dict_.get("terraform", dict()))
         airflow_variables = AirflowVariable.parse_airflow_variables(dict_.get("airflow_variables", dict()))
         airflow_connections = AirflowConnection.parse_airflow_connections(dict_.get("airflow_connections", dict()))
-        workflows_projects = WorkflowsProject.parse_dags_projects(dict_.get("workflows_projects", list()))
+        workflows_projects = WorkflowsProject.parse_workflows_projects(dict_.get("workflows_projects", list()))
 
         return backend, observatory, google_cloud, terraform, airflow_variables, airflow_connections, workflows_projects
-
-    @staticmethod
-    def save_default(config_path: str):
-        """Save a default config file.
-
-        :param config_path: the path where the config file should be saved.
-        :return: None.
-        """
-
-        ObservatoryConfig._save_default(config_path, "config.yaml.jinja2")
-
-    @staticmethod
-    def _save_default(config_path: str, template_file_name: str):
-        """Save a default config file.
-
-        :param config_path: the path where the config file should be saved.
-        :param template_file_name: the name of the template file name.
-        :return: None.
-        """
-
-        # Render template
-        template_path = os.path.join(module_file_path("observatory.platform"), template_file_name)
-        airflow_fernet_key = Fernet.generate_key()
-        airflow_secret_key = generate_secret_key()
-
-        render = render_template(
-            template_path, airflow_fernet_key=airflow_fernet_key, airflow_secret_key=airflow_secret_key
-        )
-
-        # Save file
-        with open(config_path, "w") as f:
-            f.write(render)
 
     @classmethod
     def from_dict(cls, dict_: Dict) -> ObservatoryConfig:
@@ -906,6 +974,151 @@ class ObservatoryConfig:
 
         return cls.from_dict(dict_)
 
+    def get_requirement_string(self, section: str) -> str:
+        """Query the schema to see whether a section is required.
+
+        :param section: Section to query.
+        :return: String indicating whether the section is required or optional.
+        """
+
+        if self.schema[section]["required"]:
+            return "Required"
+
+        return "Optional"
+
+    def save(self, path: str):
+        """Save the observatory configuration parameters to a config file.
+
+        :param path: Configuration file path.
+        """
+
+        with open(path, "w") as f:
+            self.save_backend(f)
+            self.save_observatory(f)
+            self.save_terraform(f)
+            self.save_google_cloud(f)
+            self.save_airflow_connections(f)
+            self.save_airflow_variables(f)
+            self.save_workflows_projects(f)
+
+    def save_backend(self, f: TextIO):
+        """Write the backend configuration section to the config file.
+
+        :param f: File object for the config file.
+        """
+
+        requirement = self.get_requirement_string("backend")
+        f.write(
+            (
+                f"# [{requirement}] Backend settings.\n"
+                "# Backend options are: local, terraform.\n"
+                "# Environment options are: develop, staging, production.\n"
+            )
+        )
+        lines = ObserveratoryConfigString.backend(self.backend)
+        f.writelines(lines)
+        f.write("\n")
+
+    def save_observatory(self, f: TextIO):
+        """Write the Observatory configuration section to the config file.
+
+        :param f: File object for the config file.
+        """
+
+        requirement = self.get_requirement_string("observatory")
+        f.write(
+            (
+                f"# [{requirement}] Observatory settings\n"
+                "# If you did not supply your own Fernet and secret keys, then those fields are autogenerated.\n"
+                "# Passwords are in plaintext.\n"
+                "# observatory_home is where the observatory metadata is stored.\n"
+            )
+        )
+
+        lines = ObserveratoryConfigString.observatory(self.observatory)
+        f.writelines(lines)
+        f.write("\n")
+
+    def save_terraform(self, f: TextIO):
+        """Write the Terraform configuration section to the config file.
+
+        :param f: File object for the config file.
+        """
+
+        requirement = self.get_requirement_string("terraform")
+        f.write(f"# [{requirement}] Terraform settings\n")
+
+        lines = ObserveratoryConfigString.terraform(self.terraform)
+        output = map(comment, lines) if self.terraform is None and requirement == "Optional" else lines
+
+        f.writelines(output)
+        f.write("\n")
+
+    def save_google_cloud(self, f: TextIO):
+        """Write the Google Cloud configuration section to the config file.
+
+        :param f: File object for the config file.
+        """
+
+        requirement = self.get_requirement_string("google_cloud")
+        f.write(
+            (
+                f"# [{requirement}] Google Cloud settings\n"
+                "# If you use any Google Cloud service functions, you will need to configure this.\n"
+            )
+        )
+
+        lines = ObserveratoryConfigString.google_cloud(google_cloud=self.google_cloud, backend=self.backend)
+        output = map(comment, lines) if self.google_cloud is None and requirement == "Optional" else lines
+
+        f.writelines(output)
+        f.write("\n")
+
+    def save_airflow_connections(self, f: TextIO):
+        """Write the Airflow connections configuration section to the config file.
+
+        :param f: File object for the config file.
+        """
+
+        requirement = self.get_requirement_string("airflow_connections")
+        f.write(f"# [{requirement}] User defined Apache Airflow Connections:\n")
+
+        lines = ObserveratoryConfigString.airflow_connections(airflow_connections=self.airflow_connections)
+        output = map(comment, lines) if len(self.airflow_connections) == 0 and requirement == "Optional" else lines
+
+        f.writelines(output)
+        f.write("\n")
+
+    def save_airflow_variables(self, f: TextIO):
+        """Write the Airflow variables configuration section to the config file.
+
+        :param f: File object for the config file.
+        """
+
+        requirement = self.get_requirement_string("airflow_variables")
+        f.write(f"# [{requirement}] User defined Apache Airflow variables:\n")
+
+        lines = ObserveratoryConfigString.airflow_variables(airflow_variables=self.airflow_variables)
+        output = map(comment, lines) if len(self.airflow_variables) == 0 and requirement == "Optional" else lines
+
+        f.writelines(output)
+        f.write("\n")
+
+    def save_workflows_projects(self, f: TextIO):
+        """Write the DAGs projects configuration section to the config file.
+
+        :param f: File object for the config file.
+        """
+
+        requirement = self.get_requirement_string("workflows_projects")
+        f.write(f"# [{requirement}] User defined Observatory DAGs projects:\n")
+
+        lines = ObserveratoryConfigString.workflows_projects(workflows_projects=self.workflows_projects)
+        output = map(comment, lines) if len(self.workflows_projects) == 0 and requirement == "Optional" else lines
+
+        f.writelines(output)
+        f.write("\n")
+
 
 class TerraformConfig(ObservatoryConfig):
     WORKSPACE_PREFIX = "observatory-"
@@ -940,6 +1153,9 @@ class TerraformConfig(ObservatoryConfig):
         :param airflow_worker_vm: the Airflow Worker VM config.
         :param validator: an ObservatoryConfigValidator instance.
         """
+
+        if backend is None:
+            backend = Backend(type=BackendType.terraform)
 
         super().__init__(
             backend=backend,
@@ -1071,15 +1287,90 @@ class TerraformConfig(ObservatoryConfig):
         else:
             return TerraformConfig(validator=validator)
 
-    @staticmethod
-    def save_default(config_path: str):
-        """Save a default TerraformConfig file.
+    def save(self, path: str):
+        """Save the configuration to a config file in YAML format.
 
-        :param config_path: the path where the config file should be saved.
-        :return: None.
+        :param path: Config file path.
         """
 
-        ObservatoryConfig._save_default(config_path, "config-terraform.yaml.jinja2")
+        # Save common config
+        super().save(path)
+
+        # Save Terraform specific sections
+        with open(path, "a") as f:
+            self.save_cloud_sql_database(f)
+            self.save_airflow_main_vm(f)
+            self.save_airflow_worker_vm(f)
+            self.save_elasticsearch(f)
+            self.save_api(f)
+
+    def save_cloud_sql_database(self, f: TextIO):
+        """Write the cloud SQL database configuration section to the config file.
+
+        :param f: File object for the config file.
+        """
+
+        requirement = self.get_requirement_string("cloud_sql_database")
+        f.write(f"# [{requirement}] Google Cloud CloudSQL database settings\n")
+        lines = ObserveratoryConfigString.cloud_sql_database(self.cloud_sql_database)
+        f.writelines(lines)
+        f.write("\n")
+
+    def save_airflow_main_vm(self, f: TextIO):
+        """Write the Airflow main VM configuration section to the config file.
+
+        :param f: File object for the config file.
+        """
+
+        requirement = self.get_requirement_string("airflow_main_vm")
+        f.write(f"# [{requirement}] Settings for the main VM that runs the Airflow cheduler and webserver\n")
+        lines = ObserveratoryConfigString.airflow_main_vm(self.airflow_main_vm)
+        f.writelines(lines)
+        f.write("\n")
+
+    def save_airflow_worker_vm(self, f: TextIO):
+        """Write the Airflow worker VM configuration section to the config file.
+
+        :param f: File object for the config file.
+        """
+
+        requirement = self.get_requirement_string("airflow_worker_vm")
+        f.write(f"# [{requirement}] Settings for the weekly on-demand VM that runs arge tasks\n")
+        lines = ObserveratoryConfigString.airflow_worker_vm(self.airflow_worker_vm)
+        f.writelines(lines)
+        f.write("\n")
+
+    def save_elasticsearch(self, f: TextIO):
+        """Write the ElasticSearch configuration section to the config file.
+
+        :param f: File object for the config file.
+        """
+
+        requirement = self.get_requirement_string("elasticsearch")
+        f.write(f"# [{requirement}] Elasticsearch settings\n")
+        lines = ObserveratoryConfigString.elasticsearch(self.elasticsearch)
+        f.writelines(lines)
+        f.write("\n")
+
+    def save_api(self, f: TextIO):
+        """Write the API configuration section to the config file.
+
+        :param f: File object for the config file.
+        """
+
+        requirement = self.get_requirement_string("api")
+        f.write(
+            (
+                f"# [{requirement}] API settings\n"
+                "# The subdomain type determines what kind of subdomains will be created for access."
+                "# The options are: project_id, environment"
+                "# If project_id is selected, the project_id will be used for API access for that project, e.g., project_id.domain_name"
+                "# If environment is selected, the environment parameter will be used, e.g., production.domain_name\n"
+            )
+        )
+        lines = ObserveratoryConfigString.api(self.api)
+        f.writelines(lines)
+        f.write("\n")
 
 
 def make_schema(backend_type: BackendType) -> Dict:
@@ -1153,8 +1444,8 @@ def make_schema(backend_type: BackendType) -> Dict:
         "schema": {
             "package": {"required": True, "type": "string"},
             "package_type": {"required": True, "type": "string", "allowed": package_types},
-            "airflow_fernet_key": {"required": True, "type": "string"},
-            "airflow_secret_key": {"required": True, "type": "string"},
+            "airflow_fernet_key": {"required": True, "type": "string", "check_with": check_schema_field_fernet_key},
+            "airflow_secret_key": {"required": True, "type": "string", "check_with": check_schema_field_secret_key},
             "airflow_ui_user_password": {"required": is_backend_terraform, "type": "string"},
             "airflow_ui_user_email": {"required": is_backend_terraform, "type": "string"},
             "observatory_home": {"required": False, "type": "string"},
@@ -1267,3 +1558,320 @@ def make_schema(backend_type: BackendType) -> Dict:
         }
 
     return schema
+
+
+class ObserveratoryConfigString:
+    """This class contains methods to construct config file sections."""
+
+    @staticmethod
+    def backend(backend: Backend) -> List[str]:
+        """Constructs the backend section string.
+
+        :param backend: Backend configuration object.
+        :return: List of strings for the section, including the section heading."
+        """
+
+        lines = [
+            "backend:\n",
+            indent(f"type: {backend.type.name}\n", INDENT1),
+            indent(f"environment: {backend.environment.name}\n", INDENT1),
+        ]
+
+        return lines
+
+    @staticmethod
+    def observatory(observatory: Observatory) -> List[str]:
+        """Constructs the observatory section string.
+
+        :param observatory: Observatory configuration object.
+        :return: List of strings for the section, including the section heading."
+        """
+
+        lines = [
+            "observatory:\n",
+            indent(f"package: {observatory.package}\n", INDENT1),
+            indent(f"package_type: {observatory.package_type}\n", INDENT1),
+            indent(f"airflow_fernet_key: {observatory.airflow_fernet_key}\n", INDENT1),
+            indent(f"airflow_secret_key: {observatory.airflow_secret_key}\n", INDENT1),
+            indent(f"airflow_ui_user_email: {observatory.airflow_ui_user_email}\n", INDENT1),
+            indent(f"airflow_ui_user_password: {observatory.airflow_ui_user_password}\n", INDENT1),
+            indent(f"observatory_home: {observatory.observatory_home}\n", INDENT1),
+            indent(f"postgres_password: {observatory.postgres_password}\n", INDENT1),
+            indent(f"redis_port: {observatory.redis_port}\n", INDENT1),
+            indent(f"flower_ui_port: {observatory.flower_ui_port}\n", INDENT1),
+            indent(f"airflow_ui_port: {observatory.airflow_ui_port}\n", INDENT1),
+            indent(f"elastic_port: {observatory.elastic_port}\n", INDENT1),
+            indent(f"kibana_port: {observatory.kibana_port}\n", INDENT1),
+            indent(f"docker_network_name: {observatory.docker_network_name}\n", INDENT1),
+            indent(f"docker_network_is_external: {observatory.docker_network_is_external}\n", INDENT1),
+            indent(f"docker_compose_project_name: {observatory.docker_compose_project_name}\n", INDENT1),
+            indent(f"enable_elk: {observatory.enable_elk}\n", INDENT1),
+            indent(f"api_package: {observatory.api_package}\n", INDENT1),
+            indent(f"api_package_type: {observatory.api_package_type}\n", INDENT1),
+        ]
+
+        return lines
+
+    @staticmethod
+    def terraform(terraform: Terraform) -> List[str]:
+        """Constructs the terraform section string.
+
+        :param observatory: Terraform configuration object.
+        :return: List of strings for the section, including the section heading."
+        """
+
+        if terraform is None:
+            terraform = Terraform(organization="my-terraform-org-name")
+
+        lines = [
+            "terraform:\n",
+            indent(f"organization: {terraform.organization}\n", INDENT1),
+        ]
+
+        return lines
+
+    @staticmethod
+    def google_cloud(*, google_cloud: GoogleCloud, backend: Backend) -> List[str]:
+        """Constructs the Google Cloud section string.
+
+        :param google_cloud: Google Cloud configuration object.
+        :param backend: Backend configuration object.
+        :return: List of strings for the section, including the section heading."
+        """
+
+        if google_cloud is None:
+            google_cloud = GoogleCloud(
+                project_id="my-gcp-id",
+                credentials="/path/to/credentials.json",
+                data_location="us",
+                region="us-west1",
+                zone="us-west1-a",
+                buckets=[
+                    CloudStorageBucket(
+                        id="download_bucket",
+                        name="my-download-bucket-name",
+                    ),
+                    CloudStorageBucket(
+                        id="transform_bucket",
+                        name="my-transform-bucket-name",
+                    ),
+                ],
+            )
+
+        lines = [
+            "google_cloud:\n",
+            indent(f"project_id: {google_cloud.project_id}\n", INDENT1),
+            indent(f"credentials: {google_cloud.credentials}\n", INDENT1),
+            indent(f"data_location: {google_cloud.data_location}\n", INDENT1),
+        ]
+
+        # Is region and zone something we should be putting in the local config too?
+        if backend.type == BackendType.terraform:
+            lines.append(indent(f"region: {google_cloud.region}\n", INDENT1))
+            lines.append(indent(f"zone: {google_cloud.zone}\n", INDENT1))
+        else:
+            lines.append(indent("buckets:\n", INDENT1))
+            for bucket in google_cloud.buckets:
+                lines.append(indent(f"{bucket.id}: {bucket.name}\n", INDENT3))
+
+        return lines
+
+    @staticmethod
+    def airflow_connections(airflow_connections: List[AirflowConnection]) -> List[str]:
+        """Constructs the Airflow connections section string.
+
+        :param airflow_connections: List of Airflow connection configuration objects.
+        :return: List of strings for the section, including the section heading."
+        """
+
+        lines = ["airflow_connections:\n"]
+
+        connections = airflow_connections.copy()
+        if len(connections) == 0:
+            connections.append(
+                AirflowConnection(
+                    name="my_connection",
+                    value="http://my-username:my-password@",
+                )
+            )
+
+        for conn in connections:
+            lines.append(indent(f"{conn.name}: {conn.value}\n", INDENT1))
+
+        return lines
+
+    @staticmethod
+    def airflow_variables(airflow_variables: List[AirflowVariable]) -> List[str]:
+        """Constructs the Airflow variables section string.
+
+        :param airflow_connections: List of Airflow variable configuration objects.
+        :return: List of strings for the section, including the section heading."
+        """
+
+        lines = ["airflow_variables:\n"]
+
+        variables = airflow_variables.copy()
+
+        if len(variables) == 0:
+            variables.append(
+                AirflowVariable(
+                    name="my_variable_name",
+                    value="my-variable-value",
+                )
+            )
+
+        for variable in variables:
+            lines.append(indent(f"{variable.name}: {variable.value}\n", INDENT1))
+
+        return lines
+
+    @staticmethod
+    def workflows_projects(*, workflows_projects: List[WorkflowsProject] = None) -> List[str]:
+        """Constructs the DAGs projects section string.
+
+        :param workflows_projects: List of DAGs project configuration objects.
+        :return: List of strings for the section, including the section heading."
+        """
+
+        projects = workflows_projects.copy()
+
+        if len(projects) == 0:
+            projects.append(
+                WorkflowsProject(
+                    package_name="observatory-dags",
+                    package="/path/to/dags_project",
+                    package_type="editable",
+                    dags_module="observatory.dags.dags",
+                )
+            )
+
+        lines = ["workflows_projects:\n"]
+        for project in projects:
+            lines.append(indent(f"- package_name: {project.package_name}\n", INDENT1))
+            lines.append(indent(f"package: {project.package}\n", INDENT3))
+            lines.append(indent(f"package_type: {project.package_type}\n", INDENT3))
+            lines.append(indent(f"dags_module: {project.dags_module}\n", INDENT3))
+
+        return lines
+
+    @staticmethod
+    def cloud_sql_database(cloud_sql_database: CloudSqlDatabase) -> List[str]:
+        """Constructs the cloud SQL database section string.
+
+        :param cloud_sql_database: Cloud SQL configuration object.
+        :return: List of strings for the section, including the section heading."
+        """
+
+        if cloud_sql_database is None:
+            cloud_sql_database = CloudSqlDatabase(
+                tier="db-custom-2-7680",
+                backup_start_time="23:00",
+            )
+
+        lines = [
+            "cloud_sql_database:\n",
+            indent(f"tier: {cloud_sql_database.tier}\n", INDENT1),
+            indent(f"backup_start_time: '{cloud_sql_database.backup_start_time}'\n", INDENT1),
+        ]
+
+        return lines
+
+    @staticmethod
+    def airflow_vm_lines_(*, vm: VirtualMachine, vm_type) -> List[str]:
+        """Constructs the virtual machine section string.
+
+        :param vm: Virtual machine configuration object.
+        :param vm_type: Type of vm being configured.
+        :return: List of strings for the section, including the section heading."
+        """
+        lines = [
+            f"{vm_type}:\n",
+            indent(f"machine_type: {vm.machine_type}\n", INDENT1),
+            indent(f"disk_size: {vm.disk_size}\n", INDENT1),
+            indent(f"disk_type: {vm.disk_type}\n", INDENT1),
+            indent(f"create: {vm.create}\n", INDENT1),
+        ]
+
+        return lines
+
+    @staticmethod
+    def airflow_main_vm(vm: VirtualMachine) -> List[str]:
+        """Constructs the main virtual machine section string.
+
+        :param vm: Virtual machine configuration object.
+        :return: List of strings for the section, including the section heading."
+        """
+
+        if vm is None:
+            vm = VirtualMachine(
+                machine_type="n2-standard-2",
+                disk_size=50,
+                disk_type="pd-ssd",
+                create=True,
+            )
+
+        lines = ObserveratoryConfigString.airflow_vm_lines_(vm=vm, vm_type="airflow_main_vm")
+        return lines
+
+    @staticmethod
+    def airflow_worker_vm(vm: VirtualMachine) -> List[str]:
+        """Constructs the worker virtual machine section string.
+
+        :param vm: Virtual machine configuration object.
+        :return: List of strings for the section, including the section heading."
+        """
+
+        if vm is None:
+            vm = VirtualMachine(
+                machine_type="n1-standard-8",
+                disk_size=3000,
+                disk_type="pd-standard",
+                create=False,
+            )
+
+        lines = ObserveratoryConfigString.airflow_vm_lines_(vm=vm, vm_type="airflow_worker_vm")
+        return lines
+
+    @staticmethod
+    def elasticsearch(elasticsearch: ElasticSearch) -> List[str]:
+        """Constructs the ElasticSearch section string.
+
+        :param elasticsearch: Elastic search configuration object.
+        :return: List of strings for the section, including the section heading."
+        """
+
+        if elasticsearch is None:
+            elasticsearch = ElasticSearch(
+                host="https://address.region.gcp.cloud.es.io:port",
+                api_key="myapikey",
+            )
+
+        lines = [
+            "elasticsearch:\n",
+            indent(f"host: {elasticsearch.host}\n", INDENT1),
+            indent(f"api_key: {elasticsearch.api_key}\n", INDENT1),
+        ]
+
+        return lines
+
+    @staticmethod
+    def api(api: Api) -> List[str]:
+        """Constructs the Observatory API section string.
+
+        :param api: API configuration object.
+        :return: List of strings for the section, including the section heading."
+        """
+
+        if api is None:
+            api = Api(
+                domain_name="api.observatory.academy",
+                subdomain="project_id",
+            )
+
+        lines = [
+            "api:\n",
+            indent(f"domain_name: {api.domain_name}\n", INDENT1),
+            indent(f"subdomain: {api.subdomain}\n", INDENT1),
+        ]
+
+        return lines
