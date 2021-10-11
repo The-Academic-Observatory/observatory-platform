@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import os
 import unittest
-from datetime import timedelta
+from datetime import timedelta, datetime
 from typing import List, Union
 from unittest.mock import patch
 
@@ -438,6 +438,82 @@ class TestObservatoryTestCase(unittest.TestCase):
                 table_id = f"{dataset_id}.{table_name}"
                 expected_rows = 20
                 test_case.assert_table_integrity(table_id, expected_rows)
+
+    def test_assert_table_content(self):
+        """Test assert table content
+
+        :return: None.
+        """
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        with env.create():
+            # Upload file to download bucket and check gzip-crc
+            file_name = "people.jsonl"
+            file_path = test_fixtures_path("utils", file_name)
+            result, upload = upload_file_to_cloud_storage(env.download_bucket, file_name, file_path)
+            self.assertTrue(result)
+
+            # Create dataset
+            dataset_id = env.add_dataset()
+            create_bigquery_dataset(self.project_id, dataset_id, self.data_location)
+
+            # Test loading JSON newline table
+            table_name = random_id()
+            schema_path = test_fixtures_path("utils", "people_schema.json")
+            uri = f"gs://{env.download_bucket}/{file_name}"
+            result = load_bigquery_table(
+                uri,
+                dataset_id,
+                self.data_location,
+                table_name,
+                schema_file_path=schema_path,
+                source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+            )
+            self.assertTrue(result)
+
+            # Check BigQuery table exists and has expected rows
+            test_case = ObservatoryTestCase()
+            table_id = f"{dataset_id}.{table_name}"
+            expected_content = [
+                {"first_name": "Gisella", "last_name": "Derya", "dob": datetime(1997, 7, 1).date()},
+                {"first_name": "Adelaida", "last_name": "Melis", "dob": datetime(1980, 9, 3).date()},
+                {"first_name": "Melanie", "last_name": "Magomedkhan", "dob": datetime(1990, 3, 1).date()},
+                {"first_name": "Octavia", "last_name": "Tomasa", "dob": datetime(1970, 1, 8).date()},
+                {"first_name": "Ansgar", "last_name": "Zorion", "dob": datetime(2001, 2, 1).date()},
+            ]
+            test_case.assert_table_content(table_id, expected_content)
+
+            # Check that BigQuery table is not empty
+            table_id = f"{dataset_id}.{table_name}"
+            test_case.assert_table_content(table_id)
+
+            # Check that BigQuery table doesn't exist
+            with self.assertRaises(AssertionError):
+                table_id = f"{dataset_id}.{random_id()}"
+                test_case.assert_table_content(table_id, expected_content)
+
+            # Check that BigQuery table has extra rows
+            with self.assertRaises(AssertionError):
+                table_id = f"{dataset_id}.{table_name}"
+                expected_content = [
+                    {"first_name": "Gisella", "last_name": "Derya", "dob": datetime(1997, 7, 1).date()},
+                    {"first_name": "Adelaida", "last_name": "Melis", "dob": datetime(1980, 9, 3).date()},
+                    {"first_name": "Octavia", "last_name": "Tomasa", "dob": datetime(1970, 1, 8).date()},
+                    {"first_name": "Ansgar", "last_name": "Zorion", "dob": datetime(2001, 2, 1).date()},
+                ]
+                test_case.assert_table_content(table_id, expected_content)
+
+            # Check that BigQuery table has missing rows
+            with self.assertRaises(AssertionError):
+                table_id = f"{dataset_id}.{table_name}"
+                expected_content = [
+                    {"first_name": "Gisella", "last_name": "Derya", "dob": datetime(1997, 7, 1).date()},
+                    {"first_name": "Adelaida", "last_name": "Melis", "dob": datetime(1980, 9, 3).date()},
+                    {"first_name": "Melanie", "last_name": "Magomedkhan", "dob": datetime(1990, 3, 1).date()},
+                    {"first_name": "Octavia", "last_name": "Tomasa", "dob": datetime(1970, 1, 8).date()},
+                    {"first_name": "Ansgar", "last_name": "Zorion", "dob": datetime(2001, 2, 1).date()},
+                    {"first_name": "Extra", "last_name": "Row", "dob": datetime(2001, 2, 1).date()},
+                ]
+                test_case.assert_table_content(table_id, expected_content)
 
     def test_assert_file_integrity(self):
         """Test assert_file_integrity"""

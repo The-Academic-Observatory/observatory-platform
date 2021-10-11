@@ -15,7 +15,7 @@
 MERGE
   `{{ dataset }}.{{ main_table }}` M
 USING
-  (SELECT {{ merge_condition_field }} AS id FROM `{{ dataset }}.{{ partitioned_table }}` WHERE _PARTITIONDATE > '{{ start_date }}' AND _PARTITIONDATE <= '{{ end_date }}') P
+  (SELECT {{ merge_condition_field }} AS id FROM `{{ dataset }}.{{ partitioned_table }}` WHERE _PARTITIONDATE = '{{ ingestion_date }}') P
 ON
   M.{{ merge_condition_field }} = P.id
 WHEN MATCHED THEN

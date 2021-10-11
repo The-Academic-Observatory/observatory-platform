@@ -59,6 +59,7 @@
 # Author: James Diprose
 
 import contextlib
+import copy
 import datetime
 import logging
 import os
@@ -292,7 +293,9 @@ class ObservatoryEnvironment:
         except requests.exceptions.ReadTimeout:
             pass
         except google.api_core.exceptions.NotFound:
-            logging.warning(f"Bucket {bucket_id} not found. Did you mean to call _delete_bucket on the same bucket twice?")
+            logging.warning(
+                f"Bucket {bucket_id} not found. Did you mean to call _delete_bucket on the same bucket twice?"
+            )
 
     def add_dataset(self, prefix: str = "") -> str:
         """Add a BigQuery dataset to the Observatory environment.
@@ -620,6 +623,34 @@ class ObservatoryTestCase(unittest.TestCase):
         self.assertIsNotNone(table)
         if expected_rows is not None:
             self.assertEqual(expected_rows, actual_rows)
+
+    def assert_table_content(self, table_id: str, expected_content: List[dict] = None):
+        """Assert whether a BigQuery table has any content and if expected content is given whether it matches the
+        actual content. The order of the rows is not checked, only whether all rows in the expected content match
+        the rows in the actual content.
+        The expected content should be a list of dictionaries, where each dictionary represents one row of the table,
+        the keys are fieldnames and values are values.
+
+        :param table_id: the BigQuery table id.
+        :param expected_content: the expected content.
+        :return: whether the table has content and the expected content is correct
+        """
+        rows = None
+        actual_content = None
+        try:
+            rows = self.bigquery_client.list_rows(table_id)
+            actual_content = [dict(row) for row in rows]
+        except NotFound:
+            pass
+
+        self.assertIsNotNone(rows)
+        if expected_content is not None:
+            for row in expected_content:
+                self.assertIn(row, actual_content)
+                actual_content.remove(row)
+            self.assertListEqual(
+                [], actual_content, msg=f"Rows in actual content that are not in expected content: {actual_content}"
+            )
 
     def assert_file_integrity(self, file_path: str, expected_hash: str, algorithm: str):
         """Assert that a file exists and it has the correct hash.
