@@ -31,7 +31,7 @@ from cerberus import Validator
 from cryptography.fernet import Fernet
 
 from observatory.platform.cli.cli_utils import comment, indent, INDENT1, INDENT3
-from observatory.platform.terraform_api import TerraformVariable
+from observatory.platform.terraform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import (
     observatory_home as default_observatory_home,
@@ -934,13 +934,17 @@ class BuildConfig:
                 name="observatory-api",
                 type=self.observatory.api_package_type,
                 host_package=self.observatory.api_package,
-                docker_package=os.path.basename(self.observatory.api_package),
+                docker_package=os.path.basename(self.observatory.api_package)
+                if self.observatory.api_package is not None
+                else None,
             ),
             PythonPackage(
                 name="observatory-platform",
                 type=self.observatory.package_type,
                 host_package=self.observatory.package,
-                docker_package=os.path.basename(self.observatory.package),
+                docker_package=os.path.basename(self.observatory.package)
+                if self.observatory.package is not None
+                else None,
             ),
         ]
 
@@ -950,7 +954,7 @@ class BuildConfig:
                     name=project.package_name,
                     type=project.package_type,
                     host_package=project.package,
-                    docker_package=os.path.basename(project.package),
+                    docker_package=os.path.basename(project.package) if project.package is not None else None,
                 )
             )
 

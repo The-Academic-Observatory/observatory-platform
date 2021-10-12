@@ -472,7 +472,6 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     if oaebu_wf:
         workflows.append("oaebu-workflows")
 
-    cmd_func = None
     if command == "local" and not interactive:
         cmd_func = cmd.generate_local_config
     elif command == "terraform" and not interactive:

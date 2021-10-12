@@ -24,7 +24,7 @@ from click.testing import CliRunner
 
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.observatory_config import Observatory, ObservatoryConfig, Backend, Environment, BackendType
-from observatory.platform.utils.test_utils import find_free_port, save_empty_file
+from observatory.platform.utils.test_utils import find_free_port
 
 
 class MockUrlOpen(Mock):
@@ -63,38 +63,28 @@ class TestPlatformCommand(unittest.TestCase):
             ),
         )
 
-    @patch("observatory.platform.docker.platform_runner.ObservatoryConfig.load")
-    def test_ui_url(self, mock_config_load):
+    def test_ui_url(self):
         with CliRunner().isolated_filesystem() as t:
-            # Save empty config
-            config_path = save_empty_file(t, self.config_file_name)
-
             # Make config
             config = self.make_observatory_config(t)
-            mock_config_load.return_value = config
 
             # Test that ui URL is correct
-            cmd = PlatformCommand(config_path)
+            cmd = PlatformCommand(config)
             cmd.config.observatory.airflow_ui_port = self.airflow_ui_port
 
             self.assertEqual(f"http://localhost:{self.airflow_ui_port}", cmd.ui_url)
 
-    @patch("observatory.platform.docker.platform_runner.ObservatoryConfig.load")
     @patch("urllib.request.urlopen")
-    def test_wait_for_airflow_ui_success(self, mock_url_open, mock_config_load):
+    def test_wait_for_airflow_ui_success(self, mock_url_open):
         # Mock the status code return value: 200 should succeed
         mock_url_open.return_value = MockUrlOpen(200)
 
         with CliRunner().isolated_filesystem() as t:
-            # Save empty config
-            config_path = save_empty_file(t, self.config_file_name)
-
             # Make config
             config = self.make_observatory_config(t)
-            mock_config_load.return_value = config
 
             # Test that ui connects
-            cmd = PlatformCommand(config_path)
+            cmd = PlatformCommand(config)
             start = datetime.now()
             state = cmd.wait_for_airflow_ui()
             end = datetime.now()
@@ -103,22 +93,17 @@ class TestPlatformCommand(unittest.TestCase):
             self.assertTrue(state)
             self.assertAlmostEquals(0, duration, delta=0.5)
 
-    @patch("observatory.platform.docker.platform_runner.ObservatoryConfig.load")
     @patch("urllib.request.urlopen")
-    def test_wait_for_airflow_ui_failed(self, mock_url_open, mock_config_load):
+    def test_wait_for_airflow_ui_failed(self, mock_url_open):
         # Mock the status code return value: 500 should fail
         mock_url_open.return_value = MockUrlOpen(500)
 
         with CliRunner().isolated_filesystem() as t:
-            # Save empty config
-            config_path = save_empty_file(t, self.config_file_name)
-
             # Make config
             config = self.make_observatory_config(t)
-            mock_config_load.return_value = config
 
             # Test that ui error
-            cmd = PlatformCommand(config_path)
+            cmd = PlatformCommand(config)
             expected_timeout = 10
             start = datetime.now()
             state = cmd.wait_for_airflow_ui(expected_timeout)

@@ -21,7 +21,7 @@ import click
 from observatory.platform.cli.cli_utils import indent, INDENT1, INDENT2
 from observatory.platform.observatory_config import TerraformConfig, TerraformVariable
 from observatory.platform.terraform.terraform_builder import TerraformBuilder
-from observatory.platform.terraform_api import TerraformApi
+from observatory.platform.terraform.terraform_api import TerraformApi
 
 
 class TerraformCommand:

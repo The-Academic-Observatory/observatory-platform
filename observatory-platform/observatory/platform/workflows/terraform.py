@@ -29,7 +29,7 @@ from airflow.models.variable import Variable
 from croniter import croniter
 
 from observatory.platform.observatory_config import TerraformConfig, VirtualMachine
-from observatory.platform.terraform_api import TerraformApi
+from observatory.platform.terraform.terraform_api import TerraformApi
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
     AirflowVars,

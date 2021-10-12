@@ -32,8 +32,8 @@ from observatory.platform.observatory_config import (
     WorkflowsProject,
     Environment,
     BackendType,
-    module_file_path,
 )
+from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.test_utils import random_id, build_sdist, test_fixtures_path
 
 

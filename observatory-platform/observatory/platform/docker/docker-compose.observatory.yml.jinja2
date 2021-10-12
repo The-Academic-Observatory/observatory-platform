@@ -139,7 +139,7 @@ networks:
 {%- endif %}
 
 
-{% if config.observatory.docker_image is None -%}
+{% if config.observatory.docker_image is none -%}
 x-build: &build
   context: .
   dockerfile: Dockerfile.observatory
@@ -162,10 +162,10 @@ services:
       retries: 50
 
   flower:
-    {% if config.observatory.docker_image is not None -%}
-      image: ${OBSERVATORY_DOCKER_IMAGE}
+    {% if config.observatory.docker_image is not none -%}
+    image: ${OBSERVATORY_DOCKER_IMAGE}
     {%- else %}
-      build: *build
+    build: *build
     {%- endif %}
     environment: *environment
     volumes: *volumes
@@ -193,10 +193,10 @@ services:
     {%- endif %}
 
   webserver:
-    {% if config.observatory.docker_image is not None -%}
-      image: ${OBSERVATORY_DOCKER_IMAGE}
+    {% if config.observatory.docker_image is not none -%}
+    image: ${OBSERVATORY_DOCKER_IMAGE}
     {%- else %}
-      build: *build
+    build: *build
     {%- endif %}
     environment: *environment
     volumes: *volumes
@@ -224,10 +224,10 @@ services:
       retries: 30
 
   scheduler:
-    {% if config.observatory.docker_image is not None -%}
-      image: ${OBSERVATORY_DOCKER_IMAGE}
+    {% if config.observatory.docker_image is not none -%}
+    image: ${OBSERVATORY_DOCKER_IMAGE}
     {%- else %}
-      build: *build
+    build: *build
     {%- endif %}
     environment: *environment
     volumes: *volumes
@@ -244,10 +244,10 @@ services:
     command: scheduler
 
   worker_local:
-    {% if config.observatory.docker_image is not None -%}
-      image: ${OBSERVATORY_DOCKER_IMAGE}
+    {% if config.observatory.docker_image is not none -%}
+    image: ${OBSERVATORY_DOCKER_IMAGE}
     {%- else %}
-      build: *build
+    build: *build
     {%- endif %}
     environment: *environment
     volumes: *volumes
@@ -262,10 +262,10 @@ services:
     command: celery worker -q default
 
   worker_remote:
-    {% if config.observatory.docker_image is not None -%}
-      image: ${OBSERVATORY_DOCKER_IMAGE}
+    {% if config.observatory.docker_image is not none -%}
+    image: ${OBSERVATORY_DOCKER_IMAGE}
     {%- else %}
-      build: *build
+    build: *build
     {%- endif %}
     environment: *environment
     volumes: *volumes
