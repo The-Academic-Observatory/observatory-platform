@@ -14,7 +14,7 @@
 
 # Author: James Diprose
 
-from observatory.platform.docker.platform_runner import PlatformRunner
+from observatory.platform.docker.platform_builder import PlatformBuilder
 from observatory.platform.observatory_config import BuildConfig
 
 
@@ -32,7 +32,7 @@ class BuildCommand:
         :return:  None
         """
 
-        pb = PlatformRunner(config=self.config, tag=tag)
+        pb = PlatformBuilder(config=self.config, tag=tag)
         pb.build()
 
     def build_vm_image(self):
