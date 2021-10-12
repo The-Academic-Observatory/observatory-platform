@@ -46,7 +46,7 @@ def comment(string: str) -> str:
     return f"# {string}"
 
 
-def load_config(cls: ClassVar, config_path: str) -> Union["TerraformConfig", "ObservatoryConfig"]:
+def load_config(cls: ClassVar, config_path: str):  # -> Union["TerraformConfig", "ObservatoryConfig"]:
     """Load a config file.
     :param cls: the config file class.
     :param config_path: the path to the config file.
