@@ -41,4 +41,5 @@ output "api-domain-name" {
 output "api-gateway-url" {
   value = module.observatory_api.api-gateway-url
   description = "Cloud run gateway URL for the API"
+  sensitive = true
 }

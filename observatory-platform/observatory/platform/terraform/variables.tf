@@ -113,12 +113,16 @@ EOF
 
 variable "api" {
   description = <<EOF
-Settings related to the Observatory API
+Settings related to the Data API
 
+name: Name of the Data API project, e.g. academic-observatory or oaebu
+//package_name: Local path to the Data API package, e.g. /path/to/academic_observatory_workflows_api
 domain_name: the custom domain name for the API, used for the google cloud endpoints service
 subdomain: can be either 'project_id' or 'environment', used to determine a prefix for the domain_name
 EOF
   type = object({
+    name = string
+//    package = string
     domain_name = string
     subdomain = string
   })
