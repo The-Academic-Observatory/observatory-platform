@@ -1581,6 +1581,9 @@ class TerraformConfig(ObservatoryConfig):
         f.write("\n")
 
 
+Config = Union[BuildConfig, ObservatoryConfig, TerraformConfig]
+
+
 def make_schema(backend_type: BackendType) -> Dict:
     """Make a schema for an Observatory or Terraform config file.
 
@@ -2086,7 +2089,7 @@ class ObserveratoryConfigString:
             api = Api(
                 domain_name="api.observatory.academy",
                 subdomain="project_id",
-                docker_image="ghcr.io/the-academic-observatory/observatory-api:latest"
+                docker_image="ghcr.io/the-academic-observatory/observatory-api:latest",
             )
 
         lines = [

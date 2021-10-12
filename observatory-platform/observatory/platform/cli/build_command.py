@@ -35,6 +35,6 @@ class BuildCommand:
         pb = PlatformBuilder(config=self.config, tag=tag)
         pb.build()
 
-    def build_vm_image(self):
+    def build_vm_image(self, tag: str):
 
         pass

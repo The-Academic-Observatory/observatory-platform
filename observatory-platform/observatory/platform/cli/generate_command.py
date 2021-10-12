@@ -78,7 +78,7 @@ class DefaultWorkflowsProject:
 
 
 class GenerateCommand:
-    def generate_local_config(self, config_path: str, *, editable: str, workflows: List[str], oapi: bool):
+    def generate_local_config(self, config_path: str, *, editable: bool, workflows: List[str], oapi: bool):
         """Command line user interface for generating an Observatory Config config.yaml.
 
         :param config_path: the path where the config file should be saved.
@@ -103,7 +103,7 @@ class GenerateCommand:
 
         click.echo(f'{file_type} saved to: "{config_path}"')
 
-    def generate_terraform_config(self, config_path: str, *, editable: str, workflows: List[str], oapi: bool):
+    def generate_terraform_config(self, config_path: str, *, editable: bool, workflows: List[str], oapi: bool):
         """Command line user interface for generating a Terraform Config config-terraform.yaml.
 
         :param config_path: the path where the config file should be saved.

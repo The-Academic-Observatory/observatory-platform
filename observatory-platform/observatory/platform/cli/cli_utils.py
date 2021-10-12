@@ -44,26 +44,3 @@ def comment(string: str) -> str:
     """
 
     return f"# {string}"
-
-
-def load_config(cls: ClassVar, config_path: str):  # -> Union["TerraformConfig", "ObservatoryConfig"]:
-    """Load a config file.
-    :param cls: the config file class.
-    :param config_path: the path to the config file.
-    :return: the config file.
-    """
-
-    # Load config
-    config_exists = os.path.exists(config_path)
-    if not config_exists:
-        raise FileExistsError(f"Observatory config file does not exist: {config_path}")
-    else:
-        return cls.load(config_path)
-
-        # print(indent(f"- path: {config_path}", INDENT2))
-        # if cfg.is_valid:
-        #     print(indent("- file valid", INDENT2))
-        # else:
-        #     print(indent("- file invalid", INDENT2))
-        #     for key, value in cfg.validator.errors.items():
-        #         print(indent(f"- {key}: {value}", INDENT3))
