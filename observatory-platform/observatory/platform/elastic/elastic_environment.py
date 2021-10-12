@@ -22,7 +22,7 @@ from typing import Dict
 import requests
 from elasticsearch import Elasticsearch
 
-from observatory.platform.docker.compose import ComposeRunner, ProcessOutput
+from observatory.platform.docker.compose_runner import ComposeRunner, ProcessOutput
 from observatory.platform.utils.config_utils import module_file_path
 
 

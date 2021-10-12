@@ -1,0 +1,123 @@
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: James Diprose
+
+
+import distutils.dir_util
+import os
+import shutil
+
+from observatory.api.server.openapi_renderer import OpenApiRenderer
+from observatory.platform.docker.platform_runner import PlatformRunner
+from observatory.platform.observatory_config import TerraformConfig
+from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.jinja2_utils import render_template
+
+
+def copy_dir(source_path: str, destination_path: str, ignore):
+    distutils.dir_util.copy_tree(source_path, destination_path)
+
+
+class TerraformBuilder:
+    def __init__(self, config: TerraformConfig, debug: bool = False):
+        """Create a TerraformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
+
+        :param config: the TerraformConfig.
+        :param debug: whether to print debug statements.
+        """
+
+        self.config = config
+        self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
+        self.terraform_path = module_file_path("observatory.platform.terraform")
+        self.api_path = module_file_path("observatory.api.server")
+        self.debug = debug
+
+        self.build_path = os.path.join(config.observatory.observatory_home, "build", "terraform")
+        self.platform_runner = PlatformRunner(config=config, docker_build_path=os.path.join(self.build_path, "docker"))
+        self.packages_build_path = os.path.join(self.build_path, "packages")
+        self.terraform_build_path = os.path.join(self.build_path, "terraform")
+        os.makedirs(self.packages_build_path, exist_ok=True)
+
+    @property
+    def is_environment_valid(self) -> bool:
+        """Return whether the environment for building the Packer image is valid.
+
+        :return: whether the environment for building the Packer image is valid.
+        """
+
+        return all([self.packer_exe_path is not None])
+
+    @property
+    def packer_exe_path(self) -> str:
+        """The path to the Packer executable.
+
+        :return: the path or None.
+        """
+
+        return shutil.which("packer")
+
+    def make_files(self):
+        # Clear terraform/packages path
+        if os.path.exists(self.packages_build_path):
+            shutil.rmtree(self.packages_build_path)
+        os.makedirs(self.packages_build_path)
+
+        ignore = shutil.ignore_patterns("__pycache__", "*.eggs", "*.egg-info")
+
+        # Copy local packages
+        for package in self.config.python_packages:
+            if package.type == "editable":
+                destination_path = os.path.join(self.packages_build_path, package.name)
+                copy_dir(package.host_package, destination_path, ignore)
+
+        # Copy terraform files into build/terraform: ignore jinja2 templates
+        copy_dir(self.terraform_path, self.terraform_build_path, shutil.ignore_patterns("*.jinja2", "__pycache__"))
+
+        # Make startup scripts
+        self.make_startup_script(True, "startup-main.tpl")
+        self.make_startup_script(False, "startup-worker.tpl")
+
+        # Make OpenAPI specification
+        self.make_open_api_template()
+
+    def make_startup_script(self, is_airflow_main_vm: bool, file_name: str):
+        # Load and render template
+        template_path = os.path.join(self.terraform_path, "startup.tpl.jinja2")
+        render = render_template(template_path, is_airflow_main_vm=is_airflow_main_vm)
+
+        # Save file
+        output_path = os.path.join(self.terraform_build_path, file_name)
+        with open(output_path, "w") as f:
+            f.write(render)
+
+    def make_open_api_template(self):
+        # Load and render template
+        specification_path = os.path.join(self.api_path, "openapi.yaml.jinja2")
+        renderer = OpenApiRenderer(specification_path, cloud_endpoints=True)
+        render = renderer.render()
+
+        # Save file
+        output_path = os.path.join(self.terraform_build_path, "openapi.yaml.tpl")
+        with open(output_path, "w") as f:
+            f.write(render)
+
+    def build_terraform(self):
+        """Build the Observatory Platform Terraform files.
+
+        :return: None.
+        """
+
+        self.make_files()
+        self.platform_runner.make_files()

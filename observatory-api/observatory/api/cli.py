@@ -1,5 +1,6 @@
 import click
 
+from observatory.api.docker import build_docker_file
 from observatory.api.server.openapi_renderer import OpenApiRenderer
 
 
@@ -35,6 +36,17 @@ def generate_openapi_spec(template_file, output_file, cloud_endpoints, api_clien
     # Save file
     with open(output_file, mode="w") as f:
         f.write(render)
+
+
+@cli.command()
+@click.argument("observatory-api-path", type=click.Path(exists=True, file_okay=False, dir_okay=True))
+def build_image(observatory_api_path: str, tag: str):
+    """Build an Observatory API Docker image.\n
+    OBSERVATORY_API_PATH: the path to the observatory api package.
+    TAG: the Docker tag name.
+    """
+
+    build_docker_file(observatory_api_path, tag)
 
 
 if __name__ == "__main__":

@@ -18,34 +18,26 @@ import os
 
 import click
 
-from observatory.platform.cli.click_utils import indent, INDENT1, INDENT2
+from observatory.platform.cli.cli_utils import indent, INDENT1, INDENT2
 from observatory.platform.observatory_config import TerraformConfig, TerraformVariable
+from observatory.platform.terraform.terraform_builder import TerraformBuilder
 from observatory.platform.terraform_api import TerraformApi
-from observatory.platform.terraform_builder import TerraformBuilder
 
 
 class TerraformCommand:
-    def __init__(self, config_path: str, terraform_credentials_path: str, debug: bool = False):
+    def __init__(self, config: TerraformConfig, terraform_credentials_path: str, debug: bool = False):
         """Create a TerraformCommand, which can be used to create and update terraform workspaces.
 
-        :param config_path: the path to the Terraform Config file.
+        :param config: the Terraform Config file.
         :param terraform_credentials_path: the path to the Terraform credentials file.
         :param debug: whether to print debugging information.
         """
 
-        self.config_path = config_path
+        self.config = config
+        self.terraform_builder = TerraformBuilder(config, debug=debug)
         self.terraform_credentials_path = terraform_credentials_path
         self.debug = debug
-
-        # Load config and
         self.terraform_credentials_exists = os.path.exists(terraform_credentials_path)
-        self.config_exists = os.path.exists(config_path)
-        self.config_is_valid = False
-        self.config = None
-        if self.config_exists:
-            self.config = TerraformConfig.load(config_path)
-            self.config_is_valid = self.config.is_valid
-            self.terraform_builder = TerraformBuilder(config_path, debug=debug)
 
     @property
     def is_environment_valid(self):
@@ -56,10 +48,7 @@ class TerraformCommand:
 
         return all(
             [
-                self.config_exists,
                 self.terraform_credentials_exists,
-                self.config_is_valid,
-                self.config is not None,
                 self.terraform_builder.is_environment_valid,
             ]
         )
@@ -96,22 +85,6 @@ class TerraformCommand:
         """
 
         self.terraform_builder.build_terraform()
-
-    def build_image(self):
-        """Build a Google Compute image for the Terraform deployment with Packer.
-
-        :return: None.
-        """
-
-        self.terraform_builder.build_image()
-
-    def build_google_container_image(self):
-        """Build a Docker image stored in the Google Container registry using gcloud builds.
-
-        :return: None.
-        """
-        self.terraform_builder.gcloud_activate_service_account()
-        self.terraform_builder.gcloud_builds_submit()
 
     @property
     def verbosity(self):

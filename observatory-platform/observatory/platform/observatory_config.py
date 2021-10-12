@@ -29,7 +29,7 @@ import cerberus.validator
 import yaml
 from cerberus import Validator
 from cryptography.fernet import Fernet
-from observatory.platform.cli.click_utils import (
+from observatory.platform.cli.cli_utils import (
     INDENT1,
     INDENT2,
     INDENT3,
