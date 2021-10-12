@@ -30,12 +30,7 @@ import yaml
 from cerberus import Validator
 from cryptography.fernet import Fernet
 
-from observatory.platform.cli.cli_utils import (
-    INDENT1,
-    INDENT3,
-    comment,
-    indent,
-)
+from observatory.platform.cli.cli_utils import comment, indent, INDENT1, INDENT3
 from observatory.platform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import (
@@ -122,6 +117,14 @@ class Backend:
     type: BackendType = BackendType.build
     environment: Environment = None
 
+    def to_dict(self) -> Dict:
+        """Convert to Dict.
+
+        :return: the dictionary.
+        """
+
+        return {"type": self.type.value, "environment": self.environment.value}
+
     @staticmethod
     def from_dict(dict_: Dict) -> Backend:
         """Constructs a Backend instance from a dictionary.
@@ -196,6 +199,10 @@ class Observatory:
     api_package: str = None
     api_package_type: str = None
 
+    @property
+    def host_package(self):
+        return os.path.normpath(self.package)
+
     def to_hcl(self):
         return to_hcl(
             {
@@ -208,9 +215,34 @@ class Observatory:
             }
         )
 
-    @property
-    def host_package(self):
-        return os.path.normpath(self.package)
+    def to_dict(self) -> Dict:
+        """Convert to Dict.
+
+        :return: the dictionary.
+        """
+
+        return {
+            "docker_image": self.docker_image,
+            "package": self.package,
+            "package_type": self.package_type,
+            "api_package": self.api_package,
+            "api_package_type": self.api_package_type,
+            "airflow_fernet_key": self.airflow_fernet_key,
+            "airflow_secret_key": self.airflow_secret_key,
+            "airflow_ui_user_email": self.airflow_ui_user_email,
+            "airflow_ui_user_password": self.airflow_ui_user_password,
+            "observatory_home": self.observatory_home,
+            "postgres_password": self.postgres_password,
+            "redis_port": self.redis_port,
+            "flower_ui_port": self.flower_ui_port,
+            "airflow_ui_port": self.airflow_ui_port,
+            "elastic_port": self.elastic_port,
+            "kibana_port": self.kibana_port,
+            "docker_network_name": self.docker_network_name,
+            "docker_network_is_external": self.docker_network_is_external,
+            "docker_compose_project_name": self.docker_compose_project_name,
+            "enable_elk": self.enable_elk,
+        }
 
     @staticmethod
     def from_dict(dict_: Dict) -> Observatory:
@@ -319,6 +351,21 @@ class GoogleCloud:
             }
         )
 
+    def to_dict(self) -> Dict:
+        """Convert to Dict.
+
+        :return: the dictionary.
+        """
+
+        return {
+            "project_id": self.project_id,
+            "credentials": self.credentials,
+            "region": self.region,
+            "zone": self.zone,
+            "data_location": self.data_location,
+            "buckets": [bucket.to_dict() for bucket in self.buckets],
+        }
+
     @staticmethod
     def from_dict(dict_: Dict) -> GoogleCloud:
         """Constructs a GoogleCloud instance from a dictionary.
@@ -375,6 +422,19 @@ class WorkflowsProject:
     package_type: str
     dags_module: str
 
+    def to_dict(self) -> Dict:
+        """Convert to Dict.
+
+        :return: the dictionary.
+        """
+
+        return {
+            "package_name": self.package_name,
+            "package": self.package,
+            "package_type": self.package_type,
+            "dags_module": self.dags_module,
+        }
+
     @staticmethod
     def parse_workflows_projects(list: List) -> List[WorkflowsProject]:
         """Parse the workflows_projects list object into a list of WorkflowsProject instances.
@@ -418,6 +478,14 @@ class AirflowConnection:
     name: str
     value: str
 
+    def to_dict(self) -> Dict:
+        """Convert to Dict.
+
+        :return: the dictionary.
+        """
+
+        return {"name": self.name, "value": self.value}
+
     @property
     def conn_name(self) -> str:
         """The Airflow Connection environment variable name, which is required to set the connection from an
@@ -451,6 +519,14 @@ class AirflowVariable:
     name: str
     value: str
 
+    def to_dict(self) -> Dict:
+        """Convert to Dict.
+
+        :return: the dictionary.
+        """
+
+        return {"name": self.name, "value": self.value}
+
     @property
     def env_var_name(self):
         """The Airflow Variable environment variable name, which is required to set the variable from an
@@ -482,6 +558,14 @@ class Terraform:
 
     organization: str
 
+    def to_dict(self) -> Dict:
+        """Convert to Dict.
+
+        :return: the dictionary.
+        """
+
+        return {"organization": self.organization}
+
     @staticmethod
     def from_dict(dict_: Dict) -> Terraform:
         """Constructs a Terraform instance from a dictionary.
@@ -506,7 +590,15 @@ class CloudSqlDatabase:
     backup_start_time: str
 
     def to_hcl(self):
-        return to_hcl({"tier": self.tier, "backup_start_time": self.backup_start_time})
+        return to_hcl(self.to_dict())
+
+    def to_dict(self) -> Dict:
+        """Convert to Dict.
+
+        :return: the dictionary.
+        """
+
+        return {"tier": self.tier, "backup_start_time": self.backup_start_time}
 
     @staticmethod
     def from_dict(dict_: Dict) -> CloudSqlDatabase:
@@ -538,14 +630,20 @@ class VirtualMachine:
     create: bool
 
     def to_hcl(self):
-        return to_hcl(
-            {
-                "machine_type": self.machine_type,
-                "disk_size": self.disk_size,
-                "disk_type": self.disk_type,
-                "create": self.create,
-            }
-        )
+        return to_hcl(self.to_dict())
+
+    def to_dict(self) -> Dict:
+        """Convert to Dict.
+
+        :return: the dictionary.
+        """
+
+        return {
+            "machine_type": self.machine_type,
+            "disk_size": self.disk_size,
+            "disk_type": self.disk_type,
+            "create": self.create,
+        }
 
     @staticmethod
     def from_hcl(string: str) -> VirtualMachine:
@@ -586,6 +684,17 @@ class ElasticSearch:
             }
         )
 
+    def to_dict(self) -> Dict:
+        """Convert to Dict.
+
+        :return: the dictionary.
+        """
+
+        return {
+            "host": self.host,
+            "api_key": self.api_key,
+        }
+
     @staticmethod
     def from_dict(dict_: Dict) -> ElasticSearch:
         """Constructs a CloudSqlDatabase instance from a dictionary.
@@ -615,7 +724,19 @@ class Api:
     docker_image: str
 
     def to_hcl(self):
-        return to_hcl({"domain_name": self.domain_name, "subdomain": self.subdomain, "docker_image": self.docker_image})
+        return to_hcl(self.to_dict())
+
+    def to_dict(self) -> Dict:
+        """Convert to Dict.
+
+        :return: the dictionary.
+        """
+
+        return {
+            "domain_name": self.domain_name,
+            "subdomain": self.subdomain,
+            "docker_image": self.docker_image,
+        }
 
     @staticmethod
     def from_dict(dict_: Dict) -> Api:
@@ -1536,8 +1657,16 @@ def make_schema(backend_type: BackendType) -> Dict:
             "package_type": {"required": False, "type": "string", "allowed": package_types},
             "api_package": {"required": False, "type": "string"},
             "api_package_type": {"required": False, "type": "string", "allowed": package_types},
-            "airflow_fernet_key": {"required": is_runner, "type": "string", "check_with": check_schema_field_fernet_key},
-            "airflow_secret_key": {"required": is_runner, "type": "string", "check_with": check_schema_field_secret_key},
+            "airflow_fernet_key": {
+                "required": is_runner,
+                "type": "string",
+                "check_with": check_schema_field_fernet_key,
+            },
+            "airflow_secret_key": {
+                "required": is_runner,
+                "type": "string",
+                "check_with": check_schema_field_secret_key,
+            },
             "airflow_ui_user_password": {"required": is_backend_terraform, "type": "string"},
             "airflow_ui_user_email": {"required": is_backend_terraform, "type": "string"},
             "observatory_home": {"required": False, "type": "string"},
@@ -1550,7 +1679,7 @@ def make_schema(backend_type: BackendType) -> Dict:
             "docker_network_name": {"required": False, "type": "string"},
             "docker_network_is_external": {"required": False, "type": "boolean"},
             "docker_compose_project_name": {"required": False, "type": "string"},
-            "enable_elk": {"required": False, "type": "boolean"}
+            "enable_elk": {"required": False, "type": "boolean"},
         },
     }
 
@@ -1957,6 +2086,7 @@ class ObserveratoryConfigString:
             api = Api(
                 domain_name="api.observatory.academy",
                 subdomain="project_id",
+                docker_image="ghcr.io/the-academic-observatory/observatory-api:latest"
             )
 
         lines = [
