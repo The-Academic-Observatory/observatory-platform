@@ -623,19 +623,3 @@ module "airflow_worker_vm" {
   metadata_variables = local.metadata_variables
   static_external_ip_address = local.worker_vm_static_external_ip_address
 }
-
-########################################################################################################################
-# Observatory Platform API
-########################################################################################################################
-
-module "observatory_api" {
-  source = "./api"
-  environment = var.environment
-  google_cloud = var.google_cloud
-  elasticsearch = var.elasticsearch
-  vpc_connector_name = local.vpc_connector_name
-  observatory_db_uri = "postgresql://observatory:${urlencode(var.observatory.postgres_password)}@${google_sql_database_instance.observatory_db_instance.private_ip_address}:5432/observatory"
-  api = var.api
-  # necessary for api-endpoint_service_account, api-backend_service_account and elasticsearch-logins
-  depends_on = [google_project_service.services, google_sql_database.observatory_db, google_vpc_access_connector.observatory_vpc_connector]
-}
