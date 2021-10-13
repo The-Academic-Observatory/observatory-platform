@@ -608,6 +608,9 @@ class Api:
     package: str
     domain_name: str
     subdomain: str
+    type: str
+    elasticsearch_host: str
+    elasticsearch_api_key: str
 
     def to_hcl(self):
         return to_hcl(
@@ -626,7 +629,75 @@ class Api:
         package = dict_.get("package")
         domain_name = dict_.get("domain_name")
         subdomain = dict_.get("subdomain")
-        return Api(name, package, domain_name, subdomain)
+        api_type = dict_.get("type")
+        elasticsearch_host = dict_.get("elasticsearch_host", "")
+        elasticsearch_api_key = dict_.get("elasticsearch_api_key", "")
+        return Api(name, package, domain_name, subdomain, api_type, elasticsearch_host, elasticsearch_api_key)
+
+
+@dataclass
+class ObservatoryApi:
+    """The API domain name for the Observatory Platform API.
+
+    Attributes:
+        domain_name: the custom domain name of the API
+        subdomain: the subdomain of the API, can be either based on the google project id or the environment. When
+        based on the environment, there is no subdomain for the production environment.
+    """
+
+    observatory_organization: str
+    observatory_workspace: str
+
+    def to_hcl(self):
+        return to_hcl(
+            {
+                "observatory_organization": self.observatory_organization,
+                "observatory_workspace": self.observatory_workspace,
+            }
+        )
+
+    @staticmethod
+    def from_dict(dict_: Dict) -> ObservatoryApi:
+        """Constructs a CloudSqlDatabase instance from a dictionary.
+
+        :param dict_: the dictionary.
+        :return: the CloudSqlDatabase instance.
+        """
+
+        observatory_organization = dict_.get("observatory_organization", "")
+        observatory_workspace = dict_.get("observatory_workspace", "")
+        return ObservatoryApi(observatory_organization, observatory_workspace)
+
+
+@dataclass
+class DataApi:
+    """The API domain name for the Observatory Platform API.
+
+    Attributes:
+        domain_name: the custom domain name of the API
+        subdomain: the subdomain of the API, can be either based on the google project id or the environment. When
+        based on the environment, there is no subdomain for the production environment.
+    """
+
+    elasticsearch_host: str
+    elasticsearch_api_key: str
+
+    def to_hcl(self):
+        return to_hcl(
+            {"elasticsearch_host": self.elasticsearch_host, "elasticsearch_api_key": self.elasticsearch_api_key}
+        )
+
+    @staticmethod
+    def from_dict(dict_: Dict) -> DataApi:
+        """Constructs a CloudSqlDatabase instance from a dictionary.
+
+        :param dict_: the dictionary.
+        :return: the CloudSqlDatabase instance.
+        """
+
+        elasticsearch_host = dict_.get("elasticsearch_host", "")
+        elasticsearch_api_key = dict_.get("elasticsearch_api_key", "")
+        return DataApi(elasticsearch_host, elasticsearch_api_key)
 
 
 def is_base64(text: bytes) -> bool:
@@ -1154,8 +1225,6 @@ class TerraformConfig(ObservatoryConfig):
         cloud_sql_database: CloudSqlDatabase = None,
         airflow_main_vm: VirtualMachine = None,
         airflow_worker_vm: VirtualMachine = None,
-        elasticsearch: ElasticSearch = None,
-        api: Api = None,
         validator: ObservatoryConfigValidator = None,
     ):
         """Create a TerraformConfig instance.
@@ -1189,8 +1258,6 @@ class TerraformConfig(ObservatoryConfig):
         self.cloud_sql_database = cloud_sql_database
         self.airflow_main_vm = airflow_main_vm
         self.airflow_worker_vm = airflow_worker_vm
-        self.elasticsearch = elasticsearch
-        self.api = api
 
     @property
     def terraform_workspace_id(self):
@@ -1252,8 +1319,6 @@ class TerraformConfig(ObservatoryConfig):
             TerraformVariable(
                 "airflow_connections", list_to_hcl(self.airflow_connections), hcl=True, sensitive=sensitive
             ),
-            TerraformVariable("elasticsearch", self.elasticsearch.to_hcl(), sensitive=sensitive, hcl=True),
-            TerraformVariable("api", self.api.to_hcl(), hcl=True),
         ]
 
     @classmethod
@@ -1285,8 +1350,6 @@ class TerraformConfig(ObservatoryConfig):
             cloud_sql_database = CloudSqlDatabase.from_dict(dict_.get("cloud_sql_database", dict()))
             airflow_main_vm = VirtualMachine.from_dict(dict_.get("airflow_main_vm", dict()))
             airflow_worker_vm = VirtualMachine.from_dict(dict_.get("airflow_worker_vm", dict()))
-            elasticsearch = ElasticSearch.from_dict(dict_.get("elasticsearch", dict()))
-            api = Api.from_dict(dict_.get("api", dict()))
 
             return TerraformConfig(
                 backend,
@@ -1299,8 +1362,6 @@ class TerraformConfig(ObservatoryConfig):
                 cloud_sql_database=cloud_sql_database,
                 airflow_main_vm=airflow_main_vm,
                 airflow_worker_vm=airflow_worker_vm,
-                elasticsearch=elasticsearch,
-                api=api,
                 validator=validator,
             )
         else:
@@ -1401,8 +1462,9 @@ class TerraformAPIConfig(ObservatoryConfig):
         observatory: Observatory = None,
         google_cloud: GoogleCloud = None,
         terraform: Terraform = None,
-        elasticsearch: ElasticSearch = None,
         api: Api = None,
+        data_api: DataApi = None,
+        observatory_api: ObservatoryApi = None,
         validator: ObservatoryConfigValidator = None,
     ):
         """Create a TerraformConfig instance.
@@ -1421,8 +1483,9 @@ class TerraformAPIConfig(ObservatoryConfig):
             terraform=terraform,
             validator=validator,
         )
-        self.elasticsearch = elasticsearch
         self.api = api
+        self.data_api = data_api
+        self.observatory_api = observatory_api
 
     @property
     def terraform_workspace_id(self):
@@ -1439,12 +1502,14 @@ class TerraformAPIConfig(ObservatoryConfig):
         :return: a list of TerraformVariable instances.
         """
 
-        sensitive = True
+        # TODO change back
+        sensitive = False
         return [
             TerraformVariable("environment", self.backend.environment.value),
             TerraformVariable("google_cloud", self.google_cloud.to_hcl(), sensitive=sensitive, hcl=True),
-            TerraformVariable("elasticsearch", self.elasticsearch.to_hcl(), sensitive=sensitive, hcl=True),
             TerraformVariable("api", self.api.to_hcl(), hcl=True),
+            TerraformVariable("data_api", self.data_api.to_hcl(), sensitive=sensitive, hcl=True),
+            TerraformVariable("observatory_api", self.observatory_api.to_hcl(), sensitive=sensitive, hcl=True),
         ]
 
     @classmethod
@@ -1468,21 +1533,34 @@ class TerraformAPIConfig(ObservatoryConfig):
                 observatory,
                 google_cloud,
                 terraform,
-                airflow_variables,
-                airflow_connections,
-                workflows_projects,
+                _,
+                _,
+                _,
             ) = ObservatoryConfig._parse_fields(dict_)
 
-            elasticsearch = ElasticSearch.from_dict(dict_.get("elasticsearch", dict()))
             api = Api.from_dict(dict_.get("api", dict()))
+            if api.type == "observatory_api":
+                observatory_api = ObservatoryApi.from_dict(
+                    {
+                        "observatory_organization": terraform.organization,
+                        "observatory_workspace": TerraformAPIConfig.WORKSPACE_PREFIX + backend.environment.value,
+                    }
+                )
+                data_api = DataApi.from_dict(dict())
+            else:
+                observatory_api = ObservatoryApi.from_dict(dict())
+                data_api = DataApi.from_dict(
+                    {"elasticsearch_host": api.elasticsearch_host, "elasticsearch_api_key": api.elasticsearch_api_key}
+                )
 
             return TerraformAPIConfig(
                 backend,
                 observatory,
                 google_cloud=google_cloud,
                 terraform=terraform,
-                elasticsearch=elasticsearch,
                 api=api,
+                data_api=data_api,
+                observatory_api=observatory_api,
                 validator=validator,
             )
         else:
@@ -1668,36 +1746,27 @@ def make_schema(backend_type: BackendType) -> Dict:
         },
     }
 
-    if is_backend_terraform_or_api:
-        schema["elasticsearch"] = {
-            "required": True,
-            "type": "dict",
-            "schema": {
-                "host": {"required": True, "type": "string"},
-                "api_key": {
-                    "required": True,
-                    "type": "string",
-                },
-            },
-        }
-
+    if is_backend_terraform_api:
         schema["api"] = {
             "required": True,
             "type": "dict",
             "schema": {
                 "name": {
-                    "required": is_backend_terraform_api,
+                    "required": True,
                     "type": "string",
                     "check_with": customise_pointer,
                     "maxlength": 15,
                 },
                 "package": {
-                    "required": is_backend_terraform_api,
+                    "required": True,
                     "type": "string",
                     "check_with": (customise_pointer, path_exists),
                 },
                 "domain_name": {"required": True, "type": "string", "check_with": customise_pointer},
                 "subdomain": {"required": True, "type": "string", "allowed": ["project_id", "environment"]},
+                "type": {"required": True, "type": "string", "allowed": ["observatory_api", "data_api"]},
+                "elasticsearch_host": {"required": False, "dependencies": {"type": "data_api"}},
+                "elasticsearch_api_key": {"required": False, "dependencies": {"type": "data_api"}},
             },
         }
 
