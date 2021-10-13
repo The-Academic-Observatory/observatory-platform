@@ -15,16 +15,28 @@
 # Author: James Diprose, Aniek Roelofs
 
 import os
-import subprocess
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from click.testing import CliRunner
 
-from observatory.platform.observatory_config import save_yaml
+from observatory.platform.observatory_config import (
+    TerraformConfig,
+    Backend,
+    BackendType,
+    Environment,
+    Observatory,
+    Terraform,
+    GoogleCloud,
+    CloudSqlDatabase,
+    VirtualMachine,
+    AirflowVariable,
+    AirflowConnection,
+    ElasticSearch,
+    Api,
+)
 from observatory.platform.terraform.terraform_builder import TerraformBuilder
 from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.utils.proc_utils import stream_process
 
 
 class Popen(Mock):
@@ -42,63 +54,57 @@ class TestTerraformBuilder(unittest.TestCase):
         self.observatory_platform_path = module_file_path("observatory.platform", nav_back_steps=-3)
         self.observatory_api_path = module_file_path("observatory.api", nav_back_steps=-3)
 
-    def save_terraform_config(self, t: str):
-        config_path = os.path.join(t, "config.yaml")
+    def get_terraform_config(self, t: str) -> TerraformConfig:
         credentials_path = os.path.abspath("creds.json")
-        open(credentials_path, "a").close()
 
-        dict_ = {
-            "backend": {"type": "terraform", "environment": "develop"},
-            "observatory": {
-                "package": self.observatory_platform_path,
-                "package_type": "editable",
-                "airflow_fernet_key": "ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
-                "airflow_secret_key": "a" * 16,
-                "airflow_ui_user_password": "password",
-                "airflow_ui_user_email": "password",
-                "postgres_password": "my-password",
-                "observatory_home": t,
-                "api_package": self.observatory_api_path,
-                "api_package_type": "editable",
-            },
-            "terraform": {"organization": "hello world"},
-            "google_cloud": {
-                "project_id": "my-project",
-                "credentials": credentials_path,
-                "region": "us-west1",
-                "zone": "us-west1-c",
-                "data_location": "us",
-            },
-            "cloud_sql_database": {"tier": "db-custom-2-7680", "backup_start_time": "23:00"},
-            "airflow_main_vm": {"machine_type": "n2-standard-2", "disk_size": 1, "disk_type": "pd-ssd", "create": True},
-            "airflow_worker_vm": {
-                "machine_type": "n2-standard-2",
-                "disk_size": 1,
-                "disk_type": "pd-standard",
-                "create": False,
-            },
-            "airflow_variables": {"my-variable-name": "my-variable-value"},
-            "airflow_connections": {"my-connection": "http://:my-token-key@"},
-            "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
-            "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
-        }
-
-        save_yaml(config_path, dict_)
-
-        return config_path
+        return TerraformConfig(
+            backend=Backend(type=BackendType.terraform, environment=Environment.develop),
+            observatory=Observatory(
+                package=self.observatory_platform_path,
+                package_type="editable",
+                airflow_fernet_key="ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
+                airflow_secret_key="a" * 16,
+                airflow_ui_user_password="password",
+                airflow_ui_user_email="password",
+                postgres_password="my-password",
+                observatory_home=t,
+                api_package=self.observatory_api_path,
+                api_package_type="editable",
+            ),
+            terraform=Terraform(organization="hello world"),
+            google_cloud=GoogleCloud(
+                project_id="my-project",
+                credentials=credentials_path,
+                region="us-west1",
+                zone="us-west1-c",
+                data_location="us",
+            ),
+            cloud_sql_database=CloudSqlDatabase(tier="db-custom-2-7680", backup_start_time="23:00"),
+            airflow_main_vm=VirtualMachine(machine_type="n2-standard-2", disk_size=1, disk_type="pd-ssd", create=True),
+            airflow_worker_vm=VirtualMachine(
+                machine_type="n2-standard-2",
+                disk_size=1,
+                disk_type="pd-standard",
+                create=False,
+            ),
+            airflow_variables=[AirflowVariable(name="my-variable-name", value="my-variable-value")],
+            airflow_connections=[AirflowConnection(name="my-connection", value="http://:my-token-key@")],
+            elasticsearch=ElasticSearch(host="https://address.region.gcp.cloud.es.io:port", api_key="API_KEY"),
+            api=Api(
+                domain_name="api.custom.domain",
+                subdomain="project_id",
+                docker_image="ghcr.io/the-academic-observatory/observatory-api:latest",
+            ),
+        )
 
     def test_is_environment_valid(self):
         with CliRunner().isolated_filesystem() as t:
             config_path = os.path.join(t, "config.yaml")
 
-            # Environment should be invalid because there is no config.yaml
-            with self.assertRaises(FileExistsError):
-                TerraformBuilder(config_path=config_path)
-
             # Environment should be valid because there is a config.yaml
             # Assumes that Docker is setup on the system where the tests are run
-            config_path = self.save_terraform_config(t)
-            cmd = TerraformBuilder(config_path=config_path)
+            cfg = self.get_terraform_config(t)
+            cmd = TerraformBuilder(config=cfg)
             self.assertTrue(cmd.is_environment_valid)
 
     @unittest.skip
@@ -106,8 +112,8 @@ class TestTerraformBuilder(unittest.TestCase):
         """Test that the path to the Packer executable is found"""
 
         with CliRunner().isolated_filesystem() as t:
-            config_path = os.path.join(t, "config.yaml")
-            cmd = TerraformBuilder(config_path=config_path)
+            cfg = self.get_terraform_config(t)
+            cmd = TerraformBuilder(config=cfg)
             result = cmd.packer_exe_path
             self.assertIsNotNone(result)
             self.assertTrue(result.endswith("packer"))
@@ -116,20 +122,15 @@ class TestTerraformBuilder(unittest.TestCase):
         """Test building of the terraform files"""
 
         with CliRunner().isolated_filesystem() as t:
-            # Save default config file
-            config_path = self.save_terraform_config(t)
-
-            # Make observatory files
-            cmd = TerraformBuilder(config_path=config_path)
+            cfg = self.get_terraform_config(t)
+            cmd = TerraformBuilder(config=cfg)
             cmd.build_terraform()
 
             # Test that the expected Terraform files have been written
             secret_files = [os.path.join("secret", n) for n in ["main.tf", "outputs.tf", "variables.tf"]]
             vm_files = [os.path.join("vm", n) for n in ["main.tf", "outputs.tf", "variables.tf"]]
             root_files = [
-                "build.sh",
                 "main.tf",
-                "observatory-image.json",
                 "outputs.tf",
                 "startup-main.tpl",
                 "startup-worker.tpl",
@@ -162,95 +163,3 @@ class TestTerraformBuilder(unittest.TestCase):
                 path = os.path.join(cmd.build_path, "docker", file_name)
                 self.assertTrue(os.path.isfile(path))
                 self.assertTrue(os.stat(path).st_size > 0)
-
-    @patch("subprocess.Popen")
-    @patch("observatory.platform.terraform_builder.stream_process")
-    def test_build_image(self, mock_stream_process, mock_subprocess):
-        """Test building of the observatory platform"""
-
-        # Check that the environment variables are set properly for the default config
-        with CliRunner().isolated_filesystem() as t:
-            mock_subprocess.return_value = Popen()
-            mock_stream_process.return_value = ("", "")
-
-            # Save default config file
-            config_path = self.save_terraform_config(t)
-
-            # Make observatory files
-            cmd = TerraformBuilder(config_path=config_path)
-
-            # Build the image
-            output, error, return_code = cmd.build_image()
-
-            # Assert that the image built
-            expected_return_code = 0
-            self.assertEqual(expected_return_code, return_code)
-
-    @patch("subprocess.Popen")
-    @patch("observatory.platform.terraform_builder.stream_process")
-    def test_gcloud_activate_service_account(self, mock_stream_process, mock_subprocess):
-        """Test activating the gcloud service account"""
-
-        # Check that the environment variables are set properly for the default config
-        with CliRunner().isolated_filesystem() as t:
-            mock_subprocess.return_value = Popen()
-            mock_stream_process.return_value = ("", "")
-
-            # Save default config file
-            config_path = self.save_terraform_config(t)
-
-            # Make observatory files
-            cmd = TerraformBuilder(config_path=config_path)
-
-            # Activate the service account
-            output, error, return_code = cmd.gcloud_activate_service_account()
-
-            # Assert that account was activated
-            expected_return_code = 0
-            self.assertEqual(expected_return_code, return_code)
-
-    @patch("subprocess.Popen")
-    @patch("observatory.platform.terraform_builder.stream_process")
-    def test_gcloud_builds_submit(self, mock_stream_process, mock_subprocess):
-        """Test gcloud builds submit command"""
-
-        # Check that the environment variables are set properly for the default config
-        with CliRunner().isolated_filesystem() as t:
-            mock_subprocess.return_value = Popen()
-            mock_stream_process.return_value = ("", "")
-
-            # Save default config file
-            config_path = self.save_terraform_config(t)
-
-            # Make observatory files
-            cmd = TerraformBuilder(config_path=config_path)
-
-            # Build the image
-            output, error, return_code = cmd.gcloud_builds_submit()
-
-            # Assert that the image built
-            expected_return_code = 0
-            self.assertEqual(expected_return_code, return_code)
-
-    def test_build_api_image(self):
-        """Test building API image using Docker"""
-
-        # Check that the environment variables are set properly for the default config
-        with CliRunner().isolated_filesystem() as t:
-            # Save default config file
-            config_path = self.save_terraform_config(t)
-
-            # Make observatory files
-            cmd = TerraformBuilder(config_path=config_path)
-
-            args = ["docker", "build", "."]
-            print("Executing subprocess:")
-
-            proc: Popen = subprocess.Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cmd.api_package_path
-            )
-            output, error = stream_process(proc, True)
-
-            # Assert that the image built
-            expected_return_code = 0
-            self.assertEqual(expected_return_code, proc.returncode)

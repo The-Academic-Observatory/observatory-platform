@@ -255,8 +255,8 @@ class Observatory:
         docker_image = dict_.get("docker_image", Observatory.docker_image)
         package = dict_.get("package", Observatory.package)
         package_type = dict_.get("package_type", Observatory.package_type)
-        airflow_fernet_key = dict_.get("airflow_fernet_key", Observatory.airflow_fernet_key)
-        airflow_secret_key = dict_.get("airflow_secret_key", Observatory.airflow_secret_key)
+        airflow_fernet_key = dict_.get("airflow_fernet_key")
+        airflow_secret_key = dict_.get("airflow_secret_key")
         airflow_ui_user_email = dict_.get("airflow_ui_user_email", Observatory.airflow_ui_user_email)
         airflow_ui_user_password = dict_.get("airflow_ui_user_password", Observatory.airflow_ui_user_password)
         observatory_home = dict_.get("observatory_home", Observatory.observatory_home)
@@ -888,13 +888,13 @@ class BuildConfig:
         workflows_projects: List[WorkflowsProject] = None,
         validator: ObservatoryConfigValidator = None,
     ):
-        self.backend = backend if backend is not None else Backend()
+        self.backend = backend if backend is not None else Backend(type=BackendType.build)
         self.observatory = observatory if observatory is not None else Observatory()
         self.workflows_projects = workflows_projects
         if workflows_projects is None:
             self.workflows_projects = []
-        self.validator = validator
         self.schema = make_schema(self.backend.type)
+        self.validator = validator
 
     @property
     def is_valid(self) -> bool:
@@ -1588,6 +1588,107 @@ class TerraformConfig(ObservatoryConfig):
 Config = Union[BuildConfig, ObservatoryConfig, TerraformConfig]
 
 
+PACKAGE_TYPES = ["editable", "sdist", "pypi"]
+
+
+def make_observatory_schemas(backend_type: BackendType) -> List[Dict]:
+    """Make the schema for Observatory.
+
+    :param backend_type: the type of backend being used.
+    :return: a list of schemas.
+    """
+    is_backend_terraform = backend_type == BackendType.terraform
+
+    docker_image = {"docker_image": {"required": True, "type": "string"}}
+    packages = {
+        "package": {"required": True, "type": "string"},
+        "package_type": {"required": True, "type": "string", "allowed": PACKAGE_TYPES},
+        "api_package": {"required": True, "type": "string"},
+        "api_package_type": {"required": True, "type": "string", "allowed": PACKAGE_TYPES},
+    }
+    runner = {
+        "airflow_fernet_key": {
+            "required": True,
+            "type": "string",
+            "check_with": check_schema_field_fernet_key,
+        },
+        "airflow_secret_key": {
+            "required": True,
+            "type": "string",
+            "check_with": check_schema_field_secret_key,
+        },
+        "airflow_ui_user_password": {"required": is_backend_terraform, "type": "string"},
+        "airflow_ui_user_email": {"required": is_backend_terraform, "type": "string"},
+        "observatory_home": {"required": False, "type": "string"},
+        "postgres_password": {"required": is_backend_terraform, "type": "string"},
+    }
+    ports = {
+        "redis_port": {"required": False, "type": "integer"},
+        "flower_ui_port": {"required": False, "type": "integer"},
+        "airflow_ui_port": {"required": False, "type": "integer"},
+        "elastic_port": {"required": False, "type": "integer"},
+        "kibana_port": {"required": False, "type": "integer"},
+    }
+    docker_compose = {
+        "docker_network_name": {"required": False, "type": "string"},
+        "docker_network_is_external": {"required": False, "type": "boolean"},
+        "docker_compose_project_name": {"required": False, "type": "string"},
+    }
+    elastic = {
+        "enable_elk": {"required": False, "type": "boolean"},
+    }
+
+    # Build schemas
+    schemas = list()
+    if backend_type == BackendType.build:
+        schemas.append(packages)
+    elif backend_type == BackendType.local:
+        # Local schema
+        schemas.append(dict(**docker_image, **runner, **ports, **docker_compose, **elastic))
+        schemas.append(dict(**packages, **runner, **ports, **docker_compose, **elastic))
+    elif backend_type == BackendType.terraform:
+        # Terraform schema
+        schemas.append(dict(**docker_image, **runner, **ports, **docker_compose))
+        schemas.append(dict(**packages, **runner, **ports, **docker_compose))
+
+    return schemas
+
+
+def make_workflows_schemas(backend_type: BackendType) -> List[Dict]:
+    """Make the schema for workflows.
+
+    :param backend_type: the type of backend being used.
+    :return: a list of schemas.
+    """
+
+    packages = {
+        "package_name": {"required": True, "type": "string"},
+        "package": {"required": True, "type": "string"},
+        "package_type": {
+            "required": True,
+            "type": "string",
+            "allowed": PACKAGE_TYPES,
+        },
+    }
+    dags = {
+        "dags_module": {
+            "required": True,
+            "type": "string",
+        },
+    }
+
+    # Build schemas
+    schemas = list()
+    if backend_type == BackendType.build:
+        # Build
+        schemas.append(packages)
+    elif backend_type in [BackendType.local, BackendType.terraform]:
+        # Local
+        schemas.append(dict(**packages, **dags))
+
+    return schemas
+
+
 def make_schema(backend_type: BackendType) -> Dict:
     """Make a schema for an Observatory or Terraform config file.
 
@@ -1597,6 +1698,7 @@ def make_schema(backend_type: BackendType) -> Dict:
 
     schema = dict()
     is_backend_build = backend_type == BackendType.build
+    is_backend_local = backend_type == BackendType.local
     is_backend_terraform = backend_type == BackendType.terraform
     is_runner = backend_type != BackendType.build
 
@@ -1611,41 +1713,43 @@ def make_schema(backend_type: BackendType) -> Dict:
     }
 
     # Terraform settings
-    schema["terraform"] = {
-        "required": is_backend_terraform,
-        "type": "dict",
-        "schema": {"organization": {"required": True, "type": "string", "check_with": customise_pointer}},
-    }
+    if is_runner:
+        schema["terraform"] = {
+            "required": is_backend_terraform,
+            "type": "dict",
+            "schema": {"organization": {"required": True, "type": "string", "check_with": customise_pointer}},
+        }
 
     # Google Cloud settings
-    schema["google_cloud"] = {
-        "required": is_backend_terraform,
-        "type": "dict",
-        "schema": {
-            "project_id": {"required": is_backend_terraform, "type": "string", "check_with": customise_pointer},
-            "credentials": {
-                "required": is_backend_terraform,
-                "type": "string",
-                "check_with": customise_pointer,
-                "google_application_credentials": True,
+    if is_runner:
+        schema["google_cloud"] = {
+            "required": is_backend_terraform,
+            "type": "dict",
+            "schema": {
+                "project_id": {"required": is_backend_terraform, "type": "string", "check_with": customise_pointer},
+                "credentials": {
+                    "required": is_backend_terraform,
+                    "type": "string",
+                    "check_with": customise_pointer,
+                    "google_application_credentials": True,
+                },
+                "region": {
+                    "required": is_backend_terraform,
+                    "type": "string",
+                    "regex": r"^\w+\-\w+\d+$",
+                    "check_with": customise_pointer,
+                },
+                "zone": {
+                    "required": is_backend_terraform,
+                    "type": "string",
+                    "regex": r"^\w+\-\w+\d+\-[a-z]{1}$",
+                    "check_with": customise_pointer,
+                },
+                "data_location": {"required": is_backend_terraform, "type": "string", "check_with": customise_pointer},
             },
-            "region": {
-                "required": is_backend_terraform,
-                "type": "string",
-                "regex": r"^\w+\-\w+\d+$",
-                "check_with": customise_pointer,
-            },
-            "zone": {
-                "required": is_backend_terraform,
-                "type": "string",
-                "regex": r"^\w+\-\w+\d+\-[a-z]{1}$",
-                "check_with": customise_pointer,
-            },
-            "data_location": {"required": is_backend_terraform, "type": "string", "check_with": customise_pointer},
-        },
-    }
+        }
 
-    if not is_backend_terraform:
+    if is_backend_local:
         schema["google_cloud"]["schema"]["buckets"] = {
             "required": False,
             "type": "dict",
@@ -1654,41 +1758,7 @@ def make_schema(backend_type: BackendType) -> Dict:
         }
 
     # Observatory settings
-    package_types = ["editable", "sdist", "pypi"]
-    schema["observatory"] = {
-        "required": True,
-        "type": "dict",
-        "schema": {
-            "docker_image": {"required": False, "type": "string"},
-            "package": {"required": False, "type": "string"},
-            "package_type": {"required": False, "type": "string", "allowed": package_types},
-            "api_package": {"required": False, "type": "string"},
-            "api_package_type": {"required": False, "type": "string", "allowed": package_types},
-            "airflow_fernet_key": {
-                "required": is_runner,
-                "type": "string",
-                "check_with": check_schema_field_fernet_key,
-            },
-            "airflow_secret_key": {
-                "required": is_runner,
-                "type": "string",
-                "check_with": check_schema_field_secret_key,
-            },
-            "airflow_ui_user_password": {"required": is_backend_terraform, "type": "string"},
-            "airflow_ui_user_email": {"required": is_backend_terraform, "type": "string"},
-            "observatory_home": {"required": False, "type": "string"},
-            "postgres_password": {"required": is_backend_terraform, "type": "string"},
-            "redis_port": {"required": False, "type": "integer"},
-            "flower_ui_port": {"required": False, "type": "integer"},
-            "airflow_ui_port": {"required": False, "type": "integer"},
-            "elastic_port": {"required": False, "type": "integer"},
-            "kibana_port": {"required": False, "type": "integer"},
-            "docker_network_name": {"required": False, "type": "string"},
-            "docker_network_is_external": {"required": False, "type": "boolean"},
-            "docker_compose_project_name": {"required": False, "type": "string"},
-            "enable_elk": {"required": False, "type": "boolean"},
-        },
-    }
+    schema["observatory"] = {"required": True, "type": "dict", "oneof_schema": make_observatory_schemas(backend_type)}
 
     # Database settings
     if is_backend_terraform:
@@ -1701,64 +1771,49 @@ def make_schema(backend_type: BackendType) -> Dict:
             },
         }
 
-    # VM schema
-    vm_schema = {
-        "required": True,
-        "type": "dict",
-        "schema": {
-            "machine_type": {
-                "required": True,
-                "type": "string",
-            },
-            "disk_size": {"required": True, "type": "integer", "min": 1},
-            "disk_type": {"required": True, "type": "string", "allowed": ["pd-standard", "pd-ssd"]},
-            "create": {"required": True, "type": "boolean"},
-        },
-    }
-
     # Airflow main and worker VM
     if is_backend_terraform:
+        vm_schema = {
+            "required": True,
+            "type": "dict",
+            "schema": {
+                "machine_type": {
+                    "required": True,
+                    "type": "string",
+                },
+                "disk_size": {"required": True, "type": "integer", "min": 1},
+                "disk_type": {"required": True, "type": "string", "allowed": ["pd-standard", "pd-ssd"]},
+                "create": {"required": True, "type": "boolean"},
+            },
+        }
         schema["airflow_main_vm"] = vm_schema
         schema["airflow_worker_vm"] = vm_schema
 
     # Key value string pair schema
-    key_val_schema = {
-        "required": False,
-        "type": "dict",
-        "keysrules": {"type": "string"},
-        "valuesrules": {"type": "string"},
-    }
+    if is_runner:
+        key_val_schema = {
+            "required": False,
+            "type": "dict",
+            "keysrules": {"type": "string"},
+            "valuesrules": {"type": "string"},
+        }
 
-    # Airflow variables
-    schema["airflow_variables"] = key_val_schema
+        # Airflow variables
+        schema["airflow_variables"] = key_val_schema
 
-    # Airflow connections
-    schema["airflow_connections"] = {
-        "required": False,
-        "type": "dict",
-        "keysrules": {"type": "string"},
-        "valuesrules": {"type": "string", "regex": r"\S*:\/\/\S*:\S*@\S*$|google-cloud-platform:\/\/\S*$"},
-    }
+        # Airflow connections
+        schema["airflow_connections"] = {
+            "required": False,
+            "type": "dict",
+            "keysrules": {"type": "string"},
+            "valuesrules": {"type": "string", "regex": r"\S*:\/\/\S*:\S*@\S*$|google-cloud-platform:\/\/\S*$"},
+        }
 
     # Dags projects
     schema["workflows_projects"] = {
         "required": False,
         "type": "list",
-        "schema": {
-            "type": "dict",
-            "schema": {
-                "package_name": {
-                    "required": True,
-                    "type": "string",
-                },
-                "package": {"required": True, "type": "string"},
-                "package_type": {"required": True, "type": "string", "allowed": package_types},
-                "dags_module": {
-                    "required": True,
-                    "type": "string",
-                },
-            },
-        },
+        "schema": {"type": "dict", "oneof_schema": make_workflows_schemas(backend_type)},
     }
 
     if is_backend_terraform:

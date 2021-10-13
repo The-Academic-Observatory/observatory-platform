@@ -23,7 +23,7 @@ from typing import Dict, List
 
 import yaml
 from click.testing import CliRunner
-from cryptography.fernet import Fernet
+
 from observatory.platform.observatory_config import (
     AirflowConnection,
     AirflowVariable,
@@ -42,17 +42,11 @@ from observatory.platform.observatory_config import (
     TerraformConfig,
     VirtualMachine,
     WorkflowsProject,
-    check_schema_field_fernet_key,
-    check_schema_field_secret_key,
-    generate_fernet_key,
     is_base64,
     is_fernet_key,
     is_secret_key,
     make_schema,
     save_yaml,
-)
-from observatory.platform.utils.config_utils import (
-    observatory_home as default_observatory_home,
 )
 
 
@@ -93,6 +87,8 @@ class TestObservatoryConfig(unittest.TestCase):
             "observatory": {
                 "package": "observatory-platform",
                 "package_type": "pypi",
+                "api_package": "observatory-api",
+                "api_package_type": "pypi",
                 "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
                 "airflow_secret_key": "a" * 16,
             },
@@ -126,6 +122,8 @@ class TestObservatoryConfig(unittest.TestCase):
                 "observatory": {
                     "package": "observatory-platform",
                     "package_type": "pypi",
+                    "api_package": "observatory-api",
+                    "api_package_type": "pypi",
                     "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
                     "airflow_secret_key": "a" * 16,
                 },
@@ -164,7 +162,7 @@ class TestObservatoryConfig(unittest.TestCase):
             self.assertIsInstance(config, ObservatoryConfig)
             self.assertFalse(config.is_valid)
 
-        # Test that an invalid typical config works
+        # Test that an invalid typical config doesn't work
         dict_ = {
             "backend": {"type": "terraform", "environment": "my-env"},
             "google_cloud": {
@@ -217,6 +215,8 @@ class TestTerraformConfig(unittest.TestCase):
                 "observatory": {
                     "package": "observatory-platform",
                     "package_type": "pypi",
+                    "api_package": "observatory-api",
+                    "api_package_type": "pypi",
                     "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
                     "airflow_secret_key": "a" * 16,
                     "airflow_ui_user_password": "password",
@@ -245,7 +245,11 @@ class TestTerraformConfig(unittest.TestCase):
                     "create": False,
                 },
                 "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
-                "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
+                "api": {
+                    "domain_name": "api.custom.domain",
+                    "subdomain": "project_id",
+                    "docker_image": "ghcr.io/the-academic-observatory/observatory-api:latest",
+                },
             }
 
             save_yaml(file_path, dict_)
@@ -265,6 +269,8 @@ class TestTerraformConfig(unittest.TestCase):
                 "observatory": {
                     "package": "observatory-platform",
                     "package_type": "pypi",
+                    "api_package": "observatory-api",
+                    "api_package_type": "pypi",
                     "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
                     "airflow_secret_key": "a" * 16,
                     "airflow_ui_user_password": "password",
@@ -309,7 +315,11 @@ class TestTerraformConfig(unittest.TestCase):
                     },
                 ],
                 "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
-                "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
+                "api": {
+                    "domain_name": "api.custom.domain",
+                    "subdomain": "project_id",
+                    "docker_image": "ghcr.io/the-academic-observatory/observatory-api:latest",
+                },
             }
 
             save_yaml(file_path, dict_)
@@ -318,12 +328,14 @@ class TestTerraformConfig(unittest.TestCase):
             self.assertIsInstance(config, TerraformConfig)
             self.assertTrue(config.is_valid)
 
-        # Test that an invalid minimal config works
+        # Test that an invalid minimal config doesn't work
         dict_ = {
             "backend": {"type": "local", "environment": "develop"},
             "airflow": {
                 "package": "observatory-platform",
                 "package_type": "pypi",
+                "api_package": "observatory-api",
+                "api_package_type": "pypi",
                 "fernet_key": "random-fernet-key",
                 "secret_key": "random-secret-key",
                 "ui_user_password": "password",
@@ -365,6 +377,8 @@ class TestTerraformConfig(unittest.TestCase):
             "airflow": {
                 "package": "observatory-platform",
                 "package_type": "pypi",
+                "api_package": "observatory-api",
+                "api_package_type": "pypi",
                 "fernet_key": "random-fernet-key",
                 "secret_key": "random-secret-key",
                 "ui_user_password": "password",
@@ -435,14 +449,23 @@ class TestSchema(unittest.TestCase):
             self.assertFalse(is_valid)
             self.assertDictEqual(validator.errors, error)
 
-    def assert_schema_keys(self, schema: Dict, contains: List, not_contains: List):
+    def assert_schema_keys(self, schema: Dict, contains: List):
         # Assert that keys are in schema
         for key in contains:
             self.assertTrue(key in schema)
 
-        # Assert that keys aren't in schema
-        for key in not_contains:
-            self.assertTrue(key not in schema)
+        # Assert that schema has certain number of blocks
+        self.assertEqual(len(contains), len(schema))
+
+    def test_build_schema_keys(self):
+        # Test that build schema keys exist and that terraform only keys don't exist
+        schema = make_schema(BackendType.build)
+        contains = [
+            "backend",
+            "observatory",
+            "workflows_projects",
+        ]
+        self.assert_schema_keys(schema, contains)
 
     def test_local_schema_keys(self):
         # Test that local schema keys exist and that terraform only keys don't exist
@@ -456,8 +479,7 @@ class TestSchema(unittest.TestCase):
             "airflow_connections",
             "workflows_projects",
         ]
-        not_contains = ["cloud_sql_database", "airflow_main_vm", "airflow_worker_vm"]
-        self.assert_schema_keys(schema, contains, not_contains)
+        self.assert_schema_keys(schema, contains)
 
     def test_terraform_schema_keys(self):
         # Test that terraform schema keys exist
@@ -467,15 +489,122 @@ class TestSchema(unittest.TestCase):
             "terraform",
             "google_cloud",
             "observatory",
-            "airflow_variables",
-            "airflow_connections",
-            "workflows_projects",
             "cloud_sql_database",
             "airflow_main_vm",
             "airflow_worker_vm",
+            "airflow_variables",
+            "airflow_connections",
+            "workflows_projects",
+            "elasticsearch",
+            "api",
         ]
-        not_contains = []
-        self.assert_schema_keys(schema, contains, not_contains)
+        self.assert_schema_keys(schema, contains)
+
+    def test_build_schema_backend(self):
+        schema = make_schema(BackendType.local)
+        schema_key = "backend"
+
+        valid_docs = [
+            {"backend": {"type": "local", "environment": "develop"}},
+            {"backend": {"type": "local", "environment": "staging"}},
+            {"backend": {"type": "local", "environment": "production"}},
+        ]
+        invalid_docs = [{"backend": {"type": "terraform", "environment": "hello"}}]
+        expected_errors = [
+            {"backend": [{"environment": ["unallowed value hello"], "type": ["unallowed value terraform"]}]}
+        ]
+        self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
+
+    def test_build_schema_observatory(self):
+        schema = make_schema(BackendType.build)
+        schema_key = "observatory"
+
+        valid_docs = [
+            {
+                "observatory": {
+                    "package": "observatory-platform",
+                    "package_type": "pypi",
+                    "api_package": "observatory-api",
+                    "api_package_type": "pypi",
+                }
+            }
+        ]
+        invalid_docs = [
+            {},
+            {"observatory": {}},
+        ]
+
+        expected_errors = [
+            {"observatory": ["required field"]},
+            {
+                "observatory": [
+                    "none or more than one rule validate",
+                    {
+                        "oneof definition 0": [
+                            {
+                                "api_package": ["required field"],
+                                "api_package_type": ["required field"],
+                                "package": ["required field"],
+                                "package_type": ["required field"],
+                            }
+                        ]
+                    },
+                ]
+            },
+        ]
+        self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
+
+    def test_build_schema_workflows_projects(self):
+        schema = make_schema(BackendType.build)
+        schema_key = "workflows_projects"
+
+        valid_docs = [
+            {},
+            {
+                "workflows_projects": [
+                    {
+                        "package_name": "academic-observatory-workflows",
+                        "package": "/path/to/academic-observatory-workflows",
+                        "package_type": "editable",
+                    },
+                    {
+                        "package_name": "oaebu-workflows",
+                        "package": "/path/to/oaebu-workflows/dist/oaebu-workflows.tar.gz",
+                        "package_type": "sdist",
+                    },
+                ],
+            },
+        ]
+        invalid_docs = [
+            {
+                "workflows_projects": [
+                    {
+                        "package_name": "oaebu-workflows",
+                        "package": "/path/to/oaebu-workflows/dist/oaebu-workflows.tar.gz",
+                        "dags_module": "oaebu_workflows.dags",
+                    },
+                ]
+            }
+        ]
+
+        expected_errors = [
+            {
+                "workflows_projects": [
+                    {
+                        0: [
+                            "none or more than one rule validate",
+                            {
+                                "oneof definition 0": [
+                                    {"dags_module": ["unknown field"], "package_type": ["required field"]}
+                                ]
+                            },
+                        ]
+                    }
+                ]
+            }
+        ]
+
+        self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
     def test_local_schema_backend(self):
         schema = make_schema(BackendType.local)
@@ -574,6 +703,8 @@ class TestSchema(unittest.TestCase):
                 "observatory": {
                     "package": "observatory-platform",
                     "package_type": "pypi",
+                    "api_package": "observatory-api",
+                    "api_package_type": "pypi",
                     "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
                     "airflow_secret_key": "a" * 16,
                 }
@@ -582,6 +713,17 @@ class TestSchema(unittest.TestCase):
                 "observatory": {
                     "package": "/path/to/observatory-platform",
                     "package_type": "editable",
+                    "api_package": "observatory-api",
+                    "api_package_type": "pypi",
+                    "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
+                    "airflow_secret_key": "a" * 16,
+                    "airflow_ui_user_password": "password",
+                    "airflow_ui_user_email": "password",
+                }
+            },
+            {
+                "observatory": {
+                    "docker_image": "ghcr.io/the-academic-observatory/coki-observatory:latest",
                     "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
                     "airflow_secret_key": "a" * 16,
                     "airflow_ui_user_password": "password",
@@ -592,18 +734,61 @@ class TestSchema(unittest.TestCase):
         invalid_docs = [
             {},
             {"observatory": {"airflow_ui_user_password": "password", "airflow_ui_user_email": "password"}},
+            {
+                "observatory": {
+                    "docker_image": "ghcr.io/the-academic-observatory/coki-observatory:latest",
+                    "package": "/path/to/observatory-platform",
+                    "package_type": "editable",
+                    "api_package": "observatory-api",
+                    "api_package_type": "pypi",
+                    "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
+                    "airflow_secret_key": "a" * 16,
+                    "airflow_ui_user_password": "password",
+                    "airflow_ui_user_email": "password",
+                }
+            },
         ]
 
         expected_errors = [
             {"observatory": ["required field"]},
             {
                 "observatory": [
+                    "none or more than one rule validate",
                     {
-                        "package": ["required field"],
-                        "package_type": ["required field"],
-                        "airflow_fernet_key": ["required field"],
-                        "airflow_secret_key": ["required field"],
-                    }
+                        "oneof definition 0": [
+                            {
+                                "airflow_fernet_key": ["required field"],
+                                "airflow_secret_key": ["required field"],
+                                "docker_image": ["required field"],
+                            }
+                        ],
+                        "oneof definition 1": [
+                            {
+                                "airflow_fernet_key": ["required field"],
+                                "airflow_secret_key": ["required field"],
+                                "api_package": ["required field"],
+                                "api_package_type": ["required field"],
+                                "package": ["required field"],
+                                "package_type": ["required field"],
+                            }
+                        ],
+                    },
+                ]
+            },
+            {
+                "observatory": [
+                    "none or more than one rule validate",
+                    {
+                        "oneof definition 0": [
+                            {
+                                "api_package": ["unknown field"],
+                                "api_package_type": ["unknown field"],
+                                "package": ["unknown field"],
+                                "package_type": ["unknown field"],
+                            }
+                        ],
+                        "oneof definition 1": [{"docker_image": ["unknown field"]}],
+                    },
                 ]
             },
         ]
@@ -654,7 +839,20 @@ class TestSchema(unittest.TestCase):
         ]
 
         expected_errors = [
-            {"workflows_projects": [{0: [{"package_type": ["required field"], "dags_module": ["required field"]}]}]}
+            {
+                "workflows_projects": [
+                    {
+                        0: [
+                            "none or more than one rule validate",
+                            {
+                                "oneof definition 0": [
+                                    {"dags_module": ["required field"], "package_type": ["required field"]}
+                                ]
+                            },
+                        ]
+                    }
+                ]
+            }
         ]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
@@ -762,13 +960,25 @@ class TestSchema(unittest.TestCase):
                 "observatory": {
                     "package": "/path/to/observatory-platform/observatory-platform.tar.gz",
                     "package_type": "sdist",
+                    "api_package": "/path/to/observatory-platform/observatory-api.tar.gz",
+                    "api_package_type": "sdist",
                     "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
                     "airflow_secret_key": "a" * 16,
                     "airflow_ui_user_password": "password",
                     "airflow_ui_user_email": "password",
                     "postgres_password": "password",
                 }
-            }
+            },
+            {
+                "observatory": {
+                    "docker_image": "/path/to/observatory-platform/observatory-platform.tar.gz",
+                    "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
+                    "airflow_secret_key": "a" * 16,
+                    "airflow_ui_user_password": "password",
+                    "airflow_ui_user_email": "password",
+                    "postgres_password": "password",
+                }
+            },
         ]
         invalid_docs = [{}, {"observatory": {}}]
 
@@ -776,15 +986,32 @@ class TestSchema(unittest.TestCase):
             {"observatory": ["required field"]},
             {
                 "observatory": [
+                    "none or more than one rule validate",
                     {
-                        "package": ["required field"],
-                        "package_type": ["required field"],
-                        "airflow_fernet_key": ["required field"],
-                        "airflow_secret_key": ["required field"],
-                        "airflow_ui_user_email": ["required field"],
-                        "airflow_ui_user_password": ["required field"],
-                        "postgres_password": ["required field"],
-                    }
+                        "oneof definition 0": [
+                            {
+                                "airflow_fernet_key": ["required field"],
+                                "airflow_secret_key": ["required field"],
+                                "airflow_ui_user_email": ["required field"],
+                                "airflow_ui_user_password": ["required field"],
+                                "docker_image": ["required field"],
+                                "postgres_password": ["required field"],
+                            }
+                        ],
+                        "oneof definition 1": [
+                            {
+                                "airflow_fernet_key": ["required field"],
+                                "airflow_secret_key": ["required field"],
+                                "airflow_ui_user_email": ["required field"],
+                                "airflow_ui_user_password": ["required field"],
+                                "api_package": ["required field"],
+                                "api_package_type": ["required field"],
+                                "package": ["required field"],
+                                "package_type": ["required field"],
+                                "postgres_password": ["required field"],
+                            }
+                        ],
+                    },
                 ]
             },
         ]

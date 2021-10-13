@@ -14,16 +14,13 @@
 
 # Author: James Diprose
 
-import glob
 import json
 import logging
 import os
 import shutil
-import subprocess
 import time
 import unittest
 import uuid
-from subprocess import Popen
 from typing import Set
 from unittest.mock import patch
 
@@ -32,7 +29,7 @@ import stringcase
 from click.testing import CliRunner
 from cryptography.fernet import Fernet
 from redis import Redis
-from observatory.platform.utils.test_utils import test_fixtures_path, find_free_port, save_empty_file, build_sdist
+
 from observatory.platform.cli.cli import cli
 from observatory.platform.observatory_config import (
     ObservatoryConfig,
@@ -40,10 +37,10 @@ from observatory.platform.observatory_config import (
     Observatory,
     BackendType,
     Environment,
-    module_file_path,
     WorkflowsProject,
 )
-from observatory.platform.utils.proc_utils import stream_process
+from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.test_utils import build_sdist
 from observatory.platform.utils.test_utils import test_fixtures_path, find_free_port, save_empty_file
 from observatory.platform.utils.url_utils import wait_for_url
 
@@ -73,9 +70,6 @@ def list_dag_ids(
         dag_ids = [dag["dag_id"] for dag in dags]
 
     return set(dag_ids)
-
-
-
 
 
 class TestCliFunctional(unittest.TestCase):

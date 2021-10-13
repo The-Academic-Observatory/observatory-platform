@@ -1020,7 +1020,12 @@ class InteractiveConfigBuilder:
         choices = click.Choice(choices=["project_id", "environment"], case_sensitive=False)
         subdomain = click.prompt(text=text, type=choices, default=default, show_default=True, show_choices=True)
 
+        text = "Docker image for the API backend"
+        default = "ghcr.io/the-academic-observatory/observatory-api:latest"
+        docker_image = click.prompt(text=text, type=str, default=default, show_default=True)
+
         config.api = Api(
             domain_name=domain_name,
             subdomain=subdomain,
+            docker_image=docker_image
         )
