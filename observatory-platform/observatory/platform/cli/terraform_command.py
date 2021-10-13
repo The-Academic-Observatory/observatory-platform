@@ -40,6 +40,7 @@ class TerraformCommand:
         # Load config and
         self.terraform_credentials_exists = os.path.exists(terraform_credentials_path)
         self.config_exists = os.path.exists(config_path)
+        self.config_type = config_type
         self.config_is_valid = False
         self.config = None
         if self.config_exists:
@@ -92,7 +93,7 @@ class TerraformCommand:
         if old_var.sensitive:
             print(indent(f"* \x1B[3m{old_var.key}\x1B[23m: sensitive -> sensitive", INDENT2))
         else:
-            print(indent(f"* \x1B[3m{old_var.key}\x1B[23m: {old_var.value} -> {new_var.value}", INDENT2))
+            print(indent(f"* \x1B[3m{old_var.key}\x1B[23m:\n{old_var.value} ->\n{new_var.value}", INDENT2))
 
     def build_terraform(self):
         """Build the Terraform files for the Observatory Platform.
@@ -132,14 +133,14 @@ class TerraformCommand:
         organization = self.config.terraform.organization
         environment = self.config.backend.environment.value
         workspace = self.config.terraform_workspace_id
+        suffix = environment if self.config_type == "terraform" else self.config.api.name + "-" + environment
 
         # Display settings for workspace
         print("\nTerraform Cloud Workspace: ")
         print(indent(f"Organization: {organization}", INDENT1))
         print(
             indent(
-                f"- Name: {workspace} (prefix: '{self.config.WORKSPACE_PREFIX}' + api name: '{self.config.api.name}' + "
-                f"suffix: '{environment}')",
+                f"- Name: {workspace} (prefix: '{self.config.WORKSPACE_PREFIX}' + suffix: '{suffix}')",
                 INDENT1,
             )
         )

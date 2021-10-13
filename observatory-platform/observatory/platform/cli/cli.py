@@ -513,7 +513,7 @@ def terraform(command, config_path, terraform_credentials_path, config_type, deb
     generate_cmd = GenerateCommand()
 
     # Check dependencies
-    terraform_check_dependencies(terraform_cmd, generate_cmd)
+    terraform_check_dependencies(terraform_cmd, generate_cmd, config_type)
 
     # Run commands
     if command == "build-terraform":
@@ -536,7 +536,7 @@ def terraform(command, config_path, terraform_credentials_path, config_type, deb
 
 
 def terraform_check_dependencies(
-    terraform_cmd: TerraformCommand, generate_cmd: GenerateCommand, min_line_chars: int = 80
+    terraform_cmd: TerraformCommand, generate_cmd: GenerateCommand, config_type: str, min_line_chars: int = 80
 ):
     """Check Terraform dependencies.
 
@@ -573,10 +573,7 @@ def terraform_check_dependencies(
         print(indent("- file not found, create one by running 'terraform login'", INDENT2))
 
     print(indent("Packer", INDENT1))
-    if (
-        terraform_cmd.config.backend.type == BackendType.terraform
-        and terraform_cmd.terraform_builder.packer_exe_path is not None
-    ):
+    if config_type == "terraform" and terraform_cmd.terraform_builder.packer_exe_path is not None:
         print(indent(f"- path: {terraform_cmd.terraform_builder.packer_exe_path}", INDENT2))
     else:
         print(indent("- not installed, please install https://www.packer.io/docs/install", INDENT2))
