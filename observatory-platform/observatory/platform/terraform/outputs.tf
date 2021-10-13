@@ -32,14 +32,13 @@ output "default_transfer_service_account" {
   value = data.google_storage_transfer_project_service_account.default.email
 }
 
-output "api-domain-name" {
-  value = module.observatory_api.api-domain-name
-  description = "Custom domain name for the API"
-  sensitive = true # explicitly mark as sensitive so it can be exported
+output "vpc_connector_name" {
+  value = google_vpc_access_connector.observatory_vpc_connector.name
+  description = "The vpc connector name"
 }
 
-output "api-gateway-url" {
-  value = module.observatory_api.api-gateway-url
-  description = "Cloud run gateway URL for the API"
+output "observatory_db_uri" {
+  value = "postgresql://${google_sql_user.observatory_user.name}:${urlencode(var.observatory.postgres_password)}@${google_sql_database_instance.observatory_db_instance.private_ip_address}:5432/${google_sql_database.observatory_db.name}"
+  description = "The observatory database uri"
   sensitive = true
 }
