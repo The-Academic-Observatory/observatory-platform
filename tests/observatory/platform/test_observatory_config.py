@@ -1124,6 +1124,8 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
             observatory=Observatory(
                 package="observatory-platform",
                 package_type="editable",
+                api_package="api",
+                api_package_type="sdist",
                 observatory_home="home",
                 postgres_password="pass",
                 redis_port=111,
@@ -1137,8 +1139,6 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
                 docker_compose_project_name="proj",
                 docker_network_is_external=True,
                 enable_elk=False,
-                api_package="api",
-                api_package_type="sdist",
             ),
             google_cloud=GoogleCloud(
                 project_id="myproject",
@@ -1159,6 +1159,7 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
             self.assertTrue(os.path.exists(file))
 
             loaded = ObservatoryConfig.load(file)
+            self.assertTrue(loaded.is_valid)
 
             self.assertEqual(loaded.backend, config.backend)
             self.assertEqual(loaded.observatory, config.observatory)
@@ -1171,7 +1172,12 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
     def test_save_terraform_config(self):
         config = TerraformConfig(
             backend=Backend(type=BackendType.terraform, environment=Environment.staging),
-            observatory=Observatory(package="observatory-platform", package_type="editable"),
+            observatory=Observatory(
+                package="observatory-platform",
+                package_type="editable",
+                api_package="observatory-api",
+                api_package_type="editable",
+            ),
             google_cloud=GoogleCloud(
                 project_id="myproject",
                 credentials="config.yaml",
@@ -1184,7 +1190,11 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
             airflow_main_vm=VirtualMachine(machine_type="aa", disk_size=1, disk_type="pd-standard", create=False),
             airflow_worker_vm=VirtualMachine(machine_type="bb", disk_size=1, disk_type="pd-ssd", create=True),
             elasticsearch=ElasticSearch(host="http://", api_key="key"),
-            api=Api(domain_name="api.something", subdomain="project_id"),
+            api=Api(
+                domain_name="api.something",
+                subdomain="project_id",
+                docker_image="ghcr.io/the-academic-observatory/observatory-api:latest",
+            ),
         )
 
         file = "config.yaml"
@@ -1193,6 +1203,7 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
             config.save(path=file)
             self.assertTrue(os.path.exists(file))
             loaded = TerraformConfig.load(file)
+            self.assertTrue(loaded.is_valid)
 
             self.assertEqual(loaded.backend, config.backend)
             self.assertEqual(loaded.terraform, config.terraform)
@@ -1207,6 +1218,7 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
     def test_save_observatory_config_defaults(self):
         config = ObservatoryConfig(
             backend=Backend(type=BackendType.local, environment=Environment.staging),
+            observatory=Observatory(docker_image="ghcr.io/the-academic-observatory/coki-observatory:latest"),
         )
 
         with CliRunner().isolated_filesystem():
@@ -1215,6 +1227,7 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
             self.assertTrue(os.path.exists(file))
 
             loaded = ObservatoryConfig.load(file)
+            self.assertTrue(loaded.is_valid)
             self.assertEqual(loaded.backend, config.backend)
             self.assertEqual(loaded.terraform, Terraform(organization=None))
             self.assertEqual(loaded.google_cloud.project_id, None)
@@ -1223,7 +1236,7 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
     def test_save_terraform_config_defaults(self):
         config = TerraformConfig(
             backend=Backend(type=BackendType.terraform, environment=Environment.staging),
-            observatory=Observatory(),
+            observatory=Observatory(docker_image="ghcr.io/the-academic-observatory/coki-observatory:latest"),
             google_cloud=GoogleCloud(
                 project_id="myproject",
                 credentials="config.yaml",
@@ -1240,6 +1253,7 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
             config.save(path=file)
             self.assertTrue(os.path.exists(file))
             loaded = TerraformConfig.load(file)
+            self.assertTrue(loaded.is_valid)
 
             self.assertEqual(loaded.backend, config.backend)
             self.assertEqual(loaded.terraform, config.terraform)
@@ -1282,7 +1296,14 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
                 ),
             )
 
-            self.assertEqual(loaded.api, Api(domain_name="api.observatory.academy", subdomain="project_id"))
+            self.assertEqual(
+                loaded.api,
+                Api(
+                    domain_name="api.observatory.academy",
+                    subdomain="project_id",
+                    docker_image="ghcr.io/the-academic-observatory/observatory-api:latest",
+                ),
+            )
 
 
 class TestKeyCheckers(unittest.TestCase):
