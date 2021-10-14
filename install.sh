@@ -446,6 +446,11 @@ install_observatory_platform
 install_observatory_api
 install_academic_observatory_workflows
 install_oaebu_workflows
+
+if [ "$mode" = "source" ]; then
+    cd ..
+fi
+
 generate_observatory_config
 
 deactivate
@@ -453,5 +458,5 @@ deactivate
 echo "=================================================================================================================================="
 echo "Installation complete."
 echo "Please restart your computer for the Docker installation to take effect."
-echo -e "You can start the observatory platform after the restart by first activating the Python virtual environment with:\n  source $(pwd)/$venv_observatory_platform/bin/activate"
+echo -e "You can start the observatory platform after the restart by first activating the Python virtual environment with:\n  source ${PWD}/${venv_observatory_platform}/bin/activate"
 echo -e "Once activated, you can start the observatory with: observatory platform start"
