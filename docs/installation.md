@@ -11,8 +11,6 @@ Observatory Platform supports Python 3.8, Ubuntu Linux 20.04 and MacOS 10.14, on
 Make sure you first have curl and bash installed on your system. MacOS comes with curl and bash. If you need to install curl on Ubuntu, run `sudo apt install -y curl`. Then run the following in a terminal:
 ```
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/The-Academic-Observatory/observatory-platform/main/install.sh)"
-chmod +x install.sh
-./install.sh
 ```
 
 The installer script will prompt you with a series of questions to customise your installation, and optionally configure the observatory.  At some point you might be asked to enter your user password in order to install system dependencies.  If you only want to run the observatory platform, then select the `pypi` installation type. If you want to modify or develop the platform, select the `source` installation type.
