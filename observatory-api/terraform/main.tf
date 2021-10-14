@@ -24,6 +24,7 @@ provider "google" {
 }
 
 data "terraform_remote_state" "observatory" {
+  count = var.observatory_api.observatory_workspace != "" ? 1 : 0
   backend = "remote"
   config = {
     organization = var.observatory_api.observatory_organization
@@ -34,8 +35,10 @@ data "terraform_remote_state" "observatory" {
 }
 
 locals {
-  vpc_connector_name = try(data.terraform_remote_state.observatory.outputs.vpc_connector_name, null)
-  observatory_db_uri = try(data.terraform_remote_state.observatory.outputs.observatory_db_uri, null)
+  vpc_connector_name = try(data.terraform_remote_state.observatory[0].outputs.vpc_connector_name, null)
+  observatory_db_uri = try(data.terraform_remote_state.observatory[0].outputs.observatory_db_uri, null)
+  elasticsearch_host = var.data_api.elasticsearch_host != "" ? var.data_api.elasticsearch_host : null
+  elasticsearch_api_key = var.data_api.elasticsearch_api_key != "" ? var.data_api.elasticsearch_api_key : null
 }
 
 
@@ -46,7 +49,11 @@ module "api" {
   environment = var.environment
   google_cloud = var.google_cloud
   observatory_api = {
-    "create" = true,
     "vpc_connector_name": local.vpc_connector_name,
-    "observatory_db_uri": local.observatory_db_uri}
+    "observatory_db_uri": local.observatory_db_uri
+  }
+  data_api     = {
+    "elasticsearch_host" : local.elasticsearch_host,
+    "elasticsearch_api_key" : local.elasticsearch_api_key
+  }
 }
