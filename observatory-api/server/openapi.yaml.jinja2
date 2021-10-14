@@ -1,0 +1,745 @@
+swagger: '2.0'
+info:
+  title: Observatory API
+  description: |
+    The REST API for managing and accessing data from the Observatory Platform.
+  version: 1.0.0
+  contact:
+    email: agent@observatory.academy
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+
+{# API Client specific settings #}
+{%- if api_client %}
+host: api.observatory.academy
+schemes:
+  - https
+produces:
+  - application/json
+securityDefinitions:
+  # This section configures basic authentication with an API key.
+  api_key:
+    type: "apiKey"
+    name: "key"
+    in: "query"
+security:
+  - api_key: []
+{%- endif %}
+
+{# Cloud Endpoints specific settings #}
+{%- if cloud_endpoints %}
+host: ${host}
+x-google-backend:
+  address: ${backend_address}
+  protocol: h2
+schemes:
+  - https
+produces:
+  - application/json
+securityDefinitions:
+  # This section configures basic authentication with an API key.
+  api_key:
+    type: "apiKey"
+    name: "key"
+    in: "query"
+security:
+  - api_key: []
+{%- endif %}
+
+{# Tag settings #}
+{%- if api_client %}
+tags:
+- name: Observatory
+  description: the Observatory API
+{%- set reports_tag="Observatory" -%}
+{%- set organisation_tag="Observatory" -%}
+{%- set telescope_tag="Observatory" -%}
+{%- set telescope_type_tag="Observatory" -%}
+{% else %}
+tags:
+- name: Reports
+  description: Query data to build Open Access reports.
+- name: Organisation
+  description: Create, read, update, delete and list information about organisations.
+- name: Telescope
+  description: Create, read, update, delete and list information about telescopes.
+- name: TelescopeType
+  description: Create, read, update, delete and list information about the type of telescopes that exist.
+{%- set reports_tag="Reports" -%}
+{%- set organisation_tag="Organisation" -%}
+{%- set telescope_tag="Telescope" -%}
+{%- set telescope_type_tag="TelescopeType" -%}
+{%- endif %}
+
+{# Operation id namespace #}
+{%- if api_client %}
+{%- set operation_id_namespace="" -%}
+{% else %}
+{%- set operation_id_namespace="observatory.api.server.api." -%}
+{%- endif %}
+
+paths:
+  /v1/query:
+    get:
+      operationId: {{ operation_id_namespace }}queryv1
+      tags:
+        - {{ reports_tag }}
+      summary: Search the Observatory API
+      description: Search the Observatory API
+      parameters:
+        - in: query
+          name: agg
+          description: The aggregation level
+          required: true
+          enum:
+            - author
+            - country
+            - funder
+            - group
+            - institution
+            - publisher
+          type: string
+        - name: subset
+          in: query
+          description: The required subset
+          required: true
+          enum:
+            - citations
+            - collaborations
+            - disciplines
+            - events
+            - funders
+            - journals
+            - oa-metrics
+            - output-types
+            - publishers
+          type: string
+        - name: index_date
+          in: query
+          description: Index date, defaults to latest
+          required: false
+          format: date
+          type: string
+        - name: from
+          in: query
+          description: Start year (included)
+          required: false
+          type: integer
+          minimum: 4
+          maximum: 4
+        - name: to
+          in: query
+          description: End year (not included)
+          required: false
+          type: integer
+          minimum: 4
+          maximum: 4
+        - name: limit
+          in: query
+          description: Limit number of results (max 10000)
+          required: false
+          type: integer
+          maximum: 10000
+        - name: scroll_id
+          in: query
+          description: The scroll id
+          required: false
+          type: string
+        - name: pit_id
+          in: query
+          description: The PIT id
+          required: false
+          type: string
+        - name: search_after_no
+          in: query
+          description: The search after key
+          required: false
+          type: integer
+        - name: search_after_text
+          in: query
+          description: The search after key
+          required: false
+          type: string
+        {% for param in query_filter_parameters %}
+        - name: {{ param }}
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+        {% endfor %}
+      responses:
+        200:
+          description: Successfully return query results
+          schema:
+            $ref: '#/definitions/QueryResponse'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+      produces:
+        - application/json
+
+  /v1/telescope_type:
+    get:
+      tags:
+      - {{ telescope_type_tag }}
+      summary: get a TelescopeType
+      operationId: {{ operation_id_namespace }}get_telescope_type
+      description: |
+        Get the details of a TelescopeType by passing it's id or type_id.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: TelescopeType id
+        required: false
+        type: integer
+      - in: query
+        name: type_id
+        description: TelescopeType type_id
+        required: false
+        type: string
+      responses:
+        200:
+          description: the fetched TelescopeType
+          schema:
+            $ref: '#/definitions/TelescopeType'
+        400:
+          description: bad input parameter
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    post:
+      tags:
+      - {{ telescope_type_tag }}
+      summary: create a TelescopeType
+      operationId: {{ operation_id_namespace }}post_telescope_type
+      description: |
+        Create a TelescopeType by passing a TelescopeType object, without an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: TelescopeType to create
+        required: true
+        schema:
+          $ref: '#/definitions/TelescopeType'
+      responses:
+        201:
+          description: TelescopeType created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/TelescopeType'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    put:
+      tags:
+      - {{ telescope_type_tag }}
+      summary: create or update a TelescopeType
+      operationId: {{ operation_id_namespace }}put_telescope_type
+      description: |
+        Create a TelescopeType by passing a TelescopeType object, without an id. Update an existing TelescopeType by
+        passing a TelescopeType object with an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: TelescopeType to create or update
+        required: true
+        schema:
+          $ref: '#/definitions/TelescopeType'
+      responses:
+        200:
+          description: TelescopeType updated
+          schema:
+            $ref: '#/definitions/TelescopeType'
+        201:
+          description: TelescopeType created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/TelescopeType'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    delete:
+      tags:
+      - {{ telescope_type_tag }}
+      summary: delete a TelescopeType
+      operationId: {{ operation_id_namespace }}delete_telescope_type
+      description: |
+        Delete a TelescopeType by passing it's id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: TelescopeType id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: TelescopeType deleted
+        401:
+          $ref: '#/responses/UnauthorizedError'
+
+  /v1/telescope_types:
+    get:
+      tags:
+      - {{ telescope_type_tag }}
+      summary: Get a list of TelescopeType objects
+      operationId: {{ operation_id_namespace }}get_telescope_types
+      description: |
+        Get a list of TelescopeType objects
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: limit
+        description: the maximum number of results to return
+        required: true
+        type: integer
+      responses:
+        200:
+          description: a list of TelescopeType objects
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/TelescopeType'
+        400:
+          description: bad input parameter
+        401:
+          $ref: '#/responses/UnauthorizedError'
+
+  /v1/telescope:
+    get:
+      tags:
+      - {{ telescope_tag }}
+      summary: get a Telescope
+      operationId: {{ operation_id_namespace }}get_telescope
+      description: |
+        Get the details of a Telescope by passing it's id.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: Telescope id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: the fetched Telescope
+          schema:
+            $ref: '#/definitions/Telescope'
+        400:
+          description: bad input parameter
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    post:
+      tags:
+      - {{ telescope_tag }}
+      summary: create a Telescope
+      operationId: {{ operation_id_namespace }}post_telescope
+      description: |
+        Create a Telescope by passing a Telescope object, without an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: Telescope to create
+        required: true
+        schema:
+          $ref: '#/definitions/Telescope'
+      responses:
+        201:
+          description: Telescope created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Telescope'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    put:
+      tags:
+      - {{ telescope_tag }}
+      summary: create or update a Telescope
+      operationId: {{ operation_id_namespace }}put_telescope
+      description: |
+        Create a Telescope by passing a Telescope object, without an id. Update an existing Telescope by
+        passing a Telescope object with an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: Telescope to create or update
+        required: true
+        schema:
+          $ref: '#/definitions/Telescope'
+      responses:
+        200:
+          description: Telescope updated
+          schema:
+            $ref: '#/definitions/Telescope'
+        201:
+          description: Telescope created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Telescope'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    delete:
+      tags:
+      - {{ telescope_tag }}
+      summary: delete a Telescope
+      operationId: {{ operation_id_namespace }}delete_telescope
+      description: |
+        Delete a Telescope by passing it's id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: Telescope id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: Telescope deleted
+        401:
+          $ref: '#/responses/UnauthorizedError'
+
+  /v1/telescopes:
+    get:
+      tags:
+      - {{ telescope_tag }}
+      summary: Get a list of Telescope objects
+      operationId: {{ operation_id_namespace }}get_telescopes
+      description: |
+        Get a list of Telescope objects and optionally filter via a Telescope id and or an Organisation id.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: telescope_type_id
+        description: filter telescopes by a TelescopeType id
+        required: false
+        type: integer
+      - in: query
+        name: organisation_id
+        description: filter telescopes by an Organisation id
+        required: false
+        type: integer
+      - in: query
+        name: limit
+        description: the maximum number of results to return
+        required: true
+        type: integer
+      responses:
+        200:
+          description: a list of Telescope objects
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Telescope'
+        400:
+          description: bad input parameter
+        401:
+          $ref: '#/responses/UnauthorizedError'
+
+  /v1/organisation:
+    get:
+      tags:
+        - {{ organisation_tag }}
+      summary: get an Organisation
+      operationId: {{ operation_id_namespace }}get_organisation
+      description: |
+        Get the details of an Organisation by passing it's id.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: Organisation id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: the fetched Organisation
+          schema:
+            $ref: '#/definitions/Organisation'
+        400:
+          description: bad input parameter
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    post:
+      tags:
+        - {{ organisation_tag }}
+      summary: create an Organisation
+      operationId: {{ operation_id_namespace }}post_organisation
+      description: |
+        Create an Organisation by passing an Organisation object, without an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: Organisation to create
+        required: true
+        schema:
+          $ref: '#/definitions/Organisation'
+      responses:
+        201:
+          description: Organisation created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Organisation'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    put:
+      tags:
+        - {{ organisation_tag }}
+      summary: create or update an Organisation
+      operationId: {{ operation_id_namespace }}put_organisation
+      description: |
+        Create an Organisation by passing an Organisation object, without an id. Update an existing Organisation by
+        passing an Organisation object with an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: Organisation to create or update
+        required: true
+        schema:
+          $ref: '#/definitions/Organisation'
+      responses:
+        200:
+          description: Organisation updated
+          schema:
+            $ref: '#/definitions/Organisation'
+        201:
+          description: Organisation created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Organisation'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    delete:
+      tags:
+        - {{ organisation_tag }}
+      summary: delete an Organisation
+      operationId: {{ operation_id_namespace }}delete_organisation
+      description: |
+        Delete an Organisation by passing it's id.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: id
+          description: Organisation id
+          required: true
+          type: integer
+      responses:
+        200:
+          description: Organisation deleted
+        401:
+          $ref: '#/responses/UnauthorizedError'
+
+  /v1/organisations:
+    get:
+      tags:
+        - {{ organisation_tag }}
+      summary: Get a list of Organisations
+      operationId: {{ operation_id_namespace }}get_organisations
+      description: |
+        Gets a list of organisations
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: limit
+        description: the maximum number of results to return
+        required: true
+        type: integer
+      responses:
+        200:
+          description: a list of Organisation objects
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Organisation'
+        400:
+          description: bad input parameter
+        401:
+          $ref: '#/responses/UnauthorizedError'
+
+#  /v2/query:
+#    get:
+#      operationId: app.searchv2
+#      tags:
+#        - Query
+#      summary: An example of how to create v2 of an API endpoint
+#      description: An example of how to create v2 of an API endpoint
+#      responses:
+#        '200':
+#          description: Successfully return query results
+
+definitions:
+  QueryResponse:
+    type: object
+    properties:
+      version:
+        type: string
+        description: The API version
+        example: 'v1'
+      index:
+        type: string
+        description: The full name of the elasticsearch index that is searched
+        example: 'citations-country-20201212'
+      scroll_id:
+        type: string
+        description: The scroll id that can be used to get the next batch of results (only active for 1min)
+        example: 'FGluY2x1ZGVfY29udGV4dF91dWlkDXF1ZXJ5QW5kRmV0Y2gBFlFkWThoZy1FUTZPQ2JhcXpGSnFjTEEAAAAAALEIyRZYRkVGWmNSRVRqU0VpTFdYbGFPUERR'
+      returned_hits:
+        type: integer
+        description: The number of returned hits (can be less than total_hits if a limit is set)
+        example: 10000
+      total_hits:
+        type: integer
+        description: The number of total hits
+        example: 126538
+      schema:
+        type: object
+        description: The schema for an individual hit
+        example: ''
+      results:
+        type: array
+        description: A list of the actual results (one dictionary per hit)
+        items:
+          type: object
+
+  TelescopeType:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      type_id:
+        type: string
+        example: onix
+        minLength: 1
+        maxLength: 250
+      name:
+        type: string
+        example: Scopus
+        minLength: 1
+        maxLength: 250
+      created:
+        type: string
+        format: date-time
+        example: 2020-01-01T20:01:05Z
+        readOnly: true
+      modified:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        readOnly: true
+
+  Telescope:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      name:
+        type: string
+        example: Curtin University ONIX Telescope
+        minLength: 1
+        maxLength: 250
+        x-nullable: true
+      extra:
+        type: object
+        example: {'view-id': '830'}
+        minLength: 1
+        maxLength: 250
+        x-nullable: true
+      organisation:
+        $ref: '#/definitions/Organisation'
+      telescope_type:
+        $ref: '#/definitions/TelescopeType'
+      created:
+        type: string
+        format: date-time
+        example: 2020-01-01T20:01:05Z
+        readOnly: true
+      modified:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        readOnly: true
+
+  Organisation:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      name:
+        type: string
+        example: Curtin University
+        minLength: 1
+        maxLength: 250
+      gcp_project_id:
+        type: string
+        example: curtin-dev
+        minLength: 6
+        maxLength: 30
+        x-nullable: true
+      gcp_download_bucket:
+        type: string
+        example: curtin-dev-download
+        minLength: 3
+        maxLength: 222
+        x-nullable: true
+      gcp_transform_bucket:
+        type: string
+        example: curtin-dev-transform
+        minLength: 3
+        maxLength: 222
+        x-nullable: true
+      telescopes:
+        type: array
+        readOnly: true
+        items:
+          $ref: '#/definitions/Telescope'
+      created:
+        type: string
+        format: date-time
+        example: 2020-01-01T20:01:05Z
+        readOnly: true
+      modified:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        readOnly: true
+
+responses:
+  UnauthorizedError:
+    description: API key is missing or invalid
+    headers:
+      WWW_Authenticate:
+        type: string
