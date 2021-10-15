@@ -86,7 +86,7 @@ async def download_http_file_(*, download_info: DownloadInfo, headers=None):
                     dst_file = get_filename_from_url(url=url)
 
                 download_info.filename = dst_file
-                dst_file = os.path.join(download_info.prefix_dir, dst_file)
+            dst_file = os.path.join(download_info.prefix_dir, dst_file)
 
             logging.info(f"downloading {url} to {dst_file}")
 
@@ -108,10 +108,14 @@ def skip_download(*, download_info: Dict) -> bool:
 
     hash = download_info.hash
     hash_algorithm = download_info.hash_algorithm
+    prefix_dir = download_info.prefix_dir
     filename = download_info.filename
 
     if filename is None:
         return False
+
+    if prefix_dir != "":
+        filename = os.path.join(prefix_dir, filename)
 
     if hash_algorithm is not None and os.path.exists(filename):
         valid = validate_file_hash(file_path=filename, expected_hash=hash, algorithm=hash_algorithm)
@@ -139,12 +143,16 @@ def requeue_once_if_bad_hash(
 
     hash = download_info.hash
     hash_algorithm = download_info.hash_algorithm
+    prefix_dir = download_info.prefix_dir
     filename = download_info.filename
 
     if filename is None:
         return
 
-    if hash_algorithm is not None and exception is None:
+    if prefix_dir != "":
+        filename = os.path.join(prefix_dir, filename)
+
+    if hash_algorithm is not None and exception is None and os.path.exists(filename):
         valid = validate_file_hash(file_path=filename, expected_hash=hash, algorithm=hash_algorithm)
 
         # Requeue download the first time there's a bad hash.
@@ -259,7 +267,7 @@ def download_files(
     {"url": "urlstring", "filename": "savedfile", "hash" : "hashcode", "hash_algorithm": "hash algorithm"}
     :param num_connections: Maximum number of concurrent connections.
     :param headers: Custom HTTP header to use for downloading.
-    :param prefix_dir: A directory to prefix the filename path with.
+    :param prefix_dir: A directory to prefix the filename path with. If specified and the download_list is a list of DownloadInfo, it overrides the prefix_dir in each DownloadInfo.
     :return: True on sucess, False on failure.
     """
 
@@ -269,13 +277,12 @@ def download_files(
     # Convert list of urls to download info dict.
     for i, info in enumerate(download_list):
         if isinstance(info, str):
-            info = DownloadInfo(
-                url=info,
-                prefix_dir=prefix_dir
-            )
+            info = DownloadInfo(url=info, prefix_dir=prefix_dir)
             download_list[i] = info
-
-        elif not isinstance(info, DownloadInfo):
+        elif isinstance(info, DownloadInfo):
+            if prefix_dir != "":
+                info.prefix_dir = prefix_dir
+        else:
             raise Exception(f"Expecting a DownloadInfo object. Received a {type(info)}.")
 
     success = asyncio.run(
