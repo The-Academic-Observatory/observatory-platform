@@ -44,7 +44,7 @@ WORKDIR ${WORKING_DIR}
 
 # Change owner of directory to airflow
 USER root
-RUN chown -R airflow:airflow ${WORKING_DIR}
+RUN chown -R airflow ${WORKING_DIR}
 USER airflow
 {% if package.type == 'editable' %}
 

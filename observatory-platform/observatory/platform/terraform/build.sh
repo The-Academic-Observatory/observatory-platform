@@ -48,7 +48,7 @@ sudo cp -r /tmp/opt/observatory/build/docker/* /opt/observatory/build/docker
 sudo rm -r /tmp
 
 # Own all /opt directories
-sudo chown -R airflow:airflow /opt/
+sudo chown -R airflow /opt/
 
 # Set working directory and environment variables for building docker containers
 cd /opt/observatory/build/docker
