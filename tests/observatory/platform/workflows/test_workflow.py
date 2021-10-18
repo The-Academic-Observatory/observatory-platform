@@ -208,9 +208,10 @@ class TestTelescope(ObservatoryTestCase):
         env = ObservatoryEnvironment(self.project_id, self.data_location)
 
         # Setup Telescope with 0 retries and missing airflow variable, so it will fail the task
+        execution_date = pendulum.datetime(2020, 1, 1)
         telescope = TestCallbackWorkflow(
             "test_callback",
-            pendulum.datetime(2020, 1, 1),
+            execution_date,
             self.schedule_interval,
             max_retries=0,
             airflow_conns=[AirflowVars.ORCID_BUCKET],
@@ -219,23 +220,25 @@ class TestTelescope(ObservatoryTestCase):
 
         # Create the Observatory environment and run task, expecting slack webhook call in production environment
         with env.create(task_logging=True):
-            env.add_variable(Variable(key=AirflowVars.ENVIRONMENT, val=Environment.production.value))
-            with self.assertRaises(AirflowNotFoundException):
-                env.run_task(telescope.check_dependencies.__name__, dag, pendulum.datetime(2020, 1, 1))
-            mock_create_slack_webhook.assert_called_once_with(
-                "Task failed, exception:\nairflow.exceptions.AirflowNotFoundException: The conn_id `orcid_bucket` isn't defined",
-                self.project_id,
-                ANY,
-            )
+            with env.create_dag_run(dag, execution_date):
+                env.add_variable(Variable(key=AirflowVars.ENVIRONMENT, val=Environment.production.value))
+                with self.assertRaises(AirflowNotFoundException):
+                    env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+                mock_create_slack_webhook.assert_called_once_with(
+                    "Task failed, exception:\nairflow.exceptions.AirflowNotFoundException: The conn_id `orcid_bucket` isn't defined",
+                    self.project_id,
+                    ANY,
+                )
         # Reset mock
         mock_create_slack_webhook.reset_mock()
 
         # Create the Observatory environment and run task, expecting no slack webhook call in develop environment
         with env.create(task_logging=True):
-            env.add_variable(Variable(key=AirflowVars.ENVIRONMENT, val=Environment.develop.value))
-            with self.assertRaises(AirflowNotFoundException):
-                env.run_task(telescope.check_dependencies.__name__, dag, pendulum.datetime(2020, 1, 1))
-            mock_create_slack_webhook.assert_not_called()
+            with env.create_dag_run(dag, execution_date):
+                env.add_variable(Variable(key=AirflowVars.ENVIRONMENT, val=Environment.develop.value))
+                with self.assertRaises(AirflowNotFoundException):
+                    env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+                mock_create_slack_webhook.assert_not_called()
 
 
 class TestAddSensorsTelescope(ObservatoryTestCase):
