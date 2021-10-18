@@ -407,7 +407,10 @@ class TerraformAPIBuilder(AbstractBuilder):
         )
 
         # Wait for results
-        # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
-        # image building is
         output, error = stream_process(proc, True)
+
+        # Write last lines of stdout to file, used as annotation for cloud run image
+        info_filepath = os.path.join(self.terraform_build_path, "image_build.txt")
+        with open(info_filepath, "w") as f:
+            f.writelines(line + "\n" for line in output.splitlines()[-2:])
         return output, error, proc.returncode
