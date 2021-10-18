@@ -27,7 +27,7 @@ from observatory.platform.observatory_config import (
     generate_fernet_key,
     generate_secret_key,
 )
-from observatory.platform.platform_builder import DEBUG, HOST_GID, HOST_UID
+from observatory.platform.platform_builder import DEBUG, HOST_UID
 from observatory.platform.utils.config_utils import observatory_home
 from observatory.platform.utils.config_utils import (
     terraform_credentials_path as default_terraform_credentials_path,

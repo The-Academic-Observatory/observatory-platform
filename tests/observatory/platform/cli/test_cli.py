@@ -31,7 +31,7 @@ from observatory.platform.cli.cli import (
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.docker.compose import ProcessOutput
 from observatory.platform.observatory_config import TerraformConfig, ValidationError
-from observatory.platform.platform_builder import DEBUG, HOST_GID, HOST_UID
+from observatory.platform.platform_builder import DEBUG, HOST_UID
 from observatory.platform.terraform_api import TerraformApi
 from observatory.platform.utils.test_utils import random_id
 
@@ -304,7 +304,6 @@ class MockPlatformCommand(Mock):
         self.config = config
         self.config_path = config_path
         self.host_uid = HOST_UID
-        self.host_gid = HOST_GID
         self.debug = DEBUG
         self.dags_path = dags_path
         self._build_return_code = build_return_code
