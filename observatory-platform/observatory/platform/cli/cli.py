@@ -70,15 +70,8 @@ def cli():
     help="The user id of the host system. Used to set the user id in the Docker containers.",
     show_default=True,
 )
-@click.option(
-    "--host-gid",
-    type=click.INT,
-    default=HOST_GID,
-    help="The group id of the host system. Used to set the group id in the Docker containers.",
-    show_default=True,
-)
 @click.option("--debug", is_flag=True, default=DEBUG, help="Print debugging information.")
-def platform(command: str, config_path: str, host_uid: int, host_gid: int, debug):
+def platform(command: str, config_path: str, host_uid: int, debug):
     """Run the local Observatory Platform platform.\n
 
     COMMAND: the command to give the platform:\n
@@ -90,7 +83,7 @@ def platform(command: str, config_path: str, host_uid: int, host_gid: int, debug
     print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end="\r")
     if os.path.isfile(config_path):
         # Make the platform command, which encapsulates functionality for running the observatory
-        platform_cmd = PlatformCommand(config_path, host_uid=host_uid, host_gid=host_gid, debug=debug)
+        platform_cmd = PlatformCommand(config_path, host_uid=host_uid, debug=debug)
 
         # Check dependencies
         platform_check_dependencies(platform_cmd, min_line_chars=min_line_chars)

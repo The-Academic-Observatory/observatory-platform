@@ -32,7 +32,6 @@ from observatory.platform.observatory_config import (
 from observatory.platform.utils.config_utils import module_file_path
 
 HOST_UID = os.getuid()
-HOST_GID = os.getgid()
 DEBUG = False
 
 
@@ -42,7 +41,6 @@ class PlatformBuilder(ComposeRunner):
         *,
         config_path: str,
         host_uid: int = HOST_UID,
-        host_gid: int = HOST_GID,
         docker_build_path: str = None,
         debug: bool = DEBUG,
         backend_type: BackendType = BackendType.local,
@@ -59,7 +57,6 @@ class PlatformBuilder(ComposeRunner):
 
         self.config_path = config_path
         self.host_uid = host_uid
-        self.host_gid = host_gid
         self.backend_type = backend_type
 
         # Set config class based on type of backend
@@ -196,7 +193,6 @@ class PlatformBuilder(ComposeRunner):
 
         # Host settings
         env["HOST_USER_ID"] = str(self.host_uid)
-        env["HOST_GROUP_ID"] = str(self.host_gid)
         env["HOST_OBSERVATORY_HOME"] = os.path.normpath(self.config.observatory.observatory_home)
         env["HOST_REDIS_PORT"] = str(self.config.observatory.redis_port)
         env["HOST_FLOWER_UI_PORT"] = str(self.config.observatory.flower_ui_port)
