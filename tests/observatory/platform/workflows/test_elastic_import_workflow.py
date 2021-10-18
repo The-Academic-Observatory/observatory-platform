@@ -313,7 +313,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             expected_state = "up_for_reschedule"
             task_id_sensor = "doi_sensor"
             with env.create_dag_run(es_dag, start_date):
-                ti = env.run_task(task_id_sensor, es_dag, execution_date=start_date)
+                ti = env.run_task(task_id_sensor)
                 self.assertEqual(expected_state, ti.state)
 
             # Run Dummy Dags
@@ -323,7 +323,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             doi_dag = make_dummy_dag(dag_id_sensor, execution_date)
             with env.create_dag_run(doi_dag, execution_date):
                 # Running all of a DAGs tasks sets the DAG to finished
-                ti = env.run_task("dummy_task", doi_dag, execution_date=execution_date)
+                ti = env.run_task("dummy_task")
                 self.assertEqual(expected_state, ti.state)
 
             # Make dataset with a small number of tables
@@ -360,15 +360,15 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 )
 
                 # Test that sensor goes into 'success' state as the DAGs that they are waiting for have finished
-                ti = env.run_task(task_id_sensor, es_dag, execution_date=execution_date)
+                ti = env.run_task(task_id_sensor)
                 self.assertEqual(expected_state, ti.state)
 
                 # Test that all dependencies are specified: no error should be thrown
-                ti = env.run_task(workflow.check_dependencies.__name__, es_dag, execution_date)
+                ti = env.run_task(workflow.check_dependencies.__name__)
                 self.assertEqual(expected_state, ti.state)
 
                 # Test list_release_info task
-                ti = env.run_task(workflow.list_release_info.__name__, es_dag, execution_date=execution_date)
+                ti = env.run_task(workflow.list_release_info.__name__)
                 self.assertEqual(expected_state, ti.state)
                 table_id = bigquery_sharded_table_id(self.table_name, release_date)
                 expected_msg = {"release_date": release_date.format("YYYYMMDD"), "table_ids": [table_id]}
@@ -378,14 +378,14 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 self.assertEqual(expected_msg, actual_msg)
 
                 # Test export_bigquery_tables info task
-                ti = env.run_task(workflow.export_bigquery_tables.__name__, es_dag, execution_date=execution_date)
+                ti = env.run_task(workflow.export_bigquery_tables.__name__)
                 self.assertEqual(expected_state, ti.state)
                 blob_suffix = f"{table_id}_000000000000.jsonl.gz"
                 blob_name = f"telescopes/{es_dag.dag_id}/{release_id}/{blob_suffix}"
                 self.assert_blob_exists(env.download_bucket, blob_name)
 
                 # Test list download_exported_data info task
-                ti = env.run_task(workflow.download_exported_data.__name__, es_dag, execution_date=execution_date)
+                ti = env.run_task(workflow.download_exported_data.__name__)
                 self.assertEqual(expected_state, ti.state)
                 file_path = os.path.join(download_folder, blob_suffix)
                 self.assertTrue(os.path.isfile(file_path))  # Check that file exists
@@ -398,7 +398,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
 
                 # Test list import_to_elastic info task
                 index_id = f"ao-author-{release_date.strftime('%Y%m%d')}"
-                ti = env.run_task(workflow.import_to_elastic.__name__, es_dag, execution_date=execution_date)
+                ti = env.run_task(workflow.import_to_elastic.__name__)
                 self.assertEqual(expected_state, ti.state)
                 self.assertTrue(self.elastic.es.indices.exists(index=index_id))  # Check that index exists
                 actual_rows = self.elastic.query(index_id)
@@ -408,7 +408,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
 
                 # Test list update_elastic_aliases info task
                 expected_alias_id = "ao-author"
-                ti = env.run_task(workflow.update_elastic_aliases.__name__, es_dag, execution_date=execution_date)
+                ti = env.run_task(workflow.update_elastic_aliases.__name__)
                 self.assertEqual(expected_state, ti.state)
                 expected_indexes = [index_id]
                 actual_indexes = self.elastic.get_alias_indexes(expected_alias_id)
@@ -420,7 +420,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 client.create_index("ao-author-20210523")
                 client.create_index("ao-author-20210524")
                 client.create_index("ao-author-20210525")
-                ti = env.run_task(workflow.delete_stale_indices.__name__, es_dag, execution_date=execution_date)
+                ti = env.run_task(workflow.delete_stale_indices.__name__)
                 self.assertEqual(expected_state, ti.state)
                 indices_after_cleanup = set(client.list_indices("ao-author-*"))
                 self.assertEqual(len(indices_after_cleanup), 2)
@@ -429,13 +429,13 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
 
                 # Test list create_kibana_index_patterns info task
                 expected_index_pattern_id = expected_alias_id
-                ti = env.run_task(workflow.create_kibana_index_patterns.__name__, es_dag, execution_date=execution_date)
+                ti = env.run_task(workflow.create_kibana_index_patterns.__name__)
                 self.assertEqual(expected_state, ti.state)
                 self.assertTrue(
                     self.kibana.get_index_pattern(expected_index_pattern_id, space_id=space_id)
                 )  # Check that index pattern created
 
                 # Test list cleanup info task
-                ti = env.run_task(workflow.cleanup.__name__, es_dag, execution_date=execution_date)
+                ti = env.run_task(workflow.cleanup.__name__)
                 self.assertEqual(expected_state, ti.state)
                 self.assert_cleanup(download_folder, extract_folder, transform_folder)

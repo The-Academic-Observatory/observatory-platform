@@ -110,7 +110,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="nodag", check_exists=True)
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                self.assertRaises(AirflowException, env.run_task, "sensor_task", dag, execution_date=execution_date)
+                self.assertRaises(AirflowException, env.run_task, "sensor_task")
 
     def test_no_dag_exists_no_check(self):
         env = ObservatoryEnvironment()
@@ -119,7 +119,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="nodag", check_exists=False)
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task", dag, execution_date=execution_date)
+                ti = env.run_task("sensor_task")
                 self.assertEqual(ti.state, State.SUCCESS)
 
     def test_no_execution_date_in_range(self):
@@ -129,7 +129,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task", dag, execution_date=execution_date)
+                ti = env.run_task("sensor_task")
                 self.assertEqual(ti.state, State.SUCCESS)
 
     @patch("observatory.platform.utils.dag_run_sensor.DagRunSensor.get_latest_execution_date")
@@ -141,7 +141,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task", dag, execution_date=execution_date)
+                ti = env.run_task("sensor_task")
                 self.assertEqual(ti.state, State.SUCCESS)
 
             self.assertEqual(m_get_execdate.call_count, 2)
@@ -152,7 +152,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 8, 25)
             dag = self.triggering_dag(execution_date=execution_date)
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag", dag, execution_date=execution_date)
+                ti = env.run_task("trigger_dag")
                 self.assertEqual(ti.state, State.SUCCESS)
 
                 dagruns = self.find_runs()
@@ -165,7 +165,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task", dag, execution_date=execution_date)
+                ti = env.run_task("sensor_task")
                 self.assertEqual(ti.state, State.SUCCESS)
 
     def test_execution_on_newest_boundary(self):
@@ -174,7 +174,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 9, 1)
             dag = self.triggering_dag(execution_date=execution_date)
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag", dag, execution_date=execution_date)
+                ti = env.run_task("trigger_dag")
                 self.assertEqual(ti.state, State.SUCCESS)
 
                 dagruns = self.find_runs()
@@ -187,7 +187,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task", dag, execution_date=execution_date)
+                ti = env.run_task("sensor_task")
                 self.assertEqual(ti.state, State.SUCCESS)
 
     def test_execution_multiple_dagruns_last_success(self):
@@ -196,7 +196,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 8, 25)
             dag = self.triggering_dag(execution_date=execution_date)
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag", dag, execution_date=execution_date)
+                ti = env.run_task("trigger_dag")
                 self.assertEqual(ti.state, State.SUCCESS)
 
                 dagruns = self.find_runs()
@@ -207,7 +207,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 9, 1)
             dag = self.triggering_dag(execution_date=execution_date)
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag", dag, execution_date=execution_date)
+                ti = env.run_task("trigger_dag")
                 self.assertEqual(ti.state, State.SUCCESS)
 
                 dagruns = self.find_runs()
@@ -220,7 +220,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task", dag, execution_date=execution_date)
+                ti = env.run_task("sensor_task")
                 self.assertEqual(ti.state, State.SUCCESS)
 
     def test_execution_multiple_dagruns_last_fail_reschedule_mode(self):
@@ -229,7 +229,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 8, 25)
             dag = self.triggering_dag(execution_date=execution_date)
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag", dag, execution_date=execution_date)
+                ti = env.run_task("trigger_dag")
                 self.assertEqual(ti.state, State.SUCCESS)
 
                 dagruns = self.find_runs()
@@ -240,7 +240,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 9, 1)
             dag = self.triggering_dag(execution_date=execution_date)
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag", dag, execution_date=execution_date)
+                ti = env.run_task("trigger_dag")
                 self.assertEqual(ti.state, State.SUCCESS)
 
                 dagruns = self.find_runs()
@@ -252,7 +252,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task", dag, execution_date=execution_date)
+                ti = env.run_task("sensor_task")
                 self.assertEqual(ti.state, "up_for_reschedule")
 
     def test_execution_multiple_dagruns_last_fail_poke_mode(self):
@@ -261,7 +261,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 8, 25)
             dag = self.triggering_dag(execution_date=execution_date)
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag", dag, execution_date=execution_date)
+                ti = env.run_task("trigger_dag")
                 self.assertEqual(ti.state, State.SUCCESS)
 
                 dagruns = self.find_runs()
@@ -272,7 +272,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 9, 1)
             dag = self.triggering_dag(execution_date=execution_date)
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag", dag, execution_date=execution_date)
+                ti = env.run_task("trigger_dag")
                 self.assertEqual(ti.state, State.SUCCESS)
 
                 dagruns = self.find_runs()
@@ -284,5 +284,5 @@ class TestDagRunSensor(ObservatoryTestCase):
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator", mode="poke")
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                # ti = env.run_task("sensor_task", dag, execution_date=execution_date)
-                self.assertRaises(AirflowSensorTimeout, env.run_task, "sensor_task", dag, execution_date=execution_date)
+                # ti = env.run_task("sensor_task")
+                self.assertRaises(AirflowSensorTimeout, env.run_task, "sensor_task")

@@ -90,12 +90,17 @@ class TelescopeTest(Workflow):
         super().__init__(dag_id, start_date, schedule_interval, airflow_vars=airflow_vars, airflow_conns=airflow_conns)
         self.add_setup_task(self.check_dependencies)
         self.add_setup_task(self.setup_task)
+        self.add_task(self.my_task)
 
     def make_release(self, **kwargs) -> Union[AbstractRelease, List[AbstractRelease]]:
-        pass
+        return None
 
-    def setup_task(self):
-        logging.info("success")
+    def setup_task(self, **kwargs):
+        logging.info("setup_task success")
+        return True
+
+    def my_task(self, release, **kwargs):
+        logging.info("my_task success")
 
 
 class TestObservatoryEnvironment(unittest.TestCase):
@@ -177,6 +182,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
         """Tests create, add_variable, add_connection and run_task"""
 
         env = ObservatoryEnvironment(self.project_id, self.data_location)
+        expected_state = "success"
 
         # Setup Telescope
         execution_date = pendulum.datetime(year=2020, month=11, day=1)
@@ -186,7 +192,6 @@ class TestObservatoryEnvironment(unittest.TestCase):
         # Test environment without logging enabled
         with env.create():
             with env.create_dag_run(dag, execution_date):
-
                 # Test add_variable
                 env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
 
@@ -197,10 +202,16 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 env.add_connection(conn)
 
                 # Test run task
-                ti = env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
-                self.assertFalse(ti.log.propagate)
+                ti = env.run_task(telescope.check_dependencies.__name__)
+                self.assertEqual(expected_state, ti.state)
 
-            # Test environment with logging enabled
+                ti = env.run_task(telescope.setup_task.__name__)
+                self.assertEqual(expected_state, ti.state)
+
+                ti = env.run_task(telescope.my_task.__name__)
+                self.assertEqual(expected_state, ti.state)
+
+        # Test environment with logging enabled
         env = ObservatoryEnvironment(self.project_id, self.data_location)
         with env.create(task_logging=True):
             with env.create_dag_run(dag, execution_date):
@@ -214,10 +225,16 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 env.add_connection(conn)
 
                 # Test run task
-                ti = env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
-                self.assertTrue(ti.log.propagate)
+                ti = env.run_task(telescope.check_dependencies.__name__)
+                self.assertEqual(expected_state, ti.state)
 
-            # Test that previous tasks have to be finished to run next task
+                ti = env.run_task(telescope.setup_task.__name__)
+                self.assertEqual(expected_state, ti.state)
+
+                ti = env.run_task(telescope.my_task.__name__)
+                self.assertEqual(expected_state, ti.state)
+
+        # Test that previous tasks have to be finished to run next task
         env = ObservatoryEnvironment(self.project_id, self.data_location)
         with env.create(task_logging=True):
             with env.create_dag_run(dag, execution_date):
@@ -231,13 +248,18 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 env.add_connection(conn)
 
                 # Test run task when dependencies are not met
-                ti = env.run_task(telescope.setup_task.__name__, dag, execution_date)
+                ti = env.run_task(telescope.setup_task.__name__)
                 self.assertIsNone(ti.state)
 
                 # Try again when dependencies are met
-                env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
-                ti = env.run_task(telescope.setup_task.__name__, dag, execution_date)
-                self.assertEqual("success", ti.state)
+                ti = env.run_task(telescope.check_dependencies.__name__)
+                self.assertEqual(expected_state, ti.state)
+
+                ti = env.run_task(telescope.setup_task.__name__)
+                self.assertEqual(expected_state, ti.state)
+
+                ti = env.run_task(telescope.my_task.__name__)
+                self.assertEqual(expected_state, ti.state)
 
     def test_create_dagrun(self):
         """Tests create_dag_run"""
@@ -346,7 +368,7 @@ class TestObservatoryTestCase(unittest.TestCase):
         dag = telescope.make_dag()
 
         # No assertion error
-        expected = {"check_dependencies": ["setup_task"], "setup_task": []}
+        expected = {"check_dependencies": ["setup_task"], "setup_task": ["my_task"], "my_task": []}
         test_case.assert_dag_structure(expected, dag)
 
         # Raise assertion error

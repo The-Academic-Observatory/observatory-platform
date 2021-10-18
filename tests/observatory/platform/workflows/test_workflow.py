@@ -223,7 +223,7 @@ class TestTelescope(ObservatoryTestCase):
             with env.create_dag_run(dag, execution_date):
                 env.add_variable(Variable(key=AirflowVars.ENVIRONMENT, val=Environment.production.value))
                 with self.assertRaises(AirflowNotFoundException):
-                    env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+                    env.run_task(telescope.check_dependencies.__name__)
                 mock_create_slack_webhook.assert_called_once_with(
                     "Task failed, exception:\nairflow.exceptions.AirflowNotFoundException: The conn_id `orcid_bucket` isn't defined",
                     self.project_id,
@@ -237,7 +237,7 @@ class TestTelescope(ObservatoryTestCase):
             with env.create_dag_run(dag, execution_date):
                 env.add_variable(Variable(key=AirflowVars.ENVIRONMENT, val=Environment.develop.value))
                 with self.assertRaises(AirflowNotFoundException):
-                    env.run_task(telescope.check_dependencies.__name__, dag, execution_date)
+                    env.run_task(telescope.check_dependencies.__name__)
                 mock_create_slack_webhook.assert_not_called()
 
 
