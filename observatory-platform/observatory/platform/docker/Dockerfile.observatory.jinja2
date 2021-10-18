@@ -14,7 +14,7 @@
 
 # Author: James Diprose
 
-FROM apache/airflow:2.1.4-python3.8
+FROM apache/airflow:2.2.0-python3.8
 
 ARG HOST_USER_ID
 ARG HOST_GROUP_ID
@@ -26,9 +26,6 @@ RUN apt-get update -yqq
 
 # Change airflow user's user id to the hosts user id
 RUN usermod -u ${HOST_USER_ID} airflow
-
-# Change airflow user's group id to the hosts group id
-RUN groupmod -g ${HOST_GROUP_ID} airflow
 
 # Install Python dependencies for Observatory Platform as airflow user
 USER airflow
