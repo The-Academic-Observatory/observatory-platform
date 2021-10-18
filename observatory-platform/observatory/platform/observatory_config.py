@@ -608,13 +608,22 @@ class Api:
     package: str
     domain_name: str
     subdomain: str
+    image_tag: str
     type: str
+    build_info: str
     elasticsearch_host: str
     elasticsearch_api_key: str
 
     def to_hcl(self):
         return to_hcl(
-            {"name": self.name, "package": self.package, "domain_name": self.domain_name, "subdomain": self.subdomain}
+            {
+                "name": self.name,
+                "package": self.package,
+                "domain_name": self.domain_name,
+                "subdomain": self.subdomain,
+                "image_tag": self.image_tag,
+                "build_info": self.build_info,
+            }
         )
 
     @staticmethod
@@ -629,10 +638,25 @@ class Api:
         package = dict_.get("package")
         domain_name = dict_.get("domain_name")
         subdomain = dict_.get("subdomain")
+        image_tag = dict_.get("image_tag")
+        build_info = dict_.get("build_info", "")
+
+        # Not returned to hcl directly
         api_type = dict_.get("type")
         elasticsearch_host = dict_.get("elasticsearch_host", "")
         elasticsearch_api_key = dict_.get("elasticsearch_api_key", "")
-        return Api(name, package, domain_name, subdomain, api_type, elasticsearch_host, elasticsearch_api_key)
+
+        return Api(
+            name,
+            package,
+            domain_name,
+            subdomain,
+            api_type,
+            image_tag,
+            build_info,
+            elasticsearch_host,
+            elasticsearch_api_key,
+        )
 
 
 @dataclass
@@ -1765,6 +1789,8 @@ def make_schema(backend_type: BackendType) -> Dict:
                 "domain_name": {"required": True, "type": "string", "check_with": customise_pointer},
                 "subdomain": {"required": True, "type": "string", "allowed": ["project_id", "environment"]},
                 "type": {"required": True, "type": "string", "allowed": ["observatory_api", "data_api"]},
+                "image_tag": {"required": True, "type": "string"},
+                "build_info": {"required": False, "type": "string"},
                 "elasticsearch_host": {"required": False, "dependencies": {"type": "data_api"}},
                 "elasticsearch_api_key": {"required": False, "dependencies": {"type": "data_api"}},
             },
