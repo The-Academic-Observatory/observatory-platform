@@ -33,7 +33,6 @@ from observatory.platform.utils.config_utils import (
     terraform_credentials_path as default_terraform_credentials_path,
 )
 from observatory.platform.utils.proc_utils import stream_process
-from observatory.platform.observatory_config import BackendType
 
 PLATFORM_NAME = "Observatory Platform"
 TERRAFORM_NAME = "Observatory Terraform"
@@ -477,7 +476,7 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
 @cli.command(context_settings=dict(max_content_width=120))
 @click.argument(
     "command",
-    type=click.Choice(["build-terraform", "build-image", "build-api-image", "create-workspace", "update-workspace"]),
+    type=click.Choice(["build-terraform", "build-image", "create-workspace", "update-workspace"]),
 )
 # The path to the config-terraform.yaml configuration file.
 @click.argument("config-path", type=click.Path(exists=True, file_okay=True, dir_okay=False))
@@ -492,7 +491,7 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     "--config-type",
     type=click.Choice(["terraform", "terraform-api"]),
     default="terraform",
-    help="The api " "config " "type, " "either 'terraform' or 'terraform-api'.",
+    help="The api config type, either 'terraform' or 'terraform-api'.",
 )
 @click.option("--debug", is_flag=True, default=DEBUG, help="Print debugging information.")
 def terraform(command, config_path, terraform_credentials_path, config_type, debug):
@@ -501,8 +500,8 @@ def terraform(command, config_path, terraform_credentials_path, config_type, deb
     COMMAND: the type of config file to generate:\n
       - create-workspace: create a Terraform Cloud workspace.\n
       - update-workspace: update a Terraform Cloud workspace.\n
-      - build-image: build a Google Compute image for the Terraform deployment with Packer.\n
-      - build-api-image: build a Docker image for the API in the Google Cloud container registry.\n
+      - build-image: build a Google Compute image for the Terraform deployment with Packer or build a Docker image
+      for the API in the Google Cloud container registry, depending on the config-type.\n
       - build-terraform: build the Terraform files.\n
     """
 
@@ -517,14 +516,10 @@ def terraform(command, config_path, terraform_credentials_path, config_type, deb
 
     # Run commands
     if command == "build-terraform":
-        # Build image with packer
+        # Build terraform configuration files
         terraform_cmd.build_terraform()
     elif command == "build-image":
-        # Build image with packer
         terraform_cmd.build_image()
-    elif command == "build-api-image":
-        # Build docker image stored in google container registry
-        terraform_cmd.build_google_container_image()
     else:
         # Create a new workspace
         if command == "create-workspace":
@@ -572,17 +567,18 @@ def terraform_check_dependencies(
     else:
         print(indent("- file not found, create one by running 'terraform login'", INDENT2))
 
-    print(indent("Packer", INDENT1))
-    if config_type == "terraform" and terraform_cmd.terraform_builder.packer_exe_path is not None:
-        print(indent(f"- path: {terraform_cmd.terraform_builder.packer_exe_path}", INDENT2))
+    if config_type == "terraform":
+        print(indent("Packer", INDENT1))
+        if terraform_cmd.terraform_builder.packer_exe_path is not None:
+            print(indent(f"- path: {terraform_cmd.terraform_builder.packer_exe_path}", INDENT2))
+        else:
+            print(indent("- not installed, please install https://www.packer.io/docs/install", INDENT2))
     else:
-        print(indent("- not installed, please install https://www.packer.io/docs/install", INDENT2))
-
-    print(indent("Google Cloud SDK", INDENT1))
-    if terraform_cmd.terraform_builder.gcloud_exe_path is not None:
-        print(indent(f"- path: {terraform_cmd.terraform_builder.gcloud_exe_path}", INDENT2))
-    else:
-        print(indent("- not installed, please install https://cloud.google.com/sdk/docs/install", INDENT2))
+        print(indent("Google Cloud SDK", INDENT1))
+        if terraform_cmd.terraform_builder.gcloud_exe_path is not None:
+            print(indent(f"- path: {terraform_cmd.terraform_builder.gcloud_exe_path}", INDENT2))
+        else:
+            print(indent("- not installed, please install https://cloud.google.com/sdk/docs/install", INDENT2))
 
     if not terraform_cmd.is_environment_valid:
         exit(os.EX_CONFIG)

@@ -21,7 +21,7 @@ import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from subprocess import Popen
-from typing import Tuple
+from typing import Tuple, Optional
 
 from observatory.api.server.openapi_renderer import OpenApiRenderer
 from observatory.platform.cli.click_utils import indent, INDENT1
@@ -30,6 +30,7 @@ from observatory.platform.platform_builder import PlatformBuilder
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.proc_utils import stream_process
+from observatory.platform.utils.test_utils import random_id
 
 
 def copy_dir(source_path: str, destination_path: str, ignore=None):
@@ -38,12 +39,21 @@ def copy_dir(source_path: str, destination_path: str, ignore=None):
 
 class AbstractBuilder(ABC):
     @property
+    def packer_exe_path(self) -> Optional[str]:
+        return None
+
+    @property
+    def gcloud_exe_path(self) -> Optional[str]:
+        return None
+
+    @property
     @abstractmethod
     def is_environment_valid(self) -> bool:
         """Return whether the environment for building the Packer image is valid.
 
         :return: whether the environment for building the Packer image is valid.
         """
+
         pass
 
     @abstractmethod
@@ -57,14 +67,6 @@ class AbstractBuilder(ABC):
 
     @abstractmethod
     def build_image(self):
-        """Build the Observatory Platform Google Compute image with Packer.
-
-        :return: output and error stream results and proc return code.
-        """
-        pass
-
-    @abstractmethod
-    def build_api_image(self):
         pass
 
 
@@ -107,7 +109,7 @@ class TerraformBuilder(AbstractBuilder):
         :return: whether the environment for building the Packer image is valid.
         """
 
-        return all([self.packer_exe_path is not None, self.config_is_valid, self.config is not None])
+        return self.packer_exe_path is not None
 
     @property
     def packer_exe_path(self) -> str:
@@ -117,15 +119,6 @@ class TerraformBuilder(AbstractBuilder):
         """
 
         return shutil.which("packer")
-
-    @property
-    def gcloud_exe_path(self) -> str:
-        """The path to the Google Cloud SDK executable.
-
-        :return: the path or None.
-        """
-
-        return shutil.which("gcloud")
 
     def build_terraform(self):
         """Build the Observatory Platform Terraform files.
@@ -175,10 +168,6 @@ class TerraformBuilder(AbstractBuilder):
         output, error = stream_process(proc, True)
         return output, error, proc.returncode
 
-    def build_api_image(self):
-        self.gcloud_activate_service_account()
-        self.gcloud_builds_submit()
-
     def make_files(self):
         # Clear terraform/packages path
         if os.path.exists(self.packages_build_path):
@@ -200,9 +189,6 @@ class TerraformBuilder(AbstractBuilder):
         self.make_startup_script(True, "startup-main.tpl")
         self.make_startup_script(False, "startup-worker.tpl")
 
-        # Make OpenAPI specification
-        self.make_open_api_template()
-
     def make_startup_script(self, is_airflow_main_vm: bool, file_name: str):
         # Load and render template
         template_path = os.path.join(self.terraform_path, "startup.tpl.jinja2")
@@ -212,67 +198,6 @@ class TerraformBuilder(AbstractBuilder):
         output_path = os.path.join(self.terraform_build_path, file_name)
         with open(output_path, "w") as f:
             f.write(render)
-
-    def make_open_api_template(self):
-        # Load and render template
-        specification_path = os.path.join(self.api_path, "openapi.yaml.jinja2")
-        renderer = OpenApiRenderer(specification_path, cloud_endpoints=True)
-        render = renderer.render()
-
-        # Save file
-        output_path = os.path.join(self.terraform_build_path, "openapi.yaml.tpl")
-        with open(output_path, "w") as f:
-            f.write(render)
-
-    def gcloud_activate_service_account(self) -> Tuple[str, str, int]:
-        args = ["gcloud", "auth", "activate-service-account", "--key-file", self.config.google_cloud.credentials]
-
-        if self.debug:
-            print("Executing subprocess:")
-            print(indent(f"Command: {subprocess.list2cmdline(args)}", INDENT1))
-            print(indent(f"Cwd: {self.api_package_path}", INDENT1))
-
-        proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.api_package_path)
-
-        # Wait for resultsz
-        # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
-        # image building is
-        output, error = stream_process(proc, True)
-        return output, error, proc.returncode
-
-    def gcloud_builds_submit(self) -> Tuple[str, str, int]:
-        # Build the google container image
-        project_id = self.config.google_cloud.project_id
-        # --gcs-logs-dir is specified to avoid storage.objects.get access error, see:
-        # https://github.com/google-github-actions/setup-gcloud/issues/105
-        # the _cloudbuild bucket is created already to store the build image
-        args = [
-            "gcloud",
-            "builds",
-            "submit",
-            "--tag",
-            f"gcr.io/{project_id}/observatory-api",
-            "--project",
-            project_id,
-            "--gcs-log-dir",
-            f"gs://{project_id}_cloudbuild/logs",
-        ]
-        if self.debug:
-            print("Executing subprocess:")
-            print(indent(f"Command: {subprocess.list2cmdline(args)}", INDENT1))
-            print(indent(f"Cwd: {self.api_package_path}", INDENT1))
-
-        proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.api_package_path)
-
-        # Wait for results
-        # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
-        # image building is
-        output, error = stream_process(proc, True)
-
-        info_filepath = os.path.join(self.terraform_build_path, "api_image_build.txt")
-        with open(info_filepath, "w") as f:
-            f.writelines(line + "\n" for line in output.splitlines()[-2:])
-        return output, error, proc.returncode
 
 
 class TerraformAPIBuilder(AbstractBuilder):
@@ -310,7 +235,12 @@ class TerraformAPIBuilder(AbstractBuilder):
 
     @property
     def is_environment_valid(self) -> bool:
-        return True
+        """Return whether the environment for building the Packer image is valid.
+
+        :return: whether the environment for building the Packer image is valid.
+        """
+
+        return self.gcloud_exe_path is not None
 
     @property
     def gcloud_exe_path(self) -> str:
@@ -330,15 +260,17 @@ class TerraformAPIBuilder(AbstractBuilder):
         self.make_files()
 
     def build_image(self):
-        """B
+        # Create image tag with random id
+        image_tag = f"local-{random_id()[0:7]}"
 
-        :return: None
-        """
-        print("ERROR: Terraform API builder does not build packer images. Use the Terraform Builder instead.")
-
-    def build_api_image(self):
+        # Activate service account and build docker image
         self.gcloud_activate_service_account()
-        self.gcloud_builds_submit()
+        self.gcloud_builds_submit(image_tag)
+
+        # Write image tag to file
+        info_filepath = os.path.join(self.terraform_build_path, "image_build.txt")
+        with open(info_filepath, "w") as f:
+            f.write(image_tag)
 
     def make_files(self):
         """Copy terraform configuration files and the openapi template in a 'terraform' dir
@@ -380,7 +312,7 @@ class TerraformAPIBuilder(AbstractBuilder):
         output, error = stream_process(proc, True)
         return output, error, proc.returncode
 
-    def gcloud_builds_submit(self) -> Tuple[str, str, int]:
+    def gcloud_builds_submit(self, image_tag: str) -> Tuple[str, str, int]:
         # Build the google container image
         project_id = self.config.google_cloud.project_id
         # --gcs-logs-dir is specified to avoid storage.objects.get access error, see:
@@ -391,7 +323,7 @@ class TerraformAPIBuilder(AbstractBuilder):
             "builds",
             "submit",
             "--tag",
-            f"gcr.io/{project_id}/{self.config.api.name}-api",
+            f"gcr.io/{project_id}/{self.config.api.name}-api:{image_tag}",
             "--project",
             project_id,
             "--gcs-log-dir",
@@ -408,9 +340,4 @@ class TerraformAPIBuilder(AbstractBuilder):
 
         # Wait for results
         output, error = stream_process(proc, True)
-
-        # Write last lines of stdout to file, used as annotation for cloud run image
-        info_filepath = os.path.join(self.terraform_build_path, "image_build.txt")
-        with open(info_filepath, "w") as f:
-            f.writelines(line + "\n" for line in output.splitlines()[-2:])
         return output, error, proc.returncode
