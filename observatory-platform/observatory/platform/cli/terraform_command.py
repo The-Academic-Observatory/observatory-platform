@@ -41,17 +41,33 @@ class TerraformCommand:
         self.terraform_credentials_exists = os.path.exists(terraform_credentials_path)
         self.config_exists = os.path.exists(config_path)
         self.config_type = config_type
-        self.config_is_valid = False
-        self.config = None
         if self.config_exists:
-            if config_type == "terraform":
-                self.config = TerraformConfig.load(config_path)
-                self.terraform_builder = TerraformBuilder(config_path, debug=debug)
-            else:
-                self.config = TerraformAPIConfig.load(config_path)
-                self.terraform_builder = TerraformAPIBuilder(config_path, debug=debug)
-
             self.config_is_valid = self.config.is_valid
+
+    @property
+    def config(self) -> [TerraformConfig, TerraformAPIConfig]:
+        """Create a config object depending on the config type.
+
+        :return: The config object
+        """
+        if self.config_exists:
+            if self.config_type == "terraform":
+                return TerraformConfig.load(self.config_path)
+            else:
+                return TerraformAPIConfig.load(self.config_path)
+        else:
+            return None
+
+    @property
+    def terraform_builder(self) -> [TerraformBuilder, TerraformAPIBuilder]:
+        """Create a terraform builder depending on the config type
+
+        :return: The terraform builder
+        """
+        if self.config_type == "terraform":
+            return TerraformBuilder(self.config_path, debug=self.debug)
+        else:
+            return TerraformAPIBuilder(self.config_path, debug=self.debug)
 
     @property
     def is_environment_valid(self):
@@ -108,15 +124,7 @@ class TerraformCommand:
 
         :return: None.
         """
-
         self.terraform_builder.build_image()
-
-    def build_google_container_image(self):
-        """Build a Docker image stored in the Google Container registry using gcloud builds.
-
-        :return: None.
-        """
-        self.terraform_builder.build_api_image()
 
     @property
     def verbosity(self):
