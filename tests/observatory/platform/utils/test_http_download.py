@@ -101,6 +101,12 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                 self.assert_file_integrity(file1, hash1, algorithm)
                 self.assert_file_integrity(file2, hash2, algorithm)
 
+            # Single download with  (prefix dir)
+            with CliRunner().isolated_filesystem() as tmpdir:
+                dinfo = DownloadInfo(url=url1, filename=file1, prefix_dir="invalid")
+                download_files(download_list=[dinfo], prefix_dir=tmpdir)
+                self.assert_file_integrity(file1, hash1, algorithm)
+
             # Retry and timeout
             download_list = [f"{http_server.url}does_not_exist"]
             success = download_files(download_list=download_list)
@@ -126,6 +132,16 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                 success = download_file(url=url1, hash=hash, hash_algorithm="md5")
                 self.assertFalse(success)
 
+            # File exists, bad hash (prefix dir)
+            with CliRunner().isolated_filesystem() as tmpdir:
+                src_file = os.path.join(directory, file1)
+                dst_file = os.path.join(tmpdir, file1)
+                shutil.copyfile(src_file, dst_file)
+
+                hash = "garbage2dc0f896fd7cb4cb0031ba249"
+                success = download_file(url=url1, hash=hash, hash_algorithm="md5", prefix_dir=tmpdir)
+                self.assertFalse(success)
+
             # File does not exist, bad hash
             with CliRunner().isolated_filesystem() as tmpdir:
                 hash = "garbage2dc0f896fd7cb4cb0031ba249"
@@ -141,6 +157,15 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                 # Skip download because exists
                 with patch("observatory.platform.utils.http_download.download_http_file_") as m_down:
                     success = download_file(url=url1, filename=file1, hash=hash1, hash_algorithm="md5")
+                    self.assertTrue(success)
+                    self.assert_file_integrity(file1, hash1, algorithm)
+                    self.assertEqual(m_down.call_count, 0)
+
+                # Skip download because exists (with prefix dir)
+                with patch("observatory.platform.utils.http_download.download_http_file_") as m_down:
+                    success = download_file(
+                        url=url1, filename=file1, hash=hash1, hash_algorithm="md5", prefix_dir=tmpdir
+                    )
                     self.assertTrue(success)
                     self.assert_file_integrity(file1, hash1, algorithm)
                     self.assertEqual(m_down.call_count, 0)
