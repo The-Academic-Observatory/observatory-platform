@@ -253,7 +253,6 @@ class TestGenerateCommand(ObservatoryTestCase):
             with self.assertRaises(Exception):
                 cmd.generate_workflow(project_path, package_name, "Invalid", "MyWorkflow")
 
-    @unittest.skip
     @patch("click.confirm")
     def test_write_rendered_template(self, mock_click_confirm):
         """Test writing a rendered template file, only overwrite when file exists if confirmed by user

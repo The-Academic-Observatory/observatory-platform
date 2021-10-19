@@ -425,7 +425,7 @@ class ObservatoryEnvironment:
             # Prepare environment
             self.new_env = {
                 self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, ".observatory"),
-                "AIRFLOW__CORE__LOAD_EXAMPLES": load_examples,
+                "AIRFLOW__CORE__LOAD_EXAMPLES": str(load_examples),
             }
             prev_env = dict(os.environ)
 
