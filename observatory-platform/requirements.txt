@@ -2,9 +2,9 @@
 observatory-api
 
 # Airflow
-apache-airflow==2.1.4
-apache-airflow-providers-redis==2.0.0
-apache-airflow-providers-celery==2.0.0
+apache-airflow==2.2.0
+apache-airflow-providers-redis==2.0.1
+apache-airflow-providers-celery==2.1.0
 apache-airflow-providers-slack==4.0.0
 apache-airflow-providers-http==2.0.0
 
@@ -50,6 +50,7 @@ backoff>=1.11.0,<2
 timeout-decorator
 validators
 xmltodict
+pandas
 
 # Test utils
 freezegun>=1.1.0,<2

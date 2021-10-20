@@ -59,7 +59,6 @@
 # Author: James Diprose
 
 import contextlib
-import copy
 import datetime
 import logging
 import os
@@ -72,7 +71,6 @@ import unittest
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from multiprocessing import Process
 from typing import Dict, List
@@ -102,6 +100,9 @@ from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
+from pendulum import DateTime
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
+
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
@@ -119,8 +120,6 @@ from observatory.platform.utils.gc_utils import (
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.workflow_utils import find_schema
-from pendulum import DateTime
-from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 
 def random_id():
@@ -347,27 +346,23 @@ class ObservatoryEnvironment:
         self.session.add(conn)
         self.session.commit()
 
-    def run_task(self, task_id: str, dag: DAG = None, execution_date: pendulum.DateTime = None) -> TaskInstance:
+    def run_task(self, task_id: str) -> TaskInstance:
         """Run an Airflow task.
 
-        :param dag: the Airflow DAG instance.
         :param task_id: the Airflow task identifier.
-        :param execution_date: the execution date of the DAG.
         :return: None.
         """
-        # If dag or execution date are not set, get corresponding values from dag run
-        if not (dag and execution_date):
-            if self.dag_run is None:
-                raise TypeError(
-                    "Either dag and execution date should be set, or task should be run within a DagRun environment."
-                )
-            dag = self.dag_run.dag
-            execution_date = self.dag_run.execution_date
+
+        assert self.dag_run is not None, "with create_dag_run must be called before run_task"
+
+        dag = self.dag_run.dag
+        run_id = self.dag_run.run_id
         task = dag.get_task(task_id=task_id)
-        ti = TaskInstance(task, execution_date)
-        ti.refresh_from_db()
+        ti = TaskInstance(task, run_id=run_id)
+        ti.dag_run = self.dag_run
         ti.init_run_context(raw=True)
         ti.run(ignore_ti_state=True)
+
         return ti
 
     @contextlib.contextmanager

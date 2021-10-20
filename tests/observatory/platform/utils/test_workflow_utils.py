@@ -1012,7 +1012,7 @@ class TestWorkflowUtils(unittest.TestCase):
                 is_first = is_first_dag_run(first_dag_run)
                 self.assertTrue(is_first)
 
-                ti = env.run_task("task", dag, execution_date=first_execution_date)
+                ti = env.run_task("task")
                 self.assertEqual(ti.state, State.SUCCESS)
 
                 is_first = is_first_dag_run(first_dag_run)
@@ -1025,7 +1025,7 @@ class TestWorkflowUtils(unittest.TestCase):
                 is_first = is_first_dag_run(second_dag_run)
                 self.assertFalse(is_first)
 
-                ti = env.run_task("task", dag, execution_date=second_execution_date)
+                ti = env.run_task("task")
                 self.assertEqual(ti.state, State.SUCCESS)
 
                 is_first = is_first_dag_run(second_dag_run)
