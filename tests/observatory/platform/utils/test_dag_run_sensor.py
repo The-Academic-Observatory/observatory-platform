@@ -15,11 +15,12 @@
 # Author: Tuan Chien
 
 import datetime
+import os.path
 from unittest.mock import patch
 
 import pendulum
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
-from airflow.models import DagRun
+from airflow.models import DagRun, DagModel
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 
@@ -38,7 +39,7 @@ class MonitoringWorkflow(Workflow):
         ext_dag_id: str,
         schedule_interval: str = "@monthly",
         mode: str = "reschedule",
-        check_exists: bool = False,
+        check_exists: bool = True,
     ):
         super().__init__(
             dag_id=MonitoringWorkflow.DAG_ID, start_date=start_date, schedule_interval=schedule_interval, catchup=False
@@ -106,7 +107,9 @@ class TestDagRunSensor(ObservatoryTestCase):
 
     def test_no_execution_date_in_range(self):
         env = ObservatoryEnvironment()
-        with env.create():
+        with env.create() as t:
+            self.add_dummy_dag_model(t, self.ext_dag_id, "@weekly")
+
             execution_date = pendulum.datetime(2021, 9, 1)
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id=self.ext_dag_id)
             dag = wf.make_dag()
@@ -118,7 +121,9 @@ class TestDagRunSensor(ObservatoryTestCase):
     def test_grace_period(self, m_get_execdate):
         m_get_execdate.return_value = None
         env = ObservatoryEnvironment()
-        with env.create():
+        with env.create() as t:
+            self.add_dummy_dag_model(t, self.ext_dag_id, "@weekly")
+
             execution_date = pendulum.datetime(2021, 9, 1)
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id=self.ext_dag_id)
             dag = wf.make_dag()
@@ -128,10 +133,23 @@ class TestDagRunSensor(ObservatoryTestCase):
 
             self.assertEqual(m_get_execdate.call_count, 2)
 
+    def add_dummy_dag_model(self, t: str, dag_id: str, schedule_interval: str):
+        model = DagModel()
+        model.dag_id = dag_id
+        model.schedule_interval = schedule_interval
+        model.fileloc = os.path.join(t, "dummy_dag.py")
+        open(model.fileloc, mode="a").close()
+        self.update_db(object=model)
+
     def run_dummy_dag(
         self, env: ObservatoryEnvironment, execution_date: pendulum.DateTime, task_id: str = "dummy_task"
     ):
         dag = make_dummy_dag(self.ext_dag_id, execution_date)
+
+        # Add DagModel to db
+        self.add_dummy_dag_model(env.temp_dir, dag.dag_id, dag.schedule_interval)
+
+        # Run DAG
         with env.create_dag_run(dag, execution_date):
             ti = env.run_task(task_id)
             self.assertEqual(State.SUCCESS, ti.state)
