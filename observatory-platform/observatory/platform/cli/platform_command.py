@@ -15,22 +15,21 @@
 # Author: James Diprose
 
 from observatory.platform.observatory_config import BackendType
-from observatory.platform.platform_builder import PlatformBuilder, HOST_UID, HOST_GID, DEBUG
+from observatory.platform.platform_builder import PlatformBuilder, HOST_UID, DEBUG
 from observatory.platform.utils.url_utils import wait_for_url
 
 
 class PlatformCommand(PlatformBuilder):
-    def __init__(self, config_path: str, host_uid: int = HOST_UID, host_gid: int = HOST_GID, debug: bool = DEBUG):
+    def __init__(self, config_path: str, host_uid: int = HOST_UID, debug: bool = DEBUG):
         """Create a PlatformCommand, which can be used to start and stop Observatory Platform instances.
 
         :param config_path: The path to the config.yaml configuration file.
         :param host_uid: The user id of the host system. Used to set the user id in the Docker containers.
-        :param host_gid: The group id of the host system. Used to set the group id in the Docker containers.
         :param debug: Print debugging information.
         """
 
         super().__init__(
-            config_path=config_path, host_uid=host_uid, host_gid=host_gid, debug=debug, backend_type=BackendType.local
+            config_path=config_path, host_uid=host_uid, debug=debug, backend_type=BackendType.local
         )
 
     @property

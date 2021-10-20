@@ -15,13 +15,14 @@
 # Author: Aniek Roelofs, Tuan Chien
 
 import os
-import jsonlines
 from datetime import timedelta
 from unittest.mock import MagicMock, call, patch
 
+import jsonlines
 import pendulum
 from airflow.utils.state import State
 from google.cloud.bigquery import SourceFormat, TimePartitioningType
+
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, test_fixtures_path
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
@@ -76,7 +77,8 @@ class MyTestStreamTelescope(StreamTelescope):
             batch_load=batch_load,
         )
 
-        self.add_setup_task_chain([self.check_dependencies])
+        self.add_setup_task(self.check_dependencies)
+        self.add_setup_task(self.set_release_info)
         self.add_task(self.transform)
         self.add_task(self.upload_transformed)
         self.add_task(self.bq_load_partition)
@@ -115,6 +117,11 @@ class MyTestStreamTelescope(StreamTelescope):
         release = StreamRelease(self.dag_id, start_date, end_date, first_release)
         return release
 
+    def set_release_info(self, **kwargs):
+        """Set release info on the telescope"""
+        self._start_date, self._end_date, self._first_release = self.get_release_info(**kwargs)
+        return True
+
     def transform(self, release: StreamRelease, **kwargs):
         """Create 2 transform files by writing file_content to a jsonl file.
 
@@ -144,6 +151,20 @@ class TestStreamTelescope(ObservatoryTestCase):
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
 
+        # First release, append from file and don't update main table
+        self.run1 = {
+            "date": pendulum.datetime(year=2020, month=7, day=26),
+            "first_release": True,
+            "expected_end_date": pendulum.datetime(year=2020, month=8, day=1),
+        }
+
+        # Second release, load partition and update main table
+        self.run2 = {
+            "date": pendulum.datetime(year=2020, month=10, day=4),
+            "first_release": False,
+            "expected_end_date": pendulum.datetime(year=2020, month=10, day=10),
+        }
+
     @patch("observatory.platform.utils.workflow_utils.find_schema")
     def test_telescope(self, mock_find_schema):
         """Test the telescope end to end and that all bq load tasks run as expected.
@@ -152,11 +173,6 @@ class TestStreamTelescope(ObservatoryTestCase):
         """
         # Mock find schema, because schema is in fixtures directory
         mock_find_schema.return_value = os.path.join(test_fixtures_path("workflows"), "stream_telescope_schema.json")
-
-        # First release, append from file and don't update main table
-        run1 = {"date": pendulum.datetime(year=2020, month=7, day=26), "first_release": True}
-        # Second release, load partition and update main table
-        run2 = {"date": pendulum.datetime(year=2020, month=10, day=4), "first_release": False}
 
         # Setup Telescopes, first one without batch_load and second one with batch_load
         batch_load_settings = [True, False]
@@ -172,36 +188,34 @@ class TestStreamTelescope(ObservatoryTestCase):
 
                 # Create the Observatory environment and run tests
                 with env.create(task_logging=True):
-                    for run in [run1, run2]:
+                    for run in [self.run1, self.run2]:
                         with env.create_dag_run(dag, run["date"]):
                             # Test that all dependencies are specified: no error should be thrown
-                            env.run_task(telescope.check_dependencies.__name__)
+                            ti = env.run_task(telescope.check_dependencies.__name__)
+                            self.assertEqual("success", ti.state)
 
-                            # Test start and end date for release info
-                            next_execution_date = pendulum.instance(
-                                dag.next_dagrun_after_date(env.dag_run.execution_date)
-                            )
-                            start_date, end_date, first_release = telescope.get_release_info(
-                                dag=dag, dag_run=env.dag_run, next_execution_date=next_execution_date
-                            )
+                            # Set release info data for testing
+                            ti = env.run_task(telescope.set_release_info.__name__)
+                            self.assertEqual("success", ti.state)
 
-                            self.assertEqual(run["first_release"], first_release)
-                            if run == run1:
-                                self.assertEqual(start_date, dag.default_args["start_date"])
-                                self.assertEqual(end_date, pendulum.today("UTC") - timedelta(days=1))
+                            self.assertEqual(run["first_release"], telescope._first_release)
+                            if run == self.run1:
+                                self.assertEqual(dag.default_args["start_date"], telescope._start_date)
+                                self.assertEqual(run["expected_end_date"], telescope._end_date)
                             else:
-                                self.assertEqual(release.end_date + timedelta(days=1), start_date)
-                                self.assertEqual(pendulum.today("UTC") - timedelta(days=1), end_date)
+                                self.assertEqual(release.end_date + timedelta(days=1), telescope._start_date)
+                                self.assertEqual(run["expected_end_date"], telescope._end_date)
 
                             # Use release info for other tasks
                             release = StreamRelease(
                                 telescope.dag_id,
-                                start_date,
-                                end_date,
-                                first_release,
+                                telescope._start_date,
+                                telescope._end_date,
+                                telescope._first_release,
                             )
 
-                            env.run_task(telescope.transform.__name__)
+                            ti = env.run_task(telescope.transform.__name__)
+                            self.assertEqual("success", ti.state)
                             self.assertEqual(2, len(release.transform_files))
 
                             # Test that files upload is called
@@ -232,9 +246,10 @@ class TestStreamTelescope(ObservatoryTestCase):
 
                             # Test that data is loaded into partition table
                             ti = env.run_task(telescope.bq_load_partition.__name__)
-                            if run == run1:
+                            if run == self.run1:
                                 self.assertEqual("skipped", ti.state)
                             else:
+                                self.assertEqual("success", ti.state)
                                 for _, _, partition_table_id in bq_load_info:
                                     partition_table_id = create_date_table_id(
                                         partition_table_id, release.end_date, TimePartitioningType.DAY
@@ -254,9 +269,10 @@ class TestStreamTelescope(ObservatoryTestCase):
 
                             # Test that row(s) is deleted from the main table in the second run
                             ti = env.run_task(telescope.bq_delete_old.__name__)
-                            if run == run1:
+                            if run == self.run1:
                                 self.assertEqual("skipped", ti.state)
                             else:
+                                self.assertEqual("success", ti.state)
                                 for _, main_table_id, _ in bq_load_info:
                                     table_id = f"{self.project_id}.{dataset_id}.{main_table_id}"
                                     if batch_load:
@@ -276,7 +292,7 @@ class TestStreamTelescope(ObservatoryTestCase):
                             env.run_task(telescope.bq_append_new.__name__)
                             for _, main_table_id, _ in bq_load_info:
                                 table_id = f"{self.project_id}.{dataset_id}.{main_table_id}"
-                                if run == run1:
+                                if run == self.run1:
                                     if batch_load:
                                         expected_content = (
                                             telescope.file_content["run1"]["file1"]
@@ -338,10 +354,6 @@ class TestStreamTelescope(ObservatoryTestCase):
 
         :return: None.
         """
-        # First release, append from file and don't update main table
-        run1 = {"date": pendulum.datetime(year=2020, month=7, day=26), "first_release": True}
-        # Second release, load partition and update main table
-        run2 = {"date": pendulum.datetime(year=2020, month=10, day=4), "first_release": False}
 
         # Setup Telescopes, first one without batch_load and second one with batch_load
         batch_load_settings = [False, True]
@@ -357,33 +369,30 @@ class TestStreamTelescope(ObservatoryTestCase):
 
                 # Create the Observatory environment and run tests
                 with env.create(task_logging=True):
-                    for run in [run1, run2]:
+                    for run in [self.run1, self.run2]:
                         with env.create_dag_run(dag, run["date"]):
                             # Test that all dependencies are specified: no error should be thrown
-                            env.run_task(telescope.check_dependencies.__name__)
+                            ti = env.run_task(telescope.check_dependencies.__name__)
+                            self.assertEqual(ti.state, "success")
 
-                            # Test start and end date for release info
-                            next_execution_date = pendulum.instance(
-                                dag.next_dagrun_after_date(env.dag_run.execution_date)
-                            )
-                            start_date, end_date, first_release = telescope.get_release_info(
-                                dag=dag, dag_run=env.dag_run, next_execution_date=next_execution_date
-                            )
+                            # Set release info data for testing
+                            ti = env.run_task(telescope.set_release_info.__name__)
+                            self.assertEqual(ti.state, "success")
 
-                            self.assertEqual(run["first_release"], first_release)
-                            if run == run1:
-                                self.assertEqual(start_date, dag.default_args["start_date"])
-                                self.assertEqual(end_date, pendulum.today("UTC") - timedelta(days=1))
+                            self.assertEqual(run["first_release"], telescope._first_release)
+                            if run == self.run1:
+                                self.assertEqual(dag.default_args["start_date"], telescope._start_date)
+                                self.assertEqual(run["expected_end_date"], telescope._end_date)
                             else:
-                                self.assertEqual(release.end_date + timedelta(days=1), start_date)
-                                self.assertEqual(pendulum.today("UTC") - timedelta(days=1), end_date)
+                                self.assertEqual(release.end_date + timedelta(days=1), telescope._start_date)
+                                self.assertEqual(run["expected_end_date"], telescope._end_date)
 
                             # Use release info for other tasks
                             release = StreamRelease(
                                 telescope.dag_id,
-                                start_date,
-                                end_date,
-                                first_release,
+                                telescope._start_date,
+                                telescope._end_date,
+                                telescope._first_release,
                             )
 
                             env.run_task(telescope.transform.__name__)
@@ -418,7 +427,7 @@ class TestStreamTelescope(ObservatoryTestCase):
 
                             # Test whether the correct bq load functions are called for different runs
                             ti = env.run_task(telescope.bq_load_partition.__name__)
-                            if run == run1:
+                            if run == self.run1:
                                 self.assertEqual(0, bq_load_ingestion_partition.call_count)
                                 self.assertEqual("skipped", ti.state)
                             else:
@@ -447,7 +456,7 @@ class TestStreamTelescope(ObservatoryTestCase):
 
                             # Test whether the correct bq delete functions are called for different runs
                             ti = env.run_task(telescope.bq_delete_old.__name__)
-                            if run == run1:
+                            if run == self.run1:
                                 # First release the task is run but does not execute the bq_delete_old function
                                 self.assertEqual(0, bq_delete_old.call_count)
                                 self.assertEqual("skipped", ti.state)
@@ -469,7 +478,7 @@ class TestStreamTelescope(ObservatoryTestCase):
 
                             # Test whether the correct bq append functions are called for different runs
                             ti = env.run_task(telescope.bq_append_new.__name__)
-                            if run == run1:
+                            if run == self.run1:
                                 self.assertEqual(len(bq_load_info), bq_append_from_file.call_count)
                                 expected_calls = []
                                 for transform_blob, main_table_id, partition_table_id in bq_load_info:
@@ -539,7 +548,7 @@ class MockTelescope(StreamTelescope):
         self.add_setup_task(self.task)
 
     def task(self, **kwargs):
-        self.start, self.end, self.first_release = self.get_release_info(**kwargs)
+        self._start, self._end, self._first_release = self.get_release_info(**kwargs)
         print("Hello")
 
     def make_release(self, **kwargs) -> StreamRelease:
@@ -582,24 +591,24 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
 
             # First DAG Run
             with env.create_dag_run(dag=dag, execution_date=first_execution_date):
-                ti = env.run_task("task", dag, execution_date=first_execution_date)
+                ti = env.run_task("task")
                 self.assertEqual(ti.state, State.SUCCESS)
                 expected_start = start_date
                 expected_end = pendulum.datetime(2021, 9, 30)
-                self.assertEqual(expected_start, telescope.start)
-                self.assertEqual(expected_end, telescope.end)
-                self.assertTrue(telescope.first_release)
+                self.assertEqual(expected_start, telescope._start)
+                self.assertEqual(expected_end, telescope._end)
+                self.assertTrue(telescope._first_release)
 
             # Second DAG Run
             second_execution_date = pendulum.datetime(2021, 12, 1)
             with env.create_dag_run(dag=dag, execution_date=second_execution_date):
-                ti = env.run_task("task", dag, execution_date=second_execution_date)
+                ti = env.run_task("task")
                 self.assertEqual(ti.state, State.SUCCESS)
                 expected_start = pendulum.datetime(2021, 10, 1)
                 expected_end = pendulum.datetime(2021, 12, 31)
-                self.assertEqual(expected_start, telescope.start)
-                self.assertEqual(expected_end, telescope.end)
-                self.assertFalse(telescope.first_release)
+                self.assertEqual(expected_start, telescope._start)
+                self.assertEqual(expected_end, telescope._end)
+                self.assertFalse(telescope._first_release)
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_download(self, m_get):

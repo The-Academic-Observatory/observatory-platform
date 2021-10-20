@@ -18,10 +18,10 @@
 # This script runs commands as the root user
 
 # Make airflow user own everything in home directory
-chown -R airflow:airflow ${AIRFLOW_HOME}
+chown -R airflow ${AIRFLOW_HOME}
 
 # Make airflow user own everything in observatory directory
-chown -R airflow:airflow /opt/observatory
+chown -R airflow /opt/observatory
 
 # Hardcoded list of environment variables that need to be preserved
 STANDARD_ENV_PRESERVE="AIRFLOW_HOME,GOOGLE_APPLICATION_CREDENTIALS,AO_HOME,AIRFLOW_UI_USER_EMAIL,AIRFLOW_UI_USER_PASSWORD"
