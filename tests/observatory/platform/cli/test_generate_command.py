@@ -172,7 +172,6 @@ class TestGenerateCommand(ObservatoryTestCase):
             # Check that config.py file exists
             self.assertTrue(os.path.isfile(os.path.join(project_path, package_name, "config.py")))
 
-    @unittest.skip
     def test_generate_workflow(self):
         """Test generate workflow command and run unit tests that are generated for each of the workflow types.
 
