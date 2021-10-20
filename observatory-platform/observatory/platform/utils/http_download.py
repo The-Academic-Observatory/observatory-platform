@@ -77,7 +77,7 @@ async def download_http_file_(*, download_info: DownloadInfo, headers=None):
     dst_file = download_info.filename
 
     async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
-        async with session.get(url) as resp:
+        async with session.get(url, timeout=None) as resp:
             if dst_file is None:
                 _, params = parse_header(resp.headers.get("Content-Disposition", ""))
                 if params != "" and "filename" in params:
