@@ -181,58 +181,12 @@ class TestObservatoryEnvironment(unittest.TestCase):
     def test_create(self):
         """Tests create, add_variable, add_connection and run_task"""
 
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
         expected_state = "success"
 
         # Setup Telescope
         execution_date = pendulum.datetime(year=2020, month=11, day=1)
         telescope = TelescopeTest()
         dag = telescope.make_dag()
-
-        # Test environment without logging enabled
-        with env.create():
-            with env.create_dag_run(dag, execution_date):
-                # Test add_variable
-                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
-
-                # Test add_connection
-                conn = Connection(
-                    conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2"
-                )
-                env.add_connection(conn)
-
-                # Test run task
-                ti = env.run_task(telescope.check_dependencies.__name__)
-                self.assertEqual(expected_state, ti.state)
-
-                ti = env.run_task(telescope.setup_task.__name__)
-                self.assertEqual(expected_state, ti.state)
-
-                ti = env.run_task(telescope.my_task.__name__)
-                self.assertEqual(expected_state, ti.state)
-
-        # Test environment with logging enabled
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
-        with env.create(task_logging=True):
-            with env.create_dag_run(dag, execution_date):
-                # Test add_variable
-                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
-
-                # Test add_connection
-                conn = Connection(
-                    conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2"
-                )
-                env.add_connection(conn)
-
-                # Test run task
-                ti = env.run_task(telescope.check_dependencies.__name__)
-                self.assertEqual(expected_state, ti.state)
-
-                ti = env.run_task(telescope.setup_task.__name__)
-                self.assertEqual(expected_state, ti.state)
-
-                ti = env.run_task(telescope.my_task.__name__)
-                self.assertEqual(expected_state, ti.state)
 
         # Test that previous tasks have to be finished to run next task
         env = ObservatoryEnvironment(self.project_id, self.data_location)
@@ -259,6 +213,53 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 self.assertEqual(expected_state, ti.state)
 
                 ti = env.run_task(telescope.my_task.__name__)
+                self.assertEqual(expected_state, ti.state)
+
+    def test_task_logging(self):
+        """Test task logging"""
+
+        expected_state = "success"
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+
+        # Setup Telescope
+        execution_date = pendulum.datetime(year=2020, month=11, day=1)
+        telescope = TelescopeTest()
+        dag = telescope.make_dag()
+
+        # Test environment without logging enabled
+        with env.create():
+            with env.create_dag_run(dag, execution_date):
+
+                # Test add_variable
+                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+
+                # Test add_connection
+                conn = Connection(
+                    conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2"
+                )
+                env.add_connection(conn)
+
+                # Test run task
+                ti = env.run_task(telescope.check_dependencies.__name__)
+                self.assertFalse(ti.log.propagate)
+                self.assertEqual(expected_state, ti.state)
+
+        # Test environment with logging enabled
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        with env.create(task_logging=True):
+            with env.create_dag_run(dag, execution_date):
+                # Test add_variable
+                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+
+                # Test add_connection
+                conn = Connection(
+                    conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2"
+                )
+                env.add_connection(conn)
+
+                # Test run task
+                ti = env.run_task(telescope.check_dependencies.__name__)
+                self.assertTrue(ti.log.propagate)
                 self.assertEqual(expected_state, ti.state)
 
     def test_create_dagrun(self):
