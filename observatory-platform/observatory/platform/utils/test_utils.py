@@ -402,7 +402,7 @@ class ObservatoryEnvironment:
                     frozen_time.stop()
 
     @contextlib.contextmanager
-    def create(self, task_logging: bool = False, load_examples: bool = False):
+    def create(self, task_logging: bool = False):
         """Make and destroy an Observatory isolated environment, which involves:
 
         * Creating a temporary directory.
@@ -413,8 +413,7 @@ class ObservatoryEnvironment:
           AirflowVars.DOWNLOAD_BUCKET and AirflowVars.TRANSFORM_BUCKET.
         * Cleaning up all resources when the environment is closed.
 
-        :param task_logging: display airflow task logging.
-        :param load_examples: whether to load default example dags or not.
+        :param task_logging: display airflow task logging
         :yield: Observatory environment temporary directory.
         """
 
@@ -423,10 +422,7 @@ class ObservatoryEnvironment:
             self.temp_dir = temp_dir
 
             # Prepare environment
-            self.new_env = {
-                self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, ".observatory"),
-                "AIRFLOW__CORE__LOAD_EXAMPLES": str(load_examples),
-            }
+            self.new_env = {self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, ".observatory")}
             prev_env = dict(os.environ)
 
             try:
@@ -438,7 +434,6 @@ class ObservatoryEnvironment:
                 os.makedirs(settings.DAGS_FOLDER, exist_ok=True)
                 airflow_db_path = os.path.join(self.temp_dir, "airflow.db")
                 settings.SQL_ALCHEMY_CONN = f"sqlite:///{airflow_db_path}"
-
                 logging.info(f"SQL_ALCHEMY_CONN: {settings.SQL_ALCHEMY_CONN}")
                 settings.configure_orm(disable_connection_pool=True)
                 self.session = settings.Session

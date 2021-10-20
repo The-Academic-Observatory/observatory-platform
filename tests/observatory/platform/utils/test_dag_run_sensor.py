@@ -18,18 +18,13 @@ import datetime
 from unittest.mock import patch
 
 import pendulum
-from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import DagRun
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 
 from observatory.platform.utils.dag_run_sensor import DagRunSensor
-from observatory.platform.utils.test_utils import (
-    ObservatoryEnvironment,
-    ObservatoryTestCase,
-)
+from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, make_dummy_dag
 from observatory.platform.workflows.workflow import Workflow
 
 
@@ -43,7 +38,7 @@ class MonitoringWorkflow(Workflow):
         ext_dag_id: str,
         schedule_interval: str = "@monthly",
         mode: str = "reschedule",
-        check_exists: bool = True,
+        check_exists: bool = False,
     ):
         super().__init__(
             dag_id=MonitoringWorkflow.DAG_ID, start_date=start_date, schedule_interval=schedule_interval, catchup=False
@@ -76,6 +71,8 @@ class TestDagRunSensor(ObservatoryTestCase):
 
     def __init__(self, *args, **kwargs):
         self.start_date = pendulum.datetime(2021, 9, 1)
+        self.ext_dag_id = "dummy_dag"
+        self.sensor_task_id = "sensor_task"
 
         super().__init__(*args, **kwargs)
 
@@ -88,21 +85,6 @@ class TestDagRunSensor(ObservatoryTestCase):
         session.merge(object)
         session.commit()
 
-    def triggering_dag(self, *, dag_id="dag", execution_date):
-        with DAG(
-            dag_id=dag_id,
-            schedule_interval="@monthly",
-            default_args={
-                "start_date": self.start_date,
-            },
-            catchup=False,
-        ) as dag:
-            task = TriggerDagRunOperator(
-                trigger_dag_id="example_bash_operator", task_id="trigger_dag", execution_date=execution_date
-            )
-
-        return dag
-
     def test_no_dag_exists(self):
         env = ObservatoryEnvironment()
         with env.create():
@@ -110,7 +92,7 @@ class TestDagRunSensor(ObservatoryTestCase):
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="nodag", check_exists=True)
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                self.assertRaises(AirflowException, env.run_task, "sensor_task")
+                self.assertRaises(AirflowException, env.run_task, self.sensor_task_id)
 
     def test_no_dag_exists_no_check(self):
         env = ObservatoryEnvironment()
@@ -119,17 +101,17 @@ class TestDagRunSensor(ObservatoryTestCase):
             wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="nodag", check_exists=False)
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task")
+                ti = env.run_task(self.sensor_task_id)
                 self.assertEqual(ti.state, State.SUCCESS)
 
     def test_no_execution_date_in_range(self):
         env = ObservatoryEnvironment()
         with env.create():
             execution_date = pendulum.datetime(2021, 9, 1)
-            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
+            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id=self.ext_dag_id)
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task")
+                ti = env.run_task(self.sensor_task_id)
                 self.assertEqual(ti.state, State.SUCCESS)
 
     @patch("observatory.platform.utils.dag_run_sensor.DagRunSensor.get_latest_execution_date")
@@ -138,151 +120,103 @@ class TestDagRunSensor(ObservatoryTestCase):
         env = ObservatoryEnvironment()
         with env.create():
             execution_date = pendulum.datetime(2021, 9, 1)
-            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
+            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id=self.ext_dag_id)
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task")
+                ti = env.run_task(self.sensor_task_id)
                 self.assertEqual(ti.state, State.SUCCESS)
 
             self.assertEqual(m_get_execdate.call_count, 2)
+
+    def run_dummy_dag(
+        self, env: ObservatoryEnvironment, execution_date: pendulum.DateTime, task_id: str = "dummy_task"
+    ):
+        dag = make_dummy_dag(self.ext_dag_id, execution_date)
+        with env.create_dag_run(dag, execution_date):
+            ti = env.run_task(task_id)
+            self.assertEqual(State.SUCCESS, ti.state)
+
+            dagruns = self.find_runs()
+            self.assertEqual(dagruns[-1].execution_date, execution_date)
 
     def test_execution_on_oldest_boundary(self):
         env = ObservatoryEnvironment()
         with env.create():
             execution_date = pendulum.datetime(2021, 8, 25)
-            dag = self.triggering_dag(execution_date=execution_date)
-            with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag")
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                dagruns = self.find_runs()
-                self.assertEqual(dagruns[1].execution_date, execution_date)
-                dagruns[1].set_state(DagRunState.SUCCESS)
-                self.update_db(object=dagruns[1])
+            self.run_dummy_dag(env, execution_date)
 
             execution_date = pendulum.datetime(2021, 9, 1)
-
-            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
+            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id=self.ext_dag_id)
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task")
+                ti = env.run_task(self.sensor_task_id)
                 self.assertEqual(ti.state, State.SUCCESS)
 
     def test_execution_on_newest_boundary(self):
         env = ObservatoryEnvironment()
         with env.create():
             execution_date = pendulum.datetime(2021, 9, 1)
-            dag = self.triggering_dag(execution_date=execution_date)
-            with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag")
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                dagruns = self.find_runs()
-                self.assertEqual(dagruns[1].execution_date, execution_date)
-                dagruns[1].set_state(DagRunState.SUCCESS)
-                self.update_db(object=dagruns[1])
+            self.run_dummy_dag(env, execution_date)
 
             execution_date = pendulum.datetime(2021, 9, 1)
-
-            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
+            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id=self.ext_dag_id)
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task")
+                ti = env.run_task(self.sensor_task_id)
                 self.assertEqual(ti.state, State.SUCCESS)
 
     def test_execution_multiple_dagruns_last_success(self):
         env = ObservatoryEnvironment()
         with env.create():
             execution_date = pendulum.datetime(2021, 8, 25)
-            dag = self.triggering_dag(execution_date=execution_date)
-            with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag")
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                dagruns = self.find_runs()
-                self.assertEqual(dagruns[1].execution_date, execution_date)
-                dagruns[1].set_state(DagRunState.SUCCESS)
-                self.update_db(object=dagruns[1])
+            self.run_dummy_dag(env, execution_date)
 
             execution_date = pendulum.datetime(2021, 9, 1)
-            dag = self.triggering_dag(execution_date=execution_date)
-            with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag")
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                dagruns = self.find_runs()
-                self.assertEqual(dagruns[3].execution_date, execution_date)
-                dagruns[3].set_state(DagRunState.SUCCESS)
-                self.update_db(object=dagruns[3])
+            self.run_dummy_dag(env, execution_date)
 
             execution_date = pendulum.datetime(2021, 9, 1)
-
-            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
+            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id=self.ext_dag_id)
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task")
+                ti = env.run_task(self.sensor_task_id)
                 self.assertEqual(ti.state, State.SUCCESS)
+
+    def fail_last_dag_run(self):
+        dagruns = self.find_runs()
+        last_dag_run = dagruns[-1]
+        last_dag_run.set_state(DagRunState.FAILED)
+        self.update_db(object=last_dag_run)
 
     def test_execution_multiple_dagruns_last_fail_reschedule_mode(self):
         env = ObservatoryEnvironment()
         with env.create():
             execution_date = pendulum.datetime(2021, 8, 25)
-            dag = self.triggering_dag(execution_date=execution_date)
-            with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag")
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                dagruns = self.find_runs()
-                self.assertEqual(dagruns[1].execution_date, execution_date)
-                dagruns[1].set_state(DagRunState.SUCCESS)
-                self.update_db(object=dagruns[1])
+            self.run_dummy_dag(env, execution_date)
 
             execution_date = pendulum.datetime(2021, 9, 1)
-            dag = self.triggering_dag(execution_date=execution_date)
-            with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag")
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                dagruns = self.find_runs()
-                self.assertEqual(dagruns[3].execution_date, execution_date)
-                dagruns[3].set_state(DagRunState.FAILED)
-                self.update_db(object=dagruns[3])
+            self.run_dummy_dag(env, execution_date)
+            self.fail_last_dag_run()
 
             execution_date = pendulum.datetime(2021, 9, 1)
-            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator")
+            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id=self.ext_dag_id)
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("sensor_task")
+                ti = env.run_task(self.sensor_task_id)
                 self.assertEqual(ti.state, "up_for_reschedule")
 
     def test_execution_multiple_dagruns_last_fail_poke_mode(self):
         env = ObservatoryEnvironment()
         with env.create():
             execution_date = pendulum.datetime(2021, 8, 25)
-            dag = self.triggering_dag(execution_date=execution_date)
-            with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag")
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                dagruns = self.find_runs()
-                self.assertEqual(dagruns[1].execution_date, execution_date)
-                dagruns[1].set_state(DagRunState.SUCCESS)
-                self.update_db(object=dagruns[1])
+            self.run_dummy_dag(env, execution_date)
 
             execution_date = pendulum.datetime(2021, 9, 1)
-            dag = self.triggering_dag(execution_date=execution_date)
-            with env.create_dag_run(dag=dag, execution_date=execution_date):
-                ti = env.run_task("trigger_dag")
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                dagruns = self.find_runs()
-                self.assertEqual(dagruns[3].execution_date, execution_date)
-                dagruns[3].set_state(DagRunState.FAILED)
-                self.update_db(object=dagruns[3])
+            self.run_dummy_dag(env, execution_date)
+            self.fail_last_dag_run()
 
             execution_date = pendulum.datetime(2021, 9, 1)
-            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id="example_bash_operator", mode="poke")
+            wf = MonitoringWorkflow(start_date=self.start_date, ext_dag_id=self.ext_dag_id, mode="poke")
             dag = wf.make_dag()
             with env.create_dag_run(dag=dag, execution_date=execution_date):
-                # ti = env.run_task("sensor_task")
-                self.assertRaises(AirflowSensorTimeout, env.run_task, "sensor_task")
+                # ti = env.run_task(self.sensor_task_id)
+                self.assertRaises(AirflowSensorTimeout, env.run_task, self.sensor_task_id)
