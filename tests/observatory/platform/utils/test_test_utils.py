@@ -33,6 +33,7 @@ from airflow.models.variable import Variable
 from click.testing import CliRunner
 from google.cloud.bigquery import SourceFormat
 from google.cloud.exceptions import NotFound
+
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.gc_utils import (
     create_bigquery_dataset,
@@ -77,6 +78,7 @@ class TelescopeTest(Workflow):
         dag_id: str = DAG_ID,
         start_date: pendulum.DateTime = pendulum.datetime(2020, 9, 1, tz="UTC"),
         schedule_interval: str = "@weekly",
+        setup_task_result: bool = True,
     ):
         airflow_vars = [
             AirflowVars.DATA_PATH,
@@ -88,6 +90,7 @@ class TelescopeTest(Workflow):
         ]
         airflow_conns = [MY_CONN_ID]
         super().__init__(dag_id, start_date, schedule_interval, airflow_vars=airflow_vars, airflow_conns=airflow_conns)
+        self.setup_task_result = setup_task_result
         self.add_setup_task(self.check_dependencies)
         self.add_setup_task(self.setup_task)
         self.add_task(self.my_task)
@@ -97,7 +100,7 @@ class TelescopeTest(Workflow):
 
     def setup_task(self, **kwargs):
         logging.info("setup_task success")
-        return True
+        return self.setup_task_result
 
     def my_task(self, release, **kwargs):
         logging.info("my_task success")
@@ -212,6 +215,31 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 ti = env.run_task(telescope.setup_task.__name__)
                 self.assertEqual(expected_state, ti.state)
 
+                ti = env.run_task(telescope.my_task.__name__)
+                self.assertEqual(expected_state, ti.state)
+
+        # Test that tasks are skipped when setup task returns False
+        telescope = TelescopeTest(setup_task_result=False)
+        dag = telescope.make_dag()
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        with env.create(task_logging=True):
+            with env.create_dag_run(dag, execution_date):
+                # Add_variable
+                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+
+                # Add connection
+                conn = Connection(
+                    conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2"
+                )
+                env.add_connection(conn)
+
+                ti = env.run_task(telescope.check_dependencies.__name__)
+                self.assertEqual(expected_state, ti.state)
+
+                ti = env.run_task(telescope.setup_task.__name__)
+                self.assertEqual(expected_state, ti.state)
+
+                expected_state = "skipped"
                 ti = env.run_task(telescope.my_task.__name__)
                 self.assertEqual(expected_state, ti.state)
 
