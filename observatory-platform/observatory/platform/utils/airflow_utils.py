@@ -25,7 +25,7 @@ from typing import Any, List, Optional, Union
 import validators
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection, TaskInstance, Variable, DagRun
+from airflow.models import Connection, DagRun, TaskInstance, Variable
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookHook
 from airflow.utils.db import create_session
 from airflow.utils.state import TaskInstanceState
@@ -194,6 +194,17 @@ def get_airflow_connection_url(conn_id: str) -> str:
         url += "/"
 
     return url
+
+
+def get_airflow_connection_login(conn_id: str) -> str:
+    """Get the Airflow connection login. Assumes the connection_id exists.
+
+    :param conn_id: Airflow connection id.
+    :return: Connection login.
+    """
+
+    conn = BaseHook.get_connection(conn_id)
+    return conn.login
 
 
 def get_airflow_connection_password(conn_id: str) -> str:
