@@ -34,6 +34,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import chain
 from airflow.models.variable import Variable
 from airflow.operators.python import PythonOperator, ShortCircuitOperator
+from airflow.operators.bash import BaseOperator
 from airflow.sensors.base import BaseSensorOperator
 from observatory.platform.utils.airflow_utils import (
     AirflowVars,
@@ -71,6 +72,19 @@ class ListReleaseFunction(Protocol):
 
 
 WorkflowFunction = Union[ReleaseFunction, ListReleaseFunction]
+Task: Union[Callable, BaseOperator]
+
+
+@dataclasses.dataclass
+class Operator:
+    """A container for data to be passed to an Airflow Operator.
+
+    :param func: the task function or operator.
+    :param kwargs: the task kwargs parameter.
+    """
+
+    func: Task
+    kwargs: Dict
 
 
 class AbstractWorkflow(ABC):
@@ -121,7 +135,7 @@ class AbstractWorkflow(ABC):
         pass
 
     @abstractmethod
-    def add_task(self, func: Callable):
+    def add_task(self, func: Task):
         """Add a task, which is used to process releases. A task has the following properties:
 
         - Has one of the following signatures 'def func(self, release: Release, **kwargs)' or 'def func(self, releases: List[Release], **kwargs)'
@@ -134,7 +148,7 @@ class AbstractWorkflow(ABC):
         pass
 
     @abstractmethod
-    def add_task_chain(self, funcs: List[Callable]):
+    def add_task_chain(self, funcs: List[Task]):
         """Add a list of tasks, which are used to process releases. (See add_task for more info.)
 
         :param funcs: The list of functions that will be called by the PythonOperator task.
@@ -191,18 +205,6 @@ def make_task_id(func: Callable, kwargs: Dict) -> str:
         task_id = func.__name__
 
     return task_id
-
-
-@dataclasses.dataclass
-class Operator:
-    """A container for data to be passed to an Airflow Operator.
-
-    :param func: the task function.
-    :param kwargs: the task kwargs parameter.
-    """
-
-    func: Callable
-    kwargs: Dict
 
 
 class Workflow(AbstractWorkflow):
@@ -296,7 +298,7 @@ class Workflow(AbstractWorkflow):
         """
         self.setup_task_funcs.append(Operator(func, kwargs))
 
-    def add_setup_task_chain(self, funcs: List[Callable], **kwargs):
+    def add_setup_task_chain(self, funcs: List[Task], **kwargs):
         """Add a list of setup tasks, which are used to run tasks before 'Release' objects are created, e.g. checking
         dependencies, fetching available releases etc. (See add_setup_task for more info.)
 
@@ -305,7 +307,11 @@ class Workflow(AbstractWorkflow):
         """
         self.setup_task_funcs += [Operator(func, copy.copy(kwargs)) for func in funcs]
 
-    def add_task(self, func: Callable, **kwargs):
+    def add_task(
+        self,
+        func: Task,
+        **kwargs,
+    ):
         """Add a task, which is used to process releases. A task has the following properties:
 
         - Has one of the following signatures 'def func(self, release: Release, **kwargs)' or 'def func(self,
@@ -339,7 +345,7 @@ class Workflow(AbstractWorkflow):
         finally:
             self._parallel_tasks = False
 
-    def add_task_chain(self, funcs: List[Callable], **kwargs):
+    def add_task_chain(self, funcs: List[Task], **kwargs):
         """Add a list of tasks, which are used to process releases. (See add_task for more info.)
 
         :param funcs: The list of functions that will be called by the PythonOperator task.
@@ -364,7 +370,7 @@ class Workflow(AbstractWorkflow):
         result = func(release, **kwargs)
         return result
 
-    def to_python_operators(self, input_operators: List[Operator]):
+    def to_operators(self, input_operators: List[Operator]):
         """Converts a list of Operator objects (task functions and kwarg arguments) into PythonOperator objects.
 
         Recursively processes parallel tasks.
@@ -373,22 +379,29 @@ class Workflow(AbstractWorkflow):
         :return: a list of PythonOperator objects.
         """
 
-        python_operators = []
+        operators = []
         for op in input_operators:
             if isinstance(op, List):
-                python_operators.append(self.to_python_operators(op))
-            else:
+                operators.append(self.to_operators(op))
+            elif isinstance(op.func, BaseOperator):
+                task = op.func
+                task.start_date = self.start_date
+                task.dag = self.dag
+                task.queue = self.queue
+                task.default_args = (self.default_args,)
+                operators.append(task)
+            elif isinstance(op.func, Callable):
                 with self.dag:
                     kwargs_ = copy.copy(op.kwargs)
                     kwargs_["task_id"] = make_task_id(op.func, op.kwargs)
-                    task_ = PythonOperator(
+                    task = PythonOperator(
                         python_callable=partial(self.task_callable, op.func),
                         queue=self.queue,
                         default_args=self.default_args,
                         **kwargs_,
                     )
-                    python_operators.append(task_)
-        return python_operators
+                    operators.append(task)
+        return operators
 
     def make_dag(self) -> DAG:
         """Make an Airflow DAG for a workflow.
@@ -412,7 +425,7 @@ class Workflow(AbstractWorkflow):
                 tasks.append(task)
 
             # Process all other tasks next, which are always PythonOperators
-            tasks += self.to_python_operators(self.task_funcs)
+            tasks += self.to_operators(self.task_funcs)
             chain(*tasks)
 
             # Chain all sensors to the first task
