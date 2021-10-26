@@ -72,7 +72,7 @@ class ListReleaseFunction(Protocol):
 
 
 WorkflowFunction = Union[ReleaseFunction, ListReleaseFunction]
-Task: Union[Callable, BaseOperator]
+Task = Union[Callable, BaseOperator]
 
 
 @dataclasses.dataclass

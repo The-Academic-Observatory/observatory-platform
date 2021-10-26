@@ -188,7 +188,7 @@ class TestTelescope(ObservatoryTestCase):
             Operator(telescope.task, {"task_id": "task7"}),
         ]
         expected_python_operator_ids = ["task5", "task6", "task7"]
-        actual_python_operators = telescope.to_python_operators(operators)
+        actual_python_operators = telescope.to_operators(operators)
         self.assertEqual(len(expected_python_operator_ids), len(actual_python_operators))
         for e_task_id, op, actual_op in zip(expected_python_operator_ids, operators, actual_python_operators):
             self.assertEqual(e_task_id, actual_op.task_id)
