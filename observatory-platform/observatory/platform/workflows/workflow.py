@@ -388,7 +388,7 @@ class Workflow(AbstractWorkflow):
                 task.start_date = self.start_date
                 task.dag = self.dag
                 task.queue = self.queue
-                task.default_args = (self.default_args,)
+                task.default_args = self.default_args
                 operators.append(task)
             elif isinstance(op.func, Callable):
                 with self.dag:
