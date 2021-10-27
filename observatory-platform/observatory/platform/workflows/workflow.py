@@ -257,7 +257,7 @@ class Workflow(AbstractWorkflow):
         operator.start_date = self.start_date
         operator.dag = self.dag
         operator.queue = self.queue
-        operator.default_args = self.default_args
+        operator.__dict__.update(self.default_args)
 
         # Add list of tasks while parallel_tasks is set
         if self._parallel_tasks:
@@ -297,7 +297,6 @@ class Workflow(AbstractWorkflow):
         kwargs_ = copy.copy(kwargs)
         kwargs_["task_id"] = make_task_id(func, kwargs)
         op = ShortCircuitOperator(python_callable=func, **kwargs_)
-
         self.add_operator(op)
 
     def add_setup_task_chain(self, funcs: List[Callable], **kwargs):

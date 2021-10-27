@@ -210,7 +210,7 @@ class MyStream(StreamTelescope):
         )
 
         # Add sensor tasks
-        # self.add_sensor(some_airflow_sensor)
+        # self.add_operator(some_airflow_sensor)
 
         # Add setup tasks
         self.add_setup_task(self.check_dependencies)

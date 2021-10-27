@@ -219,7 +219,7 @@ class MyWorkflow(Workflow):
 
         # Add sensor tasks
         sensor = ExternalTaskSensor(external_dag_id="my_other_workflow", task_id="important_task", mode="reschedule")
-        self.add_sensor(sensor)
+        self.add_operator(sensor)
 
         # Add setup tasks
         self.add_setup_task(self.check_dependencies)
