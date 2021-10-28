@@ -23,6 +23,7 @@ from airflow.models.connection import Connection
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from observatory.platform.utils.airflow_utils import (
     create_slack_webhook,
+    get_airflow_connection_login,
     get_airflow_connection_password,
     get_airflow_connection_url,
     set_task_state,
@@ -32,6 +33,7 @@ from observatory.platform.utils.airflow_utils import (
 class MockConnection:
     def __init__(self, url):
         self.url = url
+        self.login = "login"
 
     def get_uri(self):
         return self.url
@@ -109,3 +111,9 @@ class TestAirflowUtils(unittest.TestCase):
             m_basehook.get_connection = MagicMock(return_value=MockConnection(""))
             password = get_airflow_connection_password("")
             self.assertEqual(password, "password")
+
+    def test_get_airflow_connection_login(self):
+        with patch("observatory.platform.utils.airflow_utils.BaseHook") as m_basehook:
+            m_basehook.get_connection = MagicMock(return_value=MockConnection(""))
+            login = get_airflow_connection_login("")
+            self.assertEqual(login, "login")
