@@ -56,7 +56,7 @@ class MonitoringWorkflow(Workflow):
             grace_period=datetime.timedelta(seconds=1),
         )
 
-        self.add_sensor(sensor)
+        self.add_operator(sensor)
         self.add_task(self.dummy_task)
 
     def make_release(self, **kwargs):
