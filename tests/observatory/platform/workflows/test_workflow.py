@@ -24,15 +24,17 @@ from airflow import DAG
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.variable import Variable
+from airflow.operators.bash import BashOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.sensors.external_task import ExternalTaskSensor
+
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase
-from observatory.platform.workflows.workflow import Operator, Release, Workflow, make_task_id
+from observatory.platform.workflows.workflow import Release, Workflow, make_task_id
 
 
-class MockTelescope(Workflow):
+class MockWorkflow(Workflow):
     """
     Generic Workflow telescope for running tasks.
     """
@@ -42,7 +44,7 @@ class MockTelescope(Workflow):
         self.dag_id = "dag_id"
         self.release_id = "release_id"
 
-    def make_release(self) -> Release:
+    def make_release(self, **kwargs) -> Release:
         return Release(self.dag_id, self.release_id)
 
     def setup_task(self, **kwargs) -> bool:
@@ -69,7 +71,7 @@ class TestCallbackWorkflow(Workflow):
         return
 
 
-class TestTelescope(ObservatoryTestCase):
+class TestWorkflow(ObservatoryTestCase):
     """Tests the Telescope."""
 
     def __init__(self, *args, **kwargs):
@@ -81,7 +83,7 @@ class TestTelescope(ObservatoryTestCase):
 
         super().__init__(*args, **kwargs)
         self.dag_id = "dag_id"
-        self.start_date = datetime(2020, 1, 1)
+        self.start_date = pendulum.datetime(2020, 1, 1)
         self.schedule_interval = "@weekly"
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
@@ -105,7 +107,7 @@ class TestTelescope(ObservatoryTestCase):
     def test_make_dag(self):
         """Test making DAG"""
         # Test adding tasks from Telescope methods
-        telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
+        telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval)
         telescope.add_setup_task(telescope.setup_task)
         telescope.add_task(telescope.task)
         dag = telescope.make_dag()
@@ -115,7 +117,7 @@ class TestTelescope(ObservatoryTestCase):
             self.assertIsInstance(task, BaseOperator)
 
         # Test adding tasks from partial Telescope methods
-        telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
+        telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval)
         for i in range(2):
             setup_task = partial(telescope.task, somearg="test")
             setup_task.__name__ = f"setup_task_{i}"
@@ -131,7 +133,7 @@ class TestTelescope(ObservatoryTestCase):
             self.assertIsInstance(task, BaseOperator)
 
         # Test adding tasks with custom kwargs
-        telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
+        telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval)
         telescope.add_setup_task(telescope.setup_task, trigger_rule="none_failed")
         telescope.add_task(telescope.task, trigger_rule="none_failed")
         dag = telescope.make_dag()
@@ -141,8 +143,19 @@ class TestTelescope(ObservatoryTestCase):
             self.assertIsInstance(task, BaseOperator)
             self.assertEqual("none_failed", task.trigger_rule)
 
+        # Test adding tasks with custom operator
+        telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval)
+        task_id = "bash_task"
+        telescope.add_operator(BashOperator(task_id=task_id, bash_command="echo 'hello'"))
+        dag = telescope.make_dag()
+        self.assertIsInstance(dag, DAG)
+        self.assertEqual(1, len(dag.tasks))
+        for task in dag.tasks:
+            self.assertEqual(task_id, task.task_id)
+            self.assertIsInstance(task, BashOperator)
+
         # Test adding parallel tasks
-        telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
+        telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval)
         telescope.add_setup_task(telescope.setup_task)
         with telescope.parallel_tasks():
             telescope.add_task(telescope.task, task_id="task1")
@@ -174,25 +187,41 @@ class TestTelescope(ObservatoryTestCase):
         )
 
         # Test parallel tasks function
-        telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
+        telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval)
         self.assertFalse(telescope._parallel_tasks)
         with telescope.parallel_tasks():
             self.assertTrue(telescope._parallel_tasks)
         self.assertFalse(telescope._parallel_tasks)
 
-        # to_python_operators
-        telescope = MockTelescope(self.dag_id, self.start_date, self.schedule_interval)
-        operators = [
-            Operator(telescope.task5, {}),
-            Operator(telescope.task6, {}),
-            Operator(telescope.task, {"task_id": "task7"}),
-        ]
-        expected_python_operator_ids = ["task5", "task6", "task7"]
-        actual_python_operators = telescope.to_python_operators(operators)
-        self.assertEqual(len(expected_python_operator_ids), len(actual_python_operators))
-        for e_task_id, op, actual_op in zip(expected_python_operator_ids, operators, actual_python_operators):
-            self.assertEqual(e_task_id, actual_op.task_id)
-            self.assertEqual(op.func, actual_op.python_callable.args[0])
+    def test_telescope(self):
+        """Basic test to make sure that the Workflow class can execute in an Airflow environment.
+        :return: None.
+        """
+
+        # Setup Observatory environment
+        env = ObservatoryEnvironment(self.project_id, self.data_location)
+
+        # Create the Observatory environment and run tests
+        with env.create(task_logging=True):
+            task1 = "task1"
+            task2 = "task2"
+            expected_date = "success"
+
+            telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval)
+            telescope.add_setup_task(telescope.setup_task)
+            telescope.add_task(telescope.task, task_id=task1)
+            telescope.add_operator(BashOperator(task_id=task2, bash_command="echo 'hello'"))
+
+            dag = telescope.make_dag()
+            with env.create_dag_run(dag, self.start_date):
+                ti = env.run_task(telescope.setup_task.__name__)
+                self.assertEqual(expected_date, ti.state)
+
+                ti = env.run_task(task1)
+                self.assertEqual(expected_date, ti.state)
+
+                ti = env.run_task(task2)
+                self.assertEqual(expected_date, ti.state)
 
     @patch("observatory.platform.utils.workflow_utils.create_slack_webhook")
     def test_callback(self, mock_create_slack_webhook):
@@ -241,64 +270,55 @@ class TestTelescope(ObservatoryTestCase):
                 mock_create_slack_webhook.assert_not_called()
 
 
-class TestAddSensorsTelescope(ObservatoryTestCase):
-    """Tests the sensor interface."""
-
-    def __init__(self, *args, **kwargs):
-        """Constructor which sets up variables used by tests.
-
-        :param args: arguments.
-        :param kwargs: keyword arguments.
-        """
-
-        super().__init__(*args, **kwargs)
+class TestAddOperatorsTelescope(ObservatoryTestCase):
+    """Tests the operator interface."""
 
     def dummy_func(self):
         pass
 
-    def test_add_sensor(self):
-        mt = MockTelescope(
+    def test_add_operator(self):
+        mt = MockWorkflow(
             dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily"
         )
-        mt.add_task(self.dummy_func)
         tds = ExternalTaskSensor(
             external_dag_id="1", task_id="test", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
         )
-
         tds2 = ExternalTaskSensor(
             external_dag_id="1", task_id="test2", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
         )
 
-        mt.add_sensor(tds)
-        mt.add_sensor(tds2)
+        with mt.parallel_tasks():
+            mt.add_operator(tds)
+            mt.add_operator(tds2)
+        mt.add_task(self.dummy_func)
         dag = mt.make_dag()
 
         self.assert_dag_structure({"dummy_func": [], "test": ["dummy_func"], "test2": ["dummy_func"]}, dag)
 
-    def test_add_sensors(self):
-        mt = MockTelescope(
+    def test_add_operators(self):
+        mt = MockWorkflow(
             dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily"
         )
-        mt.add_task(self.dummy_func)
         tds = ExternalTaskSensor(
             external_dag_id="1", task_id="test", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
         )
-
         tds2 = ExternalTaskSensor(
             external_dag_id="1", task_id="test2", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
         )
 
-        mt.add_sensor_chain([tds, tds2])
+        with mt.parallel_tasks():
+            mt.add_operator_chain([tds, tds2])
+        mt.add_task(self.dummy_func)
         dag = mt.make_dag()
 
         self.assert_dag_structure({"dummy_func": [], "test": ["dummy_func"], "test2": ["dummy_func"]}, dag)
 
-    def test_add_sensors_empty(self):
-        mt = MockTelescope(
+    def test_add_operators_empty(self):
+        mt = MockWorkflow(
             dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily"
         )
         mt.add_task(self.dummy_func)
-        mt.add_sensor_chain([])
+        mt.add_operator_chain([])
         dag = mt.make_dag()
 
         self.assert_dag_structure({"dummy_func": []}, dag)

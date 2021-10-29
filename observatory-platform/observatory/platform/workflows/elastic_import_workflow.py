@@ -34,6 +34,8 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import TaskInstance
 from airflow.sensors.external_task import ExternalTaskSensor
 from natsort import natsorted
+from pendulum import Date
+
 from observatory.platform.elastic.elastic import (
     Elastic,
     KeepInfo,
@@ -50,7 +52,6 @@ from observatory.platform.utils.gc_utils import (
 )
 from observatory.platform.workflows.snapshot_telescope import SnapshotRelease
 from observatory.platform.workflows.workflow import Workflow
-from pendulum import Date
 
 CSV_TYPES = ["csv", "csv.gz"]
 JSONL_TYPES = ["jsonl", "jsonl.gz"]
@@ -626,9 +627,12 @@ class ElasticImportWorkflow(Workflow):
             self.kibana_spaces = []
 
         # Add sensors
-        for ext_dag_id in self.sensor_dag_ids:
-            sensor = ExternalTaskSensor(task_id=f"{ext_dag_id}_sensor", external_dag_id=ext_dag_id, mode="reschedule")
-            self.add_sensor(sensor)
+        with self.parallel_tasks():
+            for ext_dag_id in self.sensor_dag_ids:
+                sensor = ExternalTaskSensor(
+                    task_id=f"{ext_dag_id}_sensor", external_dag_id=ext_dag_id, mode="reschedule"
+                )
+                self.add_operator(sensor)
 
         # Setup tasks
         self.add_setup_task(self.check_dependencies)
