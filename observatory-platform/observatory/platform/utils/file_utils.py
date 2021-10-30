@@ -259,25 +259,6 @@ def write_to_file(record, file_name: str):
         f.write(record)
 
 
-def zip_files(file_list: List[str]):
-    """GZip up the list of files.
-
-    :param file_list: List of files to zip up.
-    :return: List of zipped up file names.
-    """
-
-    zip_list = list()
-    for file_path in file_list:
-        logging.info(f"Zipping file {file_path}")
-        zip_file = f"{file_path}.gz"
-        zip_list.append(zip_file)
-        with open(file_path, "rb") as f_in:
-            with gzip.open(zip_file, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
-
-    return zip_list
-
-
 def gunzip_files(*, file_list: List[str], output_dir: str = None):
     """Gunzip the list of files.
 
