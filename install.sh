@@ -58,21 +58,39 @@ function check_system() {
     fi
 }
 
+function ask_github_https_or_ssh() {
+    options=("https" "ssh")
+    options_str=$(echo ${options[@]} | sed "s/ /, /")
+    default_option="https"
+    question="Do you wish to use https or ssh to clone the source repository? ($options_str) [${default_option}]: "
+    clone_mode=$(ask_question "$question" "$default_option" "${options[@]}")
+
+    if [ "$clone_mode" = "https" ]; then
+        clone_prefix="https://github.com/"
+    else
+        clone_prefix="git@github.com:"
+    fi
+
+}
+
 function ask_install_mode() {
-    question="Do you wish to install with pypi (pip) or from source? If you want to just run the observatory platform, pypi is recommended. If you intend to modify or develop the platform, source is recommended.[Pypi/source]: "
     options=("pypi" "source")
+    options_str=$(echo ${options[@]} | sed "s/ /, /")
     default_option="pypi"
+    question="Do you wish to install with pypi (pip) or from source? If you want to just run the observatory platform, pypi is recommended. If you intend to modify or develop the platform, source is recommended. ($options_str) [${default_option}]: "
     mode=$(ask_question "$question" "$default_option" "${options[@]}")
 
     if [ "$mode" = "source" ]; then
         pip_install_env_flag="-e"
+        ask_github_https_or_ssh
     fi
 }
 
 function ask_install_observatory_tests() {
-    question="Do you wish to install extra developer testing packages? [Y/n]: "
     options=("y" "n")
     default_option="y"
+    options_str=$(echo ${options[@]} | sed "s/ /, /")
+    question="Do you wish to install extra developer testing packages? ($options_str) [${default_option}]: "
     install_test_extras=$(ask_question "$question" "$default_option" "${options[@]}")
 
     if [ "$install_test_extras" = "y" ]; then
@@ -81,30 +99,34 @@ function ask_install_observatory_tests() {
 }
 
 function ask_install_academic_observatory_workflows() {
-    question="Do you wish to install the academic-observatory-workflows? [Y/n]: "
     options=("y" "n")
     default_option="y"
+    options_str=$(echo ${options[@]} | sed "s/ /, /")
+    question="Do you wish to install the academic-observatory-workflows? ($options_str) [${default_option}]: "
     export install_ao_workflows=$(ask_question "$question" "$default_option" "${options[@]}")
 }
 
 function ask_install_oaebu_workflows() {
-    question="Do you wish to install the oaebu-workflows? [Y/n]: "
     options=("y" "n")
     default_option="y"
+    options_str=$(echo ${options[@]} | sed "s/ /, /")
+    question="Do you wish to install the oaebu-workflows? ($options_str) [${default_option}]: "
     export install_oaebu_workflows=$(ask_question "$question" "$default_option" "${options[@]}")
 }
 
 function ask_config_type() {
-    question="Do you want to use a local observatory platform configuration or use Terraform? (local, terraform) [local]: "
     options=("local" "terraform")
     default_option="local"
+    options_str=$(echo ${options[@]} | sed "s/ /, /")
+    question="Do you want to use a local observatory platform configuration or use Terraform? ($options_str) [${default_option}]: "
     config_type=$(ask_question "$question" "$default_option" "${options[@]}")
 }
 
 function ask_config_observatory_base() {
-    question="Do you want to configure Observatory platform basic settings during config file generation? Note that if you do not configure it now, you need to configure all the sections tagged [Required] later on by editing the config.yaml or config-terraform.yaml file. [Y/n]: "
     options=("y" "n")
     default_option="y"
+    options_str=$(echo ${options[@]} | sed "s/ /, /")
+    question="Do you want to configure Observatory platform basic settings during config file generation? Note that if you do not configure it now, you need to configure all the sections tagged [Required] later on by editing the config.yaml or config-terraform.yaml file. ($options_str) [${default_option}]: "
     config_observatory_base=$(ask_question "$question" "$default_option" "${options[@]}")
 }
 
@@ -153,7 +175,7 @@ function configure_install_options() {
         local correct=""
         while [ "$correct" != "y" ] && [ "$correct" != "n" ]
         do
-            read -p "Are these options correct? [Y/n]: " correct
+            read -p "Are these options correct? (y, n) [y]: " correct
             correct=${correct:-Y}
             correct=$(lower_case $correct)
         done
@@ -234,13 +256,7 @@ function install_ubuntu_system_deps() {
     echo "====================================="
 
     sudo apt update
-    sudo apt-get install -y software-properties-common curl git python3.8 python3.8-dev python3-pip
-
-    echo "------------------------------"
-    echo "Installing Python dependencies"
-    echo "------------------------------"
-
-    pip3 install -U virtualenv
+    sudo apt-get install -y software-properties-common curl git python3.8 python3.8-dev python3-pip python3-virtualenv
 
     echo "--------------------------"
     echo "Creating Python virtualenv"
@@ -324,7 +340,7 @@ function install_observatory_platform() {
     echo "==========================================="
 
     if [ "$mode" = "source" ]; then
-        git clone git@github.com:The-Academic-Observatory/observatory-platform.git
+        git clone ${clone_prefix}The-Academic-Observatory/observatory-platform.git
         cd observatory-platform
     fi
 
@@ -358,7 +374,7 @@ function install_academic_observatory_workflows() {
     if [ "$mode" = "source" ]; then
         mkdir -p workflows
         cd workflows
-        git clone git@github.com:The-Academic-Observatory/academic-observatory-workflows.git
+        git clone ${clone_prefix}The-Academic-Observatory/academic-observatory-workflows.git
         cd ..
         prefix="workflows/"
     fi
@@ -380,7 +396,7 @@ function install_oaebu_workflows() {
     if [ "$mode" = "source" ]; then
         mkdir -p workflows
         cd workflows
-        git clone git@github.com:The-Academic-Observatory/oaebu-workflows.git
+        git clone ${clone_prefix}The-Academic-Observatory/oaebu-workflows.git
         cd ..
         prefix="workflows/"
     fi
