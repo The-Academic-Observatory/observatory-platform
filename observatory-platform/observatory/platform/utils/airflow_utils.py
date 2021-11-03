@@ -18,17 +18,14 @@
 Airflow utility functions (independent of telescope or google cloud usage)
 """
 
-import datetime
 import logging
-from typing import Any, List, Optional, Union
+from typing import List, Union
 
 import validators
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection, DagRun, TaskInstance, Variable
+from airflow.models import TaskInstance, Variable
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookHook
-from airflow.utils.db import create_session
-from airflow.utils.state import TaskInstanceState
 
 
 class AirflowVars:
@@ -82,18 +79,6 @@ def change_task_log_level(new_levels: Union[List, int]) -> list:
         else:
             handler.setLevel(new_levels[count])
     return old_levels
-
-
-def list_connections(source):
-    """Get a list of data source connections with name starting with <source>_, e.g., wos_curtin.
-
-    :param source: Data source (conforming to name convention) as a string, e.g., 'wos'.
-    :return: A list of connection id strings with the prefix <source>_, e.g., ['wos_curtin', 'wos_auckland'].
-    """
-    with create_session() as session:
-        query = session.query(Connection)
-        query = query.filter(Connection.conn_id.like(f"{source}_%"))
-        return query.all()
 
 
 def check_variables(*variables):
