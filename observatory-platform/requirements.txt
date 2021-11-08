@@ -7,6 +7,7 @@ apache-airflow-providers-redis==2.0.1
 apache-airflow-providers-celery==2.1.0
 apache-airflow-providers-slack==4.0.0
 apache-airflow-providers-http==2.0.0
+WTForms<3 # Fix ModuleNotFoundError: No module named 'wtforms.compat' error
 
 # Google Cloud
 google-crc32c>=1.1.0,<2
