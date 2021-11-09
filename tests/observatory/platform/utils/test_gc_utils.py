@@ -519,13 +519,15 @@ class TestGoogleCloudUtils(unittest.TestCase):
                     blob.delete()
 
     def test_azure_to_google_cloud_storage_transfer(self):
-        blob_name = f"{random_id()}.txt"
+        blob_name = f"mag/2021-09-27/{random_id()}.txt"
         az_blob: Optional[BlobClient] = None
 
         # Create client for working with Google Cloud storage bucket
         storage_client = storage.Client()
         bucket = storage_client.get_bucket(self.gc_bucket_name)
-        gc_blob = bucket.blob(blob_name)
+        gc_bucket_path = "telescopes"
+        gc_blob_path = f"{gc_bucket_path}/{blob_name}"
+        gc_blob = bucket.blob(gc_blob_path)
 
         try:
             # Create client for working with Azure storage bucket
@@ -536,12 +538,13 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
             # Transfer data
             transfer = azure_to_google_cloud_storage_transfer(
-                self.az_storage_account_name,
-                self.az_container_sas_token,
-                self.az_container_name,
+                azure_storage_account_name=self.az_storage_account_name,
+                azure_sas_token=self.az_container_sas_token,
+                azure_container=self.az_container_name,
                 include_prefixes=[blob_name],
                 gc_project_id=self.gc_project_id,
                 gc_bucket=self.gc_bucket_name,
+                gc_bucket_path=gc_bucket_path,
                 description=f"Test Azure to Google Cloud Storage Transfer "
                 f"{pendulum.now('UTC').to_datetime_string()}",
             )
