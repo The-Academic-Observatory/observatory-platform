@@ -820,6 +820,7 @@ def google_cloud_storage_transfer_job(job: dict, func_name: str, gc_project_id: 
 
 
 def azure_to_google_cloud_storage_transfer(
+    *,
     azure_storage_account_name: str,
     azure_sas_token: str,
     azure_container: str,
@@ -827,6 +828,7 @@ def azure_to_google_cloud_storage_transfer(
     gc_project_id: str,
     gc_bucket: str,
     description: str,
+    gc_bucket_path: str = None,
     start_date: pendulum.DateTime = pendulum.now("UTC"),
 ) -> bool:
     """Transfer files from an Azure blob container to a Google Cloud Storage bucket.
@@ -838,6 +840,7 @@ def azure_to_google_cloud_storage_transfer(
     :param gc_project_id: the Google Cloud project id that holds the Google Cloud Storage bucket.
     :param gc_bucket: the Google Cloud bucket name.
     :param description: a description for the transfer job.
+    :param gc_bucket_path: the path in the Google Cloud bucket to save the objects.
     :param start_date: the date that the transfer job will start.
     :return: whether the transfer was a success or not.
     """
@@ -864,6 +867,13 @@ def azure_to_google_cloud_storage_transfer(
             "gcsDataSink": {"bucketName": gc_bucket},
         },
     }
+
+    if gc_bucket_path is not None:
+        # Must end in a / see https://cloud.google.com/storage-transfer/docs/create-manage-transfer-program
+        if not gc_bucket_path.endswith("/"):
+            gc_bucket_path = f"{gc_bucket_path}/"
+
+        job["transferSpec"]["gcsDataSink"]["path"] = gc_bucket_path
 
     success, objects_count = google_cloud_storage_transfer_job(job, func_name, gc_project_id)
     return success
