@@ -34,7 +34,14 @@ from observatory.api.server.elastic import (
     process_response,
 )
 from observatory.api.server.openapi_renderer import OpenApiRenderer
-from observatory.api.server.orm import Organisation, Telescope, TelescopeType
+from observatory.api.server.orm import (
+    Dataset,
+    DatasetRelease,
+    DatasetStorage,
+    Organisation,
+    Telescope,
+    TelescopeType,
+)
 from sqlalchemy import and_
 
 Response = Tuple[Any, int]
@@ -163,7 +170,7 @@ def get_telescope_type(id: int = None, type_id: str = None) -> Response:
         return body, 400
     elif id is not None:
         return get_item(TelescopeType, id)
-    elif type_id is not None:
+    else:
         item = session_.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
         if item is not None:
             logging.info(f"Found: TelescopeType with type_id {type_id}")
@@ -328,6 +335,203 @@ def get_organisations(limit: int) -> Response:
     return get_items(Organisation, limit)
 
 
+def get_dataset_storage(id: int) -> Response:
+    """Get a DatasetStorage.
+
+    :param id: the DatasetStorage id.
+    :return: a Response object.
+    """
+
+    return get_item(DatasetStorage, id)
+
+
+def post_dataset_storage(body: Dict) -> Response:
+    """Create a DatasetStorage.
+
+    :param body: the DatasetStorage in the form of a dictionary.
+    :return: a Response object.
+    """
+
+    return post_item(DatasetStorage, body)
+
+
+def put_dataset_storage(body: Dict) -> Response:
+    """Create or update a DatasetStorage.
+
+    :param body: the DatasetStorage in the form of a dictionary.
+    :return: a Response object.
+    """
+
+    return put_item(DatasetStorage, body)
+
+
+def delete_dataset_storage(id: int) -> Response:
+    """Delete a DatasetStorage.
+
+    :param id: the DatasetStorage id.
+    :return: a Response object.
+    """
+
+    return delete_item(DatasetStorage, id)
+
+
+def get_dataset_storages(limit: int, dataset_id: int = None) -> Response:
+    """Get a list of DatasetStorage objects.
+
+    :param limit: the maximum number of DatasetStorage objects to return.
+    :param dataset_id: the dataset id to filter for.
+    :return: a Response object.
+    """
+
+    q = session_.query(DatasetStorage)
+
+    # Create filters based on parameters
+    filters = []
+    if dataset_id is not None:
+        filters.append(DatasetStorage.dataset_id == dataset_id)
+    if len(filters):
+        q = q.filter(and_(*filters))
+
+    # Return items that match with a limit
+    return q.limit(limit).all()
+
+
+def get_dataset_release(id: int = None, dataset_id: int = None) -> Response:
+    """Get a DatasetRelease.
+
+    :param id: the DatasetRelease id.
+    :param id: the Dataset id.
+    :return: a Response object.
+    """
+
+    if (id is None and dataset_id is None) or (id is not None and dataset_id is not None):
+        body = "One of DatasetRelease id or Dataset id must be specified but not both"
+        logging.error(body)
+        return body, 400
+    elif id is not None:
+        return get_item(DatasetRelease, id)
+    else:
+        item = session_.query(DatasetRelease).filter(Dataset.id == dataset_id).one_or_none()
+        if item is not None:
+            logging.info(f"Found: DatasetRelease with dataset_id {dataset_id}")
+            return jsonify(item)
+
+        body = f"Not found: DatasetRelease with dataset_id {dataset_id}"
+        logging.info(body)
+        return body, 404
+
+
+def post_dataset_release(body: Dict) -> Response:
+    """Create a DatasetRelease.
+
+    :param body: the DatasetRelease in the form of a dictionary.
+    :return: a Response object.
+    """
+
+    return post_item(DatasetRelease, body)
+
+
+def put_dataset_release(body: Dict) -> Response:
+    """Create or update a DatasetRelease.
+
+    :param body: the DatasetRelease in the form of a dictionary.
+    :return: a Response object.
+    """
+
+    return put_item(DatasetRelease, body)
+
+
+def delete_dataset_release(id: int) -> Response:
+    """Delete a DatasetRelease.
+
+    :param id: the DatasetRelease id.
+    :return: a Response object.
+    """
+
+    return delete_item(DatasetRelease, id)
+
+
+def get_dataset_releases(limit: int, dataset_id: int = None) -> Response:
+    """Get a list of DatasetRelease objects.
+
+    :param limit: the maximum number of DatasetRelease objects to return.
+    :param dataset_id: the dataset_id to query
+    :return: a Response object.
+    """
+
+    q = session_.query(DatasetRelease)
+
+    # Create filters based on parameters
+    filters = []
+    if dataset_id is not None:
+        filters.append(DatasetRelease.dataset_id == dataset_id)
+    if len(filters):
+        q = q.filter(and_(*filters))
+
+    # Return items that match with a limit
+    return q.limit(limit).all()
+
+
+def get_dataset(id: int = None) -> Response:
+    """Get a Dataset.
+
+    :param id: the Dataset id.
+    :return: a Response object.
+    """
+
+    return get_item(Dataset, id)
+
+
+def post_dataset(body: Dict) -> Response:
+    """Create a Dataset.
+
+    :param body: the Dataset in the form of a dictionary.
+    :return: a Response object.
+    """
+
+    return post_item(Dataset, body)
+
+
+def put_dataset(body: Dict) -> Response:
+    """Create or update a Dataset.
+
+    :param body: the Dataset in the form of a dictionary.
+    :return: a Response object.
+    """
+
+    return put_item(Dataset, body)
+
+
+def delete_dataset(id: int) -> Response:
+    """Delete a Dataset.
+
+    :param id: the Dataset id.
+    :return: a Response object.
+    """
+
+    return delete_item(Dataset, id)
+
+
+def get_datasets(limit: int, telescope_id: int = None) -> Response:
+    """Get a list of Dataset objects.
+
+    :param limit: the maximum number of Dataset objects to return.
+    :param telescope_id: Telescope id to filter by.
+    :return: a Response object.
+    """
+
+    q = session_.query(Dataset)
+    filters = []
+
+    if telescope_id is not None:
+        filters.append(Dataset.connection_id == telescope_id)
+    if len(filters):
+        q = q.filter(and_(*filters))
+
+    # Return items that match with a limit
+    return q.limit(limit).all()
+
+
 def queryv1() -> Union[Tuple[str, int], dict]:
     """Search the Observatory Platform.
 
@@ -350,9 +554,6 @@ def queryv1() -> Union[Tuple[str, int], dict]:
         index = "N/A"
     # use search body
     else:
-        if alias == "":
-            return ("Invalid combination of aggregation (publisher) and subset (collaborations)", 400)
-
         search_body = create_search_body(from_date, to_date, filter_fields, size)
 
         # use specific index if date is given, otherwise use alias which points to latest date

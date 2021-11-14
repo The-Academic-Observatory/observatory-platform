@@ -29,13 +29,19 @@ import datetime
 import unittest
 from unittest.mock import patch
 
+import observatory.api.server.orm as orm
 import pendulum
 import pytz
-
-import observatory.api.server.orm as orm
 from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
-from observatory.api.client.exceptions import ApiException, ApiValueError, NotFoundException
+from observatory.api.client.exceptions import (
+    ApiException,
+    ApiValueError,
+    NotFoundException,
+)
+from observatory.api.client.model.dataset import Dataset
+from observatory.api.client.model.dataset_release import DatasetRelease
+from observatory.api.client.model.dataset_storage import DatasetStorage
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.telescope import Telescope
 from observatory.api.client.model.telescope_type import TelescopeType
@@ -55,7 +61,7 @@ RES_EXAMPLE = {
                 "_source": {
                     "id": "example_id",
                     "name": "Example Name",
-                    "published_year": datetime.datetime(year=2018, month=12, day=31, tzinfo=pytz.UTC),
+                    "published_year": datetime.datetime(year=2018, month=12, day=31, tzinfo=pytz.UTC).isoformat(),
                 },
                 "sort": [77250],
             },
@@ -67,7 +73,7 @@ RES_EXAMPLE = {
                 "_source": {
                     "id": "example_id2",
                     "name": "Example Name2",
-                    "published_year": datetime.datetime(year=2018, month=12, day=31, tzinfo=pytz.UTC),
+                    "published_year": datetime.datetime(year=2018, month=12, day=31, tzinfo=pytz.UTC).isoformat(),
                 },
                 "sort": [77251],
             },
@@ -103,8 +109,9 @@ class TestObservatoryApi(unittest.TestCase):
         self.api = ObservatoryApi(api_client=api_client)  # noqa: E501
         self.env = ObservatoryApiEnvironment(host=self.host, port=self.port)
 
-    def tearDown(self):
-        pass
+    def test_ctor(self):
+        api = ObservatoryApi()
+        self.assertTrue(api.api_client is not None)
 
     def test_delete_organisation(self):
         """Test case for delete_organisation
@@ -395,7 +402,12 @@ class TestObservatoryApi(unittest.TestCase):
             # Add Telescopes
             dt = pendulum.now(self.timezone)
             self.env.session.add(
-                orm.Telescope(organisation={"id": 1}, telescope_type={"id": 1}, created=dt, modified=dt)
+                orm.Telescope(
+                    organisation={"id": 1},
+                    telescope_type={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
             )
             self.env.session.add(
                 orm.Telescope(organisation={"id": 1}, telescope_type={"id": 2}, created=dt, modified=dt)
@@ -706,6 +718,970 @@ class TestObservatoryApi(unittest.TestCase):
                         'agg & subset:\\n20201212"\n',
                         e.exception.body,
                     )
+
+    def test_get_dataset(self):
+        """Test case for get_dataset"""
+
+        with self.env.create():
+            expected_id = 1
+
+            # Assert that Dataset with given id does not exist
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_dataset(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: Dataset with id {expected_id}"\n', e.exception.body)
+
+            # Add Dataset
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset",
+                    extra={},
+                    connection={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Assert that Dataset with given id exists
+            obj = self.api.get_dataset(expected_id)
+            self.assertIsInstance(obj, Dataset)
+            self.assertEqual(expected_id, obj.id)
+            self.assertEqual("dataset", obj.name)
+            self.assertEqual(expected_id, obj.connection.id)
+            self.assertEqual("Curtin ONIX Telescope", obj.connection.name)
+            self.assertEqual(dt_utc, obj.created)
+            self.assertEqual(dt_utc, obj.modified)
+
+    def test_post_dataset(self):
+        """Test case for post_dataset"""
+
+        with self.env.create():
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Post Dataset
+            obj = Dataset(
+                name="My dataset",
+                connection=Telescope(id=expected_id),
+            )
+            result = self.api.post_dataset(obj)
+            self.assertIsInstance(result, Dataset)
+            self.assertEqual(expected_id, result.id)
+
+    def test_put_dataset(self):
+        """Test case for put_dataset"""
+
+        with self.env.create():
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Put create
+            obj = Dataset(name="My dataset", connection=Telescope(id=expected_id))
+            result = self.api.put_dataset(obj)
+            self.assertIsInstance(result, Dataset)
+            self.assertEqual(expected_id, result.id)
+
+            # Put update
+            name = "Dataset"
+            extra = {}
+            obj = Dataset(id=expected_id, name=name, extra=extra, connection=Telescope(id=expected_id))
+            result = self.api.put_dataset(obj)
+            self.assertIsInstance(result, Dataset)
+            self.assertEqual(expected_id, result.id)
+            self.assertEqual(name, result.name)
+            self.assertDictEqual(extra, result.extra)
+            self.assertEqual("Curtin ONIX Telescope", result.connection.name)
+
+            # Put not found
+            expected_id = 2
+            with self.assertRaises(NotFoundException) as e:
+                self.api.put_dataset(
+                    Dataset(
+                        id=expected_id,
+                        connection=Telescope(id=expected_id),
+                    )
+                )
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: Dataset with id {expected_id}"\n', e.exception.body)
+
+    def test_get_datasets(self):
+        """Test case for get_datasets"""
+
+        with self.env.create():
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Add Datasets
+            dt = pendulum.now(self.timezone)
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset",
+                    extra={},
+                    connection={"id": 2},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Assert that all Telescope objects returned
+            objects = self.api.get_datasets(limit=10)
+            self.assertEqual(2, len(objects))
+
+            # Search datasets by telescope_id
+            objects = self.api.get_datasets(telescope_id=1, limit=10)
+            self.assertEqual(1, len(objects))
+
+            objects = self.api.get_datasets(telescope_id=2, limit=10)
+            self.assertEqual(1, len(objects))
+
+    def test_get_dataset_storage(self):
+        """Test case for get_dataset_storage"""
+
+        with self.env.create():
+            expected_id = 1
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_dataset_storage(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
+
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Add Datasets
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.DatasetStorage(
+                    service="google",
+                    address="project.dataset.table",
+                    extra={},
+                    dataset={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Assert that DatasetStorage with given id exists
+            obj = self.api.get_dataset_storage(expected_id)
+            self.assertIsInstance(obj, DatasetStorage)
+            self.assertEqual(expected_id, obj.id)
+            self.assertEqual(expected_id, obj.dataset.id)
+            self.assertEqual("dataset", obj.dataset.name)
+            self.assertEqual(dt_utc, obj.created)
+            self.assertEqual(dt_utc, obj.modified)
+
+    def test_post_dataset_storage(self):
+        """Test case for post_dataset_storage"""
+
+        with self.env.create():
+            expected_id = 1
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_dataset_storage(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
+
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Add Datasets
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Post DatasetStorage
+            expected_id = 1
+            obj = DatasetStorage(
+                extra={},
+                service="google",
+                address="project.dataset.table",
+                dataset=Dataset(id=expected_id),
+            )
+            result = self.api.post_dataset_storage(obj)
+            self.assertIsInstance(result, DatasetStorage)
+            self.assertEqual(expected_id, result.id)
+
+    def test_put_dataset_storage(self):
+        """Test case for put_dataset_storage"""
+
+        with self.env.create():
+            expected_id = 1
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_dataset_storage(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
+
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Add Datasets
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Put create
+            obj = DatasetStorage(
+                dataset=Dataset(id=expected_id),
+                service="google",
+                address="project.dataset.table",
+                extra={},
+            )
+            result = self.api.put_dataset_storage(obj)
+            self.assertIsInstance(result, DatasetStorage)
+            self.assertEqual(expected_id, result.id)
+
+            # Put update
+            obj = DatasetStorage(
+                id=expected_id,
+                dataset=Dataset(id=expected_id),
+                service="google",
+                address="project2.dataset.table",
+                extra={},
+            )
+            result = self.api.put_dataset_storage(obj)
+            self.assertIsInstance(result, DatasetStorage)
+            self.assertEqual(expected_id, result.id)
+            self.assertEqual("project2.dataset.table", result.address)
+            self.assertEqual("google", result.service)
+
+            # Put not found
+            expected_id = 2
+            with self.assertRaises(NotFoundException) as e:
+                self.api.put_dataset_storage(
+                    DatasetStorage(
+                        id=expected_id,
+                        dataset=Dataset(id=expected_id),
+                        service="google",
+                        address="project2.dataset.table",
+                        extra={},
+                    )
+                )
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
+
+    def test_get_dataset_storages(self):
+        """Test case for get_dataset_storages"""
+
+        with self.env.create():
+            expected_id = 1
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_dataset_storage(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
+
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Add Datasets
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset1",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset2",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Post DatasetStorage
+            expected_id = 1
+            obj = DatasetStorage(
+                extra={},
+                service="google1",
+                address="project.dataset.table",
+                dataset=Dataset(id=1),
+            )
+            self.api.post_dataset_storage(obj)
+            obj = DatasetStorage(
+                extra={},
+                service="google2",
+                address="project.dataset.table",
+                dataset=Dataset(id=2),
+            )
+            self.api.post_dataset_storage(obj)
+
+            objects = self.api.get_dataset_storages(limit=10)
+            self.assertEqual(2, len(objects))
+
+            self.assertEqual(objects[0].id, 1)
+            self.assertEqual(objects[1].id, 2)
+            self.assertEqual(objects[0].service, "google1")
+            self.assertEqual(objects[1].service, "google2")
+
+            objects = self.api.get_dataset_storages(dataset_id=1, limit=10)
+            self.assertEqual(1, len(objects))
+            self.assertEqual(objects[0].dataset.name, "dataset1")
+
+    def test_get_dataset_release(self):
+        """Test case for get_dataset_release"""
+
+        with self.env.create():
+            expected_id = 1
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_dataset_release(id=expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
+
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Add Datasets
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.DatasetRelease(
+                    schema_version="schema",
+                    schema_version_alt="altschema",
+                    start_date=dt,
+                    end_date=dt,
+                    ingestion_start=dt,
+                    ingestion_end=dt,
+                    dataset={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Assert that DatasetRelease with given id exists
+            obj = self.api.get_dataset_release(id=expected_id)
+            self.assertIsInstance(obj, DatasetRelease)
+            self.assertEqual(expected_id, obj.id)
+            self.assertEqual(expected_id, obj.dataset.id)
+            self.assertEqual("dataset", obj.dataset.name)
+            self.assertEqual(dt_utc, obj.created)
+            self.assertEqual(dt_utc, obj.modified)
+
+            # No params
+            self.assertRaises(ApiException, self.api.get_dataset_release)
+
+            # Search by dataset_id
+            obj = self.api.get_dataset_release(dataset_id=expected_id)
+            self.assertIsInstance(obj, DatasetRelease)
+            self.assertEqual(obj.schema_version, "schema")
+
+            # DatasetRelease not found
+            self.assertRaises(NotFoundException, self.api.get_dataset_release, dataset_id=2)
+
+    def test_post_dataset_release(self):
+        """Test case for post_dataset_release"""
+
+        with self.env.create():
+            expected_id = 1
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_dataset_storage(id=expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
+
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Add Datasets
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Post DatasetRelease
+            expected_id = 1
+            obj = DatasetRelease(
+                schema_version="schema",
+                schema_version_alt="schemaalt",
+                start_date=dt,
+                end_date=dt,
+                ingestion_start=dt,
+                ingestion_end=dt,
+                dataset=Dataset(id=expected_id),
+            )
+            result = self.api.post_dataset_release(obj)
+            self.assertIsInstance(result, DatasetRelease)
+            self.assertEqual(expected_id, result.id)
+
+    def test_put_dataset_release(self):
+        """Test case for put_dataset_release"""
+
+        with self.env.create():
+            expected_id = 1
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_dataset_release(id=expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
+
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Add Datasets
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Put create
+            obj = DatasetRelease(
+                dataset=Dataset(id=expected_id),
+                schema_version="schema",
+                schema_version_alt="schemaalt",
+                start_date=dt,
+                end_date=dt,
+                ingestion_start=dt,
+                ingestion_end=dt,
+            )
+            result = self.api.put_dataset_release(obj)
+            self.assertIsInstance(result, DatasetRelease)
+            self.assertEqual(expected_id, result.id)
+
+            # Put update
+            obj = DatasetRelease(
+                id=expected_id,
+                schema_version="schema2",
+                schema_version_alt="schemaalt2",
+                start_date=dt,
+                end_date=dt,
+                ingestion_start=dt,
+                ingestion_end=dt,
+            )
+            result = self.api.put_dataset_release(obj)
+            self.assertIsInstance(result, DatasetRelease)
+            self.assertEqual(expected_id, result.id)
+            self.assertEqual("schema2", result.schema_version)
+            self.assertEqual("schemaalt2", result.schema_version_alt)
+
+            # Put not found
+            expected_id = 2
+            with self.assertRaises(NotFoundException) as e:
+                self.api.put_dataset_release(
+                    DatasetRelease(
+                        id=expected_id,
+                        dataset=Dataset(id=expected_id),
+                        schema_version="schema2",
+                        schema_version_alt="schemaalt2",
+                        start_date=dt,
+                        end_date=dt,
+                        ingestion_start=dt,
+                        ingestion_end=dt,
+                    )
+                )
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
+
+    def test_get_dataset_releases(self):
+        """Test case for get_dataset_releases"""
+
+        with self.env.create():
+            expected_id = 1
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_dataset_release(id=expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
+
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Add Datasets
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset1",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset2",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Post DatasetRelease
+            expected_id = 1
+            obj = DatasetRelease(
+                dataset=Dataset(id=1),
+                schema_version="schema1",
+                schema_version_alt="schemaalt1",
+                start_date=dt,
+                end_date=dt,
+                ingestion_start=dt,
+                ingestion_end=dt,
+            )
+            self.api.post_dataset_release(obj)
+            obj = DatasetRelease(
+                dataset=Dataset(id=2),
+                schema_version="schema2",
+                schema_version_alt="schemaalt2",
+                start_date=dt,
+                end_date=dt,
+                ingestion_start=dt,
+                ingestion_end=dt,
+            )
+            self.api.post_dataset_release(obj)
+
+            # Assert that all DatasetRelease objects returned
+            objects = self.api.get_dataset_releases(limit=10)
+            self.assertEqual(2, len(objects))
+            self.assertIsInstance(objects[0], DatasetRelease)
+            self.assertIsInstance(objects[1], DatasetRelease)
+
+            self.assertEqual(objects[0].id, 1)
+            self.assertEqual(objects[1].id, 2)
+            self.assertEqual(objects[0].schema_version, "schema1")
+            self.assertEqual(objects[1].schema_version, "schema2")
+
+            objects = self.api.get_dataset_releases(dataset_id=1, limit=10)
+            self.assertEqual(1, len(objects))
+            self.assertIsInstance(objects[0], DatasetRelease)
+            self.assertEqual(objects[0].dataset.name, "dataset1")
+
+    def test_delete_dataset(self):
+        """Test case for delete_dataset"""
+
+        with self.env.create():
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Post Dataset
+            obj = Dataset(
+                name="My dataset",
+                connection=Telescope(id=expected_id),
+            )
+            self.api.post_dataset(obj)
+            self.api.delete_dataset(expected_id)
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.delete_dataset(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: Dataset with id {expected_id}"\n', e.exception.body)
+
+    def test_delete_dataset_storage(self):
+        """Test case for delete_dataset_storage"""
+
+        with self.env.create():
+            expected_id = 1
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_dataset_storage(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
+
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Add Datasets
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Post DatasetStorage
+            expected_id = 1
+            obj = DatasetStorage(
+                extra={},
+                service="google",
+                address="project.dataset.table",
+                dataset=Dataset(id=expected_id),
+            )
+            self.api.post_dataset_storage(obj)
+            self.api.delete_dataset_storage(expected_id)
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.delete_dataset_storage(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
+
+    def test_delete_dataset_release(self):
+        """Test case for delete_dataset_release"""
+
+        with self.env.create():
+            expected_id = 1
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_dataset_storage(id=expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
+
+            expected_id = 1
+            telescope_type_name = "ONIX Telescope"
+            org_name = "Curtin University"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.Telescope(
+                    name="Curtin ONIX Telescope",
+                    extra={"view_id": 123456},
+                    organisation={"id": expected_id},
+                    telescope_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Add Datasets
+            self.env.session.add(
+                orm.Dataset(
+                    name="dataset",
+                    extra={},
+                    connection={"id": 1},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Post DatasetRelease
+            expected_id = 1
+            obj = DatasetRelease(
+                schema_version="schema",
+                schema_version_alt="schemaalt",
+                start_date=dt,
+                end_date=dt,
+                ingestion_start=dt,
+                ingestion_end=dt,
+                dataset=Dataset(id=expected_id),
+            )
+            self.api.post_dataset_release(obj)
+            self.api.delete_dataset_release(expected_id)
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.delete_dataset_release(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
 
 
 if __name__ == "__main__":

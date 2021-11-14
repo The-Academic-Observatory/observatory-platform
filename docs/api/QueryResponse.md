@@ -49,13 +49,13 @@
 </tr>
 <tr>
     <td><strong>schema</strong></td>
-    <td><strong>{str: (bool, date, datetime, dict, float, int, list, str, none_type)}</strong></td>
+    <td><strong>bool, date, datetime, dict, float, int, list, str, none_type</strong></td>
     <td>The schema for an individual hit</td>
     <td>[optional] </td>
 </tr>
 <tr>
     <td><strong>results</strong></td>
-    <td><strong>[{str: (bool, date, datetime, dict, float, int, list, str, none_type)}]</strong></td>
+    <td><strong>[bool, date, datetime, dict, float, int, list, str, none_type]</strong></td>
     <td>A list of the actual results (one dictionary per hit)</td>
     <td>[optional] </td>
 </tr>

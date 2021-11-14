@@ -1,4 +1,4 @@
-# Telescope
+# Dataset
 
 ## Properties
 <div class="wy-table-responsive"><table border="1" class="docutils">
@@ -25,31 +25,19 @@
 </tr>
 <tr>
     <td><strong>name</strong></td>
-    <td><strong>str, none_type</strong></td>
+    <td><strong>str</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>connection</strong></td>
+    <td><a href="Telescope.html"><strong>Telescope</strong></a></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
     <td><strong>extra</strong></td>
     <td><strong>bool, date, datetime, dict, float, int, list, str, none_type</strong></td>
-    <td></td>
-    <td>[optional] </td>
-</tr>
-<tr>
-    <td><strong>organisation</strong></td>
-    <td><a href="Organisation.html"><strong>Organisation</strong></a></td>
-    <td></td>
-    <td>[optional] </td>
-</tr>
-<tr>
-    <td><strong>telescope_type</strong></td>
-    <td><a href="TelescopeType.html"><strong>TelescopeType</strong></a></td>
-    <td></td>
-    <td>[optional] </td>
-</tr>
-<tr>
-    <td><strong>datasets</strong></td>
-    <td><a href="Dataset.html"><strong>[Dataset]</strong></a></td>
     <td></td>
     <td>[optional] </td>
 </tr>

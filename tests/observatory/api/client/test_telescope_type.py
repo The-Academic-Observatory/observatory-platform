@@ -11,7 +11,7 @@
 import datetime
 import unittest
 
-from observatory.api.client.exceptions import ApiTypeError, ApiAttributeError
+from observatory.api.client.exceptions import ApiAttributeError, ApiTypeError
 from observatory.api.client.model.telescope_type import TelescopeType
 
 
@@ -21,9 +21,23 @@ class TestTelescopeType(unittest.TestCase):
     def testTelescopeType(self):
         """Test TelescopeType"""
 
+        class Configuration:
+            def __init__(self):
+                self.discard_unknown_keys = True
+
         # Create valid object
         dt = datetime.datetime.utcnow()
-        TelescopeType(id=1, type_id="onix", name="ONIX Telescope", created=dt, modified=dt)
+        TelescopeType(
+            id=1,
+            type_id="onix",
+            name="ONIX Telescope",
+            _configuration=Configuration(),
+            unknown="var",
+        )
+
+        self.assertRaises(
+            ApiAttributeError, TelescopeType, id=1, type_id="onix", name="ONIX Telescope", created=dt, modified=dt
+        )
 
         # Invalid argument
         with self.assertRaises(ApiTypeError):
@@ -32,6 +46,10 @@ class TestTelescopeType(unittest.TestCase):
         # Invalid keyword argument
         with self.assertRaises(ApiAttributeError):
             TelescopeType(hello="world")
+
+        self.assertRaises(ApiTypeError, TelescopeType._from_openapi_data, "hello")
+
+        TelescopeType._from_openapi_data(hello="world", _configuration=Configuration())
 
 
 if __name__ == "__main__":

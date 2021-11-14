@@ -312,7 +312,6 @@ paths:
           schema:
             $ref: '#/definitions/QueryResponse'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
       produces:
         - application/json
@@ -346,7 +345,6 @@ paths:
         400:
           description: bad input parameter
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -372,7 +370,6 @@ paths:
           schema:
             $ref: '#/definitions/TelescopeType'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -403,7 +400,6 @@ paths:
           schema:
             $ref: '#/definitions/TelescopeType'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -426,7 +422,6 @@ paths:
         200:
           description: TelescopeType deleted
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
   /v1/telescope_types:
@@ -455,7 +450,6 @@ paths:
         400:
           description: bad input parameter
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
   /v1/telescope:
@@ -482,7 +476,6 @@ paths:
         400:
           description: bad input parameter
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -508,7 +501,6 @@ paths:
           schema:
             $ref: '#/definitions/Telescope'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -539,7 +531,6 @@ paths:
           schema:
             $ref: '#/definitions/Telescope'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -562,7 +553,6 @@ paths:
         200:
           description: Telescope deleted
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
   /v1/telescopes:
@@ -601,7 +591,6 @@ paths:
         400:
           description: bad input parameter
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
   /v1/organisation:
@@ -611,7 +600,7 @@ paths:
       summary: get an Organisation
       operationId: get_organisation
       description: |
-        Get the details of an Organisation by passing it's id.
+        Get the details of an Organisation by passing its id.
       produces:
       - application/json
       parameters:
@@ -628,7 +617,6 @@ paths:
         400:
           description: bad input parameter
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -654,7 +642,6 @@ paths:
           schema:
             $ref: '#/definitions/Organisation'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -685,7 +672,6 @@ paths:
           schema:
             $ref: '#/definitions/Organisation'
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -708,7 +694,6 @@ paths:
         200:
           description: Organisation deleted
         401:
-          description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
   /v1/organisations:
@@ -737,7 +722,419 @@ paths:
         400:
           description: bad input parameter
         401:
-          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
+
+  /v1/dataset_storage:
+    get:
+      tags:
+      - Observatory
+      summary: get a DatasetStorage
+      operationId: get_dataset_storage
+      description: |
+        Get the details of a DatasetStorage by passing it's id or dataset id.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: DatasetStorage id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: the fetched DatasetStorage
+          schema:
+            $ref: '#/definitions/DatasetStorage'
+        400:
+          description: bad input parameter
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    post:
+      tags:
+      - Observatory
+      summary: create a DatasetStorage
+      operationId: post_dataset_storage
+      description: |
+        Create a DatasetStorage by passing a DatasetStorage object, without an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: DatasetStorage to create
+        required: true
+        schema:
+          $ref: '#/definitions/DatasetStorage'
+      responses:
+        201:
+          description: DatasetStorage created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/DatasetStorage'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    put:
+      tags:
+      - Observatory
+      summary: create or update a DatasetStorage
+      operationId: put_dataset_storage
+      description: |
+        Create a DatasetStorage by passing a DatasetStorage object, without an id. Update an existing DatasetStorage by
+        passing a DatasetStorage object with an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: DatasetStorage to create or update
+        required: true
+        schema:
+          $ref: '#/definitions/DatasetStorage'
+      responses:
+        200:
+          description: DatasetStorage updated
+          schema:
+            $ref: '#/definitions/DatasetStorage'
+        201:
+          description: DatasetStorage created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/DatasetStorage'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    delete:
+      tags:
+      - Observatory
+      summary: delete a DatasetStorage
+      operationId: delete_dataset_storage
+      description: |
+        Delete a DatasetStorage by passing it's id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: DatasetStorage id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: DatasetStorage deleted
+        401:
+          $ref: '#/responses/UnauthorizedError'
+
+  /v1/dataset_storages:
+    get:
+      tags:
+      - Observatory
+      summary: Get a list of DatasetStorage objects
+      operationId: get_dataset_storages
+      description: |
+        Get a list of DatasetStorage objects
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: limit
+        description: the maximum number of results to return
+        required: true
+        type: integer
+      - in: query
+        name: dataset_id
+        description: the dataset_id to filter for.
+        required: false
+        type: integer
+      responses:
+        200:
+          description: a list of DatasetStorage objects
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/DatasetStorage'
+        400:
+          description: bad input parameter
+        401:
+          $ref: '#/responses/UnauthorizedError'
+ 
+  /v1/dataset_release:
+    get:
+      tags:
+      - Observatory
+      summary: get a DatasetRelease
+      operationId: get_dataset_release
+      description: |
+        Get the details of a DatasetRelease by passing it's id or dataset id.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: DatasetRelease id
+        required: false
+        type: integer
+      - in: query
+        name: dataset_id
+        description: Dataset id
+        required: false
+        type: integer
+      responses:
+        200:
+          description: the fetched DatasetRelease
+          schema:
+            $ref: '#/definitions/DatasetRelease'
+        400:
+          description: bad input parameter
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    post:
+      tags:
+      - Observatory
+      summary: create a DatasetRelease
+      operationId: post_dataset_release
+      description: |
+        Create a DatasetRelease by passing a DatasetRelease object, without an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: DatasetRelease to create
+        required: true
+        schema:
+          $ref: '#/definitions/DatasetRelease'
+      responses:
+        201:
+          description: DatasetRelease created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/DatasetRelease'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    put:
+      tags:
+      - Observatory
+      summary: create or update a DatasetRelease
+      operationId: put_dataset_release
+      description: |
+        Create a DatasetRelease by passing a DatasetRelease object, without an id. Update an existing DatasetRelease by
+        passing a DatasetRelease object with an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: DatasetRelease to create or update
+        required: true
+        schema:
+          $ref: '#/definitions/DatasetRelease'
+      responses:
+        200:
+          description: DatasetRelease updated
+          schema:
+            $ref: '#/definitions/DatasetRelease'
+        201:
+          description: DatasetRelease created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/DatasetRelease'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    delete:
+      tags:
+      - Observatory
+      summary: delete a DatasetRelease
+      operationId: delete_dataset_release
+      description: |
+        Delete a DatasetRelease by passing it's id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: DatasetRelease id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: DatasetRelease deleted
+        401:
+          $ref: '#/responses/UnauthorizedError'
+
+  /v1/dataset_releases:
+    get:
+      tags:
+      - Observatory
+      summary: Get a list of DatasetRelease objects
+      operationId: get_dataset_releases
+      description: |
+        Get a list of DatasetRelease objects
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: limit
+        description: the maximum number of results to return
+        required: true
+        type: integer
+      - in: query
+        name: dataset_id
+        description: the dataset_id to fetch release info for
+        required: false
+        type: integer
+      responses:
+        200:
+          description: a list of DatasetRelease objects
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/DatasetRelease'
+        400:
+          description: bad input parameter
+        401:
+          $ref: '#/responses/UnauthorizedError'
+
+  /v1/dataset:
+    get:
+      tags:
+        - Observatory
+      summary: get a Dataset
+      operationId: get_dataset
+      description: |
+        Get the details of a Dataset by passing its id.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: Dataset id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: the fetched Dataset
+          schema:
+            $ref: '#/definitions/Dataset'
+        400:
+          description: bad input parameter
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    post:
+      tags:
+        - Observatory
+      summary: create a Dataset
+      operationId: post_dataset
+      description: |
+        Create a Dataset by passing a Dataset object, without an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: Dataset to create
+        required: true
+        schema:
+          $ref: '#/definitions/Dataset'
+      responses:
+        201:
+          description: Dataset created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Dataset'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    put:
+      tags:
+        - Observatory
+      summary: create or update a Dataset
+      operationId: put_dataset
+      description: |
+        Create a Dataset by passing a Dataset object, without an id. Update an existing Dataset by
+        passing an Dataset object with an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: Dataset to create or update
+        required: true
+        schema:
+          $ref: '#/definitions/Dataset'
+      responses:
+        200:
+          description: Dataset updated
+          schema:
+            $ref: '#/definitions/Dataset'
+        201:
+          description: Dataset created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/Dataset'
+        401:
+          $ref: '#/responses/UnauthorizedError'
+    delete:
+      tags:
+        - Observatory
+      summary: delete a Dataset
+      operationId: delete_dataset
+      description: |
+        Delete a Dataset by passing it's id.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: id
+          description: Dataset id
+          required: true
+          type: integer
+      responses:
+        200:
+          description: Dataset deleted
+        401:
+          $ref: '#/responses/UnauthorizedError'
+
+  /v1/datasets:
+    get:
+      tags:
+        - Observatory
+      summary: Get a list of Datasets
+      operationId: get_datasets
+      description: |
+        Gets a list of datasets
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: limit
+        description: the maximum number of results to return
+        required: true
+        type: integer
+      - in: query
+        name: telescope_id
+        description: Dataset id to filter by
+        required: false
+        type: integer
+      responses:
+        200:
+          description: a list of Dataset objects
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Dataset'
+        400:
+          description: bad input parameter
+        401:
           $ref: '#/responses/UnauthorizedError'
 
 #  /v2/query:
@@ -834,11 +1231,15 @@ definitions:
         $ref: '#/definitions/Organisation'
       telescope_type:
         $ref: '#/definitions/TelescopeType'
+      datasets:
+        type: array
+        items:
+          $ref: '#/definitions/Dataset'
       created:
         type: string
         format: date-time
         example: 2020-01-01T20:01:05Z
-        readOnly: true
+        readOnly: true  
       modified:
         type: string
         format: date-time
@@ -879,6 +1280,120 @@ definitions:
         readOnly: true
         items:
           $ref: '#/definitions/Telescope'
+      created:
+        type: string
+        format: date-time
+        example: 2020-01-01T20:01:05Z
+        readOnly: true
+      modified:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        readOnly: true
+
+  DatasetStorage:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      service:
+        type: string
+        example: google
+        minLength: 1
+        maxLength: 250
+      address:
+        type: string
+        example: curtin_gcp_project_id.my_dataset_id.my_table
+        minLength: 1
+        maxLength: 250
+      extra:
+        type: object
+        example: {'table_type': 'partitioned'}
+        minLength: 1
+        maxLength: 500
+        x-nullable: true
+      dataset:
+        $ref: '#/definitions/Dataset'
+      created:
+        type: string
+        format: date-time
+        example: 2020-01-01T20:01:05Z
+        readOnly: true
+      modified:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        readOnly: true
+
+  DatasetRelease:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      schema_version:
+        type: string
+        example: 20211031
+        minLength: 1
+        maxLength: 250
+      schema_version_alt:
+        type: string
+        example: wok5.4
+        x-nullable: true
+        minLength: 1
+        maxLength: 250
+      start_date:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+      end_date:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        x-nullable: true
+      ingestion_start:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        x-nullable: true
+      ingestion_end:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        x-nullable: true
+      dataset:
+        $ref: '#/definitions/Dataset'
+      created:
+        type: string
+        format: date-time
+        example: 2020-01-01T20:01:05Z
+        readOnly: true
+      modified:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        readOnly: true
+
+  Dataset:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      name:
+        type: string
+        example: RoR
+        minLength: 1
+        maxLength: 250
+      connection:
+        $ref: '#/definitions/Telescope'
+      extra:
+        type: object
+        example: {'isbn_field': 'ISBN', 'groups': ['oaebu'], 'type': 'snapshot'}
+        minLength: 1
+        maxLength: 500
+        x-nullable: true
       created:
         type: string
         format: date-time

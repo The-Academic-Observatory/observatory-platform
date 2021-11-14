@@ -11,7 +11,7 @@
 import datetime
 import unittest
 
-from observatory.api.client.exceptions import ApiTypeError, ApiAttributeError
+from observatory.api.client.exceptions import ApiAttributeError, ApiTypeError
 from observatory.api.client.model.organisation import Organisation
 
 
@@ -21,9 +21,25 @@ class TestOrganisation(unittest.TestCase):
     def testOrganisation(self):
         """Test Organisation"""
 
+        class Configuration:
+            def __init__(self):
+                self.discard_unknown_keys = True
+
         # Create valid object
         dt = datetime.datetime.utcnow()
         Organisation(
+            id=1,
+            name="Curtin",
+            gcp_project_id="my-gcp-project",
+            gcp_download_bucket="my-download-bucket",
+            gcp_transform_bucket="my-transform-bucket",
+            _configuration=Configuration(),
+            unknown="var",
+        )
+
+        self.assertRaises(
+            ApiAttributeError,
+            Organisation,
             id=1,
             name="Curtin",
             gcp_project_id="my-gcp-project",
@@ -40,6 +56,10 @@ class TestOrganisation(unittest.TestCase):
         # Invalid keyword argument
         with self.assertRaises(ApiAttributeError):
             Organisation(hello="world")
+
+        self.assertRaises(ApiTypeError, Organisation._from_openapi_data, "hello")
+
+        Organisation._from_openapi_data(hello="world", _configuration=Configuration())
 
 
 if __name__ == "__main__":
