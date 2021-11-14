@@ -22,18 +22,12 @@ import logging
 import os
 import pathlib
 import re
-import sys
 import traceback
 from base64 import b64decode
-from collections import deque
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from math import ceil
-from pathlib import Path
-from typing import Any, List, Optional, Tuple, Type, Union
+from typing import Any, List, Optional, Tuple, Union
 
-import jsonlines
 import paramiko
 import pendulum
 import pysftp
@@ -41,10 +35,10 @@ import six
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import DagBag, DagRun, Variable
-from airflow.models.taskinstance import TaskInstance
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
+
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
@@ -52,7 +46,6 @@ from observatory.platform.utils.airflow_utils import (
     create_slack_webhook,
 )
 from observatory.platform.utils.config_utils import find_schema, utils_templates_path
-from observatory.platform.utils.file_utils import load_file, write_to_file
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     copy_bigquery_table,
@@ -60,7 +53,6 @@ from observatory.platform.utils.gc_utils import (
     load_bigquery_table,
     run_bigquery_query,
     select_table_shard_dates,
-    upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.jinja2_utils import (
