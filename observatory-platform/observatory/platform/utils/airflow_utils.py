@@ -47,8 +47,6 @@ class AirflowConns:
     """Common Airflow Connection names used with the Observatory Platform"""
 
     CROSSREF = "crossref"
-    MAG_RELEASES_TABLE = "mag_releases_table"
-    MAG_SNAPSHOTS_CONTAINER = "mag_snapshots_container"
     TERRAFORM = "terraform"
     SLACK = "slack"
     ELASTIC = "elastic"
