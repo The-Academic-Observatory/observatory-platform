@@ -20,8 +20,6 @@ from typing import Dict
 import yaml
 from jinja2 import Template
 
-from observatory.api.server.elastic import QUERY_FILTER_PARAMETERS
-
 
 def render_template(template_path: str, **kwargs) -> str:
     """Render a Jinja2 template.
@@ -45,7 +43,7 @@ def render_template(template_path: str, **kwargs) -> str:
 
 
 class OpenApiRenderer:
-    def __init__(self, openapi_template_path: str, cloud_endpoints: bool = False, api_client: bool = False):
+    def __init__(self, openapi_template_path: str, usage_type: str):
         """Construct an object that renders an OpenAPI 2 Jinja2 file.
 
         :param openapi_template_path: the path to the OpenAPI 2 Jinja2 template.
@@ -54,8 +52,10 @@ class OpenApiRenderer:
         """
 
         self.openapi_template_path = openapi_template_path
-        self.cloud_endpoints = cloud_endpoints
-        self.api_client = api_client
+        allowed_types = ["cloud_endpoints", "backend", "openapi_generator"]
+        if usage_type not in allowed_types:
+            raise TypeError(f"Given type is not one of the allowed types: {allowed_types}")
+        self.type = usage_type
 
     def render(self) -> str:
         """Render the OpenAPI file.
@@ -65,9 +65,9 @@ class OpenApiRenderer:
 
         return render_template(
             self.openapi_template_path,
-            cloud_endpoints=self.cloud_endpoints,
-            api_client=self.api_client,
-            query_filter_parameters=QUERY_FILTER_PARAMETERS,
+            type=self.type
+            # cloud_endpoints=self.cloud_endpoints,
+            # api_client=self.api_client,
         )
 
     def to_dict(self) -> Dict:
@@ -76,7 +76,13 @@ class OpenApiRenderer:
         :return: the dictionary.
         """
 
-        assert not self.cloud_endpoints and not self.api_client, (
-            "Only supported where self.cloud_endpoints is False " "and self.api_client is False"
-        )
+        assert self.type == "backend", "Only supported when the openapi config file is used for the backend"
         return yaml.safe_load(self.render())
+
+
+# if __name__ == '__main__':
+#     template_path = sys.argv[1]
+#     build_path = sys.argv[2]
+#     builder = OpenApiRenderer(template_path, cloud_endpoints=True, api_client=False)
+#     with open(build_path, "w") as f:
+#         f.write(builder.render())

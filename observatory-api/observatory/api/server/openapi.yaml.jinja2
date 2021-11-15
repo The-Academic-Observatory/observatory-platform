@@ -10,49 +10,40 @@ info:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
 
-{# API Client specific settings #}
-{%- if api_client %}
-host: api.observatory.academy
+{# Security settings #}
+{%- if type == 'cloud_endpoints' or type == 'openapi_generator' %}
 schemes:
   - https
 produces:
   - application/json
 securityDefinitions:
-  # This section configures basic authentication with an API key.
-  api_key:
-    type: "apiKey"
-    name: "key"
-    in: "query"
+  auth0_jwt:
+    authorizationUrl: "https://dev-canowprn.us.auth0.com/authorize"
+    flow: "implicit"
+    type: "oauth2"
+    x-google-issuer: "https://dev-canowprn.us.auth0.com/"
+    x-google-jwks_uri: "https://dev-canowprn.us.auth0.com/.well-known/jwks.json"
+    x-google-audiences: "https://ao.api.observatory.academy"
 security:
-  - api_key: []
+  - auth0_jwt_test
 {%- endif %}
 
-{# Cloud Endpoints specific settings #}
-{%- if cloud_endpoints %}
+{# Host settings #}
+{%- if type == 'openapi_generator' %}
+host: api.observatory.academy
+{%- elif type == 'cloud_endpoints' %}
 host: ${host}
 x-google-backend:
   address: ${backend_address}
   protocol: h2
-schemes:
-  - https
-produces:
-  - application/json
-securityDefinitions:
-  # This section configures basic authentication with an API key.
-  api_key:
-    type: "apiKey"
-    name: "key"
-    in: "query"
-security:
-  - api_key: []
+{%- else %}
 {%- endif %}
 
 {# Tag settings #}
-{%- if api_client %}
+{%- if type == 'openapi_generator' %}
 tags:
 - name: Observatory
   description: the Observatory API
-{%- set reports_tag="Observatory" -%}
 {%- set organisation_tag="Observatory" -%}
 {%- set telescope_tag="Observatory" -%}
 {%- set telescope_type_tag="Observatory" -%}
@@ -62,8 +53,6 @@ tags:
 {%- set bigquery_bytes_processed_tag="Observatory" -%}
 {% else %}
 tags:
-- name: Reports
-  description: Query data to build Open Access reports.
 - name: Organisation
   description: Create, read, update, delete and list information about organisations.
 - name: Telescope
@@ -78,7 +67,6 @@ tags:
   description: Create, read, update, delete and list information about the dataset info.
 - name: BigQueryBytesProcessed
   description: Create, read, update, delete and list information about the number of bytes processed in BigQuery Query jobs.
-{%- set reports_tag="Reports" -%}
 {%- set organisation_tag="Organisation" -%}
 {%- set telescope_tag="Telescope" -%}
 {%- set telescope_type_tag="TelescopeType" -%}
@@ -89,113 +77,13 @@ tags:
 {%- endif %}
 
 {# Operation id namespace #}
-{%- if api_client %}
+{%- if type == 'openapi_generator' %}
 {%- set operation_id_namespace="" -%}
 {% else %}
 {%- set operation_id_namespace="observatory.api.server.api." -%}
 {%- endif %}
 
 paths:
-  /v1/query:
-    get:
-      operationId: {{ operation_id_namespace }}queryv1
-      tags:
-        - {{ reports_tag }}
-      summary: Search the Observatory API
-      description: Search the Observatory API
-      parameters:
-        - in: query
-          name: agg
-          description: The aggregation level
-          required: true
-          enum:
-            - author
-            - country
-            - funder
-            - group
-            - institution
-            - publisher
-          type: string
-        - name: subset
-          in: query
-          description: The required subset
-          required: true
-          enum:
-            - citations
-            - collaborations
-            - disciplines
-            - events
-            - funders
-            - journals
-            - oa-metrics
-            - output-types
-            - publishers
-          type: string
-        - name: index_date
-          in: query
-          description: Index date, defaults to latest
-          required: false
-          format: date
-          type: string
-        - name: from
-          in: query
-          description: Start year (included)
-          required: false
-          type: integer
-          minimum: 4
-          maximum: 4
-        - name: to
-          in: query
-          description: End year (not included)
-          required: false
-          type: integer
-          minimum: 4
-          maximum: 4
-        - name: limit
-          in: query
-          description: Limit number of results (max 10000)
-          required: false
-          type: integer
-          maximum: 10000
-        - name: scroll_id
-          in: query
-          description: The scroll id
-          required: false
-          type: string
-        - name: pit_id
-          in: query
-          description: The PIT id
-          required: false
-          type: string
-        - name: search_after_no
-          in: query
-          description: The search after key
-          required: false
-          type: integer
-        - name: search_after_text
-          in: query
-          description: The search after key
-          required: false
-          type: string
-        {% for param in query_filter_parameters %}
-        - name: {{ param }}
-          in: query
-          type: array
-          items:
-            type: string
-          collectionFormat: multi
-        {% endfor %}
-      responses:
-        200:
-          description: Successfully return query results
-          schema:
-            $ref: '#/definitions/QueryResponse'
-        401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
-      produces:
-        - application/json
-
   /v1/telescope_type:
     get:
       tags:
@@ -225,7 +113,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -251,7 +139,7 @@ paths:
           schema:
             $ref: '#/definitions/TelescopeType'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -282,7 +170,7 @@ paths:
           schema:
             $ref: '#/definitions/TelescopeType'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -305,7 +193,7 @@ paths:
         200:
           description: TelescopeType deleted
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/telescope_types:
@@ -334,7 +222,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/telescope:
@@ -361,7 +249,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -387,7 +275,7 @@ paths:
           schema:
             $ref: '#/definitions/Telescope'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -418,7 +306,7 @@ paths:
           schema:
             $ref: '#/definitions/Telescope'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -441,7 +329,7 @@ paths:
         200:
           description: Telescope deleted
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/telescopes:
@@ -480,7 +368,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/organisation:
@@ -507,7 +395,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -533,7 +421,7 @@ paths:
           schema:
             $ref: '#/definitions/Organisation'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -564,7 +452,7 @@ paths:
           schema:
             $ref: '#/definitions/Organisation'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -587,7 +475,7 @@ paths:
         200:
           description: Organisation deleted
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/organisations:
@@ -616,7 +504,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/dataset_storage:
@@ -643,7 +531,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -669,7 +557,7 @@ paths:
           schema:
             $ref: '#/definitions/DatasetStorage'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -700,7 +588,7 @@ paths:
           schema:
             $ref: '#/definitions/DatasetStorage'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -723,7 +611,7 @@ paths:
         200:
           description: DatasetStorage deleted
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/dataset_storages:
@@ -757,9 +645,9 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
- 
+
   /v1/dataset_release:
     get:
       tags:
@@ -784,7 +672,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -810,7 +698,7 @@ paths:
           schema:
             $ref: '#/definitions/DatasetRelease'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -841,7 +729,7 @@ paths:
           schema:
             $ref: '#/definitions/DatasetRelease'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -864,7 +752,7 @@ paths:
         200:
           description: DatasetRelease deleted
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/dataset_releases:
@@ -898,7 +786,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/dataset:
@@ -925,7 +813,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -951,7 +839,7 @@ paths:
           schema:
             $ref: '#/definitions/Dataset'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -982,7 +870,7 @@ paths:
           schema:
             $ref: '#/definitions/Dataset'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -1005,7 +893,7 @@ paths:
         200:
           description: Dataset deleted
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/datasets:
@@ -1039,7 +927,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/bigquery_bytes_processed:
@@ -1068,7 +956,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -1094,19 +982,9 @@ paths:
           schema:
             $ref: '#/definitions/BigQueryBytesProcessed'
         401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
-#  /v2/query:
-#    get:
-#      operationId: app.searchv2
-#      tags:
-#        - Query
-#      summary: An example of how to create v2 of an API endpoint
-#      description: An example of how to create v2 of an API endpoint
-#      responses:
-#        '200':
-#          description: Successfully return query results
 
 definitions:
   QueryResponse:
@@ -1199,7 +1077,7 @@ definitions:
         type: string
         format: date-time
         example: 2020-01-01T20:01:05Z
-        readOnly: true  
+        readOnly: true
       modified:
         type: string
         format: date-time
