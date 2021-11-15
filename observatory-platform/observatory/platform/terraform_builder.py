@@ -23,7 +23,7 @@ from abc import ABC, abstractmethod
 from subprocess import Popen
 from typing import Tuple, Optional
 
-from observatory.api.server.openapi_renderer import OpenApiRenderer
+from observatory.api.cli.openapi_renderer import OpenApiRenderer
 from observatory.platform.cli.click_utils import indent, INDENT1
 from observatory.platform.observatory_config import TerraformConfig, TerraformAPIConfig, BackendType
 from observatory.platform.platform_builder import PlatformBuilder
@@ -219,8 +219,15 @@ class TerraformAPIBuilder(AbstractBuilder):
             self.config_is_valid = self.config.is_valid
 
     @property
-    def api_path(self):
-        return os.path.join(self.config.api.package, "server")
+    def api_server_path(self):
+        """Find server directory inside api package. Different for observatory project and workflows project
+
+        :return:
+        """
+        for root, dirs, files in os.walk(self.config.api.package):
+            for subdir in dirs:
+                if subdir == "server":
+                    return os.path.join(root, subdir)
 
     @property
     def terraform_path(self):
@@ -260,17 +267,18 @@ class TerraformAPIBuilder(AbstractBuilder):
         self.make_files()
 
     def build_image(self):
+        image_tag = "local"
         # Create image tag with random id
-        image_tag = f"local-{random_id()[0:7]}"
+        # image_tag = f"local-{random_id()[0:7]}"
 
         # Activate service account and build docker image
         self.gcloud_activate_service_account()
         self.gcloud_builds_submit(image_tag)
 
-        # Write image tag to file
-        info_filepath = os.path.join(self.terraform_build_path, "image_build.txt")
-        with open(info_filepath, "w") as f:
-            f.write(image_tag)
+        # # Write image tag to file
+        # info_filepath = os.path.join(self.terraform_build_path, "image_build.txt")
+        # with open(info_filepath, "w") as f:
+        #     f.write(image_tag)
 
     def make_files(self):
         """Copy terraform configuration files and the openapi template in a 'terraform' dir
@@ -285,8 +293,8 @@ class TerraformAPIBuilder(AbstractBuilder):
 
     def make_open_api_template(self):
         # Load and render template
-        specification_path = os.path.join(self.api_path, "openapi.yaml.jinja2")
-        renderer = OpenApiRenderer(specification_path, cloud_endpoints=True)
+        specification_path = os.path.join(self.api_server_path, "openapi.yaml.jinja2")
+        renderer = OpenApiRenderer(specification_path, usage_type="cloud_endpoints")
         render = renderer.render()
 
         # Save file
