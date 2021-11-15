@@ -23,15 +23,7 @@ import pendulum
 import time
 from connexion import NoContent
 from flask import jsonify
-from observatory.api.server.elastic import (
-    create_es_connection,
-    create_schema,
-    create_search_body,
-    list_available_index_dates,
-    parse_args,
-    process_response,
-)
-from observatory.api.server.openapi_renderer import OpenApiRenderer
+from observatory.api.cli.openapi_renderer import OpenApiRenderer
 from observatory.api.server.orm import (
     BigQueryBytesProcessed,
     Dataset,
@@ -627,63 +619,6 @@ def post_bigquery_bytes_processed(body: Dict) -> Response:
     return post_item(BigQueryBytesProcessed, body)
 
 
-def queryv1() -> Union[Tuple[str, int], dict]:
-    """Search the Observatory Platform.
-
-    :return: results dictionary or error response
-    """
-
-    start = time.time()
-
-    alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-
-    es_api_key = os.environ.get("ES_API_KEY")
-    es_address = os.environ.get("ES_HOST")
-    es = create_es_connection(es_address, es_api_key)
-    if es is None:
-        return "Elasticsearch environment variable for host or api key is empty", 400
-
-    # use scroll id
-    if scroll_id:
-        res = es.scroll(scroll_id=scroll_id, scroll="1m")
-        index = "N/A"
-    # use search body
-    else:
-        search_body = create_search_body(from_date, to_date, filter_fields, size)
-
-        # use specific index if date is given, otherwise use alias which points to latest date
-        if index_date:
-            index = alias + f"-{index_date}"
-            index_exists = es.indices.exists(index)
-            if not index_exists:
-                available_dates = list_available_index_dates(es, alias)
-                return (
-                    f"Index does not exist: {index}\n Available dates for this agg & subset:\n"
-                    f"{chr(10).join(available_dates)}",
-                    400,
-                )
-        else:
-            index = es.cat.aliases(alias, format="json")[0]["index"]
-
-        res = es.search(index=index, body=search_body, scroll="1m")
-    scroll_id, results_data = process_response(res)
-
-    number_total_results = res["hits"]["total"]["value"]
-
-    end = time.time()
-    print(end - start)
-    results = {
-        "version": "v1",
-        "index": index,
-        "scroll_id": scroll_id,
-        "returned_hits": len(results_data),
-        "total_hits": number_total_results,
-        "schema": create_schema(),
-        "results": results_data,
-    }
-    return results
-
-
 # def searchv2():
 #     """ Example of having a different function for an upgraded version of the API.
 #
@@ -707,7 +642,7 @@ def create_app() -> connexion.App:
 
     # Add the OpenAPI specification
     specification_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "openapi.yaml.jinja2")
-    builder = OpenApiRenderer(specification_path, cloud_endpoints=False)
+    builder = OpenApiRenderer(specification_path, usage_type="backend")
     specification = builder.to_dict()
     conn_app.add_api(specification)
 

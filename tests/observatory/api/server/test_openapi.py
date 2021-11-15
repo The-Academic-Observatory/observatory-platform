@@ -21,7 +21,7 @@ from click.testing import CliRunner
 from openapi_spec_validator import validate_v2_spec
 from openapi_spec_validator.readers import read_from_filename
 
-from observatory.api.server.openapi_renderer import OpenApiRenderer
+from observatory.api.cli.openapi_renderer import OpenApiRenderer
 from observatory.platform.utils.config_utils import module_file_path
 
 
@@ -32,14 +32,14 @@ class TestOpenApiSchema(unittest.TestCase):
     def test_validate_backend(self):
         """Test that the backend OpenAPI spec is valid"""
 
-        renderer = OpenApiRenderer(self.template_file, cloud_endpoints=False, api_client=False)
+        renderer = OpenApiRenderer(self.template_file, usage_type="backend")
         render = renderer.render()
         self.validate_spec(render)
 
     def test_validate_cloud_endpoints(self):
         """Test that the cloud endpoints OpenAPI spec is valid"""
 
-        renderer = OpenApiRenderer(self.template_file, cloud_endpoints=True, api_client=False)
+        renderer = OpenApiRenderer(self.template_file, usage_type="cloud_endpoints")
         render = renderer.render()
         render = render.replace("${host}", "api.observatory.academy")
         render = render.replace("${backend_address}", "192.168.1.1")
@@ -48,7 +48,7 @@ class TestOpenApiSchema(unittest.TestCase):
     def test_validate_api_client(self):
         """Test that the API Client OpenAPI spec is valid"""
 
-        renderer = OpenApiRenderer(self.template_file, cloud_endpoints=False, api_client=True)
+        renderer = OpenApiRenderer(self.template_file, usage_type="openapi_generator")
         render = renderer.render()
         self.validate_spec(render)
 
