@@ -35,16 +35,7 @@ data "terraform_remote_state" "observatory" {
   }
 }
 
-# Get build info from a local file if no build_info is passed on
-data "local_file" "image_tag" {
-  count    = var.api.image_tag == "" ? 1 : 0
-  filename = "./image_build.txt"
-}
-
 locals {
-  # Set the build info, either from local file or from variable
-  image_tag = try(data.local_file.image_tag[0].content, var.api.image_tag)
-
   # Set the environment variables for the Cloud Run backend
   env_vars = (
     var.api_type.type == "observatory_api" ?
@@ -74,8 +65,8 @@ locals {
 
 module "api" {
   source                = "The-Academic-Observatory/api/google"
-  version               = "0.0.6"
-  api                   = merge(var.api, { "image_tag" = local.image_tag })
+  version               = "0.0.7"
+  api                   = var.api
   environment           = var.environment
   google_cloud          = var.google_cloud
   env_vars              = local.env_vars

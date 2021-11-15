@@ -1708,7 +1708,7 @@ def make_schema(backend_type: BackendType) -> Dict:
                 },
                 "domain_name": {"required": True, "type": "string", "check_with": customise_pointer},
                 "subdomain": {"required": True, "type": "string", "allowed": ["project_id", "environment"]},
-                "image_tag": {"required": False, "type": "string"},
+                "image_tag": {"required": True, "type": "string"},
             },
         }
         schema["api_type"] = {
