@@ -9,7 +9,7 @@ from functools import wraps
 def requires_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if "profile" not in session:
+        if "jwt_payload" not in session:
             # Redirect to Login page here
             return redirect("/")
         return f(*args, **kwargs)
