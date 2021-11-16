@@ -197,7 +197,7 @@ class TestCliFunctional(unittest.TestCase):
         redis = Redis(port=observatory.redis_port, socket_connect_timeout=1)
         self.assertTrue(redis.ping())
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
+    @patch("observatory.platform.docker.platform_builder.ObservatoryConfig.load")
     def test_run_platform_editable(self, mock_config_load):
         """Test that the platform runs when built from an editable project. API installed from PyPI."""
 
@@ -233,7 +233,7 @@ class TestCliFunctional(unittest.TestCase):
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
+    @patch("observatory.platform.docker.platform_builder.ObservatoryConfig.load")
     def test_dag_load_workflows_project_editable(self, mock_config_load):
         """Test that the DAGs load when build from an editable workflows project. API installed from PyPI."""
 
@@ -317,7 +317,7 @@ class TestCliFunctional(unittest.TestCase):
             ),
         )
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
+    @patch("observatory.platform.docker.platform_builder.ObservatoryConfig.load")
     def test_run_platform_sdist(self, mock_config_load):
         """Test that the platform runs when built from a source distribution. API package installed from PyPI."""
 
@@ -357,7 +357,7 @@ class TestCliFunctional(unittest.TestCase):
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
+    @patch("observatory.platform.docker.platform_builder.ObservatoryConfig.load")
     def test_dag_load_workflows_project_sdist(self, mock_config_load):
         """Test that DAGs load from an sdist workflows project. API package installed from PyPI."""
 
