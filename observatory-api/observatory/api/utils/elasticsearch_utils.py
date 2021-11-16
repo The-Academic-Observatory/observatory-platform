@@ -78,7 +78,7 @@ class ElasticsearchIndex:
         pass
 
 
-def parse_args() -> Tuple[List[str], List[str], str, str, str, int, str, str]:
+def parse_args() -> Tuple[List[str], List[str], str, str, str, int, str, str, bool]:
     """Parse the arguments coming in from the request.
 
     alias: concatenate 'subset' and 'agg'
@@ -100,6 +100,7 @@ def parse_args() -> Tuple[List[str], List[str], str, str, str, int, str, str]:
     limit = request.args.get("limit")
     search_after = request.args.get("search_after")
     pit = request.args.get("pit")
+    pretty_print = request.args.get("pretty", False)
 
     # Convert index date to YYYYMMDD format
     index_date = pendulum.parse(index_date).strftime("%Y%m%d") if index_date else None
@@ -116,7 +117,7 @@ def parse_args() -> Tuple[List[str], List[str], str, str, str, int, str, str]:
     else:
         size = max_size
 
-    return agg_ids, subagg_ids, index_date, from_date, to_date, size, search_after, pit
+    return agg_ids, subagg_ids, index_date, from_date, to_date, size, search_after, pit, pretty_print
 
 
 def create_es_connection() -> Union[Elasticsearch, str]:
