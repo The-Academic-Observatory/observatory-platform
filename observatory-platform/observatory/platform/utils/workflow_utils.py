@@ -60,6 +60,7 @@ from observatory.platform.utils.jinja2_utils import (
     render_template,
 )
 from sqlalchemy import and_
+from sqlalchemy.orm import Session
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -1094,7 +1095,7 @@ def get_chunks(*, input_list: List[Any], chunk_size: int = 8) -> List[Any]:
 
 @provide_session
 def delete_old_xcoms(
-    session: "Callable" = None,
+    session: Session = None,
     dag_id: str = None,
     execution_date: pendulum.DateTime = None,
     retention_days: int = 31,
