@@ -31,8 +31,11 @@ from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.variable import Variable
+from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from click.testing import CliRunner
 from google.cloud import bigquery
@@ -60,6 +63,7 @@ from observatory.platform.utils.workflow_utils import (
     bq_load_shard,
     bq_load_shard_v2,
     create_date_table_id,
+    delete_old_xcoms,
     fetch_dag_bag,
     fetch_dags_modules,
     get_chunks,
@@ -1136,3 +1140,97 @@ class TestWorkflowUtils(unittest.TestCase):
         self.assertEqual(len(chunks), 5)
         self.assertEqual(len(chunks[0]), 2)
         self.assertEqual(len(chunks[4]), 1)
+
+    def test_delete_old_xcom_all(self):
+        """Test deleting all XCom messages."""
+
+        def create_xcom(**kwargs):
+            ti = kwargs["ti"]
+            execution_date = kwargs["execution_date"]
+            ti.xcom_push("topic", {"release_date": execution_date.format("YYYYMMDD"), "something": "info"})
+
+        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        with env.create():
+            execution_date = pendulum.datetime(2021, 9, 5)
+            with DAG(
+                dag_id="hello_world_dag",
+                schedule_interval="@daily",
+                default_args={"owner": "airflow", "start_date": execution_date},
+                catchup=True,
+            ) as dag:
+                kwargs = {"task_id": "create_xcom"}
+                op = PythonOperator(python_callable=create_xcom, **kwargs)
+
+            # DAG Run
+            with env.create_dag_run(dag=dag, execution_date=execution_date):
+                ti = env.run_task("create_xcom")
+                self.assertEqual("success", ti.state)
+                msgs = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
+                self.assertIsInstance(msgs, dict)
+                delete_old_xcoms(dag_id="hello_world_dag", execution_date=execution_date, retention_days=0)
+                msgs = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
+                self.assertEqual(msgs, None)
+
+    def test_delete_old_xcom_older(self):
+        """Test deleting old XCom messages."""
+
+        def create_xcom(**kwargs):
+            ti = kwargs["ti"]
+            execution_date = kwargs["execution_date"]
+            ti.xcom_push("topic", {"release_date": execution_date.format("YYYYMMDD"), "something": "info"})
+
+        @provide_session
+        def get_xcom(session=None, dag_id=None, task_id=None, key=None, execution_date=None):
+            msgs = XCom.get_many(
+                execution_date=execution_date,
+                key=key,
+                dag_ids=dag_id,
+                task_ids=task_id,
+                include_prior_dates=True,
+                session=session,
+            ).with_entities(XCom.value)
+            return msgs.all()
+
+        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        with env.create():
+            first_execution_date = pendulum.datetime(2021, 9, 5)
+            with DAG(
+                dag_id="hello_world_dag",
+                schedule_interval="@daily",
+                default_args={"owner": "airflow", "start_date": first_execution_date},
+                catchup=True,
+            ) as dag:
+                kwargs = {"task_id": "create_xcom"}
+                PythonOperator(python_callable=create_xcom, **kwargs)
+
+            # First DAG Run
+            with env.create_dag_run(dag=dag, execution_date=first_execution_date):
+                ti = env.run_task("create_xcom")
+                self.assertEqual("success", ti.state)
+                msg = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
+                self.assertEqual(msg["release_date"], first_execution_date.format("YYYYMMDD"))
+
+            # Second DAG Run
+            second_execution_date = pendulum.datetime(2021, 9, 15)
+            with env.create_dag_run(dag=dag, execution_date=second_execution_date):
+                ti = env.run_task("create_xcom")
+                self.assertEqual("success", ti.state)
+                msg = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
+                self.assertEqual(msg["release_date"], second_execution_date.format("YYYYMMDD"))
+
+                # Check there are two xcoms in the db
+                xcoms = get_xcom(
+                    dag_id="hello_world_dag", task_id="create_xcom", key="topic", execution_date=second_execution_date
+                )
+                self.assertEqual(len(xcoms), 2)
+
+                # Delete old xcoms
+                delete_old_xcoms(dag_id="hello_world_dag", execution_date=second_execution_date, retention_days=1)
+
+                # Check result
+                xcoms = get_xcom(
+                    dag_id="hello_world_dag", task_id="create_xcom", key="topic", execution_date=second_execution_date
+                )
+                self.assertEqual(len(xcoms), 1)
+                msg = XCom.deserialize_value(xcoms[0])
+                self.assertEqual(msg["release_date"], second_execution_date.format("YYYYMMDD"))
