@@ -27,12 +27,10 @@ from observatory.platform.observatory_config import (
     AirflowConnections,
     AirflowVariable,
     AirflowVariables,
-    Api,
     Backend,
     BackendType,
     CloudSqlDatabase,
     CloudStorageBucket,
-    ElasticSearch,
     Environment,
     GoogleCloud,
     MainVirtualMachine,
@@ -83,7 +81,7 @@ class DefaultWorkflowsProject:
 
 
 class GenerateCommand:
-    def generate_local_config(self, config_path: str, *, editable: str, workflows: List[str], oapi: bool):
+    def generate_local_config(self, config_path: str, *, editable: bool, workflows: List[str]):
         """Command line user interface for generating an Observatory Config config.yaml.
 
         :param config_path: the path where the config file should be saved.
@@ -101,19 +99,15 @@ class GenerateCommand:
         if editable:
             InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
 
-            if oapi:
-                InteractiveConfigBuilder.set_editable_observatory_api(config.observatory)
-
         config.save(config_path)
 
         click.echo(f'\n{file_type} saved to: "{config_path}"')
 
-    def generate_local_config_interactive(self, config_path: str, *, workflows: List[str], oapi: bool, editable: bool):
+    def generate_local_config_interactive(self, config_path: str, *, workflows: List[str], editable: bool):
         """Construct an Observatory local config file through user assisted configuration.
 
         :param config_path: Configuration file path.
         :param workflows: List of installer script installed workflows projects.
-        :param oapi: Whether installer script installed the Observatory API.
         :param editable: Whether the observatory platform is editable.
         """
 
@@ -121,7 +115,7 @@ class GenerateCommand:
         click.echo(f"Generating {file_type}...")
 
         config = InteractiveConfigBuilder.build(
-            backend_type=BackendType.local.value, workflows=workflows, oapi=oapi, editable=editable
+            backend_type=BackendType.local.value, workflows=workflows, editable=editable
         )
 
         if editable:
@@ -130,7 +124,7 @@ class GenerateCommand:
         config.save(config_path)
         click.echo(f'\n{file_type} saved to: "{config_path}"')
 
-    def generate_terraform_config(self, config_path: str, *, editable: str, workflows: List[str], oapi: bool):
+    def generate_terraform_config(self, config_path: str, *, editable: bool, workflows: List[str]):
         """Command line user interface for generating a Terraform Config config-terraform.yaml.
 
         :param config_path: the path where the config file should be saved.
@@ -147,21 +141,15 @@ class GenerateCommand:
         if editable:
             InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
 
-            if oapi:
-                InteractiveConfigBuilder.set_editable_observatory_api(config.observatory)
-
         config.save(config_path)
 
         click.echo(f'\n{file_type} saved to: "{config_path}"')
 
-    def generate_terraform_config_interactive(
-        self, config_path: str, *, workflows: List[str], oapi: bool, editable: bool
-    ):
+    def generate_terraform_config_interactive(self, config_path: str, *, workflows: List[str], editable: bool):
         """Construct an Observatory Terraform config file through user assisted configuration.
 
         :param config_path: Configuration file path.
         :param workflows: List of workflows projects installed by installer script.
-        :param oapi: Whether installer script installed the Observatory API.
         :param editable: Whether the observatory platform is editable.
         """
 
@@ -169,7 +157,7 @@ class GenerateCommand:
         click.echo(f"Generating {file_type}...")
 
         config = InteractiveConfigBuilder.build(
-            backend_type=BackendType.terraform.value, workflows=workflows, oapi=oapi, editable=editable
+            backend_type=BackendType.terraform.value, workflows=workflows, editable=editable
         )
 
         if editable:
@@ -185,14 +173,12 @@ class GenerateCommand:
         :return: None
         """
 
-        file_type = "Terraform API Config"
+        file_type = "Terraform Config"
         click.echo(f"Generating {file_type}...")
-        TerraformAPIConfig.save_default(config_path)
+        config = TerraformAPIConfig()
+        config.save(config_path)
+
         click.echo(f'\n{file_type} saved to: "{config_path}"')
-        click.echo(
-            "Please customise the parameters with '<--' in the config file. "
-            "Parameters commented out with '#' are optional."
-        )
 
     def generate_workflows_project(self, project_path: str, package_name: str, author_name: str):
         """Create all directories, init files and a setup.cfg + setup.py file for a new workflows project.
@@ -539,14 +525,11 @@ class InteractiveConfigBuilder:
         return workflows_projects
 
     @staticmethod
-    def build(
-        *, backend_type: str, workflows: List[str], oapi: bool, editable: bool
-    ) -> Union[ObservatoryConfig, TerraformConfig]:
+    def build(*, backend_type: str, workflows: List[str], editable: bool) -> Union[ObservatoryConfig, TerraformConfig]:
         """Build the correct observatory configuration object through user assisted parameters.
 
         :param backend_type: The type of Observatory backend being configured.
         :param workflows: List of workflows installed by installer script.
-        :param oapi: Whether installer script installed the Observatory API.
         :param editable: Whether the observatory platform is editable.
         :return: An observatory configuration object.
         """
@@ -560,7 +543,7 @@ class InteractiveConfigBuilder:
 
         # Common sections for all backends
         InteractiveConfigBuilder.config_backend(config, backend_type=backend_type)
-        InteractiveConfigBuilder.config_observatory(config, oapi=oapi, editable=editable)
+        InteractiveConfigBuilder.config_observatory(config, editable=editable)
         InteractiveConfigBuilder.config_terraform(config)
         InteractiveConfigBuilder.config_google_cloud(config)
         InteractiveConfigBuilder.config_airflow_connections(config)
@@ -598,10 +581,11 @@ class InteractiveConfigBuilder:
         config.backend = Backend(type=backend_type, environment=environment.value)
 
     @staticmethod
-    def config_observatory(config: Union[ObservatoryConfig, TerraformConfig], oapi: bool, editable: bool):
+    def config_observatory(config: Union[ObservatoryConfig, TerraformConfig], editable: bool):
         """Configure the observatory section.
 
         :param config: Configuration object to edit.
+        :param editable: Whether the observatory platform is editable.
         """
 
         click.echo("\nConfiguring Observatory settings")
