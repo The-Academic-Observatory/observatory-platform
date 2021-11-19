@@ -22,23 +22,28 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
 import click
-from click.termui import edit
 from observatory.platform.observatory_config import (
     AirflowConnection,
+    AirflowConnections,
     AirflowVariable,
+    AirflowVariables,
     Api,
+    Backend,
     BackendType,
     CloudSqlDatabase,
     CloudStorageBucket,
     ElasticSearch,
     Environment,
     GoogleCloud,
+    MainVirtualMachine,
     Observatory,
     ObservatoryConfig,
     Terraform,
+    TerraformAPIConfig,
     TerraformConfig,
-    VirtualMachine,
+    WorkerVirtualMachine,
     WorkflowsProject,
+    WorkflowsProjects,
     is_fernet_key,
     is_secret_key,
 )
@@ -91,7 +96,7 @@ class GenerateCommand:
         click.echo(f"Generating {file_type}...")
 
         workflows = InteractiveConfigBuilder.get_installed_workflows(workflows)
-        config = ObservatoryConfig(workflows_projects=workflows)
+        config = ObservatoryConfig(workflows_projects=WorkflowsProjects(workflows))
 
         if editable:
             InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
@@ -99,9 +104,31 @@ class GenerateCommand:
             if oapi:
                 InteractiveConfigBuilder.set_editable_observatory_api(config.observatory)
 
-        config.save(path=config_path)
+        config.save(config_path)
 
-        click.echo(f'{file_type} saved to: "{config_path}"')
+        click.echo(f'\n{file_type} saved to: "{config_path}"')
+
+    def generate_local_config_interactive(self, config_path: str, *, workflows: List[str], oapi: bool, editable: bool):
+        """Construct an Observatory local config file through user assisted configuration.
+
+        :param config_path: Configuration file path.
+        :param workflows: List of installer script installed workflows projects.
+        :param oapi: Whether installer script installed the Observatory API.
+        :param editable: Whether the observatory platform is editable.
+        """
+
+        file_type = "Observatory Config"
+        click.echo(f"Generating {file_type}...")
+
+        config = InteractiveConfigBuilder.build(
+            backend_type=BackendType.local.value, workflows=workflows, oapi=oapi, editable=editable
+        )
+
+        if editable:
+            InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
+
+        config.save(config_path)
+        click.echo(f'\n{file_type} saved to: "{config_path}"')
 
     def generate_terraform_config(self, config_path: str, *, editable: str, workflows: List[str], oapi: bool):
         """Command line user interface for generating a Terraform Config config-terraform.yaml.
@@ -115,7 +142,7 @@ class GenerateCommand:
         file_type = "Terraform Config"
         click.echo(f"Generating {file_type}...")
         workflows = InteractiveConfigBuilder.get_installed_workflows(workflows)
-        config = TerraformConfig(workflows_projects=workflows)
+        config = TerraformConfig(workflows_projects=WorkflowsProjects(workflows))
 
         if editable:
             InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
@@ -123,9 +150,33 @@ class GenerateCommand:
             if oapi:
                 InteractiveConfigBuilder.set_editable_observatory_api(config.observatory)
 
-        config.save(path=config_path)
+        config.save(config_path)
 
-        click.echo(f'{file_type} saved to: "{config_path}"')
+        click.echo(f'\n{file_type} saved to: "{config_path}"')
+
+    def generate_terraform_config_interactive(
+        self, config_path: str, *, workflows: List[str], oapi: bool, editable: bool
+    ):
+        """Construct an Observatory Terraform config file through user assisted configuration.
+
+        :param config_path: Configuration file path.
+        :param workflows: List of workflows projects installed by installer script.
+        :param oapi: Whether installer script installed the Observatory API.
+        :param editable: Whether the observatory platform is editable.
+        """
+
+        file_type = "Terraform Config"
+        click.echo(f"Generating {file_type}...")
+
+        config = InteractiveConfigBuilder.build(
+            backend_type=BackendType.terraform.value, workflows=workflows, oapi=oapi, editable=editable
+        )
+
+        if editable:
+            InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
+
+        config.save(config_path)
+        click.echo(f'\n{file_type} saved to: "{config_path}"')
 
     def generate_terraform_api_config(self, config_path: str):
         """Command line user interface for generating a Terraform Config config-terraform-api.yaml.
@@ -137,7 +188,7 @@ class GenerateCommand:
         file_type = "Terraform API Config"
         click.echo(f"Generating {file_type}...")
         TerraformAPIConfig.save_default(config_path)
-        click.echo(f'{file_type} saved to: "{config_path}"')
+        click.echo(f'\n{file_type} saved to: "{config_path}"')
         click.echo(
             "Please customise the parameters with '<--' in the config file. "
             "Parameters commented out with '#' are optional."
@@ -297,52 +348,6 @@ class GenerateCommand:
             with open(identifiers_dst_file, "a") as f:
                 f.write(f'    {workflow_module} = "{workflow_module}"\n')
             print(f"- Updated the identifiers file: {identifiers_dst_file}")
-
-    def generate_local_config_interactive(self, config_path: str, *, workflows: List[str], oapi: bool, editable: bool):
-        """Construct an Observatory local config file through user assisted configuration.
-
-        :param config_path: Configuration file path.
-        :param workflows: List of installer script installed workflows projects.
-        :param oapi: Whether installer script installed the Observatory API.
-        :param editable: Whether the observatory platform is editable.
-        """
-
-        file_type = "Observatory Config"
-        click.echo(f"Generating {file_type}...")
-
-        config = InteractiveConfigBuilder.build(
-            backend_type=BackendType.local, workflows=workflows, oapi=oapi, editable=editable
-        )
-
-        if editable:
-            InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
-
-        config.save(config_path)
-        click.echo(f'{file_type} saved to: "{config_path}"')
-
-    def generate_terraform_config_interactive(
-        self, config_path: str, *, workflows: List[str], oapi: bool, editable: bool
-    ):
-        """Construct an Observatory Terraform config file through user assisted configuration.
-
-        :param config_path: Configuration file path.
-        :param workflows: List of workflows projects installed by installer script.
-        :param oapi: Whether installer script installed the Observatory API.
-        :param editable: Whether the observatory platform is editable.
-        """
-
-        file_type = "Terraform Config"
-        click.echo(f"Generating {file_type}...")
-
-        config = InteractiveConfigBuilder.build(
-            backend_type=BackendType.terraform, workflows=workflows, oapi=oapi, editable=editable
-        )
-
-        if editable:
-            InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
-
-        config.save(config_path)
-        click.echo(f'{file_type} saved to: "{config_path}"')
 
 
 def get_workflow_template_path(workflow_type: str) -> Tuple[str, str, str, str, str, str]:
@@ -535,7 +540,7 @@ class InteractiveConfigBuilder:
 
     @staticmethod
     def build(
-        *, backend_type: BackendType, workflows: List[str], oapi: bool, editable: bool
+        *, backend_type: str, workflows: List[str], oapi: bool, editable: bool
     ) -> Union[ObservatoryConfig, TerraformConfig]:
         """Build the correct observatory configuration object through user assisted parameters.
 
@@ -548,14 +553,14 @@ class InteractiveConfigBuilder:
 
         workflows_projects = InteractiveConfigBuilder.get_installed_workflows(workflows)
 
-        if backend_type == BackendType.local:
-            config = ObservatoryConfig(workflows_projects=workflows_projects)
+        if backend_type == BackendType.local.value:
+            config = ObservatoryConfig(workflows_projects=WorkflowsProjects(workflows_projects))
         else:
-            config = TerraformConfig(workflows_projects=workflows_projects)
+            config = TerraformConfig(workflows_projects=WorkflowsProjects(workflows_projects))
 
         # Common sections for all backends
-        InteractiveConfigBuilder.config_backend(config=config, backend_type=backend_type)
-        InteractiveConfigBuilder.config_observatory(config=config, oapi=oapi, editable=editable)
+        InteractiveConfigBuilder.config_backend(config, backend_type=backend_type)
+        InteractiveConfigBuilder.config_observatory(config, oapi=oapi, editable=editable)
         InteractiveConfigBuilder.config_terraform(config)
         InteractiveConfigBuilder.config_google_cloud(config)
         InteractiveConfigBuilder.config_airflow_connections(config)
@@ -567,42 +572,39 @@ class InteractiveConfigBuilder:
             InteractiveConfigBuilder.config_cloud_sql_database(config)
             InteractiveConfigBuilder.config_airflow_main_vm(config)
             InteractiveConfigBuilder.config_airflow_worker_vm(config)
-            InteractiveConfigBuilder.config_elasticsearch(config)
-            InteractiveConfigBuilder.config_api(config)
 
         return config
 
     @staticmethod
-    def config_backend(*, config: Union[ObservatoryConfig, TerraformConfig], backend_type: BackendType):
+    def config_backend(config: Union[ObservatoryConfig, TerraformConfig], backend_type: str):
         """Configure the backend section.
 
         :param config: Configuration object to edit.
         :param backend_type: The backend type being used.
         """
-
-        click.echo("Configuring backend settings")
-        config.backend.type = backend_type
+        click.echo("\nConfiguring backend settings")
 
         text = "What kind of environment is this?"
-        default = Environment.develop.name
+        default = Environment.develop.value
         choices = click.Choice(
-            choices=[Environment.develop.name, Environment.staging.name, Environment.production.name],
+            choices=[Environment.develop.value, Environment.staging.value, Environment.production.value],
             case_sensitive=False,
         )
 
-        config.backend.environment = Environment[
+        environment = Environment[
             click.prompt(text=text, type=choices, default=default, show_default=True, show_choices=True)
         ]
 
+        config.backend = Backend(type=backend_type, environment=environment.value)
+
     @staticmethod
-    def config_observatory(*, config: Union[ObservatoryConfig, TerraformConfig], oapi: bool, editable: bool):
+    def config_observatory(config: Union[ObservatoryConfig, TerraformConfig], oapi: bool, editable: bool):
         """Configure the observatory section.
 
         :param config: Configuration object to edit.
         """
 
-        click.echo("Configuring Observatory settings")
-
+        click.echo("\nConfiguring Observatory settings")
         if editable:
             InteractiveConfigBuilder.set_editable_observatory_platform(config.observatory)
         # else:
@@ -691,25 +693,22 @@ class InteractiveConfigBuilder:
         config.observatory.docker_compose_project_name = docker_compose_project_name
 
         text = "Do you wish to enable ElasticSearch and Kibana?"
-        choices = click.Choice(choices=["y", "n"], case_sensitive=False)
-        default = "y"
-        enable_elk = click.prompt(text=text, default=default, type=choices, show_default=True, show_choices=True)
-
-        config.observatory.enable_elk = True if enable_elk == "y" else False
+        proceed = click.confirm(text=text, default=True, abort=False, show_default=True)
+        config.observatory.enable_elk = True if proceed else False
 
         # If installed by installer script, we can fill in details
-        if oapi and editable:
-            InteractiveConfigBuilder.set_editable_observatory_api(config.observatory)
-        elif not oapi:
-            text = "Observatory API package name"
-            default = config.observatory.api_package
-            api_package = click.prompt(text=text, type=str, default=default, show_default=True)
-            config.observatory.api_package = api_package
-
-            text = "Observatory API package type"
-            default = config.observatory.api_package_type
-            api_package_type = click.prompt(text=text, type=str, default=default, show_default=True)
-            config.observatory.api_package_type = api_package_type
+        # if oapi and editable:
+        #     InteractiveConfigBuilder.set_editable_observatory_api(config.observatory)
+        # elif not oapi:
+        #     text = "Observatory API package name"
+        #     default = config.observatory.api_package
+        #     api_package = click.prompt(text=text, type=str, default=default, show_default=True)
+        #     config.observatory.api_package = api_package
+        #
+        #     text = "Observatory API package type"
+        #     default = config.observatory.api_package_type
+        #     api_package_type = click.prompt(text=text, type=str, default=default, show_default=True)
+        #     config.observatory.api_package_type = api_package_type
 
     @staticmethod
     def config_google_cloud(config: Union[ObservatoryConfig, TerraformConfig]):
@@ -720,13 +719,14 @@ class InteractiveConfigBuilder:
 
         zone = None
         region = None
-        buckets = list()
-
+        buckets = []
         if not config.schema["google_cloud"]["required"]:
             text = "Do you want to configure Google Cloud settings?"
             proceed = click.confirm(text=text, default=False, abort=False, show_default=True)
             if not proceed:
                 return
+
+        click.echo("\nConfiguring Google Cloud settings")
 
         text = "Google Cloud Project ID"
         project_id = click.prompt(text=text, type=str)
@@ -779,6 +779,8 @@ class InteractiveConfigBuilder:
             if not proceed:
                 return
 
+        click.echo("\nConfiguring Terraform settings")
+
         if config.backend.type == BackendType.local:
             suffix = " (leave blank to disable)"
             default = ""
@@ -801,9 +803,9 @@ class InteractiveConfigBuilder:
         :param config: Configuration object to edit.
         """
 
-        click.echo("Configuring Airflow Connections")
+        click.echo("\nConfiguring Airflow Connections")
 
-        text = "Do you have any Airlfow connections you wish to add?"
+        text = "Do you have any Airflow connections you wish to add?"
         add_connections = click.confirm(text=text, default=False, abort=False, show_default=True)
 
         if not add_connections:
@@ -825,7 +827,7 @@ class InteractiveConfigBuilder:
             if not add_another:
                 break
 
-        config.airflow_connections = connections
+        config.airflow_connections = AirflowConnections(connections)
 
     @staticmethod
     def config_airflow_variables(config: Union[ObservatoryConfig, TerraformConfig]):
@@ -834,7 +836,7 @@ class InteractiveConfigBuilder:
         :param config: Configuration object to edit.
         """
 
-        click.echo("Configuring Airflow Variables")
+        click.echo("\nConfiguring Airflow Variables")
 
         text = "Do you want to add Airflow variables?"
         add_variables = click.confirm(text=text, default=False, abort=False, show_default=True)
@@ -858,7 +860,7 @@ class InteractiveConfigBuilder:
             if not add_another:
                 break
 
-        config.airflow_variables = variables
+        config.airflow_variables = AirflowVariables(variables)
 
     @staticmethod
     def config_workflows_projects(config: Union[ObservatoryConfig, TerraformConfig]):
@@ -868,7 +870,9 @@ class InteractiveConfigBuilder:
         """
 
         click.echo(
-            "Configuring workflows projects. If you opted to install some workflows projects through the installer script then they will be automatically added to the config file for you. If not, e.g., if you installed via pip, you will need to add those projects manually now (or later)."
+            "\nConfiguring workflows projects. If you opted to install some workflows projects through the installer "
+            "script then they will be automatically added to the config file for you. "
+            "If not, e.g., if you installed via pip, you will need to add those projects manually now (or later)."
         )
 
         text = "Do you want to add workflows projects?"
@@ -907,8 +911,10 @@ class InteractiveConfigBuilder:
 
             if not add_another:
                 break
-
-        config.workflows_projects.extend(projects)
+        if config.workflows_projects.default:
+            config.workflows_projects = WorkflowsProjects(projects)
+        else:
+            config.workflows_projects.workflows_projects.extend(projects)
 
     @staticmethod
     def config_cloud_sql_database(config: TerraformConfig):
@@ -917,7 +923,7 @@ class InteractiveConfigBuilder:
         :param config: Configuration object to edit.
         """
 
-        click.echo("Configuring the Google Cloud SQL Database")
+        click.echo("\nConfiguring the Google Cloud SQL Database")
 
         text = "Google CloudSQL db tier"
         default = "db-custom-2-7680"
@@ -958,7 +964,7 @@ class InteractiveConfigBuilder:
         text = "Create VM? If yes, and you run Terraform apply, the vm will be created. Otherwise if false, and you run Terraform apply, the vm will be destroyed."
         create = click.confirm(text=text, default=True, abort=False, show_default=True)
 
-        config.airflow_main_vm = VirtualMachine(
+        config.airflow_main_vm = MainVirtualMachine(
             machine_type=machine_type,
             disk_size=disk_size,
             disk_type=disk_type,
@@ -991,52 +997,52 @@ class InteractiveConfigBuilder:
         text = "Create VM? If yes, and you run Terraform apply, the vm will be created. Otherwise if false, and you run Terraform apply, the vm will be destroyed."
         create = click.confirm(text=text, default=False, abort=False, show_default=True)
 
-        config.airflow_worker_vm = VirtualMachine(
+        config.airflow_worker_vm = WorkerVirtualMachine(
             machine_type=machine_type,
             disk_size=disk_size,
             disk_type=disk_type,
             create=create,
         )
 
-    @staticmethod
-    def config_elasticsearch(config: TerraformConfig):
-        """Configure the ElasticSearch section.
-
-        :param config: Configuration object to edit.
-        """
-
-        click.echo("Configuring ElasticSearch")
-
-        text = "Elasticsearch host url, e.g., https://host:port"
-        host = click.prompt(text=text, type=str)
-
-        text = "API key"
-        api_key = click.prompt(text=text, type=str)
-
-        config.elasticsearch = ElasticSearch(
-            host=host,
-            api_key=api_key,
-        )
-
-    @staticmethod
-    def config_api(config: TerraformConfig):
-        """Configure the API section.
-
-        :param config: Configuration object to edit.
-        """
-
-        click.echo("Configuring the Observatory API")
-
-        text = "Custom domain name for the API, used for the google cloud endpoints service"
-        default = "api.observatory.academy"
-        domain_name = click.prompt(text=text, type=str, default=default, show_default=True)
-
-        text = "Subdomain scheme"
-        default = "project_id"
-        choices = click.Choice(choices=["project_id", "environment"], case_sensitive=False)
-        subdomain = click.prompt(text=text, type=choices, default=default, show_default=True, show_choices=True)
-
-        config.api = Api(
-            domain_name=domain_name,
-            subdomain=subdomain,
-        )
+    # @staticmethod
+    # def config_elasticsearch(config: TerraformConfig):
+    #     """Configure the ElasticSearch section.
+    #
+    #     :param config: Configuration object to edit.
+    #     """
+    #
+    #     click.echo("Configuring ElasticSearch")
+    #
+    #     text = "Elasticsearch host url, e.g., https://host:port"
+    #     host = click.prompt(text=text, type=str)
+    #
+    #     text = "API key"
+    #     api_key = click.prompt(text=text, type=str)
+    #
+    #     config.elasticsearch = ElasticSearch(
+    #         host=host,
+    #         api_key=api_key,
+    #     )
+    #
+    # @staticmethod
+    # def config_api(config: TerraformConfig):
+    #     """Configure the API section.
+    #
+    #     :param config: Configuration object to edit.
+    #     """
+    #
+    #     click.echo("Configuring the Observatory API")
+    #
+    #     text = "Custom domain name for the API, used for the google cloud endpoints service"
+    #     default = "api.observatory.academy"
+    #     domain_name = click.prompt(text=text, type=str, default=default, show_default=True)
+    #
+    #     text = "Subdomain scheme"
+    #     default = "project_id"
+    #     choices = click.Choice(choices=["project_id", "environment"], case_sensitive=False)
+    #     subdomain = click.prompt(text=text, type=choices, default=default, show_default=True, show_choices=True)
+    #
+    #     config.api = Api(
+    #         domain_name=domain_name,
+    #         subdomain=subdomain,
+    #     )

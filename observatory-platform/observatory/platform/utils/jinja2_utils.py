@@ -18,10 +18,11 @@
 from jinja2 import Template
 
 
-def render_template(template_path: str, **kwargs) -> str:
+def render_template(template_path: str, template_kwargs: dict = None, **kwargs) -> str:
     """Render a Jinja2 template.
 
     :param template_path: the path to the template.
+    :param template_kwargs: Optional kwargs to pass on to the Template class
     :param kwargs: the keyword variables to populate the template with.
     :return: the rendered template as a string.
     """
@@ -31,7 +32,7 @@ def render_template(template_path: str, **kwargs) -> str:
         contents = file.read()
 
     # Fill template with text
-    template = Template(contents, keep_trailing_newline=True)
+    template = Template(contents, keep_trailing_newline=True, **template_kwargs)
 
     # Render template
     rendered = template.render(**kwargs)
