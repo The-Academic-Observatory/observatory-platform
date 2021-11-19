@@ -457,7 +457,7 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     elif command == "terraform":
         config_name = "Terraform Config"
         if interactive:
-            cmd_func = cmd.generate_terraform_config
+            cmd_func = cmd.generate_terraform_config_interactive
         else:
             cmd_func = cmd.generate_terraform_config
     elif command == "terraform-api":
