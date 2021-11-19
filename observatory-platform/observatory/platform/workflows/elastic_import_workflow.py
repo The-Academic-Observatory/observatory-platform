@@ -34,8 +34,6 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import TaskInstance
 from airflow.sensors.external_task import ExternalTaskSensor
 from natsort import natsorted
-from pendulum import Date
-
 from observatory.platform.elastic.elastic import (
     Elastic,
     KeepInfo,
@@ -44,14 +42,21 @@ from observatory.platform.elastic.elastic import (
 )
 from observatory.platform.elastic.kibana import Kibana, ObjectType, TimeField
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.file_utils import load_file, write_to_file, yield_csv, yield_jsonl
+from observatory.platform.utils.file_utils import (
+    load_file,
+    write_to_file,
+    yield_csv,
+    yield_jsonl,
+)
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     download_blobs_from_cloud_storage,
     select_table_shard_dates,
 )
+from observatory.platform.utils.workflow_utils import delete_old_xcoms
 from observatory.platform.workflows.snapshot_telescope import SnapshotRelease
 from observatory.platform.workflows.workflow import Workflow
+from pendulum import Date
 
 CSV_TYPES = ["csv", "csv.gz"]
 JSONL_TYPES = ["jsonl", "jsonl.gz"]
@@ -793,7 +798,7 @@ class ElasticImportWorkflow(Workflow):
             raise AirflowException("create_kibana_index_patterns failed")
 
     def cleanup(self, release: ElasticImportRelease, **kwargs):
-        """Cleanup local files.
+        """Cleanup local files. Deletes old xcoms.
 
         :param release: the ElasticRelease.
         :param kwargs: the context passed from the Airflow Operator.
@@ -803,3 +808,6 @@ class ElasticImportWorkflow(Workflow):
         """
 
         release.cleanup()
+
+        execution_date = kwargs["execution_date"]
+        delete_old_xcoms(dag_id=self.dag_id, execution_date=execution_date)

@@ -34,11 +34,11 @@ import pysftp
 import six
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import DagBag, DagRun, Variable
+from airflow.models import DagBag, DagRun, Variable, XCom
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+from airflow.utils.db import provide_session
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
-
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
@@ -59,6 +59,8 @@ from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
 )
+from sqlalchemy import and_
+from sqlalchemy.orm import Session
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -1089,3 +1091,28 @@ def get_chunks(*, input_list: List[Any], chunk_size: int = 8) -> List[Any]:
     n = len(input_list)
     for i in range(0, n, chunk_size):
         yield input_list[i : i + chunk_size]
+
+
+@provide_session
+def delete_old_xcoms(
+    session: Session = None,
+    dag_id: str = None,
+    execution_date: pendulum.DateTime = None,
+    retention_days: int = 31,
+):
+    """Delete XCom messages created by the DAG with the given ID that are as old or older than than
+    execution_date - retention_days.  Defaults to 31 days of retention.
+
+    :param session: DB session.
+    :param dag_id: DAG ID.
+    :param execution_date: DAG execution date.
+    :param retention_days: Days of messages to retain.
+    """
+
+    cut_off_date = execution_date.subtract(days=retention_days)
+    session.query(XCom).filter(
+        and_(
+            XCom.dag_id == dag_id,
+            XCom.execution_date <= cut_off_date,
+        )
+    ).delete()

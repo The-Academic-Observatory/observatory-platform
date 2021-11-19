@@ -82,3 +82,13 @@ class TestSnapshotTelescope(ObservatoryTestCase):
         releases[0].transform = MagicMock()
         telescope.transform(releases)
         self.assertEqual(releases[0].transform.call_count, 1)
+
+    @patch("observatory.platform.workflows.snapshot_telescope.delete_old_xcoms")
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
+    def test_cleanup(self, m_get, m_delxcoms):
+        m_get.return_value = "data"
+        telescope = MockTelescope()
+        releases = telescope.make_release()
+        execution_date = pendulum.now()
+        telescope.cleanup(releases, execution_date=execution_date)
+        self.assertEqual(m_delxcoms.call_count, 1)
