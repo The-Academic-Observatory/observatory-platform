@@ -100,7 +100,7 @@ def platform(command: str, config_path: str, host_uid: int, debug):
         print(indent("config.yaml:", INDENT1))
         print(indent(f"- file not found, generating a default file on path: {config_path}", INDENT2))
         generate_cmd = GenerateCommand()
-        generate_cmd.generate_local_config(config_path, editable=False, workflows=[], oapi=False)
+        generate_cmd.generate_local_config(config_path, editable=False, workflows=[])
         exit(os.EX_CONFIG)
 
 
@@ -415,11 +415,8 @@ def secrets(command: str):
     flag_value=True,
     help="Indicates that the oaebu-workflows was installed through the cli installer script",
 )
-@click.option(
-    "--oapi", flag_value=True, help="Indicates that the observatory api was installed through the cli installer script"
-)
 @click.option("--editable", flag_value=True, help="Indicates the observatory platform is editable")
-def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu_wf: bool, oapi: bool, editable: bool):
+def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu_wf: bool, editable: bool):
     """Generate config files for the Observatory Platform.\n
 
     COMMAND: the type of config file to generate:\n
@@ -427,10 +424,11 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
       - terraform: generate a config file for running the Observatory Platform with Terraform.\n
       - terraform-api: generate a config file for deploying an API with Terraform.\n
 
-    :param interactive: whether to interactively ask for configuration options.
+    :param command: The command
+    :param config_path: The path to the config file that will be generated.
+    :param interactive: Whether to interactively ask for configuration options.
     :param ao_wf: Whether academic_observatory_workflows was installed using the installer script.
     :param oaebu_wf: Whether oaebu_workflows was installed using the installer script.
-    :param oapi: Whether the Observatory API was installed using the installer script.
     :param editable: Whether the observatory platform is editable.
     """
 
@@ -446,30 +444,26 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     if oaebu_wf:
         workflows.append("oaebu-workflows")
 
-    cmd_func = None
-    config_name = ""
-    if command == "local":
-        config_name = "Observatory Config"
-        if interactive:
-            cmd_func = cmd.generate_local_config_interactive
-        else:
-            cmd_func = cmd.generate_local_config
-    elif command == "terraform":
-        config_name = "Terraform Config"
-        if interactive:
-            cmd_func = cmd.generate_terraform_config_interactive
-        else:
-            cmd_func = cmd.generate_terraform_config
-    elif command == "terraform-api":
-        config_name = "Terraform API Config"
-        cmd_func = cmd.generate_terraform_api_config
+    if os.path.exists(config_path):
+        if not click.confirm(f'The file "{config_path}" exists, do you want to overwrite it?'):
+            click.echo(f"Not generating config file")
+            return
 
-    if not os.path.exists(config_path) or click.confirm(
-        f'The file "{config_path}" exists, do you want to overwrite it?'
-    ):
-        cmd_func(config_path, workflows=workflows, oapi=oapi, editable=editable)
-    else:
-        click.echo(f"Not generating {config_name}")
+    if command == "local":
+        if interactive:
+            cmd.generate_local_config_interactive(config_path, workflows=workflows, editable=editable)
+        else:
+            cmd.generate_local_config(config_path, workflows=workflows, editable=editable)
+    elif command == "terraform":
+        if interactive:
+            cmd.generate_terraform_config_interactive(config_path, workflows=workflows, editable=editable)
+        else:
+            cmd.generate_terraform_config(config_path, workflows=workflows, editable=editable)
+    elif command == "terraform-api":
+        if interactive:
+            cmd.generate_terraform_api_config_interactive(config_path)
+        else:
+            cmd.generate_terraform_api_config(config_path)
 
 
 # increase content width for cleaner help output
@@ -559,7 +553,7 @@ def terraform_check_dependencies(
                 print(indent(f"- {key}: {value}", INDENT3))
     else:
         print(indent("- file not found, generating a default file", INDENT2))
-        generate_cmd.generate_terraform_config(terraform_cmd.config_path, editable=False, workflows=[], oapi=False)
+        generate_cmd.generate_terraform_config(terraform_cmd.config_path, editable=False, workflows=[])
 
     print(indent("Terraform credentials file:", INDENT1))
     if terraform_cmd.terraform_credentials_exists:
