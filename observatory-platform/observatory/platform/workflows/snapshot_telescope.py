@@ -18,16 +18,16 @@ from typing import Dict, List
 
 import pendulum
 from google.cloud.bigquery import SourceFormat
-
-from observatory.platform.workflows.workflow import Release, Workflow
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.workflow_utils import (
     blob_name,
     bq_load_shard,
+    delete_old_xcoms,
     table_ids_from_path,
     upload_files_from_list,
 )
 from observatory.platform.workflows.workflow import Release, Workflow
+from sqlalchemy.sql.expression import delete
 
 
 class SnapshotRelease(Release):
@@ -193,7 +193,7 @@ class SnapshotTelescope(Workflow):
                 )
 
     def cleanup(self, releases: List[SnapshotRelease], **kwargs):
-        """Delete files of downloaded, extracted and transformed release.
+        """Delete files of downloaded, extracted and transformed release. Deletes old xcoms.
 
         :param releases: a list of releases.
         :param kwargs: the context passed from the PythonOperator.
@@ -201,3 +201,6 @@ class SnapshotTelescope(Workflow):
         """
         for release in releases:
             release.cleanup()
+
+        execution_date = kwargs["execution_date"]
+        delete_old_xcoms(dag_id=self.dag_id, execution_date=execution_date)

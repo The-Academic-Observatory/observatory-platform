@@ -22,16 +22,16 @@ from airflow.exceptions import AirflowSkipException
 from airflow.models.dagrun import DagRun
 from croniter import croniter
 from google.cloud.bigquery import SourceFormat
-
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.workflow_utils import (
     bq_append_from_file,
     bq_append_from_partition,
     bq_delete_old,
     bq_load_ingestion_partition,
+    delete_old_xcoms,
     get_bq_load_info,
-    upload_files_from_list,
     is_first_dag_run,
+    upload_files_from_list,
 )
 from observatory.platform.workflows.workflow import Release, Workflow
 
@@ -308,10 +308,13 @@ class StreamTelescope(Workflow):
             )
 
     def cleanup(self, release: StreamRelease, **kwargs):
-        """Delete downloaded, extracted and transformed files of the release.
+        """Delete downloaded, extracted and transformed files of the release. Deletes old xcoms.
 
         :param release: a StreamRelease instance
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
         release.cleanup()
+
+        execution_date = kwargs["execution_date"]
+        delete_old_xcoms(dag_id=self.dag_id, execution_date=execution_date)
