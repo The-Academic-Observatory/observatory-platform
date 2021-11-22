@@ -23,7 +23,7 @@ import json
 import os
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Any, Callable, ClassVar, Dict, List, Tuple, Union
+from typing import Any, Callable, ClassVar, Dict, List, Tuple, Union, Optional
 
 import cerberus.validator
 import yaml
@@ -110,6 +110,13 @@ class Environment(Enum):
     production = "production"
 
 
+class ApiTypes(Enum):
+    """The API types"""
+
+    data_api = "data_api"
+    observatory_api = "observatory_api"
+
+
 @dataclass
 class Backend:
     """The backend settings for the Observatory Platform.
@@ -119,20 +126,22 @@ class Backend:
         environment: what type of environment is being deployed (develop, staging or production).
     """
 
-    type: str
-    environment: str = Environment.develop.value
+    type: BackendType
+    environment: Environment = Environment.develop
     default: bool = False
 
     def to_string(self, required: bool) -> List:
         description = [
             f"# [{'Required' if required else 'Optional'}] Backend settings.\n",
-            f"# Backend options are: {BackendType.local}, {BackendType.terraform}.\n",
-            f"# Environment options are: {Environment.develop}, {Environment.staging}, " f"{Environment.production}.\n",
+            f"# Backend options are: {BackendType.local.value}, {BackendType.terraform.value}.\n",
+            f"# Environment options are: {Environment.develop.value}, {Environment.staging.value}, "
+            f""
+            f"{Environment.production}.\n",
         ]
         lines = [
             "backend:\n",
-            indent(f"type: {self.type}\n", INDENT1),
-            indent(f"environment: {self.environment}\n", INDENT1),
+            indent(f"type: {self.type.value}\n", INDENT1),
+            indent(f"environment: {self.environment.value}\n", INDENT1),
         ]
         lines = map(comment, lines) if not required and self.default else lines
         return description + list(lines)
@@ -315,8 +324,8 @@ class GoogleCloud:
 
     project_id: str = "my-gcp-id"
     credentials: str = "/path/to/credentials.json"
-    region: str = "us-west1"
-    zone: str = "us-west1-a"
+    region: Optional[str] = "us-west1"
+    zone: Optional[str] = "us-west1-a"
     data_location: str = "us"
     buckets: List[CloudStorageBucket] = field(
         default_factory=lambda: [
@@ -424,23 +433,6 @@ class WorkflowsProject:
     package_type: str = "editable"
     dags_module: str = "observatory.dags.dags"
 
-    # @staticmethod
-    # def parse_workflows_projects(list: List) -> List[WorkflowsProject]:
-    #     """Parse the workflows_projects list object into a list of WorkflowsProject instances.
-    #
-    #     :param list: the list.
-    #     :return: a list of WorkflowsProject instances.
-    #     """
-    #
-    #     parsed_items = []
-    #     for item in list:
-    #         package_name = item["package_name"]
-    #         package = item["package"]
-    #         package_type = item["package_type"]
-    #         dags_module = item["dags_module"]
-    #         parsed_items.append(WorkflowsProject(package_name, package, package_type, dags_module))
-    #     return parsed_items
-
 
 @dataclass
 class WorkflowsProjects:
@@ -468,13 +460,20 @@ class WorkflowsProjects:
         return description + list(lines)
 
     @staticmethod
-    def from_dict(dict_: Dict) -> WorkflowsProjects:
+    def from_dict(projects: List[dict]) -> WorkflowsProjects:
         """Constructs a AirflowVariables instance from a dictionary.
 
-        :param dict_: the dictionary.
+        :param projects: List of projects, each project is a dictionary with info.
         """
-
-        workflows_projects = parse_dict_to_list(dict_, WorkflowsProject)
+        workflows_projects = []
+        for project in projects:
+            workflows_project = WorkflowsProject(
+                package_name=project["package_name"],
+                package=project["package"],
+                package_type=project["package_type"],
+                dags_module=project["dags_module"],
+            )
+            workflows_projects.append(workflows_project)
         return WorkflowsProjects(workflows_projects)
 
 
@@ -647,7 +646,7 @@ class CloudSqlDatabase:
         lines = [
             "cloud_sql_database:\n",
             indent(f"tier: {self.tier}\n", INDENT1),
-            indent(f"backup_start_time: {self.backup_start_time}\n", INDENT1),
+            indent(f'backup_start_time: "{self.backup_start_time}"\n', INDENT1),
         ]
         lines = map(comment, lines) if not required and self.default else lines
         return description + list(lines)
@@ -849,7 +848,10 @@ class Api:
         )
 
     def to_string(self, required: bool):
-        description = [f"# [{'Required' if required else 'Optional'}] Settings for the API \n"]
+        description = [
+            f"# [{'Required' if required else 'Optional'}] Settings for the API \n",
+            "# If you did not supply your own secret key, then this is autogenerated\n",
+        ]
         lines = ["api:\n"]
         for variable in filter(lambda x: x.name != "default", fields(self)):
             value = getattr(self, variable.name)
@@ -890,7 +892,7 @@ class ApiType:
         elasticsearch_api_key:
     """
 
-    type: str = "data_api/observatory_api"
+    type: ApiTypes = ApiTypes.data_api
     observatory_organization: str = None
     observatory_workspace: str = None
     elasticsearch_host: str = "https://address.region.gcp.cloud.es.io:port"
@@ -912,11 +914,10 @@ class ApiType:
         description = [
             f"# [{'Required' if required else 'Optional'}] Settings related to the API type. Elasticsearch details "
             f"are only required if the type is 'data_api'\n",
-            "# If you did not supply your own secret key, then this is autogenerated\n",
         ]
         lines = ["api_type:\n"]
-        lines.append(indent(f"type: {self.type}\n", INDENT1))
-        comm = "# " if self.type == "observatory_api" or self.default else ""
+        lines.append(indent(f"type: {self.type.value}\n", INDENT1))
+        comm = "# " if self.type == ApiTypes.observatory_api or self.default else ""
         lines.append(indent(f"{comm}elasticsearch_host: {self.elasticsearch_host}\n", INDENT1))
         lines.append(indent(f"{comm}elasticsearch_api_key: {self.elasticsearch_api_key}\n", INDENT1))
         return description + list(lines)
@@ -1055,7 +1056,7 @@ class ValidationError:
 class ObservatoryConfig:
     def __init__(
         self,
-        backend: Backend = Backend(type=BackendType.local.value, default=True),
+        backend: Backend = Backend(type=BackendType.local, default=True),
         observatory: Observatory = Observatory(default=True),
         google_cloud: GoogleCloud = GoogleCloud(default=True),
         terraform: Terraform = Terraform(default=True),
@@ -1081,10 +1082,12 @@ class ObservatoryConfig:
         self.terraform = terraform
         self.airflow_variables = airflow_variables
         self.airflow_connections = airflow_connections
-        if workflows_projects.workflows_projects:
-            self.workflows_projects = workflows_projects
-        else:
-            self.workflows_projects = WorkflowsProjects(default=True)
+        self.workflows_projects = workflows_projects
+
+        # if workflows_projects.workflows_projects:
+        #     self.workflows_projects = workflows_projects
+        # else:
+        #     self.workflows_projects = WorkflowsProjects(default=True)
 
         self.validator = validator
         self.schema = make_schema(self.backend.type)
@@ -1164,7 +1167,7 @@ class ObservatoryConfig:
         """
 
         # Create airflow variables from fixed config file values
-        variables = [AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment)]
+        variables = [AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)]
 
         if self.google_cloud is not None:
             if self.google_cloud.project_id is not None:
@@ -1235,7 +1238,7 @@ class ObservatoryConfig:
         :return: the ObservatoryConfig instance.
         """
 
-        schema = make_schema(BackendType.local.value)
+        schema = make_schema(BackendType.local)
         validator = ObservatoryConfigValidator()
         is_valid = validator.validate(dict_, schema)
 
@@ -1435,9 +1438,9 @@ class TerraformConfig(ObservatoryConfig):
 
     def __init__(
         self,
-        backend: Backend = Backend(type=BackendType.terraform.value, default=True),
+        backend: Backend = Backend(type=BackendType.terraform, default=True),
         observatory: Observatory = Observatory(default=True),
-        google_cloud: GoogleCloud = GoogleCloud(default=True),
+        google_cloud: GoogleCloud = GoogleCloud(buckets=[], default=True),
         terraform: Terraform = Terraform(default=True),
         airflow_variables: AirflowVariables = AirflowVariables(default=True),
         airflow_connections: AirflowConnections = AirflowConnections(default=True),
@@ -1464,8 +1467,6 @@ class TerraformConfig(ObservatoryConfig):
 
         # if backend is None:
         #     backend = Backend(type=BackendType.terraform)
-        if not workflows_projects.workflows_projects:
-            workflows_projects = WorkflowsProjects(default=True)
 
         super().__init__(
             backend=backend,
@@ -1588,7 +1589,7 @@ class TerraformConfig(ObservatoryConfig):
         :return: the TerraformConfig instance.
         """
 
-        schema = make_schema(BackendType.terraform.value)
+        schema = make_schema(BackendType.terraform)
         validator = ObservatoryConfigValidator()
         is_valid = validator.validate(dict_, schema)
 
@@ -1715,9 +1716,9 @@ class TerraformAPIConfig(ObservatoryConfig):
 
     def __init__(
         self,
-        backend: Backend = Backend(type=BackendType.terraform_api.value, default=True),
+        backend: Backend = Backend(type=BackendType.terraform_api, default=True),
         observatory: Observatory = Observatory(default=True),
-        google_cloud: GoogleCloud = GoogleCloud(default=True),
+        google_cloud: GoogleCloud = GoogleCloud(buckets=[], default=True),
         terraform: Terraform = Terraform(default=True),
         api: Api = Api(default=True),
         api_type: ApiType = ApiType(default=True),
@@ -1802,7 +1803,7 @@ class TerraformAPIConfig(ObservatoryConfig):
         :return: the TerraformConfig instance.
         """
 
-        schema = make_schema(BackendType.terraform_api.value)
+        schema = make_schema(BackendType.terraform_api)
         validator = ObservatoryConfigValidator()
         is_valid = validator.validate(dict_, schema)
 
@@ -1845,7 +1846,7 @@ class TerraformAPIConfig(ObservatoryConfig):
     #     ObservatoryConfig._save_default(config_path, "config-terraform-api.yaml.jinja2")
 
 
-def make_schema(backend_type: str) -> Dict:
+def make_schema(backend_type: BackendType) -> Dict:
     """Make a schema for an Observatory or Terraform config file.
 
     :param backend_type: the type of backend, local or terraform.
@@ -1853,19 +1854,17 @@ def make_schema(backend_type: str) -> Dict:
     """
 
     schema = dict()
-    is_backend_local = backend_type == BackendType.local.value
-    is_backend_terraform = backend_type == BackendType.terraform.value
-    is_backend_terraform_api = backend_type == BackendType.terraform_api.value
-    is_backend_terraform_or_api = (
-        backend_type == BackendType.terraform.value or backend_type == BackendType.terraform_api.value
-    )
+    is_backend_local = backend_type == BackendType.local
+    is_backend_terraform = backend_type == BackendType.terraform
+    is_backend_terraform_api = backend_type == BackendType.terraform_api
+    is_backend_terraform_or_api = backend_type == BackendType.terraform or backend_type == BackendType.terraform_api
 
     # Backend settings
     schema["backend"] = {
         "required": True,
         "type": "dict",
         "schema": {
-            "type": {"required": True, "type": "string", "allowed": [backend_type]},
+            "type": {"required": True, "type": "string", "allowed": [backend_type.value]},
             "environment": {"required": True, "type": "string", "allowed": ["develop", "staging", "production"]},
         },
     }
@@ -1889,12 +1888,12 @@ def make_schema(backend_type: str) -> Dict:
                 "google_application_credentials": True,
             },
             "region": {
-                "required": True,
+                "required": is_backend_terraform_or_api,
                 "type": "string",
                 "regex": r"^\w+\-\w+\d+$",
             },
             "zone": {
-                "required": True,
+                "required": is_backend_terraform_or_api,
                 "type": "string",
                 "regex": r"^\w+\-\w+\d+\-[a-z]{1}$",
             },
