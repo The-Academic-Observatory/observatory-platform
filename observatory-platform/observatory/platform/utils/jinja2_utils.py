@@ -26,6 +26,8 @@ def render_template(template_path: str, template_kwargs: dict = None, **kwargs) 
     :param kwargs: the keyword variables to populate the template with.
     :return: the rendered template as a string.
     """
+    if template_kwargs is None:
+        template_kwargs = {}
 
     # Read file contents
     with open(template_path, "r") as file:
