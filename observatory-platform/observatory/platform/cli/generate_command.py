@@ -36,13 +36,13 @@ from observatory.platform.observatory_config import (
     CloudStorageBucket,
     Environment,
     GoogleCloud,
-    MainVirtualMachine,
+    AirflowMainVm,
     Observatory,
     ObservatoryConfig,
     Terraform,
     TerraformAPIConfig,
     TerraformConfig,
-    WorkerVirtualMachine,
+    AirflowWorkerVm,
     WorkflowsProject,
     WorkflowsProjects,
     is_fernet_key,
@@ -100,7 +100,7 @@ class GenerateCommand:
 
         workflows = InteractiveConfigBuilder.get_installed_workflows(workflows)
         if workflows:
-            config = ObservatoryConfig(workflows_projects=WorkflowsProjects(workflows, default=True))
+            config = ObservatoryConfig(workflows_projects=WorkflowsProjects(workflows))
         else:
             config = ObservatoryConfig()
 
@@ -143,7 +143,7 @@ class GenerateCommand:
         click.echo(f"Generating {file_type}...")
         workflows = InteractiveConfigBuilder.get_installed_workflows(workflows)
         if workflows:
-            config = TerraformConfig(workflows_projects=WorkflowsProjects(workflows, default=True))
+            config = TerraformConfig(workflows_projects=WorkflowsProjects(workflows))
         else:
             config = TerraformConfig()
 
@@ -773,18 +773,8 @@ class InteractiveConfigBuilder:
 
         click.echo("\nConfiguring Terraform settings")
 
-        if config.backend.type == BackendType.local:
-            suffix = " (leave blank to disable)"
-            default = ""
-        else:
-            suffix = ""
-            default = None
-
-        text = f"Terraform organization name{suffix}"
-        organization = click.prompt(text=text, type=str, default=default)
-
-        if organization == "":
-            return
+        text = f"Terraform organization name"
+        organization = click.prompt(text=text, type=str)
 
         config.terraform = Terraform(organization=organization)
 
@@ -903,10 +893,11 @@ class InteractiveConfigBuilder:
 
             if not add_another:
                 break
-        if config.workflows_projects.default:
-            config.workflows_projects = WorkflowsProjects(projects)
-        else:
+
+        if config.workflows_projects:
             config.workflows_projects.workflows_projects.extend(projects)
+        else:
+            config.workflows_projects = WorkflowsProjects(projects)
 
     @staticmethod
     def config_cloud_sql_database(config: TerraformConfig):
@@ -956,7 +947,7 @@ class InteractiveConfigBuilder:
         text = "Create VM? If yes, and you run Terraform apply, the vm will be created. Otherwise if false, and you run Terraform apply, the vm will be destroyed."
         create = click.confirm(text=text, default=True, abort=False, show_default=True)
 
-        config.airflow_main_vm = MainVirtualMachine(
+        config.airflow_main_vm = AirflowMainVm(
             machine_type=machine_type,
             disk_size=disk_size,
             disk_type=disk_type,
@@ -989,7 +980,7 @@ class InteractiveConfigBuilder:
         text = "Create VM? If yes, and you run Terraform apply, the vm will be created. Otherwise if false, and you run Terraform apply, the vm will be destroyed."
         create = click.confirm(text=text, default=False, abort=False, show_default=True)
 
-        config.airflow_worker_vm = WorkerVirtualMachine(
+        config.airflow_worker_vm = AirflowWorkerVm(
             machine_type=machine_type,
             disk_size=disk_size,
             disk_type=disk_type,

@@ -74,9 +74,9 @@ x-environment: &environment
   AIRFLOW_UI_USER_EMAIL: "{{ airflow_ui_user_email }}"
   AIRFLOW_UI_USER_PASSWORD: "{{ airflow_ui_user_password }}"
 
-  {%- if config.backend.type.value == 'local' %}
+  {%- if config.backend.type.value == 'local' and config.airflow_connections %}
   # Connections
-  {%- for conn in config.airflow_connections %}
+  {%- for conn in config.airflow_connections.airflow_connections %}
   {{ conn.conn_name }}: {{ '${' + conn.conn_name + '}' }}
   {%- endfor %}
   {%- endif %}
