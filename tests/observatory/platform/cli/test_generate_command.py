@@ -36,22 +36,20 @@ from observatory.platform.cli.generate_command import (
 )
 from observatory.platform.observatory_config import (
     AirflowConnection,
-    AirflowConnections,
     AirflowVariable,
-    AirflowVariables,
+    AirflowMainVm,
+    AirflowWorkerVm,
     Backend,
     BackendType,
     CloudSqlDatabase,
+    CloudStorageBucket,
     Environment,
     GoogleCloud,
-    MainVirtualMachine,
     Observatory,
     ObservatoryConfig,
     Terraform,
     TerraformConfig,
-    WorkerVirtualMachine,
     WorkflowsProject,
-    WorkflowsProjects,
 )
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.proc_utils import stream_process
@@ -273,6 +271,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         mock_build.assert_called_once_with(
             backend_type=BackendType.local, workflows=["academic-observatory-workflows"], editable=False
         )
+        m_set_edit.assert_not_called()
         mock_build.reset_mock()
 
         cmd.generate_local_config_interactive(
@@ -281,6 +280,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         mock_build.assert_called_once_with(
             backend_type=BackendType.local, workflows=["academic-observatory-workflows"], editable=True
         )
+        m_set_edit.assert_called_once()
 
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.set_editable_observatory_platform")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.build")
@@ -292,6 +292,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         mock_build.assert_called_once_with(
             backend_type=BackendType.terraform, workflows=["academic-observatory-workflows"], editable=False
         )
+        m_set_edit.assert_not_called()
         mock_build.reset_mock()
 
         cmd.generate_terraform_config_interactive(
@@ -300,6 +301,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         mock_build.assert_called_once_with(
             backend_type=BackendType.terraform, workflows=["academic-observatory-workflows"], editable=True
         )
+        m_set_edit.assert_called_once()
 
     @patch("observatory.platform.cli.generate_command.module_file_path")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_worker_vm")
@@ -391,22 +393,37 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         config = ObservatoryConfig()
         expected = Backend(type=BackendType.local, environment=Environment.staging)
         InteractiveConfigBuilder.config_backend(config=config)
-        self.assertEqual(expected.type, config.backend.type)
-        self.assertEqual(expected.environment, config.backend.environment)
+        self.assertEqual(config.backend.type, expected.type)
+        self.assertEqual(config.backend.environment, expected.environment)
 
         config = TerraformConfig()
         expected = Backend(type=BackendType.terraform, environment=Environment.staging)
         InteractiveConfigBuilder.config_backend(config=config)
-        self.assertEqual(expected.type, config.backend.type)
-        self.assertEqual(expected.environment, config.backend.environment)
+        self.assertEqual(config.backend.type, expected.type)
+        self.assertEqual(config.backend.environment, expected.environment)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     @patch("observatory.platform.cli.generate_command.click.confirm")
     def test_config_observatory_filled_keys(self, m_confirm, m_prompt):
-        observatory = Observatory()
+        observatory = Observatory(
+            airflow_fernet_key="IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
+            airflow_secret_key=("a" * 16),
+            airflow_ui_user_email="email@email",
+            airflow_ui_user_password="pass",
+            observatory_home="/",
+            postgres_password="pass",
+            redis_port=111,
+            flower_ui_port=53,
+            airflow_ui_port=64,
+            elastic_port=343,
+            kibana_port=143,
+            docker_network_name="raefd",
+            docker_compose_project_name="proj",
+        )
 
         # Answer to questions
         m_prompt.side_effect = [
+            # observatory.package_type,
             observatory.airflow_fernet_key,
             observatory.airflow_secret_key,
             observatory.airflow_ui_user_email,
@@ -422,170 +439,131 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             observatory.docker_network_is_external,
             observatory.docker_compose_project_name,
         ]
-        m_confirm.return_value = "Y"
+        m_confirm.return_value = True
 
         config = ObservatoryConfig()
         InteractiveConfigBuilder.config_observatory(config=config)
-        self.assertEqual(observatory, config.observatory)
+        self.assertEqual(config.observatory, observatory)
 
-    # @patch("observatory.platform.cli.generate_command.click.prompt")
-    # def test_config_observatory_editable(self, m_prompt):
-    #     observatory = Observatory(
-    #         airflow_fernet_key="",
-    #         airflow_secret_key="",
-    #         airflow_ui_user_email="email@email",
-    #         airflow_ui_user_password="pass",
-    #         observatory_home="/",
-    #         postgres_password="pass",
-    #         redis_port=111,
-    #         flower_ui_port=53,
-    #         airflow_ui_port=64,
-    #         elastic_port=343,
-    #         kibana_port=143,
-    #         docker_network_name="raefd",
-    #         docker_compose_project_name="proj",
-    #         package=module_file_path("observatory.platform", nav_back_steps=-3),
-    #         package_type="editable",
-    #     )
-    #
-    #     # Answer to questions
-    #     m_prompt.side_effect = [
-    #         observatory.airflow_fernet_key,
-    #         observatory.airflow_secret_key,
-    #         observatory.airflow_ui_user_email,
-    #         observatory.airflow_ui_user_password,
-    #         observatory.observatory_home,
-    #         observatory.postgres_password,
-    #         observatory.redis_port,
-    #         observatory.flower_ui_port,
-    #         observatory.airflow_ui_port,
-    #         observatory.elastic_port,
-    #         observatory.kibana_port,
-    #         observatory.docker_network_name,
-    #         observatory.docker_network_is_external,
-    #         observatory.docker_compose_project_name,
-    #     ]
-    #
-    #     config = ObservatoryConfig()
-    #     InteractiveConfigBuilder.config_observatory(config=config)
-    #     observatory.airflow_fernet_key = config.observatory.airflow_fernet_key
-    #     observatory.airflow_secret_key = config.observatory.airflow_secret_key
-    #     self.assertTrue(config.observatory.package_type, "editable")
-    #     self.assertEqual(config.observatory, observatory)
-    #
-    # @patch("observatory.platform.cli.generate_command.click.prompt")
-    # def test_config_observatory_oapi(self, m_prompt):
-    #     observatory = Observatory(
-    #         airflow_fernet_key="",
-    #         airflow_secret_key="",
-    #         airflow_ui_user_email="email@email",
-    #         airflow_ui_user_password="pass",
-    #         observatory_home="/",
-    #         postgres_password="pass",
-    #         redis_port=111,
-    #         flower_ui_port=53,
-    #         airflow_ui_port=64,
-    #         elastic_port=343,
-    #         kibana_port=143,
-    #         docker_network_name="raefd",
-    #         docker_compose_project_name="proj",
-    #         package_type="pypi",
-    #         api_package_type="pypi",
-    #     )
-    #
-    #     # Answer to questions
-    #     m_prompt.side_effect = [
-    #         # "pypi",
-    #         observatory.airflow_fernet_key,
-    #         observatory.airflow_secret_key,
-    #         observatory.airflow_ui_user_email,
-    #         observatory.airflow_ui_user_password,
-    #         observatory.observatory_home,
-    #         observatory.postgres_password,
-    #         observatory.redis_port,
-    #         observatory.flower_ui_port,
-    #         observatory.airflow_ui_port,
-    #         observatory.elastic_port,
-    #         observatory.kibana_port,
-    #         observatory.docker_network_name,
-    #         observatory.docker_network_is_external,
-    #         observatory.docker_compose_project_name,
-    #         "y",
-    #     ]
-    #
-    #     config = ObservatoryConfig()
-    #     InteractiveConfigBuilder.config_observatory(config=config, oapi=True, editable=False)
-    #     self.assertTrue(len(config.observatory.airflow_fernet_key) > 0)
-    #     self.assertTrue(len(config.observatory.airflow_secret_key) > 0)
-    #
-    #     observatory.airflow_fernet_key = config.observatory.airflow_fernet_key
-    #     observatory.airflow_secret_key = config.observatory.airflow_secret_key
-    #     self.assertEqual(config.observatory, observatory)
-    #
-    # @patch("observatory.platform.cli.generate_command.click.prompt")
-    # def test_config_observatory_oapi_editable(self, m_prompt):
-    #     observatory = Observatory(
-    #         airflow_fernet_key="",
-    #         airflow_secret_key="",
-    #         airflow_ui_user_email="email@email",
-    #         airflow_ui_user_password="pass",
-    #         observatory_home="/",
-    #         postgres_password="pass",
-    #         redis_port=111,
-    #         flower_ui_port=53,
-    #         airflow_ui_port=64,
-    #         elastic_port=343,
-    #         kibana_port=143,
-    #         docker_network_name="raefd",
-    #         docker_compose_project_name="proj",
-    #         package_type="editable",
-    #         api_package_type="editable",
-    #         package=module_file_path("observatory.platform", nav_back_steps=-3),
-    #         api_package=module_file_path("observatory.api", nav_back_steps=-3),
-    #     )
-    #
-    #     # Answer to questions
-    #     m_prompt.side_effect = [
-    #         # "pypi",
-    #         observatory.airflow_fernet_key,
-    #         observatory.airflow_secret_key,
-    #         observatory.airflow_ui_user_email,
-    #         observatory.airflow_ui_user_password,
-    #         observatory.observatory_home,
-    #         observatory.postgres_password,
-    #         observatory.redis_port,
-    #         observatory.flower_ui_port,
-    #         observatory.airflow_ui_port,
-    #         observatory.elastic_port,
-    #         observatory.kibana_port,
-    #         observatory.docker_network_name,
-    #         observatory.docker_network_is_external,
-    #         observatory.docker_compose_project_name,
-    #         "y",
-    #     ]
-    #
-    #     config = ObservatoryConfig()
-    #     InteractiveConfigBuilder.config_observatory(config=config, oapi=True, editable=True)
-    #     self.assertTrue(len(config.observatory.airflow_fernet_key) > 0)
-    #     self.assertTrue(len(config.observatory.airflow_secret_key) > 0)
-    #
-    #     observatory.airflow_fernet_key = config.observatory.airflow_fernet_key
-    #     observatory.airflow_secret_key = config.observatory.airflow_secret_key
-    #     self.assertEqual(config.observatory, observatory)
+    @patch("observatory.platform.cli.generate_command.click.prompt")
+    @patch("observatory.platform.cli.generate_command.click.confirm")
+    def test_config_observatory_empty_keys(self, m_confirm, m_prompt):
+        observatory = Observatory(
+            airflow_fernet_key="",
+            airflow_secret_key="",
+            airflow_ui_user_email="email@email",
+            airflow_ui_user_password="pass",
+            observatory_home="/",
+            postgres_password="pass",
+            redis_port=111,
+            flower_ui_port=53,
+            airflow_ui_port=64,
+            elastic_port=343,
+            kibana_port=143,
+            docker_network_name="raefd",
+            docker_compose_project_name="proj",
+        )
+
+        # Answer to questions
+        m_prompt.side_effect = [
+            # observatory.package_type,
+            observatory.airflow_fernet_key,
+            observatory.airflow_secret_key,
+            observatory.airflow_ui_user_email,
+            observatory.airflow_ui_user_password,
+            observatory.observatory_home,
+            observatory.postgres_password,
+            observatory.redis_port,
+            observatory.flower_ui_port,
+            observatory.airflow_ui_port,
+            observatory.elastic_port,
+            observatory.kibana_port,
+            observatory.docker_network_name,
+            observatory.docker_network_is_external,
+            observatory.docker_compose_project_name,
+        ]
+        m_confirm.return_value = True
+        config = ObservatoryConfig()
+        InteractiveConfigBuilder.config_observatory(config=config)
+        self.assertTrue(len(config.observatory.airflow_fernet_key) > 0)
+        self.assertTrue(len(config.observatory.airflow_secret_key) > 0)
+
+        observatory.airflow_fernet_key = config.observatory.airflow_fernet_key
+        observatory.airflow_secret_key = config.observatory.airflow_secret_key
+        self.assertEqual(config.observatory, observatory)
+
+    @patch("observatory.platform.cli.generate_command.click.prompt")
+    @patch("observatory.platform.cli.generate_command.click.confirm")
+    def test_config_observatory(self, m_confirm, m_prompt):
+        observatory = Observatory(
+            airflow_fernet_key="",
+            airflow_secret_key="",
+            airflow_ui_user_email="email@email",
+            airflow_ui_user_password="pass",
+            observatory_home="/",
+            postgres_password="pass",
+            redis_port=111,
+            flower_ui_port=53,
+            airflow_ui_port=64,
+            elastic_port=343,
+            kibana_port=143,
+            docker_network_name="raefd",
+            docker_compose_project_name="proj",
+            package_type="pypi",
+        )
+
+        # Answer to questions
+        m_prompt.side_effect = [
+            # "pypi",
+            observatory.airflow_fernet_key,
+            observatory.airflow_secret_key,
+            observatory.airflow_ui_user_email,
+            observatory.airflow_ui_user_password,
+            observatory.observatory_home,
+            observatory.postgres_password,
+            observatory.redis_port,
+            observatory.flower_ui_port,
+            observatory.airflow_ui_port,
+            observatory.elastic_port,
+            observatory.kibana_port,
+            observatory.docker_network_name,
+            observatory.docker_network_is_external,
+            observatory.docker_compose_project_name,
+        ]
+        m_confirm.return_value = True
+
+        config = ObservatoryConfig()
+        InteractiveConfigBuilder.config_observatory(config=config)
+        self.assertTrue(len(config.observatory.airflow_fernet_key) > 0)
+        self.assertTrue(len(config.observatory.airflow_secret_key) > 0)
+
+        observatory.airflow_fernet_key = config.observatory.airflow_fernet_key
+        observatory.airflow_secret_key = config.observatory.airflow_secret_key
+        self.assertEqual(config.observatory, observatory)
 
     @patch("observatory.platform.cli.generate_command.click.confirm")
     def test_config_google_cloud_local_no_config(self, m_confirm):
         config = ObservatoryConfig()
         m_confirm.return_value = False
         InteractiveConfigBuilder.config_google_cloud(config)
-        self.assertEqual(GoogleCloud(default=True), config.google_cloud)
+        self.assertEqual(config.google_cloud, None)
 
     @patch("observatory.platform.cli.generate_command.click.confirm")
     @patch("observatory.platform.cli.generate_command.click.prompt")
     def test_config_google_cloud_local_config(self, m_prompt, m_confirm):
         m_confirm.return_value = True
 
-        google_cloud = GoogleCloud()
+        google_cloud = GoogleCloud(
+            project_id="proj",
+            credentials="/tmp",
+            region=None,
+            zone=None,
+            data_location="us",
+            buckets=[
+                CloudStorageBucket(id="download_bucket", name="download"),
+                CloudStorageBucket(id="transform_bucket", name="transform"),
+            ],
+        )
 
         # Answer to questions
         m_prompt.side_effect = [
@@ -603,7 +581,9 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     def test_config_google_cloud_terraform_config(self, m_prompt):
-        google_cloud = GoogleCloud(buckets=[])
+        google_cloud = GoogleCloud(
+            project_id="proj", credentials="/tmp", data_location="us", region="us-west2", zone="us-west1-b", buckets=[]
+        )
 
         # Answer to questions
         m_prompt.side_effect = [
@@ -625,22 +605,23 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
 
         config = ObservatoryConfig()
         InteractiveConfigBuilder.config_terraform(config)
-        self.assertEqual(Terraform(default=True), config.terraform)
+        self.assertEqual(config.terraform, None)
 
     @patch("observatory.platform.cli.generate_command.click.confirm")
     @patch("observatory.platform.cli.generate_command.click.prompt")
     def test_config_terraform_local_config(self, m_prompt, m_confirm):
         m_confirm.return_value = True
         m_prompt.side_effect = ["myorg", ""]
-        terraform = Terraform(organization="myorg")
 
         config = ObservatoryConfig()
+        terraform = Terraform(organization="myorg")
         InteractiveConfigBuilder.config_terraform(config)
         self.assertEqual(terraform, config.terraform)
 
         config = ObservatoryConfig()
+        terraform = Terraform(organization="")
         InteractiveConfigBuilder.config_terraform(config)
-        self.assertEqual(Terraform(default=True), config.terraform)
+        self.assertEqual(terraform, config.terraform)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     def test_config_terraform_terraform_config(self, m_prompt):
@@ -649,14 +630,14 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
 
         config = TerraformConfig()
         InteractiveConfigBuilder.config_terraform(config)
-        self.assertEqual(terraform, config.terraform)
+        self.assertEqual(config.terraform, terraform)
 
     @patch("observatory.platform.cli.generate_command.click.confirm")
     def test_config_airflow_connections_none(self, m_confirm):
         m_confirm.return_value = False
         config = ObservatoryConfig()
         InteractiveConfigBuilder.config_airflow_connections(config)
-        self.assertEqual(AirflowConnections(default=True), config.airflow_connections)
+        self.assertEqual(None, config.airflow_connections)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     @patch("observatory.platform.cli.generate_command.click.confirm")
@@ -677,14 +658,14 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
 
         config = ObservatoryConfig()
         InteractiveConfigBuilder.config_airflow_connections(config)
-        self.assertEqual(AirflowConnections(expected_conns), config.airflow_connections)
+        self.assertEqual(config.airflow_connections.airflow_connections, expected_conns)
 
     @patch("observatory.platform.cli.generate_command.click.confirm")
     def test_config_airflow_variables_none(self, m_confirm):
         m_confirm.return_value = False
         config = ObservatoryConfig()
         InteractiveConfigBuilder.config_airflow_variables(config)
-        self.assertEqual(AirflowVariables(default=True), config.airflow_variables)
+        self.assertEqual(None, config.airflow_variables)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     @patch("observatory.platform.cli.generate_command.click.confirm")
@@ -705,14 +686,14 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
 
         config = ObservatoryConfig()
         InteractiveConfigBuilder.config_airflow_variables(config)
-        self.assertEqual(AirflowVariables(expected_variables), config.airflow_variables)
+        self.assertEqual(config.airflow_variables.airflow_variables, expected_variables)
 
     @patch("observatory.platform.cli.generate_command.click.confirm")
     def test_config_workflows_projects_none(self, m_confirm):
         m_confirm.return_value = False
         config = ObservatoryConfig()
         InteractiveConfigBuilder.config_workflows_projects(config)
-        self.assertEqual(WorkflowsProjects(default=True), config.workflows_projects)
+        self.assertEqual(None, config.workflows_projects)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     @patch("observatory.platform.cli.generate_command.click.confirm")
@@ -747,7 +728,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         ]
 
         InteractiveConfigBuilder.config_workflows_projects(config)
-        self.assertEqual(WorkflowsProjects(expected_dags), config.workflows_projects)
+        self.assertEqual(expected_dags, config.workflows_projects.workflows_projects)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     def test_config_cloud_sql_database(self, m_prompt):
@@ -761,7 +742,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         config = TerraformConfig()
         InteractiveConfigBuilder.config_cloud_sql_database(config)
 
-        self.assertEqual(setting, config.cloud_sql_database)
+        self.assertEqual(config.cloud_sql_database, setting)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     @patch("observatory.platform.cli.generate_command.click.confirm")
@@ -769,7 +750,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         create = True
         m_confirm.return_value = create
 
-        vm = MainVirtualMachine(
+        vm = AirflowMainVm(
             machine_type="n2-standard-2",
             disk_size=1,
             disk_type="pd-ssd",
@@ -785,7 +766,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
 
         config = TerraformConfig()
         InteractiveConfigBuilder.config_airflow_main_vm(config)
-        self.assertEqual(vm, config.airflow_main_vm)
+        self.assertEqual(config.airflow_main_vm, vm)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     @patch("observatory.platform.cli.generate_command.click.confirm")
@@ -793,7 +774,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         create = False
         m_confirm.return_value = create
 
-        vm = WorkerVirtualMachine(
+        vm = AirflowWorkerVm(
             machine_type="n2-standard-2",
             disk_size=1,
             disk_type="pd-ssd",
@@ -809,8 +790,9 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
 
         config = TerraformConfig()
         InteractiveConfigBuilder.config_airflow_worker_vm(config)
-        self.assertEqual(vm, config.airflow_worker_vm)
+        self.assertEqual(config.airflow_worker_vm, vm)
 
+    #
     # @patch("observatory.platform.cli.generate_command.click.prompt")
     # def test_config_elasticsearch(self, m_prompt):
     #     es = ElasticSearch(

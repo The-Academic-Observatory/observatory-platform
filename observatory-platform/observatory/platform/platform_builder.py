@@ -215,7 +215,8 @@ class PlatformBuilder(ComposeRunner):
             env[variable.env_var_name] = str(variable.value)
 
         # Airflow connections
-        for conn in self.config.airflow_connections:
-            env[conn.conn_name] = conn.value
+        if self.config.airflow_connections:
+            for conn in self.config.airflow_connections.airflow_connections:
+                env[conn.conn_name] = conn.value
 
         return env
