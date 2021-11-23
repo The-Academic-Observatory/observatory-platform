@@ -26,10 +26,12 @@
 
 import copy
 import datetime
+import unittest
+from unittest.mock import patch
+
 import observatory.api.server.orm as orm
 import pendulum
 import pytz
-import unittest
 from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
 from observatory.api.client.exceptions import (
@@ -46,9 +48,7 @@ from observatory.api.client.model.dataset_storage import DatasetStorage
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.telescope import Telescope
 from observatory.api.client.model.telescope_type import TelescopeType
-from observatory.api.testing import ObservatoryApiEnvironment
-from unittest.mock import patch
-
+from observatory.api.tests.testing import ObservatoryApiEnvironment
 from tests.observatory.api.server.test_elastic import SCROLL_ID, Elasticsearch
 
 RES_EXAMPLE = {

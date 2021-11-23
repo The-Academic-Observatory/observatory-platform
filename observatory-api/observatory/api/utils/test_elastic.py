@@ -21,13 +21,12 @@ from unittest.mock import patch
 from elasticsearch import Elasticsearch
 
 from observatory.api.server.api import create_app
-from observatory.api.server.elastic import (
+from observatory.api.utils.elasticsearch_utils import (
     create_es_connection,
     create_search_body,
     list_available_index_dates,
     parse_args,
     process_response,
-    QUERY_FILTER_PARAMETERS,
 )
 
 AGGREGATIONS = ["author", "country", "funder", "group", "institution", "publisher"]
