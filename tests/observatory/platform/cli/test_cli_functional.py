@@ -30,7 +30,6 @@ from unittest.mock import patch
 import requests
 import stringcase
 from click.testing import CliRunner
-from cryptography.fernet import Fernet
 from redis import Redis
 
 from observatory.platform.cli.cli import cli
@@ -40,9 +39,11 @@ from observatory.platform.observatory_config import (
     Observatory,
     BackendType,
     Environment,
-    module_file_path,
     WorkflowsProject,
+    WorkflowsProjects,
+    generate_fernet_key,
 )
+from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.proc_utils import stream_process
 from observatory.platform.utils.test_utils import test_fixtures_path, find_free_port, save_empty_file
 from observatory.platform.utils.url_utils import wait_for_url
@@ -93,7 +94,7 @@ def build_sdist(package_path: str) -> str:
     proc: Popen = Popen(
         ["python3", "setup.py", "sdist"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=package_path, env=env
     )
-    output, error = stream_process(proc, True)
+    stream_process(proc, True)
     assert proc.returncode == 0, f"build_sdist failed: {package_path}"
 
     # Get path to sdist
@@ -110,7 +111,7 @@ class TestCliFunctional(unittest.TestCase):
         self.observatory_platform_package_name = "observatory-platform"
         self.airflow_ui_user_email = "airflow@airflow.com"
         self.airflow_ui_user_password = "airflow"
-        self.airflow_fernet_key = Fernet.generate_key()
+        self.airflow_fernet_key = generate_fernet_key()
         self.airflow_secret_key = uuid.uuid4().hex
         self.docker_network_name = "observatory-unit-test-network"
         self.docker_compose_project_name = "observatory_unit_test"
@@ -148,8 +149,6 @@ class TestCliFunctional(unittest.TestCase):
                 docker_network_name=self.docker_network_name,
                 docker_compose_project_name=self.docker_compose_project_name,
                 enable_elk=False,
-                api_package_type="editable",
-                api_package=os.path.join(temp_dir, self.observatory_api_package_name),
             ),
         )
 
@@ -278,14 +277,16 @@ class TestCliFunctional(unittest.TestCase):
 
             # Make config object
             config = self.make_editable_observatory_config(t)
-            config.workflows_projects = [
-                WorkflowsProject(
-                    package_name=self.workflows_package_name,
-                    package=os.path.join(t, self.workflows_package_name),
-                    package_type="editable",
-                    dags_module=f"{stringcase.snakecase(self.workflows_package_name)}.dags",
-                )
-            ]
+            config.workflows_projects = WorkflowsProjects(
+                [
+                    WorkflowsProject(
+                        package_name=self.workflows_package_name,
+                        package=os.path.join(t, self.workflows_package_name),
+                        package_type="editable",
+                        dags_module=f"{stringcase.snakecase(self.workflows_package_name)}.dags",
+                    )
+                ]
+            )
             mock_config_load.return_value = config
 
             try:
@@ -341,8 +342,6 @@ class TestCliFunctional(unittest.TestCase):
                 docker_network_name=self.docker_network_name,
                 docker_compose_project_name=self.docker_compose_project_name,
                 enable_elk=False,
-                api_package=observatory_api_sdist_path,
-                api_package_type="sdist",
             ),
         )
 
@@ -407,14 +406,16 @@ class TestCliFunctional(unittest.TestCase):
 
             # Make config object
             config = self.make_sdist_observatory_config(t, observatory_api_sdist_path, observatory_sdist_path)
-            config.workflows_projects = [
-                WorkflowsProject(
-                    package_name=self.workflows_package_name,
-                    package=workflows_sdist_path,
-                    package_type="sdist",
-                    dags_module=f"{stringcase.snakecase(self.workflows_package_name)}.dags",
-                )
-            ]
+            config.workflows_projects = WorkflowsProjects(
+                [
+                    WorkflowsProject(
+                        package_name=self.workflows_package_name,
+                        package=workflows_sdist_path,
+                        package_type="sdist",
+                        dags_module=f"{stringcase.snakecase(self.workflows_package_name)}.dags",
+                    )
+                ]
+            )
             mock_config_load.return_value = config
 
             try:
