@@ -26,10 +26,12 @@
 
 import copy
 import datetime
+import unittest
+from unittest.mock import patch
+
 import observatory.api.server.orm as orm
 import pendulum
 import pytz
-import unittest
 from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
 from observatory.api.client.exceptions import (
@@ -47,7 +49,7 @@ from observatory.api.client.model.workflow import Workflow
 from observatory.api.client.model.workflow_type import WorkflowType
 from observatory.api.client.model.table_type import TableType
 from observatory.api.client.model.dataset_type import DatasetType
-from observatory.api.testing import ObservatoryApiEnvironment
+from observatory.api.tests.testing import ObservatoryApiEnvironment
 from unittest.mock import patch
 
 from tests.observatory.api.server.test_elastic import SCROLL_ID, Elasticsearch
