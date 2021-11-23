@@ -45,7 +45,7 @@ from observatory.api.client.model.dataset_storage import DatasetStorage
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.telescope import Telescope
 from observatory.api.client.model.telescope_type import TelescopeType
-from observatory.api.testing import ObservatoryApiEnvironment
+from observatory.api.tests.testing import ObservatoryApiEnvironment
 from tests.observatory.api.server.test_elastic import SCROLL_ID, Elasticsearch
 
 RES_EXAMPLE = {
