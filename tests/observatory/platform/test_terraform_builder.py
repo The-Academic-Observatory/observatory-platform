@@ -20,8 +20,9 @@ import unittest
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
-from observatory.platform.observatory_config import module_file_path, save_yaml
+from observatory.platform.observatory_config import save_yaml
 from observatory.platform.terraform_builder import TerraformBuilder
+from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.proc_utils import stream_process
 
 

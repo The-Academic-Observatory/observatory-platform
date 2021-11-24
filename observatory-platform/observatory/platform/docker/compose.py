@@ -282,5 +282,8 @@ class ComposeRunner(ComposeRunnerInterface):
 
         # Wait for results
         output, error = wait_for_process(proc)
+        if self.debug:
+            print(output)
+        print(error)
 
         return ProcessOutput(output, error, proc.returncode)

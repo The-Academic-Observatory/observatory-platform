@@ -37,10 +37,10 @@ from observatory.platform.observatory_config import (
     ObservatoryConfig,
     Terraform,
     WorkflowsProject,
-    module_file_path,
     save_yaml,
 )
 from observatory.platform.platform_builder import PlatformBuilder
+from observatory.platform.utils.config_utils import module_file_path
 
 
 class MockFromEnv(Mock):

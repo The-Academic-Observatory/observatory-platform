@@ -80,14 +80,14 @@ class TestObservatoryGenerate(unittest.TestCase):
             result = runner.invoke(cli, ["generate", "config", "local", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
             self.assertFalse(os.path.isfile(config_path))
-            self.assertIn("Not generating Observatory config\n", result.output)
+            self.assertIn("Not generating config file\n", result.output)
 
             # Test generate terraform config
             config_path = os.path.abspath("config-terraform.yaml")
             result = runner.invoke(cli, ["generate", "config", "terraform", "--config-path", config_path])
             self.assertEqual(result.exit_code, os.EX_OK)
             self.assertFalse(os.path.isfile(config_path))
-            self.assertIn("Not generating Terraform config\n", result.output)
+            self.assertIn("Not generating config file\n", result.output)
 
     @patch("observatory.platform.cli.cli.stream_process")
     @patch("observatory.platform.cli.cli.subprocess.Popen")
@@ -170,16 +170,12 @@ class TestObservatoryGenerate(unittest.TestCase):
         # Default local
         result = runner.invoke(cli, ["generate", "config", "local", "--interactive"])
         self.assertEqual(result.exit_code, os.EX_OK)
-        self.assertEqual(m_gen_config.call_count, 1)
-        self.assertEqual(m_gen_config.call_args.kwargs["workflows"], [])
-        self.assertEqual(m_gen_config.call_args.args[0], LOCAL_CONFIG_PATH)
+        m_gen_config.assert_called_once_with(LOCAL_CONFIG_PATH, workflows=[], editable=False)
 
         # Default terraform
         result = runner.invoke(cli, ["generate", "config", "terraform", "--interactive"])
         self.assertEqual(result.exit_code, os.EX_OK)
-        self.assertEqual(m_gen_terra.call_count, 1)
-        self.assertEqual(m_gen_terra.call_args.kwargs["workflows"], [])
-        self.assertEqual(m_gen_terra.call_args.args[0], TERRAFORM_CONFIG_PATH)
+        m_gen_terra.assert_called_once_with(TERRAFORM_CONFIG_PATH, workflows=[], editable=False)
 
     @patch("observatory.platform.cli.cli.GenerateCommand.generate_local_config_interactive")
     def test_generate_local_interactive(self, m_gen_config):
@@ -188,12 +184,10 @@ class TestObservatoryGenerate(unittest.TestCase):
             config_path = os.path.abspath("config.yaml")
             result = runner.invoke(cli, ["generate", "config", "local", "--config-path", config_path, "--interactive"])
             self.assertEqual(result.exit_code, os.EX_OK)
-            self.assertEqual(m_gen_config.call_count, 1)
-            self.assertEqual(m_gen_config.call_args.kwargs["workflows"], [])
-            self.assertEqual(m_gen_config.call_args.args[0], config_path)
+            m_gen_config.assert_called_once_with(config_path, workflows=[], editable=False)
 
     @patch("observatory.platform.cli.cli.GenerateCommand.generate_local_config_interactive")
-    def test_generate_local_interactive_install_oworkflows(self, m_gen_config):
+    def test_generate_local_interactive_install_workflows(self, m_gen_config):
         runner = CliRunner()
         with runner.isolated_filesystem():
             config_path = os.path.abspath("config.yaml")
@@ -211,11 +205,9 @@ class TestObservatoryGenerate(unittest.TestCase):
                 ],
             )
             self.assertEqual(result.exit_code, os.EX_OK)
-            self.assertEqual(m_gen_config.call_count, 1)
-            self.assertEqual(
-                m_gen_config.call_args.kwargs["workflows"], ["academic-observatory-workflows", "oaebu-workflows"]
+            m_gen_config.assert_called_once_with(
+                config_path, workflows=["academic-observatory-workflows", "oaebu-workflows"], editable=False
             )
-            self.assertEqual(m_gen_config.call_args.args[0], config_path)
 
     @patch("observatory.platform.cli.cli.GenerateCommand.generate_terraform_config_interactive")
     def test_generate_terraform_interactive(self, m_gen_config):
@@ -226,9 +218,7 @@ class TestObservatoryGenerate(unittest.TestCase):
                 cli, ["generate", "config", "terraform", "--config-path", config_path, "--interactive"]
             )
             self.assertEqual(result.exit_code, os.EX_OK)
-            self.assertEqual(m_gen_config.call_count, 1)
-            self.assertEqual(m_gen_config.call_args.kwargs["workflows"], [])
-            self.assertEqual(m_gen_config.call_args.args[0], config_path)
+            m_gen_config.assert_called_once_with(config_path, workflows=[], editable=False)
 
     @patch("observatory.platform.cli.cli.GenerateCommand.generate_terraform_config_interactive")
     def test_generate_terraform_interactive_install_oworkflows(self, m_gen_config):
@@ -249,11 +239,9 @@ class TestObservatoryGenerate(unittest.TestCase):
                 ],
             )
             self.assertEqual(result.exit_code, os.EX_OK)
-            self.assertEqual(m_gen_config.call_count, 1)
-            self.assertEqual(
-                m_gen_config.call_args.kwargs["workflows"], ["academic-observatory-workflows", "oaebu-workflows"]
+            m_gen_config.assert_called_once_with(
+                config_path, workflows=["academic-observatory-workflows", "oaebu-workflows"], editable=False
             )
-            self.assertEqual(m_gen_config.call_args.args[0], config_path)
 
 
 class MockConfig(Mock):
@@ -588,8 +576,6 @@ class TestObservatoryTerraform(unittest.TestCase):
                         "disk_type": "pd-standard",
                         "create": False,
                     },
-                    "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
-                    "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
                 }
             )
 
@@ -730,8 +716,6 @@ class TestObservatoryTerraform(unittest.TestCase):
                         "disk_type": "pd-standard",
                         "create": False,
                     },
-                    "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
-                    "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
                 }
             )
             mock_load_config.return_value = config
