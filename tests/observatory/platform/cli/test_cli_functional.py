@@ -179,6 +179,7 @@ class TestCliFunctional(unittest.TestCase):
         """
 
         start = time.time()
+        logging.info("Listing dag ids..")
         while True:
             duration = time.time() - start
             actual_dag_ids = list_dag_ids(
@@ -188,6 +189,7 @@ class TestCliFunctional(unittest.TestCase):
             )
             if expected_dag_ids == actual_dag_ids or duration > dag_check_timeout:
                 break
+        logging.info("Finished listing dag ids")
         self.assertSetEqual(expected_dag_ids, actual_dag_ids)
 
     def assert_ports_open(self, observatory: Observatory, timeout: int = 120):
@@ -245,7 +247,7 @@ class TestCliFunctional(unittest.TestCase):
             try:
                 # Test that start command works
                 result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(os.EX_OK, result.exit_code)
+                self.assertEqual(os.EX_OK, result.exit_code, msg=result.output)
 
                 # Assert that ports are open
                 self.assert_ports_open(config.observatory, timeout=self.port_wait_timeout)
@@ -257,7 +259,7 @@ class TestCliFunctional(unittest.TestCase):
 
                 # Test that stop command works
                 result = runner.invoke(cli, self.stop_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(os.EX_OK, result.exit_code)
+                self.assertEqual(os.EX_OK, result.exit_code, msg=result.output)
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
@@ -294,7 +296,7 @@ class TestCliFunctional(unittest.TestCase):
                 result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
                 print("test_dag_load_workflows_project_editable errors")
                 print(f"Output: {result.output}")
-                self.assertEqual(os.EX_OK, result.exit_code)
+                self.assertEqual(os.EX_OK, result.exit_code, msg=result.output)
 
                 # Assert that ports are open
                 self.assert_ports_open(config.observatory, timeout=self.port_wait_timeout)
@@ -306,7 +308,7 @@ class TestCliFunctional(unittest.TestCase):
 
                 # Test that stop command works
                 result = runner.invoke(cli, self.stop_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(os.EX_OK, result.exit_code)
+                self.assertEqual(os.EX_OK, result.exit_code, msg=result.output)
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
@@ -369,7 +371,7 @@ class TestCliFunctional(unittest.TestCase):
             try:
                 # Test that start command works
                 result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(os.EX_OK, result.exit_code)
+                self.assertEqual(os.EX_OK, result.exit_code, msg=result.output)
 
                 # Assert that ports are open
                 self.assert_ports_open(config.observatory, timeout=self.port_wait_timeout)
@@ -381,7 +383,7 @@ class TestCliFunctional(unittest.TestCase):
 
                 # Test that stop command works
                 result = runner.invoke(cli, self.stop_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(os.EX_OK, result.exit_code)
+                self.assertEqual(os.EX_OK, result.exit_code, msg=result.output)
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
@@ -420,8 +422,8 @@ class TestCliFunctional(unittest.TestCase):
 
             try:
                 # Test that start command works
-                result = runner.invoke(cli, self.start_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(os.EX_OK, result.exit_code)
+                result = runner.invoke(cli, self.start_cmd + [config_path, "--host-uid", "1001"], catch_exceptions=True)
+                self.assertEqual(os.EX_OK, result.exit_code, msg=result.output)
 
                 # Assert that ports are open
                 self.assert_ports_open(config.observatory, timeout=self.port_wait_timeout)
@@ -433,6 +435,6 @@ class TestCliFunctional(unittest.TestCase):
 
                 # Test that stop command works
                 result = runner.invoke(cli, self.stop_cmd + [config_path], catch_exceptions=False)
-                self.assertEqual(os.EX_OK, result.exit_code)
+                self.assertEqual(os.EX_OK, result.exit_code, msg=result.output)
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
