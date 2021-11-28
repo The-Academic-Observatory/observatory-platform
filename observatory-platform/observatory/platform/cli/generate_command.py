@@ -78,7 +78,7 @@ class DefaultWorkflowsProject:
 
 
 class GenerateCommand:
-    def generate_local_config(self, config_path: str, *, editable: str, workflows: List[str], oapi: bool):
+    def generate_local_config(self, config_path: str, *, editable: bool, workflows: List[str], oapi: bool):
         """Command line user interface for generating an Observatory Config config.yaml.
 
         :param config_path: the path where the config file should be saved.
@@ -103,7 +103,7 @@ class GenerateCommand:
 
         click.echo(f'{file_type} saved to: "{config_path}"')
 
-    def generate_terraform_config(self, config_path: str, *, editable: str, workflows: List[str], oapi: bool):
+    def generate_terraform_config(self, config_path: str, *, editable: bool, workflows: List[str], oapi: bool):
         """Command line user interface for generating a Terraform Config config-terraform.yaml.
 
         :param config_path: the path where the config file should be saved.
@@ -1020,7 +1020,12 @@ class InteractiveConfigBuilder:
         choices = click.Choice(choices=["project_id", "environment"], case_sensitive=False)
         subdomain = click.prompt(text=text, type=choices, default=default, show_default=True, show_choices=True)
 
+        text = "Docker image for the API backend"
+        default = "ghcr.io/the-academic-observatory/observatory-api:latest"
+        docker_image = click.prompt(text=text, type=str, default=default, show_default=True)
+
         config.api = Api(
             domain_name=domain_name,
             subdomain=subdomain,
+            docker_image=docker_image
         )

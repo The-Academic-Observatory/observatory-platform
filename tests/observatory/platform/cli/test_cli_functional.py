@@ -14,16 +14,13 @@
 
 # Author: James Diprose
 
-import glob
 import json
 import logging
 import os
 import shutil
-import subprocess
 import time
 import unittest
 import uuid
-from subprocess import Popen
 from typing import Set
 from unittest.mock import patch
 
@@ -40,10 +37,10 @@ from observatory.platform.observatory_config import (
     Observatory,
     BackendType,
     Environment,
-    module_file_path,
     WorkflowsProject,
 )
-from observatory.platform.utils.proc_utils import stream_process
+from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.test_utils import build_sdist
 from observatory.platform.utils.test_utils import test_fixtures_path, find_free_port, save_empty_file
 from observatory.platform.utils.url_utils import wait_for_url
 
@@ -73,32 +70,6 @@ def list_dag_ids(
         dag_ids = [dag["dag_id"] for dag in dags]
 
     return set(dag_ids)
-
-
-def build_sdist(package_path: str) -> str:
-    """Build a Python source distribution and return the path to the tar file.
-
-    :param package_path:
-    :return:
-    """
-
-    # Remove dist directory
-    build_dir = os.path.join(package_path, "dist")
-    shutil.rmtree(build_dir, ignore_errors=True)
-
-    # Set PBR version
-    env = os.environ.copy()
-    env["PBR_VERSION"] = "0.0.1"
-
-    proc: Popen = Popen(
-        ["python3", "setup.py", "sdist"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=package_path, env=env
-    )
-    output, error = stream_process(proc, True)
-    assert proc.returncode == 0, f"build_sdist failed: {package_path}"
-
-    # Get path to sdist
-    results = glob.glob(os.path.join(build_dir, "*.tar.gz"))
-    return results[0]
 
 
 class TestCliFunctional(unittest.TestCase):
@@ -226,7 +197,7 @@ class TestCliFunctional(unittest.TestCase):
         redis = Redis(port=observatory.redis_port, socket_connect_timeout=1)
         self.assertTrue(redis.ping())
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
+    @patch("observatory.platform.docker.platform_builder.ObservatoryConfig.load")
     def test_run_platform_editable(self, mock_config_load):
         """Test that the platform runs when built from an editable project. API installed from PyPI."""
 
@@ -262,7 +233,7 @@ class TestCliFunctional(unittest.TestCase):
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
+    @patch("observatory.platform.docker.platform_builder.ObservatoryConfig.load")
     def test_dag_load_workflows_project_editable(self, mock_config_load):
         """Test that the DAGs load when build from an editable workflows project. API installed from PyPI."""
 
@@ -346,7 +317,7 @@ class TestCliFunctional(unittest.TestCase):
             ),
         )
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
+    @patch("observatory.platform.docker.platform_builder.ObservatoryConfig.load")
     def test_run_platform_sdist(self, mock_config_load):
         """Test that the platform runs when built from a source distribution. API package installed from PyPI."""
 
@@ -386,7 +357,7 @@ class TestCliFunctional(unittest.TestCase):
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
+    @patch("observatory.platform.docker.platform_builder.ObservatoryConfig.load")
     def test_dag_load_workflows_project_sdist(self, mock_config_load):
         """Test that DAGs load from an sdist workflows project. API package installed from PyPI."""
 

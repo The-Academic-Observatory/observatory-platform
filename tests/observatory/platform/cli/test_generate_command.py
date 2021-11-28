@@ -935,11 +935,13 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         api = Api(
             domain_name="api.something",
             subdomain="project_id",
+            docker_image="ghcr.io/the-academic-observatory/observatory-api:latest"
         )
 
         m_prompt.side_effect = [
             api.domain_name,
             api.subdomain,
+            api.docker_image,
         ]
 
         config = TerraformConfig()

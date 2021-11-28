@@ -22,6 +22,7 @@ from typing import Any, List
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
+
 from observatory.platform.cli.cli import (
     LOCAL_CONFIG_PATH,
     TERRAFORM_CONFIG_PATH,
@@ -29,10 +30,10 @@ from observatory.platform.cli.cli import (
     generate,
 )
 from observatory.platform.cli.generate_command import GenerateCommand
-from observatory.platform.docker.compose import ProcessOutput
+from observatory.platform.docker.compose_runner import ProcessOutput
+from observatory.platform.docker.platform_runner import DEBUG, HOST_UID
 from observatory.platform.observatory_config import TerraformConfig, ValidationError
-from observatory.platform.platform_builder import DEBUG, HOST_UID
-from observatory.platform.terraform_api import TerraformApi
+from observatory.platform.terraform.terraform_api import TerraformApi
 from observatory.platform.utils.test_utils import random_id
 
 

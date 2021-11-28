@@ -17,44 +17,18 @@
 import dataclasses
 import os
 import shutil
-import subprocess
 from abc import ABC, abstractmethod
-from subprocess import Popen
 from typing import Dict, List
 
 from observatory.platform.utils.jinja2_utils import render_template
-from observatory.platform.utils.proc_utils import stream_process
 
 
-@dataclasses.dataclass
-class ProcessOutput:
-    """Output from a process
-
-    :param output: the process std out.
-    :param error: the process std error.
-    :param return_code: the process return code.
-    """
-
-    output: str
-    error: str
-    return_code: int
-
-
-class ComposeRunnerInterface(ABC):
-    """An interface for running Docker Compose commands"""
-
-    @abstractmethod
-    def make_environment(self) -> Dict:
-        """Make the environment variables.
-
-        :return: environment dictionary.
-        """
-        pass
+class BuilderInterface(ABC):
+    """An interface for building Docker and DockerCompose systems."""
 
     @abstractmethod
     def add_template(self, *, path: str, **kwargs):
         """Add a Jinja template that will be rendered to the build directory before running Docker Compose commands.
-
         :param path: the path to the Jinja2 template.
         :param kwargs: the kwargs to use when rendering the template.
         :return: None
@@ -65,7 +39,6 @@ class ComposeRunnerInterface(ABC):
     @abstractmethod
     def add_file(self, *, path: str, output_file_name: str):
         """Add a file that will be copied to the build directory before running the Docker Compose commands.
-
         :param path: a path to the file.
         :param output_file_name: the output file name.
         :return: None
@@ -76,38 +49,12 @@ class ComposeRunnerInterface(ABC):
     @abstractmethod
     def make_files(self) -> None:
         """Render all Jinja templates and copy all files into the build directory.
-
         :return: None.
         """
-
-    @abstractmethod
-    def build(self) -> ProcessOutput:
-        """Build Docker Compose.
-
-        :return: ProcessOutput.
-        """
-        pass
-
-    @abstractmethod
-    def start(self) -> ProcessOutput:
-        """Start Docker Compose.
-
-        :return: ProcessOutput.
-        """
-        pass
-
-    @abstractmethod
-    def stop(self) -> ProcessOutput:
-        """Stop Docker Compose.
-
-        :return: ProcessOutput.
-        """
-        pass
 
 
 def rendered_file_name(template_file_path: str):
     """Make the rendered file name from the Jinja template name.
-
     :param template_file_path: the file path to the Jinja2 template.
     :return: the output file name.
     """
@@ -118,7 +65,6 @@ def rendered_file_name(template_file_path: str):
 @dataclasses.dataclass
 class File:
     """A file to copy.
-
     :param path: the path to the file.
     :param output_file_name: the output file.
     """
@@ -130,7 +76,6 @@ class File:
 @dataclasses.dataclass
 class Template:
     """A Jinja2 Template to render.
-
     :param path: the path to the Jinja2 template.
     :param kwargs: the kwargs to use when rendering the template.
     """
@@ -141,49 +86,24 @@ class Template:
     @property
     def output_file_name(self) -> str:
         """Make the output file name.
-
         :return: the output file name.
         """
 
         return rendered_file_name(self.path)
 
 
-class ComposeRunner(ComposeRunnerInterface):
-    COMPOSE_ARGS_PREFIX = ["docker-compose", "-f"]
-    COMPOSE_BUILD_ARGS = ["build"]
-    COMPOSE_START_ARGS = ["up", "-d"]
-    COMPOSE_STOP_ARGS = ["down"]
-
-    def __init__(
-        self, *, compose_template_path: str, build_path: str, compose_template_kwargs: Dict = None, debug: bool = False
-    ):
-        """Docker Compose runner constructor.
-
-        :param compose_template_path: the path to the Docker Compose Jinja2 template file.
-        :param build_path: the path where Docker will build.
-        :param compose_template_kwargs: the kwargs to use when rendering the Docker Compose Jinja2 template file.
-        :param debug: whether to run in debug mode or not.
+class Builder(BuilderInterface):
+    def __init__(self, *, build_path: str):
+        """BuilderInterface implementation.
+        :param build_path: the path where the system will be built.
         """
 
-        self.compose_template_path = compose_template_path
         self.build_path = build_path
         self.templates: List[Template] = []
         self.files: List[File] = []
-        self.add_template(path=compose_template_path, **compose_template_kwargs)
-        self.debug = debug
-
-    @property
-    def compose_file_name(self):
-        """Return the file name for the rendered Docker Compose template.
-
-        :return: Docker Compose file name.
-        """
-
-        return rendered_file_name(self.compose_template_path)
 
     def add_template(self, *, path: str, **kwargs):
         """Add a Jinja template that will be rendered to the build directory before running Docker Compose commands.
-
         :param path: the path to the Jinja2 template.
         :param kwargs: the kwargs to use when rendering the template.
         :return: None
@@ -193,7 +113,6 @@ class ComposeRunner(ComposeRunnerInterface):
 
     def add_file(self, *, path: str, output_file_name: str):
         """Add a file that will be copied to the build directory before running the Docker Compose commands.
-
         :param path: a path to the file.
         :param output_file_name: the output file name.
         :return: None
@@ -201,9 +120,19 @@ class ComposeRunner(ComposeRunnerInterface):
 
         self.files.append(File(path=path, output_file_name=output_file_name))
 
+    def render_template(self, template: Template, output_file_path: str):
+        """Render a file using a Jinja template and save.
+        :param template: the template.
+        :param output_file_path: the output path.
+        :return: None.
+        """
+
+        render = render_template(template.path, **template.kwargs)
+        with open(output_file_path, "w") as f:
+            f.write(render)
+
     def make_files(self):
         """Render all Jinja templates and copy all files into the build directory.
-
         :return: None.
         """
 
@@ -221,66 +150,3 @@ class ComposeRunner(ComposeRunnerInterface):
         for file in self.files:
             output_path = os.path.join(self.build_path, file.output_file_name)
             shutil.copy(file.path, output_path)
-
-    def build(self) -> ProcessOutput:
-        """Build the Docker containers.
-
-        :return: output and error stream results and proc return code.
-        """
-
-        return self.__run_docker_compose_cmd(self.COMPOSE_BUILD_ARGS)
-
-    def start(self) -> ProcessOutput:
-        """Start the Docker containers.
-
-        :return: output and error stream results and proc return code.
-        """
-
-        return self.__run_docker_compose_cmd(self.COMPOSE_START_ARGS)
-
-    def stop(self) -> ProcessOutput:
-        """Stop the Docker containers.
-
-        :return: output and error stream results and proc return code.
-        """
-
-        return self.__run_docker_compose_cmd(self.COMPOSE_STOP_ARGS)
-
-    def render_template(self, template: Template, output_file_path: str):
-        """Render a file using a Jinja template and save.
-
-        :param template: the template.
-        :param output_file_path: the output path.
-        :return: None.
-        """
-
-        render = render_template(template.path, **template.kwargs)
-        with open(output_file_path, "w") as f:
-            f.write(render)
-
-    def __run_docker_compose_cmd(self, args: List) -> ProcessOutput:
-        """Run a set of Docker Compose arguments.
-
-        :param args: the list of arguments.
-        :return: output and error stream results and proc return code.
-        """
-
-        # Make environment
-        env = self.make_environment()
-
-        # Make files
-        self.make_files()
-
-        # Build the containers first
-        proc: Popen = subprocess.Popen(
-            self.COMPOSE_ARGS_PREFIX + [self.compose_file_name] + args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=env,
-            cwd=self.build_path,
-        )
-
-        # Wait for results
-        output, error = stream_process(proc, self.debug)
-
-        return ProcessOutput(output, error, proc.returncode)

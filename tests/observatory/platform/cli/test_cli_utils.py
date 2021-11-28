@@ -16,7 +16,7 @@
 
 import unittest
 
-from observatory.platform.cli.click_utils import (
+from observatory.platform.cli.cli_utils import (
     INDENT1,
     INDENT2,
     INDENT3,

@@ -14,6 +14,11 @@
 
 # Author: James Diprose, Aniek Roelofs
 
+import os
+from typing import ClassVar, Union
+
+# from observatory.platform.observatory_config import ObservatoryConfig, TerraformConfig
+
 INDENT1 = 2
 INDENT2 = 3
 INDENT3 = 4
