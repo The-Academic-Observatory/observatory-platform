@@ -18,14 +18,15 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pendulum
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
-from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from observatory.platform.utils.airflow_utils import (
-    create_slack_webhook,
+    AirflowConns,
     get_airflow_connection_login,
     get_airflow_connection_password,
     get_airflow_connection_url,
+    send_slack_msg,
     set_task_state,
 )
 
@@ -43,35 +44,45 @@ class MockConnection:
 
 
 class TestAirflowUtils(unittest.TestCase):
+    @patch("observatory.platform.utils.airflow_utils.SlackWebhookHook")
     @patch("airflow.hooks.base_hook.BaseHook.get_connection")
-    def test_create_slack_webhook(self, mock_get_connection):
+    def test_send_slack_msg(self, mock_get_connection, m_slack):
         mock_get_connection.return_value = Connection(uri=f"https://:key@https%3A%2F%2Fhooks.slack.com%2Fservices")
-        slack_hook = create_slack_webhook(
+
+        class MockTI:
+            def __init__(self):
+                self.task_id = "task_id"
+                self.dag_id = "dag_id"
+                self.log_url = "log_url"
+
+        ti = MockTI()
+        execution_date = pendulum.now()
+
+        send_slack_msg(
+            ti=ti,
+            execution_date=execution_date,
             comments="comment",
             project_id="project-id",
-            context={
-                "ti": SimpleNamespace(task_id="task_id", dag_id="dag_id", log_url="log_url"),
-                "execution_date": "2020-01-01",
-            },
         )
-        self.assertIsInstance(slack_hook, SlackWebhookHook)
+
         expected_message = """
-    :red_circle: Task Alert. 
-    *Task*: {task}  
-    *Dag*: {dag} 
-    *Execution Time*: {exec_date}  
-    *Log Url*: {log_url} 
+    :red_circle: Task Alert.
+    *Task*: {task}
+    *Dag*: {dag}
+    *Execution Time*: {exec_date}
+    *Log Url*: {log_url}
     *Project id*: {project_id}
     *Comments*: {comments}
     """.format(
             task="task_id",
             dag="dag_id",
-            exec_date="2020-01-01",
+            exec_date=execution_date.isoformat(),
             log_url="log_url",
             comments="comment",
             project_id="project-id",
         )
-        self.assertEqual(expected_message, slack_hook.message)
+
+        m_slack.assert_called_once_with(http_conn_id=None, webhook_token="key", message=expected_message)
 
     def test_set_task_state(self):
         """Test set_task_state"""

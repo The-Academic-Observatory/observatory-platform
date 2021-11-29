@@ -21,6 +21,7 @@ Airflow utility functions (independent of telescope or google cloud usage)
 import logging
 from typing import List, Union
 
+import pendulum
 import validators
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -111,37 +112,46 @@ def check_connections(*connections):
     return is_valid
 
 
-def create_slack_webhook(comments: str = "", project_id: str = "?", context: dict = None) -> SlackWebhookHook:
+def send_slack_msg(
+    *,
+    ti: TaskInstance,
+    execution_date: pendulum.DateTime,
+    comments: str = "",
+    project_id: str = "?",
+    context: dict = None,
+):
     """
-    Creates a slack webhook using the token in the slack airflow connection.
+    Send a slack message using the token in the slack airflow connection.
+    :param ti: Task instance.
+    :param execution_date: DagRun execution date.
     :param comments: Additional comments in slack message
     :param project_id: The google cloud project id that will be displayed in the slack message
-    :param context: the context passed from the PythonOperator. See
-    https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
-    this  argument.
-    :return: slack webhook
     """
-    ti: TaskInstance = context["ti"]
 
     message = """
-    :red_circle: Task Alert. 
-    *Task*: {task}  
-    *Dag*: {dag} 
-    *Execution Time*: {exec_date}  
-    *Log Url*: {log_url} 
+    :red_circle: Task Alert.
+    *Task*: {task}
+    *Dag*: {dag}
+    *Execution Time*: {exec_date}
+    *Log Url*: {log_url}
     *Project id*: {project_id}
     *Comments*: {comments}
     """.format(
         task=ti.task_id,
         dag=ti.dag_id,
-        exec_date=context["execution_date"],
+        exec_date=execution_date,
         log_url=ti.log_url,
         comments=comments,
         project_id=project_id,
     )
     slack_conn = BaseHook.get_connection(AirflowConns.SLACK)
     slack_hook = SlackWebhookHook(http_conn_id=slack_conn.conn_id, webhook_token=slack_conn.password, message=message)
-    return slack_hook
+
+    # http_hook outputs the secret token, suppressing logging 'info' by setting level to 'warning'
+    old_levels = change_task_log_level(logging.WARNING)
+    slack_hook.execute()
+    # change back to previous levels
+    change_task_log_level(old_levels)
 
 
 def set_task_state(success: bool, task_id: str):
