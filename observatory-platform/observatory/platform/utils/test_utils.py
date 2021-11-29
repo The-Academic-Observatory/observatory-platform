@@ -100,9 +100,6 @@ from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
-from pendulum import DateTime
-from sftpserver.stub_sftp import StubServer, StubSFTPServer
-
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
@@ -120,6 +117,8 @@ from observatory.platform.utils.gc_utils import (
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.workflow_utils import find_schema
+from pendulum import DateTime
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 
 def random_id():
@@ -552,12 +551,25 @@ class ObservatoryTestCase(unittest.TestCase):
         """
 
         with CliRunner().isolated_filesystem() as dag_folder:
-            if os.path.exists(dag_file):
-                shutil.copy(dag_file, os.path.join(dag_folder, os.path.basename(dag_file)))
+            if not os.path.exists(dag_file):
+                raise Exception(f"{dag_file} does not exist.")
+
+            shutil.copy(dag_file, os.path.join(dag_folder, os.path.basename(dag_file)))
+
             dag_bag = DagBag(dag_folder=dag_folder)
-            dag = dag_bag.get_dag(dag_id=dag_id)
+
+            if dag_bag.import_errors != {}:
+                logging.error(f"DagBag errors: {dag_bag.import_errors}")
             self.assertEqual({}, dag_bag.import_errors)
+
+            dag = dag_bag.get_dag(dag_id=dag_id)
+
+            if dag is None:
+                logging.error(
+                    f"DAG not found in the database. Make sure the DAG ID is correct, and the dag file contains the words 'airflow' and 'DAG'."
+                )
             self.assertIsNotNone(dag)
+
             self.assertGreaterEqual(len(dag.tasks), 1)
 
     def assert_blob_exists(self, bucket_id: str, blob_name: str):
