@@ -14,52 +14,11 @@
 
 # Author: Aniek Roelofs
 
-import pendulum
-from airflow import DAG
-from airflow.operators.python import BranchPythonOperator, PythonOperator, ShortCircuitOperator
-from observatory.platform.workflows.terraform import TerraformTasks
+# The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
+# https://airflow.apache.org/docs/stable/faq.html
 
-default_args = {"owner": "airflow", "start_date": pendulum.datetime(2020, 1, 1)}
 
-with DAG(
-    dag_id=TerraformTasks.DAG_ID_DESTROY_VM,
-    schedule_interval="*/10 * * * *",
-    default_args=default_args,
-    catchup=False,
-    max_active_runs=1,
-) as dag:
-    # Check that dependencies exist before starting
-    check = PythonOperator(
-        task_id=TerraformTasks.TASK_ID_CHECK_DEPENDENCIES, python_callable=TerraformTasks.check_dependencies
-    )
+from observatory.platform.workflows.terraform import VmDestroyWorkflow
 
-    # If vm is already off, stop dag
-    vm_status = ShortCircuitOperator(
-        task_id=TerraformTasks.TASK_ID_VM_STATUS, python_callable=TerraformTasks.get_variable_create
-    )
-
-    # Destroying vm if all dags (since vm_create) are successful
-    check_dags_status = BranchPythonOperator(
-        task_id=TerraformTasks.TASK_ID_DAG_SUCCESS, python_callable=TerraformTasks.check_success_dags
-    )
-
-    # Update terraform variable vm_create to False
-    var_destroy = PythonOperator(
-        task_id=TerraformTasks.TASK_ID_VAR_UPDATE, python_callable=TerraformTasks.update_terraform_variable
-    )
-
-    # Run terraform configuration
-    run_terraform = PythonOperator(task_id=TerraformTasks.TASK_ID_RUN, python_callable=TerraformTasks.terraform_run)
-
-    # Check status of terraform run
-    check_run_status = PythonOperator(
-        task_id=TerraformTasks.TASK_ID_RUN_STATUS, python_callable=TerraformTasks.check_terraform_run_status
-    )
-
-    # Check how long VM has been turned on for
-    check_vm_runtime = PythonOperator(
-        task_id=TerraformTasks.TASK_ID_VM_RUNTIME, python_callable=TerraformTasks.check_runtime_vm
-    )
-
-    check >> vm_status >> check_dags_status >> [var_destroy, check_vm_runtime]
-    var_destroy >> run_terraform >> check_run_status
+workflow = VmDestroyWorkflow()
+globals()[workflow.dag_id] = workflow.make_dag()
