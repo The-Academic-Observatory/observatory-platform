@@ -27,7 +27,9 @@ from click.testing import CliRunner
 from observatory.platform.cli.cli import HOST_UID
 from observatory.platform.observatory_config import (
     AirflowConnection,
+    AirflowConnections,
     AirflowVariable,
+    AirflowVariables,
     Backend,
     BackendType,
     CloudStorageBucket,
@@ -37,6 +39,7 @@ from observatory.platform.observatory_config import (
     ObservatoryConfig,
     Terraform,
     WorkflowsProject,
+    WorkflowsProjects,
     save_yaml,
 )
 from observatory.platform.platform_builder import PlatformBuilder
@@ -246,9 +249,9 @@ class TestPlatformBuilder(unittest.TestCase):
                 observatory=observatory,
                 google_cloud=google_cloud,
                 terraform=terraform,
-                airflow_variables=[var],
-                airflow_connections=[conn],
-                workflows_projects=[dags_project],
+                airflow_variables=AirflowVariables([var]),
+                airflow_connections=AirflowConnections([conn]),
+                workflows_projects=WorkflowsProjects([dags_project]),
             )
             cmd.config = config
             cmd.config_exists = True

@@ -30,7 +30,6 @@ from observatory.platform.platform_builder import PlatformBuilder
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.proc_utils import stream_process
-from observatory.platform.utils.test_utils import random_id
 
 
 def copy_dir(source_path: str, destination_path: str, ignore=None):
