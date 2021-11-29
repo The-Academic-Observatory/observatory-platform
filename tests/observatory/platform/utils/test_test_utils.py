@@ -20,6 +20,7 @@ import logging
 import os
 import unittest
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import List, Union
 from unittest.mock import patch
 
@@ -423,6 +424,20 @@ class TestObservatoryTestCase(unittest.TestCase):
             # DAG not loaded
             with self.assertRaises(Exception):
                 test_case.assert_dag_load(DAG_ID, file_path)
+
+            # DAG not found
+            with self.assertRaises(Exception):
+                test_case.assert_dag_load("dag not found", file_path)
+
+            # Import errors
+            with self.assertRaises(AssertionError):
+                test_case.assert_dag_load("no dag found", test_fixtures_path("utils", "bad_dag.py"))
+
+            # No dag
+            with self.assertRaises(AssertionError):
+                empty_filename = os.path.join(temp_dir, "empty_dag.py")
+                Path(empty_filename).touch()
+                test_case.assert_dag_load("invalid_dag_id", empty_filename)
 
     def test_assert_blob_integrity(self):
         """Test assert_blob_integrity"""
