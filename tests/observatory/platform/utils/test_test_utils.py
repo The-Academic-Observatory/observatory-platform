@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import os
 import unittest
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from typing import List, Union
 from unittest.mock import patch
 
@@ -33,7 +33,6 @@ from airflow.models.variable import Variable
 from click.testing import CliRunner
 from google.cloud.bigquery import SourceFormat
 from google.cloud.exceptions import NotFound
-
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.gc_utils import (
     create_bigquery_dataset,
@@ -422,7 +421,7 @@ class TestObservatoryTestCase(unittest.TestCase):
             os.unlink(file_path)
 
             # DAG not loaded
-            with self.assertRaises(AssertionError):
+            with self.assertRaises(Exception):
                 test_case.assert_dag_load(DAG_ID, file_path)
 
     def test_assert_blob_integrity(self):
