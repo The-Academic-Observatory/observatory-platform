@@ -57,8 +57,6 @@ class TestTerraformBuilder(unittest.TestCase):
                 "airflow_ui_user_email": "password",
                 "postgres_password": "my-password",
                 "observatory_home": t,
-                "api_package": self.observatory_api_path,
-                "api_package_type": "editable",
             },
             "terraform": {"organization": "hello world"},
             "google_cloud": {
@@ -78,8 +76,6 @@ class TestTerraformBuilder(unittest.TestCase):
             },
             "airflow_variables": {"my-variable-name": "my-variable-value"},
             "airflow_connections": {"my-connection": "http://:my-token-key@"},
-            "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
-            "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
         }
 
         save_yaml(config_path, dict_)
@@ -141,12 +137,6 @@ class TestTerraformBuilder(unittest.TestCase):
                 path = os.path.join(cmd.build_path, "terraform", file_name)
                 self.assertTrue(os.path.isfile(path))
 
-            # Test that expected packages exists
-            packages = ["observatory-api", "observatory-platform"]
-            for package in packages:
-                path = os.path.join(cmd.build_path, "packages", package)
-                self.assertTrue(os.path.exists(path))
-
             # Test that the expected Docker files have been written
             build_file_names = [
                 "docker-compose.observatory.yml",
@@ -154,8 +144,6 @@ class TestTerraformBuilder(unittest.TestCase):
                 "elasticsearch.yml",
                 "entrypoint-airflow.sh",
                 "entrypoint-root.sh",
-                "requirements.observatory-platform.txt",
-                "requirements.observatory-api.txt",
             ]
             for file_name in build_file_names:
                 path = os.path.join(cmd.build_path, "docker", file_name)
@@ -176,80 +164,81 @@ class TestTerraformBuilder(unittest.TestCase):
             config_path = self.save_terraform_config(t)
 
             # Make observatory files
-            cmd = TerraformBuilder(config_path=config_path)
+            builder = TerraformBuilder(config_path=config_path)
+            self.assertTrue(builder.config_is_valid)
 
             # Build the image
-            output, error, return_code = cmd.build_image()
+            output, error, return_code = builder.build_image()
 
             # Assert that the image built
             expected_return_code = 0
             self.assertEqual(expected_return_code, return_code)
 
-    @patch("subprocess.Popen")
-    @patch("observatory.platform.terraform_builder.stream_process")
-    def test_gcloud_activate_service_account(self, mock_stream_process, mock_subprocess):
-        """Test activating the gcloud service account"""
-
-        # Check that the environment variables are set properly for the default config
-        with CliRunner().isolated_filesystem() as t:
-            mock_subprocess.return_value = Popen()
-            mock_stream_process.return_value = ("", "")
-
-            # Save default config file
-            config_path = self.save_terraform_config(t)
-
-            # Make observatory files
-            cmd = TerraformBuilder(config_path=config_path)
-
-            # Activate the service account
-            output, error, return_code = cmd.gcloud_activate_service_account()
-
-            # Assert that account was activated
-            expected_return_code = 0
-            self.assertEqual(expected_return_code, return_code)
-
-    @patch("subprocess.Popen")
-    @patch("observatory.platform.terraform_builder.stream_process")
-    def test_gcloud_builds_submit(self, mock_stream_process, mock_subprocess):
-        """Test gcloud builds submit command"""
-
-        # Check that the environment variables are set properly for the default config
-        with CliRunner().isolated_filesystem() as t:
-            mock_subprocess.return_value = Popen()
-            mock_stream_process.return_value = ("", "")
-
-            # Save default config file
-            config_path = self.save_terraform_config(t)
-
-            # Make observatory files
-            cmd = TerraformBuilder(config_path=config_path)
-
-            # Build the image
-            output, error, return_code = cmd.gcloud_builds_submit()
-
-            # Assert that the image built
-            expected_return_code = 0
-            self.assertEqual(expected_return_code, return_code)
-
-    def test_build_api_image(self):
-        """Test building API image using Docker"""
-
-        # Check that the environment variables are set properly for the default config
-        with CliRunner().isolated_filesystem() as t:
-            # Save default config file
-            config_path = self.save_terraform_config(t)
-
-            # Make observatory files
-            cmd = TerraformBuilder(config_path=config_path)
-
-            args = ["docker", "build", "."]
-            print("Executing subprocess:")
-
-            proc: Popen = subprocess.Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cmd.api_package_path
-            )
-            output, error = stream_process(proc, True)
-
-            # Assert that the image built
-            expected_return_code = 0
-            self.assertEqual(expected_return_code, proc.returncode)
+    # @patch("subprocess.Popen")
+    # @patch("observatory.platform.terraform_builder.stream_process")
+    # def test_gcloud_activate_service_account(self, mock_stream_process, mock_subprocess):
+    #     """Test activating the gcloud service account"""
+    #
+    #     # Check that the environment variables are set properly for the default config
+    #     with CliRunner().isolated_filesystem() as t:
+    #         mock_subprocess.return_value = Popen()
+    #         mock_stream_process.return_value = ("", "")
+    #
+    #         # Save default config file
+    #         config_path = self.save_terraform_config(t)
+    #
+    #         # Make observatory files
+    #         cmd = TerraformBuilder(config_path=config_path)
+    #
+    #         # Activate the service account
+    #         output, error, return_code = cmd.gcloud_activate_service_account()
+    #
+    #         # Assert that account was activated
+    #         expected_return_code = 0
+    #         self.assertEqual(expected_return_code, return_code)
+    #
+    # @patch("subprocess.Popen")
+    # @patch("observatory.platform.terraform_builder.stream_process")
+    # def test_gcloud_builds_submit(self, mock_stream_process, mock_subprocess):
+    #     """Test gcloud builds submit command"""
+    #
+    #     # Check that the environment variables are set properly for the default config
+    #     with CliRunner().isolated_filesystem() as t:
+    #         mock_subprocess.return_value = Popen()
+    #         mock_stream_process.return_value = ("", "")
+    #
+    #         # Save default config file
+    #         config_path = self.save_terraform_config(t)
+    #
+    #         # Make observatory files
+    #         cmd = TerraformBuilder(config_path=config_path)
+    #
+    #         # Build the image
+    #         output, error, return_code = cmd.gcloud_builds_submit()
+    #
+    #         # Assert that the image built
+    #         expected_return_code = 0
+    #         self.assertEqual(expected_return_code, return_code)
+    #
+    # def test_build_api_image(self):
+    #     """Test building API image using Docker"""
+    #
+    #     # Check that the environment variables are set properly for the default config
+    #     with CliRunner().isolated_filesystem() as t:
+    #         # Save default config file
+    #         config_path = self.save_terraform_config(t)
+    #
+    #         # Make observatory files
+    #         cmd = TerraformBuilder(config_path=config_path)
+    #
+    #         args = ["docker", "build", "."]
+    #         print("Executing subprocess:")
+    #
+    #         proc: Popen = subprocess.Popen(
+    #             args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cmd.api_package_path
+    #         )
+    #         output, error = stream_process(proc, True)
+    #
+    #         # Assert that the image built
+    #         expected_return_code = 0
+    #         self.assertEqual(expected_return_code, proc.returncode)

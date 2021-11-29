@@ -1495,7 +1495,7 @@ class TerraformConfig(ObservatoryConfig):
 
         if self.airflow_variables.airflow_variables:
             # Add user defined variables to list
-            variables += self.airflow_variables
+            variables += self.airflow_variables.airflow_variables
 
         return variables
 
