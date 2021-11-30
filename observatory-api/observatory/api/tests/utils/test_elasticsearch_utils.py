@@ -14,6 +14,7 @@
 
 # Author: Aniek Roelofs
 
+import os
 import copy
 import unittest
 from unittest.mock import patch
@@ -28,71 +29,77 @@ from observatory.api.utils.elasticsearch_utils import (
     parse_args,
     process_response,
 )
+from observatory.api.utils.exception_utils import APIError
 
-AGGREGATIONS = ["author", "country", "funder", "group", "institution", "publisher"]
-SUBSETS = [
-    "citations",
-    "collaborations",
-    "disciplines",
-    "events",
-    "funders",
-    "journals",
-    "oa-metrics",
-    "output-types",
-    "publishers",
-]
-SCROLL_ID = "FGluY2x1ZGVfY29udGV4dF91dWlkDXF1ZXJ5QW5kRmV0Y2gBFlVrbkJuSmNzVFMtSUh3MkcxVmxXRVEAAAAAAJDtdhZkejJRLUUwZ1N0T05nUTV6ZUlVNGRn "
-RES_EXAMPLE = {
-    "_scroll_id": SCROLL_ID,
-    "hits": {
-        "total": {"value": 452},
-        "hits": [
-            {
-                "_index": "journals-institution-20201205",
-                "_type": "_doc",
-                "_id": "bQ88QXYBGinIh2YA4IaO",
-                "_score": None,
-                "_source": {"id": "example_id", "name": "Example Name", "published_year": "2018-12-31"},
-                "sort": [77250],
-            },
-            {
-                "_index": "journals-institution-20201205",
-                "_type": "_doc",
-                "_id": "bQ88QXYBGinIh2YA4Ia1",
-                "_score": None,
-                "_source": {"id": "example_id2", "name": "Example Name2", "published_year": "2018-12-31"},
-                "sort": [77251],
-            },
-        ],
-    },
-}
+# AGGREGATIONS = ["author", "country", "funder", "group", "institution", "publisher"]
+# SUBSETS = [
+#     "citations",
+#     "collaborations",
+#     "disciplines",
+#     "events",
+#     "funders",
+#     "journals",
+#     "oa-metrics",
+#     "output-types",
+#     "publishers",
+# ]
+# SCROLL_ID = "FGluY2x1ZGVfY29udGV4dF91dWlkDXF1ZXJ5QW5kRmV0Y2gBFlVrbkJuSmNzVFMtSUh3MkcxVmxXRVEAAAAAAJDtdhZkejJRLUUwZ1N0T05nUTV6ZUlVNGRn "
+# RES_EXAMPLE = {
+#     "_scroll_id": SCROLL_ID,
+#     "hits": {
+#         "total": {"value": 452},
+#         "hits": [
+#             {
+#                 "_index": "journals-institution-20201205",
+#                 "_type": "_doc",
+#                 "_id": "bQ88QXYBGinIh2YA4IaO",
+#                 "_score": None,
+#                 "_source": {"id": "example_id", "name": "Example Name", "published_year": "2018-12-31"},
+#                 "sort": [77250],
+#             },
+#             {
+#                 "_index": "journals-institution-20201205",
+#                 "_type": "_doc",
+#                 "_id": "bQ88QXYBGinIh2YA4Ia1",
+#                 "_score": None,
+#                 "_source": {"id": "example_id2", "name": "Example Name2", "published_year": "2018-12-31"},
+#                 "sort": [77251],
+#             },
+#         ],
+#     },
+# }
 
 
 class TestElastic(unittest.TestCase):
     """Tests for the 'query' endpoint of the API."""
 
-    # @patch("observatory.api.server.elastic.Elasticsearch.ping")
-    # def test_create_es_connection(self, mock_elasticsearch_ping):
-    #     """Test creating elasticsearch connection with (in)valid address and api_key
-    #
-    #     :return:
-    #     """
-    #     # test elasticsearch instance is returned
-    #     mock_elasticsearch_ping.return_value = True
-    #     es = create_es_connection("address", "api_key")
-    #     self.assertIsInstance(es, Elasticsearch)
-    #
-    #     # test connection error is raised
-    #     mock_elasticsearch_ping.return_value = False
-    #     with self.assertRaises(ConnectionError):
-    #         create_es_connection("address", "api_key")
-    #
-    #     # test None is returned when address or api_key is empty
-    #     es = create_es_connection("address", "")
-    #     self.assertIsNone(es)
-    #
-    #     es = create_es_connection(None, "api_key")
-    #     self.assertIsNone(es)
+    @patch("observatory.api.utils.elasticsearch_utils.Elasticsearch.ping")
+    def test_create_es_connection(self, mock_elasticsearch_ping):
+        """Test creating elasticsearch connection with (in)valid address and api_key
+
+        :return:
+        """
+        with patch.dict(os.environ, {"ES_HOST": "address", "ES_API_KEY": "api_key"}):
+            # Test elasticsearch instance is returned
+            mock_elasticsearch_ping.return_value = True
+            es = create_es_connection()
+            self.assertIsInstance(es, Elasticsearch)
+
+            # Test APIError error is raised when no ping is returned
+            mock_elasticsearch_ping.return_value = False
+            with self.assertRaises(APIError):
+                create_es_connection()
+
+        with patch.dict(os.environ, {"ES_HOST": "address", "ES_API_KEY": ""}):
+            # Test APIError is raised when address or api_key is empty
+            with self.assertRaises(APIError):
+                create_es_connection()
+
+        with patch.dict(os.environ, {"ES_HOST": None, "ES_API_KEY": "api_key"}):
+            # Test APIError is raised when address or api_key is None
+            with self.assertRaises(APIError):
+                create_es_connection()
+
     #
     # def test_parse_args(self):
     #     """Test that parse_args returns values as expected when using different query parameters.
@@ -250,16 +257,16 @@ class TestElastic(unittest.TestCase):
     #         },
     #     ]
     #     self.assertEqual(expected_hits, hits)
-
-    @patch("elasticsearch.client.CatClient.indices")
-    def test_list_available_index_dates(self, mock_es_indices):
-        """Test parsing of available dates from elasticsearch's cat.indices() response.
-
-        :return: None.
-        """
-        dates = ["20201212", "20201201"]
-        alias = "subset-agg"
-        mock_es_indices.return_value = [{"index": f"{alias}-{dates[0]}"}, {"index": f"{alias}-{dates[1]}"}]
-
-        available_dates = list_available_index_dates(Elasticsearch(), alias)
-        self.assertEqual(dates, available_dates)
+    #
+    # @patch("elasticsearch.client.CatClient.indices")
+    # def test_list_available_index_dates(self, mock_es_indices):
+    #     """Test parsing of available dates from elasticsearch's cat.indices() response.
+    #
+    #     :return: None.
+    #     """
+    #     dates = ["20201212", "20201201"]
+    #     alias = "subset-agg"
+    #     mock_es_indices.return_value = [{"index": f"{alias}-{dates[0]}"}, {"index": f"{alias}-{dates[1]}"}]
+    #
+    #     available_dates = list_available_index_dates(Elasticsearch(), alias)
+    #     self.assertEqual(dates, available_dates)
