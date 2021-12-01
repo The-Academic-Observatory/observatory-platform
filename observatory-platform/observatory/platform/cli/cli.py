@@ -92,7 +92,7 @@ def platform(command: str, config_path: str, host_uid: int, debug):
         # Start the appropriate process
         if command == "start":
             platform_start(platform_cmd)
-        elif command == "stop":
+        else:
             platform_stop(platform_cmd)
 
         exit(os.EX_OK)
@@ -436,7 +436,11 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     cmd = GenerateCommand()
 
     if config_path is None:
-        config_path = LOCAL_CONFIG_PATH if command == "local" else TERRAFORM_CONFIG_PATH
+        config_path = {
+            "local": LOCAL_CONFIG_PATH,
+            "terraform": TERRAFORM_CONFIG_PATH,
+            "terraform-api": TERRAFORM_API_CONFIG_PATH,
+        }[command]
 
     workflows = []
     if ao_wf:
@@ -485,7 +489,7 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     "--config-type",
     type=click.Choice(["terraform", "terraform-api"]),
     default="terraform",
-    help="The api config type, either 'terraform' or 'terraform-api'.",
+    help="The api config type, either 'terraform' or 'terraform-api'",
 )
 @click.option("--debug", is_flag=True, default=DEBUG, help="Print debugging information.")
 def terraform(command, config_path, terraform_credentials_path, config_type, debug):
@@ -513,15 +517,14 @@ def terraform(command, config_path, terraform_credentials_path, config_type, deb
         # Build terraform configuration files
         terraform_cmd.build_terraform()
     elif command == "build-image":
+        # Build packer or docker image, depending on config type
         terraform_cmd.build_image()
-    else:
+    elif command == "create-workspace":
         # Create a new workspace
-        if command == "create-workspace":
-            terraform_cmd.create_workspace()
-
+        terraform_cmd.create_workspace()
+    else:
         # Update an existing workspace
-        elif command == "update-workspace":
-            terraform_cmd.update_workspace()
+        terraform_cmd.update_workspace()
 
 
 def terraform_check_dependencies(

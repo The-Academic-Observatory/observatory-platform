@@ -41,6 +41,7 @@ class TerraformCommand:
         self.terraform_credentials_exists = os.path.exists(terraform_credentials_path)
         self.config_exists = os.path.exists(config_path)
         self.config_type = config_type
+        self.config_is_valid = False
         if self.config_exists:
             self.config_is_valid = self.config.is_valid
 
