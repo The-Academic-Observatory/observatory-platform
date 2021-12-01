@@ -18,19 +18,26 @@ import json
 import os
 import sys
 import unittest
-from typing import Any, List
-from unittest.mock import Mock, patch
+from typing import Any, List, Optional
+from unittest.mock import MagicMock, Mock, PropertyMock, call, patch
 
 from click.testing import CliRunner
 from observatory.platform.cli.cli import (
     LOCAL_CONFIG_PATH,
+    PLATFORM_NAME,
+    TERRAFORM_API_CONFIG_PATH,
     TERRAFORM_CONFIG_PATH,
+    TERRAFORM_NAME,
+    TerraformCommand,
     cli,
     generate,
+    platform_start,
+    platform_stop,
+    terraform_check_dependencies,
 )
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.docker.compose import ProcessOutput
-from observatory.platform.observatory_config import TerraformConfig, ValidationError
+from observatory.platform.observatory_config import GoogleCloud, INDENT2, TerraformConfig, ValidationError, indent
 from observatory.platform.platform_builder import DEBUG, HOST_UID
 from observatory.platform.terraform_api import TerraformApi
 from observatory.platform.utils.test_utils import random_id
@@ -161,21 +168,49 @@ class TestObservatoryGenerate(unittest.TestCase):
             mock_generate_workflow.assert_not_called()
 
     @patch("observatory.platform.cli.cli.click.confirm")
-    @patch("observatory.platform.cli.cli.GenerateCommand.generate_terraform_config_interactive")
-    @patch("observatory.platform.cli.cli.GenerateCommand.generate_local_config_interactive")
-    def test_generate_default_configs(self, m_gen_config, m_gen_terra, m_click):
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_terraform_api_config")
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_terraform_config")
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_local_config")
+    def test_generate_default_configs(self, m_gen_config, m_gen_terra, m_gen_terra_api, m_click):
         m_click.return_value = True
         runner = CliRunner()
 
         # Default local
-        result = runner.invoke(cli, ["generate", "config", "local", "--interactive"])
+        result = runner.invoke(cli, ["generate", "config", "local"])
         self.assertEqual(result.exit_code, os.EX_OK)
         m_gen_config.assert_called_once_with(LOCAL_CONFIG_PATH, workflows=[], editable=False)
 
         # Default terraform
-        result = runner.invoke(cli, ["generate", "config", "terraform", "--interactive"])
+        result = runner.invoke(cli, ["generate", "config", "terraform"])
         self.assertEqual(result.exit_code, os.EX_OK)
         m_gen_terra.assert_called_once_with(TERRAFORM_CONFIG_PATH, workflows=[], editable=False)
+
+        # Default terraform api
+        result = runner.invoke(cli, ["generate", "config", "terraform-api"])
+        self.assertEqual(result.exit_code, os.EX_OK)
+        m_gen_terra_api.assert_called_once_with(TERRAFORM_API_CONFIG_PATH)
+
+    @patch("observatory.platform.cli.cli.click.confirm")
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_local_config")
+    def test_generate_config_exists(self, m_gen_config, m_confirm):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            config_path = os.path.abspath("config.yaml")
+
+            # First test don't allow overwrite, second test allow overwrite
+            m_confirm.side_effect = [False, True]
+
+            # Create config file
+            with open(config_path, "w") as f:
+                f.write("foo")
+
+            # Test when config exists and don't overwrite
+            runner.invoke(cli, ["generate", "config", "local", "--config-path", config_path])
+            m_gen_config.assert_not_called()
+
+            # Test when config exists and overwrite
+            runner.invoke(cli, ["generate", "config", "local", "--config-path", config_path])
+            m_gen_config.assert_called_once_with(config_path, workflows=[], editable=False)
 
     @patch("observatory.platform.cli.cli.GenerateCommand.generate_local_config_interactive")
     def test_generate_local_interactive(self, m_gen_config):
@@ -221,7 +256,7 @@ class TestObservatoryGenerate(unittest.TestCase):
             m_gen_config.assert_called_once_with(config_path, workflows=[], editable=False)
 
     @patch("observatory.platform.cli.cli.GenerateCommand.generate_terraform_config_interactive")
-    def test_generate_terraform_interactive_install_oworkflows(self, m_gen_config):
+    def test_generate_terraform_interactive_install_workflows(self, m_gen_config):
         runner = CliRunner()
         with runner.isolated_filesystem():
             config_path = os.path.abspath("config.yaml")
@@ -269,18 +304,18 @@ class MockPlatformCommand(Mock):
     def __init__(
         self,
         *,
-        is_environment_valid: bool,
-        docker_exe_path: str,
-        is_docker_running: bool,
-        docker_compose_path: str,
-        config_exists: bool,
-        config: Any,
-        build_return_code: int,
-        start_return_code: int,
-        stop_return_code: int,
-        wait_for_airflow_ui: bool,
-        config_path: str,
-        dags_path: str,
+        is_environment_valid: bool = True,
+        docker_exe_path: Optional[str] = "/path/to/docker",
+        is_docker_running: bool = True,
+        docker_compose_path: Optional[str] = "/path/to/docker-compose",
+        config_exists: bool = True,
+        config: Any = MockConfig(is_valid=True),
+        build_return_code: int = 0,
+        start_return_code: int = 0,
+        stop_return_code: int = 0,
+        wait_for_airflow_ui: bool = True,
+        config_path: str = "config.yaml",
+        dags_path: str = "/path/to/dags",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -320,6 +355,45 @@ class MockPlatformCommand(Mock):
 
 
 class TestObservatoryPlatform(unittest.TestCase):
+    def test_platform_start(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # Test platform start function when build has failed
+            platform_cmd = MockPlatformCommand(build_return_code=1)
+            with self.assertRaises(SystemExit):
+                platform_start(platform_cmd)
+
+            # Test platform start function when starting ui is successful
+            with patch("builtins.print") as mock_print:
+                platform_cmd = MockPlatformCommand(wait_for_airflow_ui=True)
+                platform_start(platform_cmd)
+                mock_print.assert_called_with(f"View the Apache Airflow UI at {platform_cmd.ui_url}")
+
+            # Test platform start function when starting ui has failed
+            with patch("builtins.print") as mock_print:
+                platform_cmd = MockPlatformCommand(wait_for_airflow_ui=False)
+                platform_start(platform_cmd)
+                mock_print.assert_called_with(f"Could not find the Airflow UI at {platform_cmd.ui_url}")
+
+            # Test platform start function when starting platform has failed
+            platform_cmd = MockPlatformCommand(start_return_code=1)
+            with self.assertRaises(SystemExit):
+                platform_start(platform_cmd)
+
+    def test_platform_stop(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # Test platform stop function when stop is successful
+            with patch("builtins.print") as mock_print:
+                platform_cmd = MockPlatformCommand()
+                platform_stop(platform_cmd, min_line_chars=10)
+                mock_print.assert_called_with(f"{PLATFORM_NAME}: stopped".ljust(10))
+
+            # Test platform stop function when stop has failed
+            platform_cmd = MockPlatformCommand(stop_return_code=1)
+            with self.assertRaises(SystemExit):
+                platform_stop(platform_cmd)
+
     @patch("observatory.platform.cli.cli.PlatformCommand")
     def test_platform_start_stop_success(self, mock_cmd):
         """Test that the start and stop command are successful"""
@@ -515,6 +589,76 @@ class TestObservatoryTerraform(unittest.TestCase):
     version = TerraformApi.TERRAFORM_WORKSPACE_VERSION
     description = "test"
 
+    @patch.object(TerraformCommand, "build_terraform")
+    @patch("observatory.platform.cli.terraform_command.TerraformCommand")
+    def test_terraform_build_terraform(self, mock_terraform_command, mock_build):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # Create google credentials file
+            google_credentials_path = os.path.abspath("gcp_credentials.json")
+            with open(google_credentials_path, "w") as f:
+                f.write("foo")
+
+            # Create terraform credentials file
+            token_json = {"credentials": {"app.terraform.io": {"token": self.token}}}
+            terraform_credentials_path = os.path.abspath("token.json")
+            with open(terraform_credentials_path, "w") as f:
+                json.dump(token_json, f)
+
+            # Create config file
+            config_path = os.path.abspath("config-terraform.yaml")
+            TerraformConfig(google_cloud=GoogleCloud(credentials=google_credentials_path)).save(config_path)
+
+            result = runner.invoke(
+                cli,
+                [
+                    "terraform",
+                    "build-terraform",
+                    config_path,
+                    "--terraform-credentials-path",
+                    terraform_credentials_path,
+                    "--config-type",
+                    "terraform",
+                ],
+            )
+            self.assertEqual(0, result.exit_code)
+            mock_build.assert_called_once_with()
+
+    @patch.object(TerraformCommand, "build_image")
+    @patch("observatory.platform.cli.terraform_command.TerraformCommand")
+    def test_terraform_build_image(self, mock_terraform_command, mock_build):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # Create google credentials file
+            google_credentials_path = os.path.abspath("gcp_credentials.json")
+            with open(google_credentials_path, "w") as f:
+                f.write("foo")
+
+            # Create terraform credentials file
+            token_json = {"credentials": {"app.terraform.io": {"token": self.token}}}
+            terraform_credentials_path = os.path.abspath("token.json")
+            with open(terraform_credentials_path, "w") as f:
+                json.dump(token_json, f)
+
+            # Create config file
+            config_path = os.path.abspath("config-terraform.yaml")
+            TerraformConfig(google_cloud=GoogleCloud(credentials=google_credentials_path)).save(config_path)
+
+            result = runner.invoke(
+                cli,
+                [
+                    "terraform",
+                    "build-image",
+                    config_path,
+                    "--terraform-credentials-path",
+                    terraform_credentials_path,
+                    "--config-type",
+                    "terraform",
+                ],
+            )
+            self.assertEqual(0, result.exit_code)
+            mock_build.assert_called_once_with()
+
     @patch("click.confirm")
     @patch("observatory.platform.observatory_config.TerraformConfig.load")
     def test_terraform_create_update(self, mock_load_config, mock_click_confirm):
@@ -648,96 +792,139 @@ class TestObservatoryTerraform(unittest.TestCase):
             # Delete workspace
             terraform_api.delete_workspace(self.organisation, workspace)
 
-    @patch("observatory.platform.observatory_config.TerraformConfig.load")
-    def test_terraform_check_dependencies(self, mock_load_config):
+    @patch("builtins.print")
+    def test_terraform_check_dependencies(self, mock_print):
         """Test that checking for dependencies prints the correct output when files are missing"""
         runner = CliRunner()
-        with runner.isolated_filesystem() as working_dir:
-            credentials_file_path = os.path.join(working_dir, "google_application_credentials.json")
-            TerraformConfig.WORKSPACE_PREFIX = random_id() + "-"
+        with runner.isolated_filesystem():
+            generate_cmd = GenerateCommand()
+            generate_cmd.generate_terraform_config = Mock(side_effect=generate_cmd.generate_terraform_config)
+            terraform_cmd = TerraformCommand("config_path", "terraform_credentials_path", config_type="terraform")
 
-            # No config file should exist because we are in a new isolated filesystem
-            config_file_path = os.path.join(working_dir, "config-terraform.yaml")
-            terraform_credentials_path = os.path.join(working_dir, "terraform-creds.yaml")
+            # Test with valid environment
+            with patch(
+                "observatory.platform.cli.terraform_command.TerraformCommand.is_environment_valid",
+                new_callable=PropertyMock,
+                return_value=True,
+            ):
+                terraform_check_dependencies(terraform_cmd, generate_cmd, config_type="terraform", min_line_chars=0)
+                self.assertIn(call(f"{TERRAFORM_NAME}: all dependencies found"), mock_print.call_args_list)
 
-            # Check that correct exit code and output are returned
-            result = runner.invoke(
-                cli,
-                [
-                    "terraform",
-                    "create-workspace",
-                    config_file_path,
-                    "--terraform-credentials-path",
-                    terraform_credentials_path,
-                ],
-            )
+            # Test with invalid environment
+            with patch(
+                "observatory.platform.cli.terraform_command.TerraformCommand.is_environment_valid",
+                new_callable=PropertyMock,
+                return_value=False,
+            ):
+                with self.assertRaises(SystemExit):
+                    terraform_check_dependencies(terraform_cmd, generate_cmd, config_type="terraform", min_line_chars=0)
+                self.assertIn(call(f"{TERRAFORM_NAME}: dependencies missing"), mock_print.call_args_list)
 
-            # No config file
-            self.assertIn(
-                f"Error: Invalid value for 'CONFIG_PATH': File '{config_file_path}' does not exist.", result.output
-            )
+            with patch(
+                "observatory.platform.cli.terraform_command.TerraformCommand.is_environment_valid",
+                new_callable=PropertyMock,
+                return_value=True,
+            ):
+                # Test when config exists and with valid config
+                terraform_cmd.config_exists = True
+                with patch(
+                    "observatory.platform.cli.terraform_command.TerraformCommand.config", new_callable=MagicMock
+                ) as mock_config:
+                    mock_print.reset_mock()
+                    mock_config.is_valid = True
+                    terraform_check_dependencies(terraform_cmd, generate_cmd, config_type="terraform", min_line_chars=0)
+                    self.assertIn(call(indent("- file valid", INDENT2)), mock_print.call_args_list)
 
-            # Check return code, exit from click invalid option
-            self.assertEqual(result.exit_code, 2)
+                # Test when config exists and with invalid config
+                terraform_cmd.config_exists = True
+                with patch(
+                    "observatory.platform.cli.terraform_command.TerraformCommand.config", new_callable=MagicMock
+                ) as mock_config:
+                    mock_print.reset_mock()
+                    mock_config.is_valid = False
+                    terraform_check_dependencies(terraform_cmd, generate_cmd, config_type="terraform", min_line_chars=0)
+                    self.assertIn(call(indent("- file invalid", INDENT2)), mock_print.call_args_list)
 
-            # Make a fake config-terraform.yaml file
-            with open(config_file_path, "w") as f:
-                f.write("")
+                # Test when config does not exist
+                terraform_cmd.config_exists = False
+                generate_cmd.generate_terraform_config.reset_mock()
+                terraform_check_dependencies(terraform_cmd, generate_cmd, config_type="terraform", min_line_chars=0)
+                generate_cmd.generate_terraform_config.assert_called_once_with(
+                    "config_path", editable=False, workflows=[]
+                )
 
-            # Create config instance
-            config = TerraformConfig.from_dict(
-                {
-                    "backend": {"type": "terraform", "environment": "develop"},
-                    "observatory": {
-                        "airflow_fernet_key": "random-fernet-key",
-                        "airflow_secret_key": "random-secret-key",
-                        "airflow_ui_user_password": "password",
-                        "airflow_ui_user_email": "password",
-                        "postgres_password": "my-password",
-                    },
-                    "terraform": {"organization": self.organisation},
-                    "google_cloud": {
-                        "project_id": "my-project",
-                        "credentials": credentials_file_path,
-                        "region": "us-west1",
-                        "zone": "us-west1-c",
-                        "data_location": "us",
-                    },
-                    "cloud_sql_database": {"tier": "db-custom-2-7680", "backup_start_time": "23:00"},
-                    "airflow_main_vm": {
-                        "machine_type": "n2-standard-2",
-                        "disk_size": 1,
-                        "disk_type": "pd-ssd",
-                        "create": True,
-                    },
-                    "airflow_worker_vm": {
-                        "machine_type": "n2-standard-2",
-                        "disk_size": 1,
-                        "disk_type": "pd-standard",
-                        "create": False,
-                    },
-                }
-            )
-            mock_load_config.return_value = config
+                # Test when terraform credentials exist
+                terraform_cmd.terraform_credentials_exists = True
+                mock_print.reset_mock()
+                terraform_check_dependencies(terraform_cmd, generate_cmd, config_type="terraform", min_line_chars=0)
+                self.assertIn(
+                    call(indent(f"- path: {terraform_cmd.terraform_credentials_path}", INDENT2)),
+                    mock_print.call_args_list,
+                )
 
-            # Run again with existing config, specifying terraform files that don't exist. Check that correct exit
-            # code and output are returned
-            result = runner.invoke(
-                cli,
-                [
-                    "terraform",
-                    "create-workspace",
-                    config_file_path,
-                    "--terraform-credentials-path",
-                    terraform_credentials_path,
-                ],
-            )
+                # Test when terraform credentials don't exist
+                terraform_cmd.terraform_credentials_exists = False
+                mock_print.reset_mock()
+                terraform_check_dependencies(terraform_cmd, generate_cmd, config_type="terraform", min_line_chars=0)
+                self.assertIn(
+                    call(indent("- file not found, create one by running 'terraform login'", INDENT2)),
+                    mock_print.call_args_list,
+                )
 
-            # No terraform credentials file
-            self.assertIn(
-                "Terraform credentials file:\n   - file not found, create one by running 'terraform login'",
-                result.output,
-            )
+                # Test config type 'terraform' and packer exe path is valid
+                with patch(
+                    "observatory.platform.cli.terraform_command.TerraformCommand.terraform_builder",
+                    new_callable=MagicMock,
+                ) as mock_builder:
+                    mock_print.reset_mock()
+                    mock_builder.packer_exe_path = "path/to/packer"
+                    terraform_check_dependencies(terraform_cmd, generate_cmd, config_type="terraform", min_line_chars=0)
+                    self.assertIn(
+                        call(indent(f"- path: {terraform_cmd.terraform_builder.packer_exe_path}", INDENT2)),
+                        mock_print.call_args_list,
+                    )
 
-            # Check return code
-            self.assertEqual(result.exit_code, os.EX_CONFIG)
+                # Test config type 'terraform' and packer exe path is invalid
+                with patch(
+                    "observatory.platform.cli.terraform_command.TerraformCommand.terraform_builder",
+                    new_callable=MagicMock,
+                ) as mock_builder:
+                    mock_print.reset_mock()
+                    mock_builder.packer_exe_path = None
+                    terraform_check_dependencies(terraform_cmd, generate_cmd, config_type="terraform", min_line_chars=0)
+                    self.assertIn(
+                        call(indent("- not installed, please install https://www.packer.io/docs/install", INDENT2)),
+                        mock_print.call_args_list,
+                    )
+
+                # Test config type 'terraform-api' and gcloud exe path is valid
+                with patch(
+                    "observatory.platform.cli.terraform_command.TerraformCommand.terraform_builder",
+                    new_callable=MagicMock,
+                ) as mock_builder:
+                    mock_print.reset_mock()
+                    mock_builder.gcloud_exe_path = "path/to/gcloud"
+                    terraform_check_dependencies(
+                        terraform_cmd, generate_cmd, config_type="terraform-api", min_line_chars=0
+                    )
+                    self.assertIn(
+                        call(indent(f"- path: {terraform_cmd.terraform_builder.gcloud_exe_path}", INDENT2)),
+                        mock_print.call_args_list,
+                    )
+
+                # Test config type 'terraform-api' and gcloud exe path is invalid
+                with patch(
+                    "observatory.platform.cli.terraform_command.TerraformCommand.terraform_builder",
+                    new_callable=MagicMock,
+                ) as mock_builder:
+                    mock_print.reset_mock()
+                    mock_builder.gcloud_exe_path = None
+                    terraform_check_dependencies(
+                        terraform_cmd, generate_cmd, config_type="terraform-api", min_line_chars=0
+                    )
+                    self.assertIn(
+                        call(
+                            indent("- not installed, please install https://cloud.google.com/sdk/docs/install", INDENT2)
+                        ),
+                        mock_print.call_args_list,
+                    )
