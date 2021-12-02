@@ -763,19 +763,14 @@ paths:
       summary: get a DatasetRelease
       operationId: {{ operation_id_namespace }}get_dataset_release
       description: |
-        Get the details of a DatasetRelease by passing it's id or dataset id.
+        Get the details of a DatasetRelease by passing it's id.
       produces:
       - application/json
       parameters:
       - in: query
         name: id
         description: DatasetRelease id
-        required: false
-        type: integer
-      - in: query
-        name: dataset_id
-        description: Dataset id
-        required: false
+        required: true
         type: integer
       responses:
         200:

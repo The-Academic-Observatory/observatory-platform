@@ -396,29 +396,14 @@ def get_dataset_storages(limit: int, dataset_id: int = None) -> Response:
     return q.limit(limit).all()
 
 
-def get_dataset_release(id: int = None, dataset_id: int = None) -> Response:
+def get_dataset_release(id: int) -> Response:
     """Get a DatasetRelease.
 
     :param id: the DatasetRelease id.
-    :param id: the Dataset id.
     :return: a Response object.
     """
 
-    if (id is None and dataset_id is None) or (id is not None and dataset_id is not None):
-        body = "One of DatasetRelease id or Dataset id must be specified but not both"
-        logging.error(body)
-        return body, 400
-    elif id is not None:
-        return get_item(DatasetRelease, id)
-    else:
-        item = session_.query(DatasetRelease).filter(Dataset.id == dataset_id).one_or_none()
-        if item is not None:
-            logging.info(f"Found: DatasetRelease with dataset_id {dataset_id}")
-            return jsonify(item)
-
-        body = f"Not found: DatasetRelease with dataset_id {dataset_id}"
-        logging.info(body)
-        return body, 404
+    return get_item(DatasetRelease, id)
 
 
 def post_dataset_release(body: Dict) -> Response:
@@ -472,7 +457,7 @@ def get_dataset_releases(limit: int, dataset_id: int = None) -> Response:
     return q.limit(limit).all()
 
 
-def get_dataset(id: int = None) -> Response:
+def get_dataset(id: int) -> Response:
     """Get a Dataset.
 
     :param id: the Dataset id.

@@ -1023,11 +1023,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </table></div>
 
 ## **get_dataset_release**
-> DatasetRelease get_dataset_release()
+> DatasetRelease get_dataset_release(id)
 
 get a DatasetRelease
 
-Get the details of a DatasetRelease by passing it's id or dataset id. 
+Get the details of a DatasetRelease by passing it's id. 
 
 ### Example
 
@@ -1059,14 +1059,12 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | DatasetRelease id (optional)
-    dataset_id = 1 # int | Dataset id (optional)
+    id = 1 # int | DatasetRelease id
 
     # example passing only required values which don't have defaults set
-    # and optional values
     try:
         # get a DatasetRelease
-        api_response = api_instance.get_dataset_release(id=id, dataset_id=dataset_id)
+        api_response = api_instance.get_dataset_release(id)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
         print("Exception when calling ObservatoryApi->get_dataset_release: %s\n" % e)
@@ -1089,20 +1087,16 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 
 
-
-
 <tr>
 <td><strong>id</strong></td>
 <td><strong>int</strong></td>
 <td>DatasetRelease id</td>
-<td>
-[optional]
-<tr>
-<td><strong>dataset_id</strong></td>
-<td><strong>int</strong></td>
-<td>Dataset id</td>
-<td>
-[optional]
+<td></td>
+</tr>
+
+
+
+
 </tbody>
 </table></div>
 

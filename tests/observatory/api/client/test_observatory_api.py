@@ -1274,16 +1274,14 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(dt_utc, obj.created)
             self.assertEqual(dt_utc, obj.modified)
 
-            # No params
-            self.assertRaises(ApiException, self.api.get_dataset_release)
-
             # Search by dataset_id
-            obj = self.api.get_dataset_release(dataset_id=expected_id)
+            obj = self.api.get_dataset_release(expected_id)
             self.assertIsInstance(obj, DatasetRelease)
             self.assertEqual(obj.schema_version, "schema")
 
             # DatasetRelease not found
-            self.assertRaises(NotFoundException, self.api.get_dataset_release, dataset_id=2)
+            dataset_id = 2
+            self.assertRaises(NotFoundException, self.api.get_dataset_release, dataset_id)
 
     def test_post_dataset_release(self):
         """Test case for post_dataset_release"""
