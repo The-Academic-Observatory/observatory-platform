@@ -278,6 +278,17 @@ class TestObservatoryGenerate(unittest.TestCase):
                 config_path, workflows=["academic-observatory-workflows", "oaebu-workflows"], editable=False
             )
 
+    @patch("observatory.platform.cli.cli.GenerateCommand.generate_terraform_api_config_interactive")
+    def test_generate_terraform_api_interactive(self, m_gen_config):
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            config_path = os.path.abspath("config.yaml")
+            result = runner.invoke(
+                cli, ["generate", "config", "terraform-api", "--config-path", config_path, "--interactive"]
+            )
+            self.assertEqual(result.exit_code, os.EX_OK)
+            m_gen_config.assert_called_once_with(config_path)
+
 
 class MockConfig(Mock):
     def __init__(self, is_valid: bool, errors: List = None, **kwargs: Any):
@@ -842,6 +853,7 @@ class TestObservatoryTerraform(unittest.TestCase):
                 ) as mock_config:
                     mock_print.reset_mock()
                     mock_config.is_valid = False
+                    mock_config.validator.errors = {"error_key": "error_value"}
                     terraform_check_dependencies(terraform_cmd, generate_cmd, config_type="terraform", min_line_chars=0)
                     self.assertIn(call(indent("- file invalid", INDENT2)), mock_print.call_args_list)
 
