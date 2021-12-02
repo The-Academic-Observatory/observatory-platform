@@ -40,7 +40,7 @@ class TestDatasetStorage(unittest.TestCase):
         dt = datetime.datetime.utcnow()
         DatasetStorage(
             id=1,
-            service="google",
+            service="bigquery",
             address="project.dataset.table",
             extra={},
             dataset=dataset,
@@ -52,7 +52,7 @@ class TestDatasetStorage(unittest.TestCase):
             ApiAttributeError,
             DatasetStorage,
             id=1,
-            service="google",
+            service="bigquery",
             address="project.dataset.table",
             extra={},
             dataset=dataset,

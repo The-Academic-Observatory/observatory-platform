@@ -970,7 +970,7 @@ class TestObservatoryApi(unittest.TestCase):
 
             self.env.session.add(
                 orm.DatasetStorage(
-                    service="google",
+                    service="bigquery",
                     address="project.dataset.table",
                     extra={},
                     dataset={"id": expected_id},
@@ -1036,7 +1036,7 @@ class TestObservatoryApi(unittest.TestCase):
             expected_id = 1
             obj = DatasetStorage(
                 extra={},
-                service="google",
+                service="bigquery",
                 address="project.dataset.table",
                 dataset=Dataset(id=expected_id),
             )
@@ -1090,7 +1090,7 @@ class TestObservatoryApi(unittest.TestCase):
             # Put create
             obj = DatasetStorage(
                 dataset=Dataset(id=expected_id),
-                service="google",
+                service="bigquery",
                 address="project.dataset.table",
                 extra={},
             )
@@ -1102,7 +1102,7 @@ class TestObservatoryApi(unittest.TestCase):
             obj = DatasetStorage(
                 id=expected_id,
                 dataset=Dataset(id=expected_id),
-                service="google",
+                service="bigquery",
                 address="project2.dataset.table",
                 extra={},
             )
@@ -1110,7 +1110,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertIsInstance(result, DatasetStorage)
             self.assertEqual(expected_id, result.id)
             self.assertEqual("project2.dataset.table", result.address)
-            self.assertEqual("google", result.service)
+            self.assertEqual("bigquery", result.service)
 
             # Put not found
             expected_id = 2
@@ -1119,7 +1119,7 @@ class TestObservatoryApi(unittest.TestCase):
                     DatasetStorage(
                         id=expected_id,
                         dataset=Dataset(id=expected_id),
-                        service="google",
+                        service="bigquery",
                         address="project2.dataset.table",
                         extra={},
                     )
@@ -1607,7 +1607,7 @@ class TestObservatoryApi(unittest.TestCase):
             expected_id = 1
             obj = DatasetStorage(
                 extra={},
-                service="google",
+                service="bigquery",
                 address="project.dataset.table",
                 dataset=Dataset(id=expected_id),
             )

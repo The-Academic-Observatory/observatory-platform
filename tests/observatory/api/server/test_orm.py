@@ -454,7 +454,7 @@ class TestOrm(unittest.TestCase):
         # Create DatasetStorage
         created = pendulum.now("UTC")
         storage = DatasetStorage(
-            service="google",
+            service="bigquery",
             address="project_id.dataset_id.table_name",
             extra={"table_type": "sharded"},
             dataset=dataset,
