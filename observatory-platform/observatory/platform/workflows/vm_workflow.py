@@ -17,10 +17,9 @@
 import json
 import logging
 from datetime import datetime
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import pendulum
-from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -28,7 +27,11 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.utils.state import DagRunState
 from croniter import croniter
-from observatory.platform.observatory_config import TerraformConfig, VirtualMachine
+from observatory.platform.observatory_config import (
+    Terraform,
+    TerraformConfig,
+    VirtualMachine,
+)
 from observatory.platform.terraform_api import TerraformApi, TerraformVariable
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
@@ -39,124 +42,112 @@ from observatory.platform.utils.airflow_utils import (
 from observatory.platform.utils.workflow_utils import delete_old_xcoms
 from observatory.platform.workflows.workflow import Workflow
 
-# Shared XCOM topics
-XCOM_START_TIME_VM = "start_time_vm"
-XCOM_PREV_START_TIME_VM = "prev_start_time_vm"
-XCOM_TERRAFORM_RUN_ID = "terraform_run_id"
+
+class TerraformRelease:
+    XCOM_START_TIME_VM = "start_time_vm"
+    XCOM_PREV_START_TIME_VM = "prev_start_time_vm"
+    XCOM_TERRAFORM_RUN_ID = "terraform_run_id"
+    TERRAFORM_CREATE_VM_KEY = "airflow_worker_vm"
+    TARGET_ADDRS = "module.airflow_worker_vm"  # Name of module in terraform configuration that will be targeted
+
+    @property
+    def terraform_api(self) -> TerraformApi:
+        """Construct a TerraformApi object from the Airflow connection.
+
+        :return: TerraformApi object.
+        """
+
+        token = get_airflow_connection_password(AirflowConns.TERRAFORM)
+        return TerraformApi(token)
+
+    @property
+    def workspace_id(self) -> str:
+        """Uses terraform API and workspace name to get the id of this workspace.
+
+        :return: workspace id
+        """
+
+        organization = Variable.get(AirflowVars.TERRAFORM_ORGANIZATION)
+        environment = Variable.get(AirflowVars.ENVIRONMENT)
+        workspace = TerraformConfig.WORKSPACE_PREFIX + environment
+        workspace_id = self.terraform_api.workspace_id(organization, workspace)
+        return workspace_id
+
+    def get_vm_info(self) -> Tuple[Optional[VirtualMachine], Optional[TerraformVariable]]:
+        """Get the VirtualMachine data object, and TerraformVariable object for airflow_worker_vm.
+
+        :return VirtualMachine and TerraformVariable objects.
+        """
+
+        variables = self.terraform_api.list_workspace_variables(self.workspace_id)
+
+        for var in variables:
+            if var.key == TerraformRelease.TERRAFORM_CREATE_VM_KEY:
+                return VirtualMachine.from_hcl(var.value), var
+
+        return None, None
+
+    def update_terraform_vm_create_variable(self, value: bool):
+        """Update the Terraform VM create flag.
+
+        :param value: New value to set.
+        """
+
+        vm, vm_var = self.get_vm_info()
+        vm.create = value
+        logging.info(f"vm.create: {vm.create}")
+        vm_var.value = vm.to_hcl()
+
+        self.terraform_api.update_workspace_variable(vm_var, self.workspace_id)
+
+    def create_terraform_run(self, *, dag_id: str, start_date: pendulum.DateTime) -> str:
+        """Create a Terraform run and return the run ID.
+
+        :param dag_id: DAG ID.
+        :param start_date: Task instance start date.
+        :return Terraform run ID.
+        """
+
+        message = f'Triggered from airflow DAG "{dag_id}" at {start_date}'
+        run_id = self.terraform_api.create_run(self.workspace_id, TerraformRelease.TARGET_ADDRS, message)
+        logging.info(f"Terraform run_id: {run_id}")
+
+        return run_id
+
+    def check_terraform_run_status(
+        self, *, ti: TaskInstance, execution_date: pendulum.DateTime, project_id: str, run_id: str
+    ):
+        """Retrieve the terraform run status until it is in a finished state, either successful or errored. See
+        https://www.terraform.io/docs/cloud/api/run.html for possible run_status values.
+        If the run status is not successful and the environment isn't develop a warning message will be sent to a slack
+        channel.
+
+        :param ti: Task instance.
+        :param execution_date: DagRun execution date.
+        :param project_id: The google cloud project id that will be displayed in the slack message
+        :param run_id: The run id of the Terraform run
+        :return: None
+        """
+
+        run_status = None
+        while run_status not in [
+            "planned_and_finished",
+            "applied",
+            "errored",
+            "discarded",
+            "canceled",
+            "force_canceled",
+        ]:
+            run_details = self.terraform_api.get_run_details(run_id)
+            run_status = run_details["data"]["attributes"]["status"]
+
+        logging.info(f"Run status: {run_status}")
+        comments = f"Terraform run status: {run_status}"
+        logging.info(f'Sending slack notification: "{comments}"')
+        send_slack_msg(ti=ti, execution_date=execution_date, comments=comments, project_id=project_id)
 
 
-def get_terraform_api() -> TerraformApi:
-    """Construct a TerraformApi object from the Airflow connection.
-
-    :return: TerraformApi object.
-    """
-
-    token = get_airflow_connection_password(AirflowConns.TERRAFORM)
-    return TerraformApi(token)
-
-
-def get_workspace_id() -> str:
-    """Uses terraform API and workspace name to get the id of this workspace.
-
-    :return: workspace id
-    """
-
-    terraform_api = get_terraform_api()
-    organization = Variable.get(AirflowVars.TERRAFORM_ORGANIZATION)
-    environment = Variable.get(AirflowVars.ENVIRONMENT)
-    workspace = TerraformConfig.WORKSPACE_PREFIX + environment
-    workspace_id = terraform_api.workspace_id(organization, workspace)
-    return workspace_id
-
-
-def get_vm_info() -> Tuple[VirtualMachine, TerraformVariable]:
-    """Get the VirtualMachine data object, and TerraformVariable object for airflow_worker_vm.
-
-    :return VirtualMachine and TerraformVariable objects.
-    """
-
-    terraform_create_vm_key = "airflow_worker_vm"
-
-    terraform_api = get_terraform_api()
-    workspace_id = get_workspace_id()
-    variables = terraform_api.list_workspace_variables(workspace_id)
-
-    for var in variables:
-        if var.key == terraform_create_vm_key:
-            return VirtualMachine.from_hcl(var.value), var
-
-    return None, None
-
-
-def update_terraform_vm_create_variable(value: bool):
-    """Update the Terraform VM create flag.
-
-    :param value: New value to set.
-    """
-
-    vm, vm_var = get_vm_info()
-    vm.create = value
-    logging.info(f"vm.create: {vm.create}")
-    vm_var.value = vm.to_hcl()
-
-    terraform_api = get_terraform_api()
-    workspace_id = get_workspace_id()
-    terraform_api.update_workspace_variable(vm_var, workspace_id)
-
-
-def create_terraform_run(*, dag_id: str, start_date: pendulum.DateTime) -> str:
-    """Create a Terraform run and return the run ID.
-
-    :param dag_id: DAG ID.
-    :param start_date: Task instance start date.
-    :return Terraform run ID.
-    """
-
-    terraform_api = get_terraform_api()
-    workspace_id = get_workspace_id()
-
-    # Name of module in terraform configuration that will be targeted
-    target_addrs = "module.airflow_worker_vm"
-
-    message = f'Triggered from airflow DAG "{dag_id}" at {start_date}'
-    run_id = terraform_api.create_run(workspace_id, target_addrs, message)
-    logging.info(f"Terraform run_id: {run_id}")
-
-    return run_id
-
-
-def check_terraform_run_status(*, ti: TaskInstance, execution_date: pendulum.DateTime, project_id: str, run_id: str):
-    """Retrieve the terraform run status until it is in a finished state, either successful or errored. See
-    https://www.terraform.io/docs/cloud/api/run.html for possible run_status values.
-    If the run status is not successful and the environment isn't develop a warning message will be sent to a slack
-    channel.
-
-    :param ti: Task instance.
-    :param execution_date: DagRun execution date.
-    :return: None
-    """
-
-    terraform_api = get_terraform_api()
-
-    run_status = None
-    while run_status not in [
-        "planned_and_finished",
-        "applied",
-        "errored",
-        "discarded",
-        "canceled",
-        "force_canceled",
-    ]:
-        run_details = terraform_api.get_run_details(run_id)
-        run_status = run_details["data"]["attributes"]["status"]
-
-    logging.info(f"Run status: {run_status}")
-    comments = f"Terraform run status: {run_status}"
-    logging.info(f'Sending slack notification: "{comments}"')
-    send_slack_msg(ti=ti, execution_date=execution_date, comments=comments, project_id=project_id)
-
-
-def parse_datetime(dt: str) -> pendulum.DateTime:
+def parse_datetime(dt: str) -> Optional[pendulum.DateTime]:
     """Try to parse datetime using pendulum.parse. Do not try to parse None.
 
     :param dt: Datetime string.
@@ -210,40 +201,39 @@ class VmCreateWorkflow(Workflow):
         self.add_task(self.check_run_status)
         self.add_task(self.cleanup, trigger_rule="none_failed")
 
-    def make_release(self, **kwargs) -> None:
+    def make_release(self, **kwargs) -> TerraformRelease:
         """Required for Workflow class.
 
         :param kwargs: Unused.
-        :return: None.
+        :return: TerraformRelease.
         """
 
-        return None
+        return TerraformRelease()
 
-    def check_vm_state(self, *args, **kwargs) -> bool:
+    def check_vm_state(self, **kwargs) -> bool:
         """Checks if VM is running. Proceed only if VM is not already running.
 
-        :param args: Unused.
         :param kwargs: Unused.
         :return: Whether to continue.
         """
 
-        vm, _ = get_vm_info()
+        vm, _ = TerraformRelease().get_vm_info()
         logging.info(f"VM is on: {vm.create}")
         return not vm.create
 
-    def update_terraform_variable(self, *args, **kwargs):
+    def update_terraform_variable(self, release: TerraformRelease, **kwargs):
         """Update Terraform variable for VM to running state.
 
-        :param args: Unused.
+        :param release: TerraformRelease object.
         :param kwargs: Unused.
         """
 
-        update_terraform_vm_create_variable(True)
+        release.update_terraform_vm_create_variable(True)
 
-    def run_terraform(self, *args, **kwargs):
+    def run_terraform(self, release: TerraformRelease, **kwargs):
         """Runs terraform configuration. The current task start time, previous task start time, and Terraform run ID will be pushed to XComs.
 
-        :param args: Unused.
+        :param release: TerraformRelease object.
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
@@ -251,20 +241,20 @@ class VmCreateWorkflow(Workflow):
 
         ti: TaskInstance = kwargs["ti"]
 
-        prev_start_time_vm = ti.xcom_pull(key=XCOM_START_TIME_VM, include_prior_dates=True)
-        ti.xcom_push(XCOM_PREV_START_TIME_VM, prev_start_time_vm)
-        ti.xcom_push(XCOM_START_TIME_VM, ti.start_date.isoformat())
+        prev_start_time_vm = ti.xcom_pull(key=release.XCOM_START_TIME_VM, include_prior_dates=True)
+        ti.xcom_push(release.XCOM_PREV_START_TIME_VM, prev_start_time_vm)
+        ti.xcom_push(release.XCOM_START_TIME_VM, ti.start_date.isoformat())
 
-        run_id = create_terraform_run(dag_id=self.dag_id, start_date=ti.start_date)
+        run_id = release.create_terraform_run(dag_id=self.dag_id, start_date=ti.start_date)
         ti.xcom_push(self.run_terraform.__name__, run_id)
 
-    def check_run_status(self, *args, **kwargs):
+    def check_run_status(self, release: TerraformRelease, **kwargs):
         """Retrieve the terraform run status until it is in a finished state, either successful or errored. See
         https://www.terraform.io/docs/cloud/api/run.html for possible run_status values.
         If the run status is not successful and the environment isn't develop a warning message will be sent to a slack
         channel.
 
-        :param args: Unused.
+        :param release: TerraformRelease object.
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
@@ -273,15 +263,15 @@ class VmCreateWorkflow(Workflow):
         ti: TaskInstance = kwargs["ti"]
         execution_date = kwargs["execution_date"]
 
-        run_id = ti.xcom_pull(key=XCOM_TERRAFORM_RUN_ID, task_ids=self.run_terraform.__name__)
+        run_id = ti.xcom_pull(key=release.XCOM_TERRAFORM_RUN_ID, task_ids=self.run_terraform.__name__)
         project_id = Variable.get(AirflowVars.PROJECT_ID)
 
-        check_terraform_run_status(ti=ti, execution_date=execution_date, project_id=project_id, run_id=run_id)
+        release.check_terraform_run_status(ti=ti, execution_date=execution_date, project_id=project_id, run_id=run_id)
 
-    def cleanup(self, *args, **kwargs):
+    def cleanup(self, release: TerraformRelease, **kwargs):
         """Delete stale XCom messages.
 
-        :param args: Unused.
+        :param release: TerraformRelease object.
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
@@ -340,28 +330,27 @@ class VmDestroyWorkflow(Workflow):
         self.add_task(self.check_run_status)
         self.add_task(self.cleanup, trigger_rule="none_failed")
 
-    def make_release(self, **kwargs) -> None:
+    def make_release(self, **kwargs) -> TerraformRelease:
         """Required for Workflow class.
 
         :param kwargs: Unused.
-        :return: None.
+        :return: TerraformRelease object.
         """
 
-        return None
+        return TerraformRelease()
 
-    def check_vm_state(self, *args, **kwargs) -> bool:
+    def check_vm_state(self, **kwargs) -> bool:
         """Checks if VM is running. Proceed only if VM is running.
 
-        :param args: Unused.
         :param kwargs: Unused.
         :return: Whether to continue.
         """
 
-        vm, _ = get_vm_info()
+        vm, _ = TerraformRelease().get_vm_info()
         logging.info(f"VM is on: {vm.create}")
         return vm.create
 
-    def check_dags_status(self, *args, **kwargs):
+    def check_dags_status(self, **kwargs):
         """Check if all expected runs for the DAGs in the watchlist are successful. If they are the task, then proceed, otherwise check how long the VM has run for, and skip the rest of the workflow.
 
         :param kwargs: the context passed from the PythonOperator. See
@@ -373,8 +362,10 @@ class VmDestroyWorkflow(Workflow):
         ti: TaskInstance = kwargs["ti"]
         destroy_worker_vm = True
 
+        release = TerraformRelease()
+
         prev_start_time_vm = ti.xcom_pull(
-            key=XCOM_PREV_START_TIME_VM,
+            key=release.XCOM_PREV_START_TIME_VM,
             task_ids=VmCreateWorkflow.run_terraform.__name__,
             dag_id=VmCreateWorkflow.DAG_ID,
             include_prior_dates=True,
@@ -382,7 +373,7 @@ class VmDestroyWorkflow(Workflow):
         prev_start_time_vm = parse_datetime(prev_start_time_vm)
 
         start_time_vm = ti.xcom_pull(
-            key=XCOM_START_TIME_VM,
+            key=release.XCOM_START_TIME_VM,
             task_ids=VmCreateWorkflow.run_terraform.__name__,
             dag_id=VmCreateWorkflow.DAG_ID,
             include_prior_dates=True,
@@ -459,15 +450,16 @@ class VmDestroyWorkflow(Workflow):
 
         # If not destroying vm, check VM runtime.
         if not destroy_worker_vm:
-            self.check_runtime_vm(**kwargs)
+            self.check_runtime_vm(release, **kwargs)
 
         return destroy_worker_vm
 
-    def check_runtime_vm(self, **kwargs):
+    def check_runtime_vm(self, release: TerraformRelease, **kwargs):
         """Checks how long the VM has been turned on based on the xcom value from the terraform run task.
         A warning message will be sent in a slack channel if it has been on longer than the warning limit,
         the environment isn't develop and a message hasn't been sent already in the last x hours.
 
+        :param release: TerraformRelease object.
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
@@ -484,7 +476,7 @@ class VmDestroyWorkflow(Workflow):
         last_warning_time = parse_datetime(last_warning_time)
 
         start_time_vm = ti.xcom_pull(
-            key=XCOM_START_TIME_VM,
+            key=release.XCOM_START_TIME_VM,
             task_ids=self.run_terraform.__name__,
             dag_id=VmCreateWorkflow.DAG_ID,
             include_prior_dates=True,
@@ -522,19 +514,19 @@ class VmDestroyWorkflow(Workflow):
         else:
             logging.info(f"Start time VM unknown.")
 
-    def update_terraform_variable(self, *args, **kwargs):
+    def update_terraform_variable(self, release: TerraformRelease, **kwargs):
         """Update Terraform variable for VM to running state.
 
-        :param args: Unused.
+        :param release: TerraformRelease object.
         :param kwargs: Unused.
         """
 
-        update_terraform_vm_create_variable(False)
+        release.update_terraform_vm_create_variable(False)
 
-    def run_terraform(self, *args, **kwargs):
+    def run_terraform(self, release: TerraformRelease, **kwargs):
         """Runs terraform configuration. The current task start time, previous task start time, and Terraform run ID will be pushed to XComs.
 
-        :param args: Unused.
+        :param release: TerraformRelease object.
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
@@ -542,16 +534,16 @@ class VmDestroyWorkflow(Workflow):
 
         ti: TaskInstance = kwargs["ti"]
         ti.xcom_push(VmDestroyWorkflow.XCOM_DESTROY_TIME_VM, ti.start_date.isoformat())
-        run_id = create_terraform_run(dag_id=self.dag_id, start_date=ti.start_date)
-        ti.xcom_push(XCOM_TERRAFORM_RUN_ID, run_id)
+        run_id = release.create_terraform_run(dag_id=self.dag_id, start_date=ti.start_date)
+        ti.xcom_push(release.XCOM_TERRAFORM_RUN_ID, run_id)
 
-    def check_run_status(self, *args, **kwargs):
+    def check_run_status(self, release: TerraformRelease, **kwargs):
         """Retrieve the terraform run status until it is in a finished state, either successful or errored. See
         https://www.terraform.io/docs/cloud/api/run.html for possible run_status values.
         If the run status is not successful and the environment isn't develop a warning message will be sent to a slack
         channel.
 
-        :param args: Unused.
+        :param release: TerraformRelease object.
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
@@ -560,15 +552,15 @@ class VmDestroyWorkflow(Workflow):
         ti: TaskInstance = kwargs["ti"]
         execution_date = kwargs["execution_date"]
 
-        run_id = ti.xcom_pull(key=XCOM_TERRAFORM_RUN_ID, task_ids=self.run_terraform.__name__)
+        run_id = ti.xcom_pull(key=release.XCOM_TERRAFORM_RUN_ID, task_ids=self.run_terraform.__name__)
         project_id = Variable.get(AirflowVars.PROJECT_ID)
 
-        check_terraform_run_status(ti=ti, execution_date=execution_date, project_id=project_id, run_id=run_id)
+        release.check_terraform_run_status(ti=ti, execution_date=execution_date, project_id=project_id, run_id=run_id)
 
-    def cleanup(self, *args, **kwargs):
+    def cleanup(self, release: TerraformRelease, **kwargs):
         """Delete stale XCom messages.
 
-        :param args: Unused.
+        :param release: TerraformRelease object.
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.

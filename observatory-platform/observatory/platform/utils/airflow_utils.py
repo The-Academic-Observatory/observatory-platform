@@ -118,7 +118,6 @@ def send_slack_msg(
     execution_date: pendulum.DateTime,
     comments: str = "",
     project_id: str = "?",
-    context: dict = None,
 ):
     """
     Send a slack message using the token in the slack airflow connection.

@@ -18,7 +18,7 @@
 # https://airflow.apache.org/docs/stable/faq.html
 
 
-from observatory.platform.workflows.terraform import VmCreateWorkflow
+from observatory.platform.workflows.vm_workflow import VmCreateWorkflow
 
 workflow = VmCreateWorkflow()
 globals()[workflow.dag_id] = workflow.make_dag()

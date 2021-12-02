@@ -1,5 +1,5 @@
 import os
-from unittest.mock import patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import pendulum
 from airflow.models import XCom
@@ -15,7 +15,10 @@ from observatory.platform.utils.test_utils import (
     ObservatoryTestCase,
     module_file_path,
 )
-from observatory.platform.workflows.terraform import VmCreateWorkflow, get_vm_info
+from observatory.platform.workflows.vm_workflow import (
+    TerraformRelease,
+    VmCreateWorkflow,
+)
 
 
 @provide_session
@@ -34,19 +37,21 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    @patch("observatory.platform.workflows.terraform.TerraformApi.list_workspace_variables")
-    @patch("observatory.platform.workflows.terraform.get_workspace_id")
-    @patch("observatory.platform.workflows.terraform.get_terraform_api")
+    @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
+    @patch("observatory.platform.workflows.vm_workflow.TerraformRelease.workspace_id", new_callable=PropertyMock)
+    @patch("observatory.platform.workflows.vm_workflow.TerraformRelease.terraform_api", new_callable=PropertyMock)
     def test_get_vm_info_no_vars(self, m_tapi, m_wid, m_list_vars):
         """Test get_vm_info"""
 
         m_list_vars.return_value = []
-        vm, vm_var = get_vm_info()
+        m_wid.return_value = "wid"
+        release = TerraformRelease()
+        vm, vm_var = release.get_vm_info()
         self.assertIsNone(vm)
         self.assertIsNone(vm_var)
 
-    @patch("observatory.platform.workflows.terraform.get_workspace_id")
-    @patch("observatory.platform.workflows.terraform.get_terraform_api")
+    @patch("observatory.platform.workflows.vm_workflow.TerraformRelease.workspace_id", new_callable=PropertyMock)
+    @patch("observatory.platform.workflows.vm_workflow.TerraformRelease.terraform_api", new_callable=PropertyMock)
     def test_get_vm_info_no_target_vars(self, m_tapi, m_wid):
         """Test get_vm_info"""
 
@@ -62,8 +67,9 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
                 return [vm_tf]
 
         m_tapi.return_value = MockApi()
+        release = TerraformRelease()
 
-        vm, vm_var = get_vm_info()
+        vm, vm_var = release.get_vm_info()
         self.assertIsNone(vm)
         self.assertIsNone(vm_var)
 
@@ -107,8 +113,8 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
         conn = Connection(conn_id=AirflowConns.TERRAFORM, uri="http://localhost")
         env.add_connection(conn)
 
-    @patch("observatory.platform.workflows.terraform.TerraformApi.list_workspace_variables")
-    @patch("observatory.platform.workflows.terraform.TerraformApi.workspace_id")
+    @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
+    @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_workflow_vm_already_on(self, m_tapi, m_list_workspace_vars):
         "Test the vm_create workflow"
 
@@ -155,12 +161,12 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
                 ti = env.run_task(workflow.cleanup.__name__)
                 self.assertEqual(ti.state, State.SUCCESS)
 
-    @patch("observatory.platform.workflows.terraform.send_slack_msg")
-    @patch("observatory.platform.workflows.terraform.TerraformApi.get_run_details")
-    @patch("observatory.platform.workflows.terraform.TerraformApi.create_run")
-    @patch("observatory.platform.workflows.terraform.TerraformApi.update_workspace_variable")
-    @patch("observatory.platform.workflows.terraform.TerraformApi.list_workspace_variables")
-    @patch("observatory.platform.workflows.terraform.TerraformApi.workspace_id")
+    @patch("observatory.platform.workflows.vm_workflow.send_slack_msg")
+    @patch("observatory.platform.workflows.vm_workflow.TerraformApi.get_run_details")
+    @patch("observatory.platform.workflows.vm_workflow.TerraformApi.create_run")
+    @patch("observatory.platform.workflows.vm_workflow.TerraformApi.update_workspace_variable")
+    @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
+    @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_workflow_vm_create(
         self, m_tapi, m_list_workspace_vars, m_update, m_create_run, m_run_details, m_send_slack_msg
     ):
