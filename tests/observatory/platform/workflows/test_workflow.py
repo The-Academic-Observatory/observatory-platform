@@ -27,10 +27,12 @@ from airflow.models.variable import Variable
 from airflow.operators.bash import BashOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.sensors.external_task import ExternalTaskSensor
-
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase
+from observatory.platform.utils.test_utils import (
+    ObservatoryEnvironment,
+    ObservatoryTestCase,
+)
 from observatory.platform.workflows.workflow import Release, Workflow, make_task_id
 
 
@@ -223,15 +225,15 @@ class TestWorkflow(ObservatoryTestCase):
                 ti = env.run_task(task2)
                 self.assertEqual(expected_date, ti.state)
 
-    @patch("observatory.platform.utils.workflow_utils.create_slack_webhook")
-    def test_callback(self, mock_create_slack_webhook):
+    @patch("observatory.platform.utils.workflow_utils.send_slack_msg")
+    def test_callback(self, mock_send_slack_msg):
         """Test that the on_failure_callback function is successfully called in a production environment when a task
         fails
 
-        :param mock_create_slack_webhook: Mock create_slack_webhook function
+        :param mock_send_slack_msg: Mock send_slack_msg function
         :return: None.
         """
-        mock_create_slack_webhook.return_value = Mock(spec=SlackWebhookHook)
+        # mock_send_slack_msg.return_value = Mock(spec=SlackWebhookHook)
 
         # Setup Observatory environment
         env = ObservatoryEnvironment(self.project_id, self.data_location)
@@ -253,13 +255,16 @@ class TestWorkflow(ObservatoryTestCase):
                 env.add_variable(Variable(key=AirflowVars.ENVIRONMENT, val=Environment.production.value))
                 with self.assertRaises(AirflowNotFoundException):
                     env.run_task(telescope.check_dependencies.__name__)
-                mock_create_slack_webhook.assert_called_once_with(
+
+                _, callkwargs = mock_send_slack_msg.call_args
+                self.assertEqual(
+                    callkwargs["comments"],
                     "Task failed, exception:\nairflow.exceptions.AirflowNotFoundException: The conn_id `orcid_bucket` isn't defined",
-                    self.project_id,
-                    ANY,
                 )
+                self.assertEqual(callkwargs["project_id"], self.project_id)
+
         # Reset mock
-        mock_create_slack_webhook.reset_mock()
+        mock_send_slack_msg.reset_mock()
 
         # Create the Observatory environment and run task, expecting no slack webhook call in develop environment
         with env.create(task_logging=True):
@@ -267,7 +272,7 @@ class TestWorkflow(ObservatoryTestCase):
                 env.add_variable(Variable(key=AirflowVars.ENVIRONMENT, val=Environment.develop.value))
                 with self.assertRaises(AirflowNotFoundException):
                     env.run_task(telescope.check_dependencies.__name__)
-                mock_create_slack_webhook.assert_not_called()
+                mock_send_slack_msg.assert_not_called()
 
 
 class TestAddOperatorsTelescope(ObservatoryTestCase):
