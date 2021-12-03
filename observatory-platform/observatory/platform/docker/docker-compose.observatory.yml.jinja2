@@ -100,7 +100,7 @@ x-volumes: &volumes
 
   # Volume mapping when observatory installed in editable mode
   {%- if config.backend.type.value == 'local' and config.observatory.package_type == 'editable' %}
-  - "{{ config.observatory.host_package }}/observatory/platform/dags:/opt/airflow/dags"
+  - "{{ config.observatory.package }}/observatory/platform/dags:/opt/airflow/dags"
   {%- elif config.backend.type.value == 'terraform' and config.observatory.package_type == 'editable'  %}
   - "/opt/observatory-platform/observatory/platform/dags:/opt/airflow/dags"
   {%- endif -%}
