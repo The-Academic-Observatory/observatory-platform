@@ -246,7 +246,7 @@ class VmCreateWorkflow(Workflow):
         ti.xcom_push(release.XCOM_START_TIME_VM, ti.start_date.isoformat())
 
         run_id = release.create_terraform_run(dag_id=self.dag_id, start_date=ti.start_date)
-        ti.xcom_push(self.run_terraform.__name__, run_id)
+        ti.xcom_push(release.XCOM_TERRAFORM_RUN_ID, run_id)
 
     def check_run_status(self, release: TerraformRelease, **kwargs):
         """Retrieve the terraform run status until it is in a finished state, either successful or errored. See
