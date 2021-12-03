@@ -193,13 +193,13 @@ class Backend(ConfigSection):
         """
         description = [
             f"# [{requirement}] Backend settings.\n",
-            "# Backend options are: local, terraform.\n",
-            "# Environment options are: develop, staging, production.\n",
+            f"# Backend options are: {BackendType.local.value}, {BackendType.terraform.value}, {BackendType.terraform_api.value}.\n",
+            f"# Environment options are: {Environment.develop.value}, {Environment.staging.value}, {Environment.production.value}.\n",
         ]
         lines = [
             "backend:\n",
-            indent(f"type: {self.type.name}\n", INDENT1),
-            indent(f"environment: {self.environment.name}\n", INDENT1),
+            indent(f"type: {self.type.value}\n", INDENT1),
+            indent(f"environment: {self.environment.value}\n", INDENT1),
         ]
 
         return description + lines
@@ -268,9 +268,9 @@ class Observatory(ConfigSection):
             }
         )
 
-    @property
-    def host_package(self):
-        return os.path.normpath(self.package)
+    # @property
+    # def host_package(self):
+    #     return os.path.normpath(self.package)
 
     def to_string(self, requirement: str, comment_out: bool, backend_type: BackendType) -> List[str]:
         description = [
@@ -730,9 +730,7 @@ class AirflowMainVm(ConfigSection):
         )
 
     def to_string(self, requirement: str, comment_out: bool, backend_type: BackendType):
-        description = [
-            f"# [{requirement}] Settings for the main VM that runs the Airflow scheduler " f"and webserver.\n"
-        ]
+        description = [f"# [{requirement}] Settings for the main VM that runs the Airflow scheduler and webserver.\n"]
         lines = ["airflow_main_vm:\n"]
         for variable in fields(self):
             value = getattr(self, variable.name)
@@ -1638,7 +1636,6 @@ class TerraformAPIConfig(ObservatoryConfig):
     def __init__(
         self,
         backend: Backend = None,
-        observatory: Observatory = None,
         google_cloud: GoogleCloud = None,
         terraform: Terraform = None,
         api: Api = None,
@@ -1647,7 +1644,6 @@ class TerraformAPIConfig(ObservatoryConfig):
     ):
         """Create a TerraformConfig instance.
         :param backend: the backend config.
-        :param observatory: the Observatory config.
         :param google_cloud: the Google Cloud config.
         :param terraform: the Terraform config.
         :param validator: an ObservatoryConfigValidator instance.
@@ -1657,7 +1653,6 @@ class TerraformAPIConfig(ObservatoryConfig):
 
         super().__init__(
             backend=backend,
-            observatory=observatory,
             google_cloud=google_cloud,
             terraform=terraform,
             validator=validator,
@@ -1703,7 +1698,7 @@ class TerraformAPIConfig(ObservatoryConfig):
         if is_valid:
             (
                 backend,
-                observatory,
+                _,
                 google_cloud,
                 terraform,
                 _,
@@ -1721,7 +1716,6 @@ class TerraformAPIConfig(ObservatoryConfig):
 
             return TerraformAPIConfig(
                 backend,
-                observatory,
                 google_cloud=google_cloud,
                 terraform=terraform,
                 api=api,
