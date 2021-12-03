@@ -43,7 +43,7 @@ from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
     AirflowVars,
-    create_slack_webhook,
+    send_slack_msg,
 )
 from observatory.platform.utils.config_utils import find_schema, utils_templates_path
 from observatory.platform.utils.gc_utils import (
@@ -679,8 +679,9 @@ def on_failure_callback(context):
             traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
         ).strip()
         comments = f"Task failed, exception:\n{formatted_exception}"
-        slack_hook = create_slack_webhook(comments, project_id, context)
-        slack_hook.execute()
+        ti = context["ti"]
+        execution_date = context["execution_date"]
+        send_slack_msg(ti=ti, execution_date=execution_date, comments=comments, project_id=project_id)
 
 
 class SubFolder(Enum):

@@ -828,19 +828,26 @@ class TestTemplateUtils(unittest.TestCase):
                         **telescope.load_bigquery_table_kwargs,
                     )
 
-    @patch("observatory.platform.utils.workflow_utils.create_slack_webhook")
+    @patch("observatory.platform.utils.workflow_utils.send_slack_msg")
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
-    def test_on_failure_callback(self, mock_variable_get, mock_create_slack_webhook):
+    def test_on_failure_callback(self, mock_variable_get, mock_send_slack_msg):
         mock_variable_get.side_effect = ["develop", "project_id", "staging", "project_id"]
-        mock_create_slack_webhook.return_value = Mock(spec=SlackWebhookHook)
 
-        context = {"exception": AirflowException("Exception message")}
+        class MockTI:
+            def __init__(self):
+                self.task_id = "id"
+                self.dag_id = "dag"
+                self.log_url = "logurl"
+
+        execution_date = pendulum.now()
+        ti = MockTI()
+        context = {"exception": AirflowException("Exception message"), "ti": ti, "execution_date": execution_date}
         on_failure_callback(context)
-        mock_create_slack_webhook.assert_not_called()
+        mock_send_slack_msg.assert_not_called()
 
         on_failure_callback(context)
-        mock_create_slack_webhook.assert_called_once_with(
-            "Task failed, exception:\n" "airflow.exceptions.AirflowException: Exception message", "project_id", context
+        mock_send_slack_msg.assert_called_once_with(
+            comments="Task failed, exception:\n" "airflow.exceptions.AirflowException: Exception message", project_id="project_id", ti=ti, execution_date=execution_date
         )
 
 
