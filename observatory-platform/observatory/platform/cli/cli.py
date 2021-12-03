@@ -463,7 +463,7 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
             cmd.generate_terraform_config_interactive(config_path, workflows=workflows, editable=editable)
         else:
             cmd.generate_terraform_config(config_path, workflows=workflows, editable=editable)
-    elif command == "terraform-api":
+    else:
         if interactive:
             cmd.generate_terraform_api_config_interactive(config_path)
         else:

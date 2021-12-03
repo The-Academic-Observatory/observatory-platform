@@ -15,15 +15,23 @@
 # Author: James Diprose, Aniek Roelofs
 
 import os
-import subprocess
+import shutil
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, PropertyMock
 
 from click.testing import CliRunner
-from observatory.platform.observatory_config import save_yaml
-from observatory.platform.terraform_builder import TerraformBuilder
+from observatory.platform.observatory_config import (
+    Api,
+    TerraformAPIConfig,
+    TerraformConfig,
+    Observatory,
+    GoogleCloud,
+    PythonPackage,
+)
+from observatory.platform.terraform_builder import TerraformAPIBuilder, TerraformBuilder, default_observatory_home
 from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.utils.proc_utils import stream_process
+from observatory.platform.utils.file_utils import get_file_hash
+from filecmp import dircmp
 
 
 class Popen(Mock):
@@ -35,133 +43,108 @@ class Popen(Mock):
         return 0
 
 
+def save_terraform_config(work_dir: str):
+    """Save a valid terraform config file
+
+    :param work_dir: Current working directory, used to save config file
+    :return: The full config  path
+    """
+    config_path = os.path.join(work_dir, "config.yaml")
+
+    # Create empty credentials file
+    credentials_path = os.path.abspath("creds.json")
+    open(credentials_path, "a").close()
+
+    # Set observatory platform path and observatory home
+    observatory_platform_path = module_file_path("observatory.platform", nav_back_steps=-3)
+    observatory_home = os.path.join(work_dir, ".observatory")
+
+    # Save config
+    observatory = Observatory(package=observatory_platform_path, observatory_home=observatory_home)
+    google_cloud = GoogleCloud(credentials=credentials_path)
+    TerraformConfig(observatory=observatory, google_cloud=google_cloud).save(config_path)
+
+    return config_path
+
+
+def save_terraform_api_config(work_dir: str):
+    """Save a valid terraform api config file
+
+    :param work_dir: Current working directory, used to save config file
+    :return: The full config  path
+    """
+    config_path = os.path.join(work_dir, "config.yaml")
+
+    # Create empty credentials file
+    credentials_path = os.path.abspath("creds.json")
+    open(credentials_path, "a").close()
+
+    # Get api package path
+    api_package = module_file_path("observatory.api", nav_back_steps=-3)
+
+    # Save config
+    api = Api(package=api_package)
+    google_cloud = GoogleCloud(credentials=credentials_path)
+    TerraformAPIConfig(google_cloud=google_cloud, api=api).save(config_path)
+
+    return config_path
+
+
 class TestTerraformBuilder(unittest.TestCase):
-    def setUp(self) -> None:
-        self.is_env_local = True
-        self.observatory_platform_path = module_file_path("observatory.platform", nav_back_steps=-3)
-        self.observatory_api_path = module_file_path("observatory.api", nav_back_steps=-3)
-
-    def save_terraform_config(self, t: str):
-        config_path = os.path.join(t, "config.yaml")
-        credentials_path = os.path.abspath("creds.json")
-        open(credentials_path, "a").close()
-
-        dict_ = {
-            "backend": {"type": "terraform", "environment": "develop"},
-            "observatory": {
-                "package": self.observatory_platform_path,
-                "package_type": "editable",
-                "airflow_fernet_key": "ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
-                "airflow_secret_key": "a" * 16,
-                "airflow_ui_user_password": "password",
-                "airflow_ui_user_email": "password",
-                "postgres_password": "my-password",
-                "observatory_home": t,
-            },
-            "terraform": {"organization": "hello world"},
-            "google_cloud": {
-                "project_id": "my-project",
-                "credentials": credentials_path,
-                "region": "us-west1",
-                "zone": "us-west1-c",
-                "data_location": "us",
-            },
-            "cloud_sql_database": {"tier": "db-custom-2-7680", "backup_start_time": "23:00"},
-            "airflow_main_vm": {"machine_type": "n2-standard-2", "disk_size": 1, "disk_type": "pd-ssd", "create": True},
-            "airflow_worker_vm": {
-                "machine_type": "n2-standard-2",
-                "disk_size": 1,
-                "disk_type": "pd-standard",
-                "create": False,
-            },
-            "airflow_variables": {"my-variable-name": "my-variable-value"},
-            "airflow_connections": {"my-connection": "http://:my-token-key@"},
-        }
-
-        save_yaml(config_path, dict_)
-
-        return config_path
-
     def test_is_environment_valid(self):
         with CliRunner().isolated_filesystem() as t:
-            config_path = os.path.join(t, "config.yaml")
+            config_path = save_terraform_config(t)
+            builder = TerraformBuilder(config_path=config_path)
 
-            # Environment should be invalid because there is no config.yaml
-            with self.assertRaises(FileExistsError):
-                TerraformBuilder(config_path=config_path)
+            with patch(
+                "observatory.platform.terraform_builder.TerraformBuilder.packer_exe_path",
+                new_callable=PropertyMock,
+                return_value="path/to/packer",
+            ):
+                self.assertTrue(builder.is_environment_valid)
 
-            # Environment should be valid because there is a config.yaml
-            # Assumes that Docker is setup on the system where the tests are run
-            config_path = self.save_terraform_config(t)
-            cmd = TerraformBuilder(config_path=config_path)
-            self.assertTrue(cmd.is_environment_valid)
+            with patch(
+                "observatory.platform.terraform_builder.TerraformBuilder.packer_exe_path",
+                new_callable=PropertyMock,
+                return_value=None,
+            ):
+                self.assertFalse(builder.is_environment_valid)
 
-    @unittest.skip
-    def test_packer_exe_path(self):
+    @patch("shutil.which")
+    def test_packer_exe_path(self, mock_which):
         """Test that the path to the Packer executable is found"""
-
         with CliRunner().isolated_filesystem() as t:
-            config_path = os.path.join(t, "config.yaml")
-            cmd = TerraformBuilder(config_path=config_path)
-            result = cmd.packer_exe_path
-            self.assertIsNotNone(result)
-            self.assertTrue(result.endswith("packer"))
+            config_path = save_terraform_config(t)
+            builder = TerraformBuilder(config_path=config_path)
+
+            mock_which.return_value = "/path/to/packer"
+            self.assertEqual("/path/to/packer", builder.packer_exe_path)
 
     def test_build_terraform(self):
         """Test building of the terraform files"""
-
         with CliRunner().isolated_filesystem() as t:
             # Save default config file
-            config_path = self.save_terraform_config(t)
+            config_path = save_terraform_config(t)
 
-            # Make observatory files
-            cmd = TerraformBuilder(config_path=config_path)
-            cmd.build_terraform()
+            builder = TerraformBuilder(config_path=config_path)
+            # Mock methods so calls can be tracked
+            builder.make_files = Mock()
+            builder.platform_builder.make_files = Mock()
 
-            # Test that the expected Terraform files have been written
-            secret_files = [os.path.join("secret", n) for n in ["main.tf", "outputs.tf", "variables.tf"]]
-            vm_files = [os.path.join("vm", n) for n in ["main.tf", "outputs.tf", "variables.tf"]]
-            root_files = [
-                "build.sh",
-                "main.tf",
-                "observatory-image.json",
-                "outputs.tf",
-                "startup-main.tpl",
-                "startup-worker.tpl",
-                "variables.tf",
-                "versions.tf",
-            ]
-            all_files = secret_files + vm_files + root_files
-
-            for file_name in all_files:
-                path = os.path.join(cmd.build_path, "terraform", file_name)
-                self.assertTrue(os.path.isfile(path))
-
-            # Test that the expected Docker files have been written
-            build_file_names = [
-                "docker-compose.observatory.yml",
-                "Dockerfile.observatory",
-                "elasticsearch.yml",
-                "entrypoint-airflow.sh",
-                "entrypoint-root.sh",
-            ]
-            for file_name in build_file_names:
-                path = os.path.join(cmd.build_path, "docker", file_name)
-                self.assertTrue(os.path.isfile(path))
-                self.assertTrue(os.stat(path).st_size > 0)
+            builder.build_terraform()
+            builder.make_files.assert_called_once_with()
+            builder.platform_builder.make_files.assert_called_once_with()
 
     @patch("subprocess.Popen")
     @patch("observatory.platform.terraform_builder.stream_process")
     def test_build_image(self, mock_stream_process, mock_subprocess):
         """Test building of the observatory platform"""
-
-        # Check that the environment variables are set properly for the default config
         with CliRunner().isolated_filesystem() as t:
             mock_subprocess.return_value = Popen()
             mock_stream_process.return_value = ("", "")
 
             # Save default config file
-            config_path = self.save_terraform_config(t)
+            config_path = save_terraform_config(t)
 
             # Make observatory files
             builder = TerraformBuilder(config_path=config_path)
@@ -174,71 +157,248 @@ class TestTerraformBuilder(unittest.TestCase):
             expected_return_code = 0
             self.assertEqual(expected_return_code, return_code)
 
-    # @patch("subprocess.Popen")
-    # @patch("observatory.platform.terraform_builder.stream_process")
-    # def test_gcloud_activate_service_account(self, mock_stream_process, mock_subprocess):
-    #     """Test activating the gcloud service account"""
-    #
-    #     # Check that the environment variables are set properly for the default config
-    #     with CliRunner().isolated_filesystem() as t:
-    #         mock_subprocess.return_value = Popen()
-    #         mock_stream_process.return_value = ("", "")
-    #
-    #         # Save default config file
-    #         config_path = self.save_terraform_config(t)
-    #
-    #         # Make observatory files
-    #         cmd = TerraformBuilder(config_path=config_path)
-    #
-    #         # Activate the service account
-    #         output, error, return_code = cmd.gcloud_activate_service_account()
-    #
-    #         # Assert that account was activated
-    #         expected_return_code = 0
-    #         self.assertEqual(expected_return_code, return_code)
-    #
-    # @patch("subprocess.Popen")
-    # @patch("observatory.platform.terraform_builder.stream_process")
-    # def test_gcloud_builds_submit(self, mock_stream_process, mock_subprocess):
-    #     """Test gcloud builds submit command"""
-    #
-    #     # Check that the environment variables are set properly for the default config
-    #     with CliRunner().isolated_filesystem() as t:
-    #         mock_subprocess.return_value = Popen()
-    #         mock_stream_process.return_value = ("", "")
-    #
-    #         # Save default config file
-    #         config_path = self.save_terraform_config(t)
-    #
-    #         # Make observatory files
-    #         cmd = TerraformBuilder(config_path=config_path)
-    #
-    #         # Build the image
-    #         output, error, return_code = cmd.gcloud_builds_submit()
-    #
-    #         # Assert that the image built
-    #         expected_return_code = 0
-    #         self.assertEqual(expected_return_code, return_code)
-    #
-    # def test_build_api_image(self):
-    #     """Test building API image using Docker"""
-    #
-    #     # Check that the environment variables are set properly for the default config
-    #     with CliRunner().isolated_filesystem() as t:
-    #         # Save default config file
-    #         config_path = self.save_terraform_config(t)
-    #
-    #         # Make observatory files
-    #         cmd = TerraformBuilder(config_path=config_path)
-    #
-    #         args = ["docker", "build", "."]
-    #         print("Executing subprocess:")
-    #
-    #         proc: Popen = subprocess.Popen(
-    #             args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cmd.api_package_path
-    #         )
-    #         output, error = stream_process(proc, True)
-    #
-    #         # Assert that the image built
-    #         expected_return_code = 0
-    #         self.assertEqual(expected_return_code, proc.returncode)
+    def test_make_files(self):
+        with CliRunner().isolated_filesystem() as t:
+            # Save default config file
+            config_path = save_terraform_config(t)
+
+            # Make observatory files
+            builder = TerraformBuilder(config_path=config_path)
+            self.assertTrue(builder.config_is_valid)
+
+            # Test when package build dir already exists
+            os.makedirs(builder.packages_build_path)
+            with patch("observatory.platform.terraform_builder.shutil.rmtree", wraps=shutil.rmtree) as mock_rmtree:
+                builder.make_files()
+                mock_rmtree.assert_called_once()
+
+            # Test when package build dir does not exist yet
+            os.rmdir(builder.packages_build_path)
+            with patch("observatory.platform.terraform_builder.shutil.rmtree", wraps=shutil.rmtree) as mock_rmtree:
+                builder.make_files()
+                mock_rmtree.assert_not_called()
+
+            # Test with editable package, dir should have same content as package
+            observatory_package = module_file_path("observatory.platform", nav_back_steps=-3)
+            package = PythonPackage(
+                name="observatory-platform",
+                type="editable",
+                host_package=observatory_package,
+                docker_package=os.path.basename(observatory_package),
+            )
+            with patch(
+                "observatory.platform.observatory_config.ObservatoryConfig.python_packages",
+                new_callable=PropertyMock,
+                return_value=[package],
+            ):
+                builder.make_files()
+                # Compare terraform build dir
+                dcmp = dircmp(builder.terraform_path, builder.terraform_build_path)
+                self.assertEqual([], dcmp.left_only)
+                self.assertEqual(["startup-main.tpl", "startup-worker.tpl"], dcmp.right_only)
+                # Compare packages build dir
+                self.assertTrue(os.listdir(package.host_package) != [])
+                destination_path = os.path.join(builder.packages_build_path, package.name)
+                dcmp = dircmp(observatory_package, destination_path)
+                self.assertEqual([], dcmp.left_only)
+                self.assertEqual([], dcmp.right_only)
+
+            # Test with other type of package, dir should not be created
+            package.type = "pypi"
+            observatory_package = module_file_path("observatory.platform", nav_back_steps=-3)
+            package = PythonPackage(
+                name="observatory-platform",
+                type="pypi",
+                host_package=observatory_package,
+                docker_package=os.path.basename(observatory_package),
+            )
+            with patch(
+                "observatory.platform.observatory_config.ObservatoryConfig.python_packages",
+                new_callable=PropertyMock,
+                return_value=[package],
+            ):
+                builder.make_files()
+                # Compare terraform build dir
+                dcmp = dircmp(builder.terraform_path, builder.terraform_build_path)
+                self.assertEqual([], dcmp.left_only)
+                self.assertEqual(["startup-main.tpl", "startup-worker.tpl"], dcmp.right_only)
+                # Compare packages build dir
+                destination_path = os.path.join(builder.packages_build_path, package.name)
+                self.assertFalse(os.path.isdir(destination_path))
+
+    @patch("observatory.platform.terraform_builder.render_template")
+    def test_make_startup_script(self, mock_render_template):
+        with CliRunner().isolated_filesystem() as t:
+            # Save default config file
+            config_path = save_terraform_config(t)
+
+            # Initialise builder
+            builder = TerraformBuilder(config_path=config_path)
+
+            mock_render_template.return_value = "render_content"
+            file_name = "file_name"
+            is_airflow_main_vm = False
+            template_path = os.path.join(builder.terraform_path, "startup.tpl.jinja2")
+
+            builder.make_startup_script(is_airflow_main_vm=is_airflow_main_vm, file_name=file_name)
+            mock_render_template.assert_called_once_with(template_path, is_airflow_main_vm=is_airflow_main_vm)
+            actual_hash = get_file_hash(
+                file_path=os.path.join(builder.terraform_build_path, file_name), algorithm="md5"
+            )
+            self.assertEqual("a728191895d4caf99568192fa2ad666a", actual_hash)
+
+
+class TestTerraformAPIBuilder(unittest.TestCase):
+    def test_api_server_path(self):
+        with CliRunner().isolated_filesystem() as t:
+            with patch.dict(os.environ, {"OBSERVATORY_HOME": os.path.join(t, ".observatory")}):
+                config_path = save_terraform_api_config(t)
+                builder = TerraformAPIBuilder(config_path)
+
+                # Create "server" dir
+                server_dir = os.path.join(builder.config.api.package, "server")
+                os.makedirs(server_dir)
+                self.assertEqual(server_dir, builder.api_server_path)
+
+    def test_terraform_path(self):
+        with CliRunner().isolated_filesystem() as t:
+            with patch.dict(os.environ, {"OBSERVATORY_HOME": os.path.join(t, ".observatory")}):
+                config_path = save_terraform_api_config(t)
+                builder = TerraformAPIBuilder(config_path)
+
+                terraform_path = os.path.join(builder.config.api.package, "terraform")
+                self.assertEqual(terraform_path, builder.terraform_path)
+
+    def test_terraform_build_path(self):
+        with CliRunner().isolated_filesystem() as t:
+            with patch.dict(os.environ, {"OBSERVATORY_HOME": os.path.join(t, ".observatory")}):
+                config_path = save_terraform_api_config(t)
+                builder = TerraformAPIBuilder(config_path)
+
+                terraform_build_path = os.path.join(
+                    default_observatory_home(), "build", "terraform-api", builder.config.api.name, "terraform"
+                )
+                self.assertEqual(terraform_build_path, builder.terraform_build_path)
+
+    def test_is_environment_valid(self):
+        with CliRunner().isolated_filesystem() as t:
+            with patch.dict(os.environ, {"OBSERVATORY_HOME": os.path.join(t, ".observatory")}):
+                config_path = save_terraform_api_config(t)
+                builder = TerraformAPIBuilder(config_path=config_path)
+
+                with patch(
+                    "observatory.platform.terraform_builder.TerraformAPIBuilder.gcloud_exe_path",
+                    new_callable=PropertyMock,
+                    return_value="path/to/gcloud",
+                ):
+                    self.assertTrue(builder.is_environment_valid)
+
+                with patch(
+                    "observatory.platform.terraform_builder.TerraformAPIBuilder.gcloud_exe_path",
+                    new_callable=PropertyMock,
+                    return_value=None,
+                ):
+                    self.assertFalse(builder.is_environment_valid)
+
+    @patch("shutil.which")
+    def test_gcloud_exe_path(self, mock_which):
+        """Test that the path to the Gcloud executable is found"""
+        with CliRunner().isolated_filesystem() as t:
+            with patch.dict(os.environ, {"OBSERVATORY_HOME": os.path.join(t, ".observatory")}):
+                config_path = save_terraform_api_config(t)
+                builder = TerraformAPIBuilder(config_path=config_path)
+
+                mock_which.return_value = "/path/to/gcloud"
+                self.assertEqual("/path/to/gcloud", builder.gcloud_exe_path)
+
+    def test_build_terraform(self):
+        """Test building of the terraform files"""
+        with CliRunner().isolated_filesystem() as t:
+            with patch.dict(os.environ, {"OBSERVATORY_HOME": os.path.join(t, ".observatory")}):
+                # Save default config file
+                config_path = save_terraform_api_config(t)
+
+                builder = TerraformAPIBuilder(config_path=config_path)
+                # Mock methods so calls can be tracked
+                builder.make_files = Mock()
+
+                builder.build_terraform()
+                builder.make_files.assert_called_once_with()
+
+    def test_build_image(self):
+        """Test building of gcloud image"""
+        with CliRunner().isolated_filesystem() as t:
+            with patch.dict(os.environ, {"OBSERVATORY_HOME": os.path.join(t, ".observatory")}):
+                # Save default config file
+                config_path = save_terraform_api_config(t)
+
+                builder = TerraformAPIBuilder(config_path=config_path)
+                # Mock methods so calls can be tracked
+                builder.gcloud_activate_service_account = Mock()
+                builder.gcloud_builds_submit = Mock()
+
+                builder.build_image()
+                builder.gcloud_activate_service_account.assert_called_once_with()
+                builder.gcloud_builds_submit.assert_called_once_with("local")
+
+    def test_make_files(self):
+        with CliRunner().isolated_filesystem() as t:
+            with patch.dict(os.environ, {"OBSERVATORY_HOME": os.path.join(t, ".observatory")}):
+                # Save default config file
+                config_path = save_terraform_api_config(t)
+
+                # Initialise builder
+                builder = TerraformAPIBuilder(config_path=config_path)
+                builder.make_open_api_template = Mock()
+
+                # Test when package build dir already exists
+                os.makedirs(builder.terraform_build_path)
+                with patch("observatory.platform.terraform_builder.shutil.rmtree", wraps=shutil.rmtree) as mock_rmtree:
+                    builder.make_files()
+                    mock_rmtree.assert_called_once()
+                    builder.make_open_api_template.assert_called_once_with()
+
+                # Test when package build dir does not exist yet
+                shutil.rmtree(builder.terraform_build_path)
+                builder.make_open_api_template.reset_mock()
+                with patch("observatory.platform.terraform_builder.shutil.rmtree", wraps=shutil.rmtree) as mock_rmtree:
+                    builder.make_files()
+                    mock_rmtree.assert_not_called()
+                    builder.make_open_api_template.assert_called_once_with()
+
+                # Compare terraform build dir
+                dcmp = dircmp(builder.terraform_path, builder.terraform_build_path)
+                self.assertTrue(os.listdir(builder.terraform_path) != [])
+                self.assertEqual([], dcmp.left_only)
+                self.assertEqual([], dcmp.right_only)
+
+    def test_make_openapi_template(self):
+        with CliRunner().isolated_filesystem() as t:
+            with patch.dict(os.environ, {"OBSERVATORY_HOME": os.path.join(t, ".observatory")}):
+                # Save default config file
+                config_path = save_terraform_api_config(t)
+
+                # Initialise builder
+                builder = TerraformAPIBuilder(config_path=config_path)
+
+    @patch("subprocess.Popen")
+    @patch("observatory.platform.terraform_builder.stream_process")
+    def test_gcloud_activate_service_account(self, mock_stream_process, mock_subprocess):
+        with CliRunner().isolated_filesystem() as t:
+            with patch.dict(os.environ, {"OBSERVATORY_HOME": os.path.join(t, ".observatory")}):
+                # Save default config file
+                config_path = save_terraform_api_config(t)
+
+                # Initialise builder
+                builder = TerraformAPIBuilder(config_path=config_path)
+
+    @patch("subprocess.Popen")
+    @patch("observatory.platform.terraform_builder.stream_process")
+    def test_gcloud_builds_submit(self, mock_stream_process, mock_subprocess):
+        with CliRunner().isolated_filesystem() as t:
+            with patch.dict(os.environ, {"OBSERVATORY_HOME": os.path.join(t, ".observatory")}):
+                # Save default config file
+                config_path = save_terraform_api_config(t)
+
+                # Initialise builder
+                builder = TerraformAPIBuilder(config_path=config_path)

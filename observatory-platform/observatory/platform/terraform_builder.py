@@ -21,13 +21,13 @@ import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from subprocess import Popen
-from typing import Tuple, Optional
+from typing import Tuple
 
 from observatory.api.cli.openapi_renderer import OpenApiRenderer
 from observatory.platform.cli.click_utils import indent, INDENT1
 from observatory.platform.observatory_config import TerraformConfig, TerraformAPIConfig, BackendType
 from observatory.platform.platform_builder import PlatformBuilder
-from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.config_utils import module_file_path, observatory_home as default_observatory_home
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.proc_utils import stream_process
 
@@ -38,21 +38,12 @@ def copy_dir(source_path: str, destination_path: str, ignore=None):
 
 class AbstractBuilder(ABC):
     @property
-    def packer_exe_path(self) -> Optional[str]:
-        return None
-
-    @property
-    def gcloud_exe_path(self) -> Optional[str]:
-        return None
-
-    @property
     @abstractmethod
     def is_environment_valid(self) -> bool:
-        """Return whether the environment for building the Packer image is valid.
+        """Return whether the environment for building the Packer or Gcloud image is valid.
 
-        :return: whether the environment for building the Packer image is valid.
+        :return: whether the environment for building the Packer or Gcloud image is valid.
         """
-
         pass
 
     @abstractmethod
@@ -61,11 +52,14 @@ class AbstractBuilder(ABC):
 
         :return: None.
         """
-
         pass
 
     @abstractmethod
     def build_image(self):
+        """Build a Packer or Gloud image.
+
+        :return: None.
+        """
         pass
 
 
@@ -77,9 +71,7 @@ class TerraformBuilder(AbstractBuilder):
         :param debug: whether to print debug statements.
         """
 
-        self.api_package_path = module_file_path("observatory.api", nav_back_steps=-3)
         self.terraform_path = module_file_path("observatory.platform.terraform")
-        self.api_path = module_file_path("observatory.api.server")
         self.debug = debug
 
         # Load config
@@ -98,8 +90,6 @@ class TerraformBuilder(AbstractBuilder):
                 )
                 self.packages_build_path = os.path.join(self.build_path, "packages")
                 self.terraform_build_path = os.path.join(self.build_path, "terraform")
-                os.makedirs(self.packages_build_path, exist_ok=True)
-                os.makedirs(self.terraform_build_path, exist_ok=True)
 
     @property
     def is_environment_valid(self) -> bool:
@@ -194,6 +184,7 @@ class TerraformBuilder(AbstractBuilder):
         render = render_template(template_path, is_airflow_main_vm=is_airflow_main_vm)
 
         # Save file
+        os.makedirs(self.terraform_build_path, exist_ok=True)
         output_path = os.path.join(self.terraform_build_path, file_name)
         with open(output_path, "w") as f:
             f.write(render)
@@ -234,16 +225,14 @@ class TerraformAPIBuilder(AbstractBuilder):
 
     @property
     def terraform_build_path(self):
-        build_path = os.path.join(
-            self.config.observatory.observatory_home, "build", "terraform-api", self.config.api.name
-        )
+        build_path = os.path.join(default_observatory_home(), "build", "terraform-api", self.config.api.name)
         return os.path.join(build_path, "terraform")
 
     @property
     def is_environment_valid(self) -> bool:
-        """Return whether the environment for building the Packer image is valid.
+        """Return whether the environment for building the Gcloud image is valid.
 
-        :return: whether the environment for building the Packer image is valid.
+        :return: whether the environment for building the Gcloud image is valid.
         """
 
         return self.gcloud_exe_path is not None
@@ -284,6 +273,11 @@ class TerraformAPIBuilder(AbstractBuilder):
 
         :return:
         """
+        # Clear terraform/packages path
+        if os.path.exists(self.terraform_build_path):
+            shutil.rmtree(self.terraform_build_path)
+        os.makedirs(self.terraform_build_path)
+
         # Copy terraform files into build/terraform
         copy_dir(self.terraform_path, self.terraform_build_path)
 
