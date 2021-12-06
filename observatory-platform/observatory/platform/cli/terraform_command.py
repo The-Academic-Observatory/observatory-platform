@@ -170,7 +170,7 @@ class TerraformCommand:
         terraform_api = TerraformApi(token, self.verbosity)
 
         # Get variables
-        terraform_variables = self.config.terraform_variables()
+        terraform_variables = self.config.terraform_variables
 
         # Get organization, environment and prefix
         organization = self.config.terraform.organization
@@ -208,7 +208,7 @@ class TerraformCommand:
         terraform_api = TerraformApi(token, self.verbosity)
 
         # Get variables
-        terraform_variables = self.config.terraform_variables()
+        terraform_variables = self.config.terraform_variables
 
         # Get organization, environment and prefix
         organization = self.config.terraform.organization
