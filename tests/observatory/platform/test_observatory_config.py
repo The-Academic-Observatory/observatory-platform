@@ -23,7 +23,9 @@ from typing import Dict, List
 
 import yaml
 from click.testing import CliRunner
+from observatory.platform.terraform_api import TerraformVariable
 from observatory.platform.observatory_config import (
+    Api,
     AirflowConnection,
     AirflowConnections,
     AirflowVariables,
@@ -40,14 +42,17 @@ from observatory.platform.observatory_config import (
     ObservatoryConfig,
     ObservatoryConfigValidator,
     Terraform,
+    TerraformAPIConfig,
     TerraformConfig,
     WorkflowsProject,
     WorkflowsProjects,
     is_fernet_key,
     is_secret_key,
+    list_to_hcl,
     make_schema,
     save_yaml,
 )
+from observatory.platform.utils.config_utils import module_file_path
 
 
 class TestObservatoryConfigValidator(unittest.TestCase):
@@ -404,6 +409,136 @@ class TestTerraformConfig(unittest.TestCase):
             config = TerraformConfig.load(file_path)
             self.assertIsInstance(config, TerraformConfig)
             self.assertFalse(config.is_valid)
+
+    def test_terraform_variables(self):
+        with CliRunner().isolated_filesystem():
+            # Create empty credentials file
+            credentials_path = os.path.abspath("creds.json")
+            open(credentials_path, "a").close()
+
+            google_cloud = GoogleCloud(credentials=credentials_path)
+            TerraformConfig(google_cloud=google_cloud).save("config.yaml")
+            config = TerraformConfig.load("config.yaml")
+
+            sensitive = True
+            self.assertEqual(
+                [
+                    TerraformVariable("environment", config.backend.environment.value),
+                    TerraformVariable("observatory", config.observatory.to_hcl(), sensitive=sensitive, hcl=True),
+                    TerraformVariable("google_cloud", config.google_cloud.to_hcl(), sensitive=sensitive, hcl=True),
+                    TerraformVariable("cloud_sql_database", config.cloud_sql_database.to_hcl(), hcl=True),
+                    TerraformVariable("airflow_main_vm", config.airflow_main_vm.to_hcl(), hcl=True),
+                    TerraformVariable("airflow_worker_vm", config.airflow_worker_vm.to_hcl(), hcl=True),
+                    TerraformVariable(
+                        "airflow_variables", list_to_hcl(config.make_airflow_variables()), hcl=True, sensitive=False
+                    ),
+                    TerraformVariable(
+                        "airflow_connections",
+                        list_to_hcl(config.airflow_connections.airflow_connections),
+                        hcl=True,
+                        sensitive=sensitive,
+                    ),
+                ],
+                config.terraform_variables,
+            )
+
+
+class TestTerraformAPIConfig(unittest.TestCase):
+    def test_load(self):
+        # Test that a minimal configuration works
+        file_path = "config-valid-minimal.yaml"
+        with CliRunner().isolated_filesystem():
+            credentials_path = os.path.abspath("creds.json")
+            open(credentials_path, "a").close()
+
+            package_path = os.path.join(os.getcwd(), "package")
+            os.makedirs(package_path)
+
+            dict_ = {
+                "backend": {"type": "terraform-api", "environment": "develop"},
+                "terraform": {"organization": "foo"},
+                "google_cloud": {
+                    "project_id": "my-project",
+                    "credentials": credentials_path,
+                    "region": "us-west1",
+                    "zone": "us-west1-c",
+                    "data_location": "us",
+                },
+                "api": {
+                    "name": "ao",
+                    "package": package_path,
+                    "domain_name": "api.observatory.academy",
+                    "subdomain": "project_id",
+                    "image_tag": "2021.09.01",
+                    "auth0_client_id": "auth0 application client id",
+                    "auth0_client_secret": "auth0 application client secret",
+                    "session_secret_key": "a" * 16,
+                },
+                "api_type": {"type": "data_api"},
+            }
+
+            save_yaml(file_path, dict_)
+
+            config = TerraformAPIConfig.load(file_path)
+            self.assertIsInstance(config, TerraformAPIConfig)
+            self.assertTrue(config.is_valid)
+
+        # Test that an invalid minimal config is loaded
+        dict_ = {
+            "backend": {"type": "terraform-api", "environment": "develop"},
+            "terraform": {"organization": "foo"},
+            "google_cloud": {
+                "project_id": "my-project",
+                "credentials": credentials_path,
+                "region": "us-west1",
+                "zone": "us-west1-c",
+                "data_location": "us",
+            },
+            "api": {
+                "name": "ao",
+                "package": package_path,
+                "domain_name": "api.observatory.academy",
+                "subdomain": "project_id",
+                "image_tag": "2021.09.01",
+                "auth0_client_id": "auth0 application client id",
+                "auth0_client_secret": "auth0 application client secret",
+                "session_secret_key": "a" * 16,
+            },
+            "api_type": {"type": "invalid"},
+        }
+
+        file_path = "config-invalid-minimal.yaml"
+        with CliRunner().isolated_filesystem():
+            save_yaml(file_path, dict_)
+
+            config = TerraformAPIConfig.load(file_path)
+            self.assertIsInstance(config, TerraformAPIConfig)
+            self.assertFalse(config.is_valid)
+
+    def test_terraform_variables(self):
+        with CliRunner().isolated_filesystem():
+            # Create empty credentials file
+            credentials_path = os.path.abspath("creds.json")
+            open(credentials_path, "a").close()
+
+            # Get api package path
+            api_package = module_file_path("observatory.api", nav_back_steps=-3)
+
+            api = Api(package=api_package)
+            google_cloud = GoogleCloud(credentials=credentials_path)
+            TerraformAPIConfig(google_cloud=google_cloud, api=api).save("config.yaml")
+            config = TerraformAPIConfig.load("config.yaml")
+
+            sensitive = False
+            self.assertEqual(
+                [
+                    TerraformVariable("environment", config.backend.environment.value),
+                    TerraformVariable("google_cloud", config.google_cloud.to_hcl(), sensitive=sensitive, hcl=True),
+                    TerraformVariable("api", config.api.to_hcl(), hcl=True),
+                    TerraformVariable("api_type", config.api_type.to_hcl(), sensitive=sensitive, hcl=True),
+                ],
+                config.terraform_variables,
+            )
 
 
 class TestSchema(unittest.TestCase):
@@ -871,15 +1006,6 @@ def tmp_config_file(dict_: dict) -> str:
 
 
 class TestObservatoryConfigGeneration(unittest.TestCase):
-    # def test_get_requirement_string(self):
-    #     with CliRunner().isolated_filesystem():
-    #         config = ObservatoryConfig()
-    #         requirement = config.get_requirement_string("backend")
-    #         self.assertEqual(requirement, "Required")
-    #
-    #         requirement = config.get_requirement_string("google_cloud")
-    #         self.assertEqual(requirement, "Optional")
-
     def test_save_observatory_config(self):
         config = ObservatoryConfig(
             terraform=Terraform(organization="myorg"),
@@ -1039,13 +1165,6 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
 
 
 class TestKeyCheckers(unittest.TestCase):
-    # def test_is_base64(self):
-    #     text = b"bWFrZSB0aGlzIHZhbGlk"
-    #     self.assertTrue(is_base64(text))
-    #
-    #     text = b"This is invalid base64"
-    #     self.assertFalse(is_base64(text))
-
     def test_is_secret_key(self):
         text = "invalid length"
         valid, message = is_secret_key(text)
