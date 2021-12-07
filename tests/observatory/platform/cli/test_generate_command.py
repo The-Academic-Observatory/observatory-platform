@@ -39,6 +39,9 @@ from observatory.platform.observatory_config import (
     AirflowVariable,
     AirflowMainVm,
     AirflowWorkerVm,
+    Api,
+    ApiType,
+    ApiTypes,
     Backend,
     BackendType,
     CloudSqlDatabase,
@@ -48,37 +51,141 @@ from observatory.platform.observatory_config import (
     Observatory,
     ObservatoryConfig,
     Terraform,
+    TerraformAPIConfig,
     TerraformConfig,
     WorkflowsProject,
+    WorkflowsProjects,
 )
 from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.utils.file_utils import get_file_hash
 from observatory.platform.utils.proc_utils import stream_process
 from observatory.platform.utils.test_utils import ObservatoryTestCase
 
 
 class TestGenerateCommand(ObservatoryTestCase):
-    def test_generate_local_config(self):
+    @patch("observatory.platform.cli.generate_command.ObservatoryConfig", wraps=ObservatoryConfig)
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.get_installed_workflows")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.set_editable_observatory_platform")
+    def test_generate_local_config(self, mock_set_editable, mock_get_workflows, mock_observatory_config):
         cmd = GenerateCommand()
         config_path = "config.yaml"
 
         with CliRunner().isolated_filesystem():
+            mock_get_workflows.return_value = []
+
+            # Test with non-editable observatory platform
             cmd.generate_local_config(config_path, editable=False, workflows=[])
+            mock_set_editable.assert_not_called()
+            mock_observatory_config.assert_called_once_with()
             self.assertTrue(os.path.exists(config_path))
 
-        with CliRunner().isolated_filesystem():
+            # Test with editable observatory platform
+            mock_observatory_config.reset_mock()
             cmd.generate_local_config(config_path, editable=True, workflows=[])
+            mock_set_editable.assert_called_once()
+            mock_observatory_config.assert_called_once_with()
             self.assertTrue(os.path.exists(config_path))
 
-    def test_generate_terraform_config(self):
+            # Test with available workflows installed by installer script
+            mock_observatory_config.reset_mock()
+            mock_get_workflows.reset_mock()
+            mock_get_workflows.return_value = [WorkflowsProject()]
+            cmd.generate_local_config(config_path, editable=True, workflows=[])
+            mock_observatory_config.assert_called_once_with(workflows_projects=WorkflowsProjects([WorkflowsProject()]))
+            self.assertTrue(os.path.exists(config_path))
+
+    @patch("observatory.platform.cli.generate_command.TerraformConfig", wraps=TerraformConfig)
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.get_installed_workflows")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.set_editable_observatory_platform")
+    def test_generate_terraform_config(self, mock_set_editable, mock_get_workflows, mock_terraform_config):
         cmd = GenerateCommand()
         config_path = "config-terraform.yaml"
 
         with CliRunner().isolated_filesystem():
+            mock_get_workflows.return_value = []
+
+            # Test with non-editable observatory platform
             cmd.generate_terraform_config(config_path, editable=False, workflows=[])
+            mock_set_editable.assert_not_called()
+            mock_terraform_config.assert_called_once_with()
             self.assertTrue(os.path.exists(config_path))
 
-        with CliRunner().isolated_filesystem():
+            # Test with editable observatory platform
+            mock_terraform_config.reset_mock()
             cmd.generate_terraform_config(config_path, editable=True, workflows=[])
+            mock_set_editable.assert_called_once()
+            mock_terraform_config.assert_called_once_with()
+            self.assertTrue(os.path.exists(config_path))
+
+            # Test with available workflows installed by installer script
+            mock_terraform_config.reset_mock()
+            mock_get_workflows.reset_mock()
+            mock_get_workflows.return_value = [WorkflowsProject()]
+            cmd.generate_terraform_config(config_path, editable=True, workflows=[])
+            mock_terraform_config.assert_called_once_with(workflows_projects=WorkflowsProjects([WorkflowsProject()]))
+            self.assertTrue(os.path.exists(config_path))
+
+    @patch("observatory.platform.cli.generate_command.TerraformAPIConfig", wraps=TerraformConfig)
+    def test_generate_terraform_api_config(self, mock_terraform_api_config):
+        cmd = GenerateCommand()
+        config_path = "config-terraform-api.yaml"
+
+        with CliRunner().isolated_filesystem():
+            cmd.generate_terraform_api_config(config_path)
+            mock_terraform_api_config.assert_called_once_with()
+            self.assertTrue(os.path.exists(config_path))
+
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.set_editable_observatory_platform")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.build")
+    def test_generate_local_config_interactive(self, mock_build, m_set_edit):
+        cmd = GenerateCommand()
+        cmd.generate_local_config_interactive(
+            config_path="path", workflows=["academic-observatory-workflows"], editable=False
+        )
+        mock_build.assert_called_once_with(
+            backend_type=BackendType.local, workflows=["academic-observatory-workflows"], editable=False
+        )
+        m_set_edit.assert_not_called()
+        mock_build.reset_mock()
+
+        cmd.generate_local_config_interactive(
+            config_path="path", workflows=["academic-observatory-workflows"], editable=True
+        )
+        mock_build.assert_called_once_with(
+            backend_type=BackendType.local, workflows=["academic-observatory-workflows"], editable=True
+        )
+        m_set_edit.assert_called_once()
+
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.set_editable_observatory_platform")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.build")
+    def test_generate_terraform_config_interactive(self, mock_build, m_set_edit):
+        cmd = GenerateCommand()
+        cmd.generate_terraform_config_interactive(
+            config_path="path", workflows=["academic-observatory-workflows"], editable=False
+        )
+        mock_build.assert_called_once_with(
+            backend_type=BackendType.terraform, workflows=["academic-observatory-workflows"], editable=False
+        )
+        m_set_edit.assert_not_called()
+        mock_build.reset_mock()
+
+        cmd.generate_terraform_config_interactive(
+            config_path="path", workflows=["academic-observatory-workflows"], editable=True
+        )
+        mock_build.assert_called_once_with(
+            backend_type=BackendType.terraform, workflows=["academic-observatory-workflows"], editable=True
+        )
+        m_set_edit.assert_called_once()
+
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.build")
+    def test_generate_terraform_api_config_interactive(self, mock_build):
+        cmd = GenerateCommand()
+        config_path = "config-terraform-api.yaml"
+        mock_build.return_value = TerraformAPIConfig()
+
+        with CliRunner().isolated_filesystem():
+            cmd.generate_terraform_api_config_interactive(config_path=config_path)
+            mock_build.assert_called_once_with(backend_type=BackendType.terraform_api, workflows=None, editable=None)
             self.assertTrue(os.path.exists(config_path))
 
     @patch("click.confirm")
@@ -262,129 +369,120 @@ class TestGenerateCommand(ObservatoryTestCase):
 
 class TestInteractiveConfigBuilder(unittest.TestCase):
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.set_editable_observatory_platform")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.build")
-    def test_generate_local_config_interactive(self, mock_build, m_set_edit):
-        cmd = GenerateCommand()
-        cmd.generate_local_config_interactive(
-            config_path="path", workflows=["academic-observatory-workflows"], editable=False
-        )
-        mock_build.assert_called_once_with(
-            backend_type=BackendType.local, workflows=["academic-observatory-workflows"], editable=False
-        )
-        m_set_edit.assert_not_called()
-        mock_build.reset_mock()
-
-        cmd.generate_local_config_interactive(
-            config_path="path", workflows=["academic-observatory-workflows"], editable=True
-        )
-        mock_build.assert_called_once_with(
-            backend_type=BackendType.local, workflows=["academic-observatory-workflows"], editable=True
-        )
-        m_set_edit.assert_called_once()
-
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.set_editable_observatory_platform")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.build")
-    def test_generate_terraform_config_interactive(self, mock_build, m_set_edit):
-        cmd = GenerateCommand()
-        cmd.generate_terraform_config_interactive(
-            config_path="path", workflows=["academic-observatory-workflows"], editable=False
-        )
-        mock_build.assert_called_once_with(
-            backend_type=BackendType.terraform, workflows=["academic-observatory-workflows"], editable=False
-        )
-        m_set_edit.assert_not_called()
-        mock_build.reset_mock()
-
-        cmd.generate_terraform_config_interactive(
-            config_path="path", workflows=["academic-observatory-workflows"], editable=True
-        )
-        mock_build.assert_called_once_with(
-            backend_type=BackendType.terraform, workflows=["academic-observatory-workflows"], editable=True
-        )
-        m_set_edit.assert_called_once()
-
     @patch("observatory.platform.cli.generate_command.module_file_path")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_worker_vm")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_main_vm")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_cloud_sql_database")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_workflows_projects")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_variables")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_connections")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_google_cloud")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_terraform")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_observatory")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_google_cloud")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_cloud_sql_database")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_backend")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_api_type")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_api")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_worker_vm")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_variables")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_main_vm")
+    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_connections")
     def test_build(
         self,
+        m_airflow_connections,
+        m_airflow_main_vm,
+        m_airflow_variables,
+        m_airflow_worker_m,
+        m_api,
+        m_api_type,
         m_backend,
+        m_cloud_sql_database,
+        m_google_cloud,
         m_observatory,
         m_terraform,
-        m_google_cloud,
-        m_airflow_connections,
-        m_airflow_variables,
         m_workflows_projects,
-        m_cloud_sql_database,
-        m_airflow_main_vm,
-        m_airflow_worker_m,
-        m_mfp,
+        m_module_file_path,
+        m_set_editable,
     ):
         def mock_mfp(*arg, **kwargs):
             if arg[0] == "academic_observatory_workflows.dags":
                 return "/ao_workflows/path"
             else:
-                return "oaebu_workflows/path"
+                return "/oaebu_workflows/path"
 
-        m_mfp.side_effect = mock_mfp
-        workflows = []
-        local_nodags = InteractiveConfigBuilder.build(
-            backend_type=BackendType.local, workflows=workflows, editable=False
+        m_module_file_path.side_effect = mock_mfp
+        methods_all = [m_backend, m_terraform, m_google_cloud]
+        methods_terraform_local = [m_observatory, m_airflow_connections, m_airflow_variables, m_workflows_projects]
+        methods_terraform = [m_cloud_sql_database, m_airflow_main_vm, m_airflow_worker_m]
+        methods_terraform_api = [m_api, m_api_type]
+        methods_editable = [m_set_editable]
+
+        def reset_methods():
+            for m in (
+                methods_all + methods_terraform_local + methods_terraform + methods_terraform_api + methods_editable
+            ):
+                m.reset_mock()
+
+        # Test with local backend type and no workflows
+        config = InteractiveConfigBuilder.build(backend_type=BackendType.local, workflows=[], editable=False)
+        self.assertTrue(isinstance(config, ObservatoryConfig))
+        self.assertListEqual([], config.workflows_projects.workflows_projects)
+        for method in methods_all + methods_terraform_local:
+            method.assert_called_once_with(config)
+
+        # Test with local backend type and given workflows
+        reset_methods()
+        config = InteractiveConfigBuilder.build(
+            backend_type=BackendType.local,
+            workflows=["academic-observatory-workflows", "oaebu-workflows"],
+            editable=False,
         )
-        self.assertTrue(isinstance(local_nodags, ObservatoryConfig))
-        self.assertEqual(len(local_nodags.workflows_projects.workflows_projects), 0)
-
-        workflows = ["academic-observatory-workflows", "oaebu-workflows"]
-        local_dags = InteractiveConfigBuilder.build(backend_type=BackendType.local, workflows=workflows, editable=False)
-        self.assertTrue(isinstance(local_dags, ObservatoryConfig))
-        self.assertEqual(len(local_dags.workflows_projects.workflows_projects), 2)
-        self.assertEqual(
-            local_dags.workflows_projects.workflows_projects[0],
-            DefaultWorkflowsProject.academic_observatory_workflows(),
+        self.assertTrue(isinstance(config, ObservatoryConfig))
+        self.assertListEqual(
+            [DefaultWorkflowsProject.academic_observatory_workflows(), DefaultWorkflowsProject.oaebu_workflows()],
+            config.workflows_projects.workflows_projects,
         )
-        self.assertEqual(local_dags.workflows_projects.workflows_projects[1], DefaultWorkflowsProject.oaebu_workflows())
-        print(local_dags.workflows_projects)
+        for method in methods_all + methods_terraform_local:
+            method.assert_called_once_with(config)
 
-        terraform_nodags = InteractiveConfigBuilder.build(
-            backend_type=BackendType.terraform, workflows=[], editable=False
-        )
-        self.assertTrue(isinstance(terraform_nodags, TerraformConfig))
-        self.assertTrue(isinstance(terraform_nodags, ObservatoryConfig))
-        self.assertEqual(len(terraform_nodags.workflows_projects.workflows_projects), 0)
+        # Test with local backend type and editable
+        reset_methods()
+        config = InteractiveConfigBuilder.build(backend_type=BackendType.local, workflows=[], editable=True)
+        self.assertTrue(isinstance(config, ObservatoryConfig))
+        for method in methods_all + methods_terraform_local + methods_editable:
+            method.assert_called_once_with(config)
 
-        terraform_dags = InteractiveConfigBuilder.build(
+        # Test with terraform backend and no workflows
+        reset_methods()
+        config = InteractiveConfigBuilder.build(backend_type=BackendType.terraform, workflows=[], editable=False)
+        self.assertTrue(isinstance(config, TerraformConfig))
+        self.assertListEqual([], config.workflows_projects.workflows_projects)
+        for method in methods_all + methods_terraform_local + methods_terraform:
+            method.assert_called_once_with(config)
+
+        # Test with terraform backend and given workflows
+        reset_methods()
+        config = InteractiveConfigBuilder.build(
             backend_type=BackendType.terraform,
             workflows=["academic-observatory-workflows", "oaebu-workflows"],
             editable=False,
         )
-        self.assertTrue(isinstance(terraform_dags, TerraformConfig))
-        self.assertEqual(len(terraform_dags.workflows_projects.workflows_projects), 2)
-        self.assertEqual(
-            terraform_dags.workflows_projects.workflows_projects[0],
-            DefaultWorkflowsProject.academic_observatory_workflows(),
+        self.assertTrue(isinstance(config, TerraformConfig))
+        self.assertListEqual(
+            [DefaultWorkflowsProject.academic_observatory_workflows(), DefaultWorkflowsProject.oaebu_workflows()],
+            config.workflows_projects.workflows_projects,
         )
-        self.assertEqual(
-            terraform_dags.workflows_projects.workflows_projects[1], DefaultWorkflowsProject.oaebu_workflows()
-        )
+        for method in methods_all + methods_terraform_local + methods_terraform:
+            method.assert_called_once_with(config)
 
-        self.assertTrue(m_backend.called)
-        self.assertTrue(m_observatory.called)
-        self.assertTrue(m_terraform.called)
-        self.assertTrue(m_google_cloud.called)
-        self.assertTrue(m_airflow_connections.called)
-        self.assertTrue(m_airflow_variables.called)
-        self.assertTrue(m_workflows_projects.called)
-        self.assertTrue(m_cloud_sql_database.called)
-        self.assertTrue(m_airflow_main_vm.called)
-        self.assertTrue(m_airflow_worker_m.called)
+        # Test with terraform backend type and editable
+        reset_methods()
+        config = InteractiveConfigBuilder.build(backend_type=BackendType.terraform, workflows=[], editable=True)
+        self.assertTrue(isinstance(config, TerraformConfig))
+        for method in methods_all + methods_terraform_local + methods_terraform + methods_editable:
+            method.assert_called_once_with(config)
+
+        # Test with terraform api backend
+        reset_methods()
+        config = InteractiveConfigBuilder.build(backend_type=BackendType.terraform_api, workflows=None, editable=None)
+        self.assertTrue(isinstance(config, TerraformAPIConfig))
+        for method in methods_all + methods_terraform_api:
+            method.assert_called_once_with(config)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     def test_config_backend(self, m_prompt):
@@ -698,10 +796,9 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
     @patch("observatory.platform.cli.generate_command.click.prompt")
     @patch("observatory.platform.cli.generate_command.click.confirm")
     def test_config_workflows_projects_add(self, m_confirm, m_prompt):
-        m_confirm.side_effect = [True, True, False]
+        m_confirm.side_effect = [True, True, False] * 2
 
-        config = ObservatoryConfig()
-        expected_dags = [
+        expected_projects = [
             WorkflowsProject(
                 package_name="pack1",
                 package="/tmp",
@@ -717,18 +814,25 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         ]
 
         m_prompt.side_effect = [
-            expected_dags[0].package_name,
-            expected_dags[0].package,
-            expected_dags[0].package_type,
-            expected_dags[0].dags_module,
-            expected_dags[1].package_name,
-            expected_dags[1].package,
-            expected_dags[1].package_type,
-            expected_dags[1].dags_module,
-        ]
+            expected_projects[0].package_name,
+            expected_projects[0].package,
+            expected_projects[0].package_type,
+            expected_projects[0].dags_module,
+            expected_projects[1].package_name,
+            expected_projects[1].package,
+            expected_projects[1].package_type,
+            expected_projects[1].dags_module,
+        ] * 2
 
+        # Test when no workflows_projects already are given
+        config = ObservatoryConfig()
         InteractiveConfigBuilder.config_workflows_projects(config)
-        self.assertEqual(expected_dags, config.workflows_projects.workflows_projects)
+        self.assertListEqual(expected_projects, config.workflows_projects.workflows_projects)
+
+        # Test when workflows_projects are given
+        config = ObservatoryConfig(workflows_projects=WorkflowsProjects())
+        InteractiveConfigBuilder.config_workflows_projects(config)
+        self.assertListEqual([WorkflowsProject()] + expected_projects, config.workflows_projects.workflows_projects)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     def test_config_cloud_sql_database(self, m_prompt):
@@ -792,38 +896,44 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         InteractiveConfigBuilder.config_airflow_worker_vm(config)
         self.assertEqual(config.airflow_worker_vm, vm)
 
-    #
-    # @patch("observatory.platform.cli.generate_command.click.prompt")
-    # def test_config_elasticsearch(self, m_prompt):
-    #     es = ElasticSearch(
-    #         host="https://host:port",
-    #         api_key="mykey",
-    #     )
-    #
-    #     m_prompt.side_effect = [
-    #         es.host,
-    #         es.api_key,
-    #     ]
-    #
-    #     config = TerraformConfig()
-    #     InteractiveConfigBuilder.config_elasticsearch(config)
-    #     self.assertEqual(config.elasticsearch, es)
-    #
-    # @patch("observatory.platform.cli.generate_command.click.prompt")
-    # def test_config_api(self, m_prompt):
-    #     api = Api(
-    #         domain_name="api.something",
-    #         subdomain="project_id",
-    #     )
-    #
-    #     m_prompt.side_effect = [
-    #         api.domain_name,
-    #         api.subdomain,
-    #     ]
-    #
-    #     config = TerraformConfig()
-    #     InteractiveConfigBuilder.config_api(config)
-    #     self.assertEqual(config.api, api)
+    @patch("observatory.platform.cli.generate_command.click.prompt")
+    def test_config_api(self, m_prompt):
+
+        api = Api()
+
+        m_prompt.side_effect = [
+            api.name,
+            api.package,
+            api.domain_name,
+            api.subdomain,
+            api.image_tag,
+            api.auth0_client_id,
+            api.auth0_client_secret,
+            api.session_secret_key,
+        ]
+
+        config = TerraformAPIConfig()
+        InteractiveConfigBuilder.config_api(config)
+        self.assertEqual(config.api, api)
+
+    @patch("observatory.platform.cli.generate_command.click.prompt")
+    def test_config_api_type(self, m_prompt):
+        # Test with observatory_api type
+        api_type = ApiType(type=ApiTypes.observatory_api)
+        m_prompt.return_value = api_type.type.value
+        config = TerraformAPIConfig()
+
+        InteractiveConfigBuilder.config_api_type(config)
+        self.assertEqual(config.api_type, api_type)
+
+        # Test with data_api type
+        m_prompt.reset_mock()
+        api_type = ApiType()
+        m_prompt.side_effect = [api_type.type, api_type.elasticsearch_host, api_type.elasticsearch_api_key]
+        config = TerraformAPIConfig()
+
+        InteractiveConfigBuilder.config_api_type(config)
+        self.assertEqual(config.api_type, api_type)
 
 
 class TestFernetKeyParamType(unittest.TestCase):
