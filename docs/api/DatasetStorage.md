@@ -149,3 +149,7 @@ A DatasetStorage object can be deleted by specifying its DatasetStorage ID.
 object_id_to_delete=123
 api.delete_dataset_storage(object_id_to_delete)
 ```
+
+# Example applications
+
+See the `Dataset` API documentation.

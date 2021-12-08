@@ -139,3 +139,42 @@ A Dataset object can be deleted by specifying its Dataset ID.
 object_id_to_delete=123
 api.delete_dataset_release(object_id_to_delete)
 ```
+
+# Example applications
+
+## Parameterising workflows with dataset metadata
+
+Consider an example where you need to aggregate sales data from multiple retail partners.  The sales column differs from partner to partner. Partners change on a regular basis. Frequent code changes to reflect changing partners might be cumbersome.   Partner dataset information can be saved in the API instead.
+
+```python
+@dataclass
+class SalesPartner:
+    dataset_name: str  # e.g., "book_sales"
+    sales_field : float  # e.g., "sales"
+    db_service: str  # e.g., bigquery
+    table_address: str  # e.g., project.dataset.table
+    table_type: str  # e.g., sharded
+
+# Get all datasets and filter by datasets in the "sales_partner" group
+api = make_observatory_api()
+datasets = api.get_datasets()
+partner_datasets = list(filter(lambda ds: "sales_partner" in ds.extras.get("groups", []), datasets))
+
+partners = []
+for dataset in partner_datasets:
+    storage = api.get_storages(1, dataset.id)
+    partners.append(
+        SalesPartner(
+            dataset_name=dataset.name,
+            sales_field=dataset.extra.get("sales_field"),
+            db_service=storage.service,
+            table_address=storage.address,
+            table_type=storage.extra.get("table_type"),
+        )
+    )
+
+workflow = AggregateSalesWorkflow(partners=partners)
+globals()[workflow.dag_id] = workflow.make_dag()
+```
+
+
