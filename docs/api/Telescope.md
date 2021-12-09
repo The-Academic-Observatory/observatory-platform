@@ -31,7 +31,7 @@
 </tr>
 <tr>
     <td><strong>extra</strong></td>
-    <td><strong>{str: (bool, date, datetime, dict, float, int, list, str, none_type)}, none_type</strong></td>
+    <td><strong>bool, date, datetime, dict, float, int, list, str, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
@@ -44,6 +44,12 @@
 <tr>
     <td><strong>telescope_type</strong></td>
     <td><a href="TelescopeType.html"><strong>TelescopeType</strong></a></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>datasets</strong></td>
+    <td><a href="Dataset.html"><strong>[Dataset]</strong></a></td>
     <td></td>
     <td>[optional] </td>
 </tr>

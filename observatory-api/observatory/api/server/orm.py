@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict, Union
+from typing import Any, ClassVar, Dict, List, Union
 
 import pendulum
 from sqlalchemy import (
@@ -32,7 +32,7 @@ from sqlalchemy import (
     create_engine,
 )
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, scoped_session, sessionmaker
+from sqlalchemy.orm import relation, relationship, scoped_session, sessionmaker
 
 Base = declarative_base()
 session_ = None  # Global session
@@ -106,7 +106,7 @@ def fetch_db_object(cls: ClassVar, body: Any):
     return item
 
 
-def to_datetime_utc(obj: Union[None, pendulum.DateTime]) -> Union[pendulum.DateTime, None]:
+def to_datetime_utc(obj: Union[None, pendulum.DateTime, str]) -> Union[pendulum.DateTime, None]:
     """Converts pendulum.DateTime into UTC object.
 
     :param obj: a pendulum.DateTime object (which will just be converted to UTC) or None which will be returned.
@@ -115,6 +115,9 @@ def to_datetime_utc(obj: Union[None, pendulum.DateTime]) -> Union[pendulum.DateT
 
     if isinstance(obj, pendulum.DateTime):
         return obj.in_tz(tz="UTC")
+    elif isinstance(obj, str):
+        dt = pendulum.parse(obj)
+        return dt.in_tz(tz="UTC")
     elif obj is None:
         return None
 
@@ -233,6 +236,7 @@ class Telescope(Base):
     modified = Column(DateTime())
     organisation_id = Column(Integer, ForeignKey("organisation.id"), nullable=False)
     telescope_type_id = Column(Integer, ForeignKey("telescope_type.id"), nullable=False)
+    datasets = relationship("Dataset", backref=__tablename__)
 
     def __init__(
         self,
@@ -358,3 +362,275 @@ class TelescopeType(Base):
 
         if modified is not None:
             self.modified = to_datetime_utc(modified)
+
+
+@dataclass
+class Dataset(Base):
+    __tablename__ = "dataset"
+
+    # Only include should be serialized to JSON as dataclass attributes
+    id: int
+    name: str
+    extra: dict
+    created: pendulum.DateTime
+    modified: pendulum.DateTime
+    connection: Telescope = None
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(250))
+    extra = Column(JSON())
+    created = Column(DateTime())
+    modified = Column(DateTime())
+
+    connection_id = Column(Integer, ForeignKey("connection.id"), nullable=False)
+
+    storage = relationship("DatasetStorage", backref=__tablename__)
+    releases = relationship("DatasetRelease", backref=__tablename__)
+
+    def __init__(
+        self,
+        id: int = None,
+        name: str = None,
+        extra: dict = None,
+        connection: Union[Telescope, dict] = None,
+        created: pendulum.DateTime = None,
+        modified: pendulum.DateTime = None,
+    ):
+        """Construct a Dataset object.
+
+        :param id: unique id.
+        :param name: the dataset name.
+        :param extra: additional metadata for a dataset, stored as JSON.
+        :param created: datetime created in UTC.
+        :param modified: datetime modified in UTC.
+        :param dataset_storage: the storage details associated with this dataset.
+        """
+
+        self.id = id
+        self.name = name
+        self.extra = extra
+        self.created = to_datetime_utc(created)
+        self.modified = to_datetime_utc(modified)
+
+        # Fetch dataset storage info and release info
+        self.connection = fetch_db_object(Telescope, connection)
+
+    def update(
+        self,
+        name: str = None,
+        extra: dict = None,
+        connection: Union[Telescope, dict] = None,
+        modified: pendulum.DateTime = None,
+    ):
+        """Update the properties of an existing Dataset object. This method is handy when you want to update
+        the Dataset from a dictionary, e.g. obj.update(**{'modified': datetime.utcnow()}).
+
+        :param name: the dataset name.
+        :param extra: additional metadata for a dataset, stored as JSON.
+        :param modified: datetime modified in UTC.
+        :param dataset_storage: the dataset storage info associated with this dataset.
+        :return: None.
+        """
+
+        if name is not None:
+            self.name = name
+
+        if extra is not None:
+            self.extra = extra
+
+        if connection is not None:
+            self.connection = fetch_db_object(Telescope, connection)
+
+        if modified is not None:
+            self.modified = to_datetime_utc(modified)
+
+
+@dataclass
+class DatasetStorage(Base):
+    __tablename__ = "dataset_storage"
+
+    id: int
+    service: str
+    address: str
+    extra: dict
+    dataset: Dataset = None
+    created: pendulum.DateTime
+    modified: pendulum.DateTime
+
+    id = Column(Integer, primary_key=True)
+    service = Column(String(250), nullable=False)
+    address = Column(String(250), nullable=False)
+    extra = Column(JSON())
+    dataset_id = Column(Integer, ForeignKey("dataset.id"), nullable=False)
+    created = Column(DateTime())
+    modified = Column(DateTime())
+
+    def __init__(
+        self,
+        id: int = None,
+        service: str = None,
+        address: str = None,
+        extra: dict = None,
+        dataset: Dataset = None,
+        created: pendulum.DateTime = None,
+        modified: pendulum.DateTime = None,
+    ):
+        """Construct a DatasetStorage object.
+
+        :param id: unique id.
+        :param service: storage service name.
+        :param address: storage resource address.
+        :param created: datetime created in UTC.
+        :param modified: datetime modified in UTC.
+        """
+
+        self.id = id
+        self.service = service
+        self.address = address
+        self.extra = extra
+        self.dataset = fetch_db_object(Dataset, dataset)
+        self.created = to_datetime_utc(created)
+        self.modified = to_datetime_utc(modified)
+
+    def update(
+        self,
+        service: str = None,
+        address: str = None,
+        extra: dict = None,
+        dataset: Dataset = None,
+        modified: pendulum.DateTime = None,
+    ):
+        """Update the properties of an existing DatasetStorage object. This method is handy when you want to update
+        the DatasetStorage from a dictionary, e.g. obj.update(**{'service': 'hello world'}).
+
+        :param service: The storage service name, e.g., google.
+        :param address: Storage resource address, e.g., project.dataset.tablename
+        :param extra: Any extra attributes for the storage info, e.g., table_type : sharded.
+        :param modified: Datetime modified in UTC.
+        :return: None.
+        """
+
+        if service is not None:
+            self.service = service
+
+        if address is not None:
+            self.address = address
+
+        if extra is not None:
+            self.extra = extra
+
+        if modified is not None:
+            self.modified = to_datetime_utc(modified)
+
+        if dataset is not None:
+            self.dataset = fetch_db_object(Dataset, dataset)
+
+
+@dataclass
+class DatasetRelease(Base):
+    __tablename__ = "dataset_release"
+
+    id: int
+    schema_version: str
+    schema_version_alt: str
+
+    start_date: pendulum.DateTime
+    end_date: pendulum.DateTime
+    ingestion_start: pendulum.DateTime
+    ingestion_end: pendulum.DateTime
+
+    dataset: Dataset = None
+
+    created: pendulum.DateTime
+    modified: pendulum.DateTime
+
+    id = Column(Integer, primary_key=True)
+    schema_version = Column(String(250), nullable=False)
+    schema_version_alt = Column(String(250))
+    start_date = Column(DateTime())
+    end_date = Column(DateTime())
+    ingestion_start = Column(DateTime())
+    ingestion_end = Column(DateTime())
+    dataset_id = Column(Integer, ForeignKey("dataset.id"), nullable=False)
+    created = Column(DateTime())
+    modified = Column(DateTime())
+
+    def __init__(
+        self,
+        id: int = None,
+        schema_version: str = None,
+        schema_version_alt: str = None,
+        start_date: Union[pendulum.DateTime, str] = None,
+        end_date: Union[pendulum.DateTime, str] = None,
+        ingestion_start: Union[pendulum.DateTime, str] = None,
+        ingestion_end: Union[pendulum.DateTime, str] = None,
+        dataset: Dataset = None,
+        created: pendulum.DateTime = None,
+        modified: pendulum.DateTime = None,
+    ):
+        """Construct a DatasetStorage object.
+
+        :param id: unique id.
+        :param service: storage service name.
+        :param address: storage resource address.
+        :param created: datetime created in UTC.
+        :param modified: datetime modified in UTC.
+        """
+
+        self.id = id
+        self.schema_version = schema_version
+        self.schema_version_alt = schema_version_alt
+
+        self.start_date = to_datetime_utc(start_date)
+        self.end_date = to_datetime_utc(end_date)
+        self.ingestion_start = to_datetime_utc(ingestion_start)
+        self.ingestion_end = to_datetime_utc(ingestion_end)
+
+        self.dataset = fetch_db_object(Dataset, dataset)
+
+        self.created = to_datetime_utc(created)
+        self.modified = to_datetime_utc(modified)
+
+    def update(
+        self,
+        schema_version: str = None,
+        schema_version_alt: str = None,
+        start_date: Union[pendulum.DateTime, str] = None,
+        end_date: Union[pendulum.DateTime, str] = None,
+        ingestion_start: Union[pendulum.DateTime, str] = None,
+        ingestion_end: Union[pendulum.DateTime, str] = None,
+        dataset: Dataset = None,
+        modified: pendulum.DateTime = None,
+    ):
+        """Update the properties of an existing DatasetStorage object. This method is handy when you want to update
+        the DatasetStorage from a dictionary, e.g. obj.update(**{'service': 'hello world'}).
+
+        :param service: The storage service name, e.g., google.
+        :param address: Storage resource address, e.g., project.dataset.tablename
+        :param modified: Datetime modified in UTC.
+        :return: None.
+        """
+
+        if schema_version is not None:
+            self.schema_version = schema_version
+
+        if schema_version_alt is not None:
+            self.schema_version_alt = schema_version_alt
+
+        if start_date is not None:
+            self.start_date = to_datetime_utc(start_date)
+
+        if end_date is not None:
+            self.end_date = to_datetime_utc(end_date)
+
+        if ingestion_start is not None:
+            self.ingestion_start = to_datetime_utc(ingestion_start)
+
+        if ingestion_end is not None:
+            self.ingestion_end = to_datetime_utc(ingestion_end)
+
+        if modified is not None:
+            self.modified = to_datetime_utc(modified)
+
+        if dataset is not None:
+            self.dataset = fetch_db_object(Dataset, dataset)

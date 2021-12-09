@@ -32,6 +32,9 @@ import time
 import observatory.api.client
 from pprint import pprint
 from observatory.api.client.api import observatory_api
+from observatory.api.client.model.dataset import Dataset
+from observatory.api.client.model.dataset_release import DatasetRelease
+from observatory.api.client.model.dataset_storage import DatasetStorage
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.query_response import QueryResponse
 from observatory.api.client.model.telescope import Telescope
@@ -58,13 +61,13 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | Organisation id
+    id = 1 # int | Dataset id
 
     try:
-        # delete an Organisation
-        api_instance.delete_organisation(id)
+        # delete a Dataset
+        api_instance.delete_dataset(id)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->delete_organisation: %s\n" % e)
+        print("Exception when calling ObservatoryApi->delete_dataset: %s\n" % e)
 ```
 
 ## Documentation for API Endpoints
@@ -92,6 +95,27 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#delete_dataset"><strong>delete_dataset</strong></a></td>
+<td><strong>DELETE</strong> /v1/dataset</td>
+<td>delete a Dataset</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#delete_dataset_release"><strong>delete_dataset_release</strong></a></td>
+<td><strong>DELETE</strong> /v1/dataset_release</td>
+<td>delete a DatasetRelease</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#delete_dataset_storage"><strong>delete_dataset_storage</strong></a></td>
+<td><strong>DELETE</strong> /v1/dataset_storage</td>
+<td>delete a DatasetStorage</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
 <td><a href="ObservatoryApi.html#delete_organisation"><strong>delete_organisation</strong></a></td>
 <td><strong>DELETE</strong> /v1/organisation</td>
 <td>delete an Organisation</td>
@@ -109,6 +133,48 @@ All URIs are relative to *https://api.observatory.academy*
 <td><a href="ObservatoryApi.html#delete_telescope_type"><strong>delete_telescope_type</strong></a></td>
 <td><strong>DELETE</strong> /v1/telescope_type</td>
 <td>delete a TelescopeType</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_dataset"><strong>get_dataset</strong></a></td>
+<td><strong>GET</strong> /v1/dataset</td>
+<td>get a Dataset</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_dataset_release"><strong>get_dataset_release</strong></a></td>
+<td><strong>GET</strong> /v1/dataset_release</td>
+<td>get a DatasetRelease</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_dataset_releases"><strong>get_dataset_releases</strong></a></td>
+<td><strong>GET</strong> /v1/dataset_releases</td>
+<td>Get a list of DatasetRelease objects</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_dataset_storage"><strong>get_dataset_storage</strong></a></td>
+<td><strong>GET</strong> /v1/dataset_storage</td>
+<td>get a DatasetStorage</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_dataset_storages"><strong>get_dataset_storages</strong></a></td>
+<td><strong>GET</strong> /v1/dataset_storages</td>
+<td>Get a list of DatasetStorage objects</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_datasets"><strong>get_datasets</strong></a></td>
+<td><strong>GET</strong> /v1/datasets</td>
+<td>Get a list of Datasets</td>
 </tr>
 
 <tr>
@@ -155,6 +221,27 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#post_dataset"><strong>post_dataset</strong></a></td>
+<td><strong>POST</strong> /v1/dataset</td>
+<td>create a Dataset</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#post_dataset_release"><strong>post_dataset_release</strong></a></td>
+<td><strong>POST</strong> /v1/dataset_release</td>
+<td>create a DatasetRelease</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#post_dataset_storage"><strong>post_dataset_storage</strong></a></td>
+<td><strong>POST</strong> /v1/dataset_storage</td>
+<td>create a DatasetStorage</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
 <td><a href="ObservatoryApi.html#post_organisation"><strong>post_organisation</strong></a></td>
 <td><strong>POST</strong> /v1/organisation</td>
 <td>create an Organisation</td>
@@ -172,6 +259,27 @@ All URIs are relative to *https://api.observatory.academy*
 <td><a href="ObservatoryApi.html#post_telescope_type"><strong>post_telescope_type</strong></a></td>
 <td><strong>POST</strong> /v1/telescope_type</td>
 <td>create a TelescopeType</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#put_dataset"><strong>put_dataset</strong></a></td>
+<td><strong>PUT</strong> /v1/dataset</td>
+<td>create or update a Dataset</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#put_dataset_release"><strong>put_dataset_release</strong></a></td>
+<td><strong>PUT</strong> /v1/dataset_release</td>
+<td>create or update a DatasetRelease</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#put_dataset_storage"><strong>put_dataset_storage</strong></a></td>
+<td><strong>PUT</strong> /v1/dataset_storage</td>
+<td>create or update a DatasetStorage</td>
 </tr>
 
 <tr>
@@ -211,6 +319,9 @@ All URIs are relative to *https://api.observatory.academy*
 .. toctree::
     :maxdepth: 1
 
+    Dataset
+    DatasetRelease
+    DatasetStorage
     Organisation
     QueryResponse
     Telescope

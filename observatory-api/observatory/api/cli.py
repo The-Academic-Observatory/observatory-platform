@@ -1,5 +1,4 @@
 import click
-
 from observatory.api.server.openapi_renderer import OpenApiRenderer
 
 
@@ -8,7 +7,7 @@ def cli():
     """The Observatory API command line tool.
 
     COMMAND: the commands to run include:\n
-      - generate-open-api: generate an OpenAPI specification for the Observatory API.\n
+      - generate-openapi-spec: generate an OpenAPI specification for the Observatory API.\n
     """
 
     pass

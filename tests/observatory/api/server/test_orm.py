@@ -20,10 +20,10 @@ from typing import List
 
 import pendulum
 import sqlalchemy
-from sqlalchemy.orm import scoped_session
-from sqlalchemy.pool import StaticPool
-
 from observatory.api.server.orm import (
+    Dataset,
+    DatasetRelease,
+    DatasetStorage,
     Organisation,
     Telescope,
     TelescopeType,
@@ -32,6 +32,8 @@ from observatory.api.server.orm import (
     set_session,
     to_datetime_utc,
 )
+from sqlalchemy.orm import scoped_session
+from sqlalchemy.pool import StaticPool
 
 
 def create_telescope_types(session: scoped_session, telescope_types: List, created: datetime):
@@ -407,4 +409,471 @@ class TestOrm(unittest.TestCase):
         self.assertEqual(dict_["gcp_project_id"], obj.gcp_project_id)
         self.assertEqual(dict_["gcp_download_bucket"], obj.gcp_download_bucket)
         self.assertEqual(dict_["gcp_transform_bucket"], obj.gcp_transform_bucket)
+        self.assertEqual(dt, pendulum.instance(obj.modified))
+
+    def test_dataset_storage(self):
+        """Test that DatasetStorage can be created, fetched, updates and deleted"""
+
+        dt = pendulum.now("UTC")
+        create_telescope_types(self.session, self.telescope_types, dt)
+
+        organisation = Organisation(
+            name="My Organisation",
+            gcp_project_id="project-id",
+            gcp_download_bucket="download-bucket",
+            gcp_transform_bucket="transform-bucket",
+            created=dt,
+            modified=dt,
+        )
+        self.session.add(organisation)
+        self.session.commit()
+
+        telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
+        telescope = Telescope(
+            name="Curtin ONIX Telescope",
+            extra={"view_id": 123456},
+            telescope_type=telescope_type,
+            organisation=organisation,
+            modified=dt,
+            created=dt,
+        )
+        self.session.add(telescope)
+        self.session.commit()
+
+        dataset = Dataset(
+            name="dataset",
+            extra={},
+            connection=telescope,
+            created=dt,
+            modified=dt,
+        )
+
+        self.session.add(dataset)
+        self.session.commit()
+
+        # Create DatasetStorage
+        created = pendulum.now("UTC")
+        storage = DatasetStorage(
+            service="bigquery",
+            address="project_id.dataset_id.table_name",
+            extra={"table_type": "sharded"},
+            dataset=dataset,
+            created=created,
+        )
+        self.session.add(storage)
+        self.session.commit()
+
+        # Assert created object
+        expected_id = 1
+        self.assertIsNotNone(storage.id)
+        self.assertEqual(storage.id, expected_id)
+
+        # Update DatasetStorage
+        storage = self.session.query(DatasetStorage).filter(DatasetStorage.id == expected_id).one()
+        new_address = "new_address"
+        storage.address = new_address
+        self.session.commit()
+
+        # Assert update
+        storage = self.session.query(DatasetStorage).filter(DatasetStorage.id == expected_id).one()
+        self.assertEqual(storage.address, new_address)
+
+        # Delete items
+        self.session.query(DatasetStorage).filter(DatasetStorage.id == expected_id).delete()
+        with self.assertRaises(sqlalchemy.orm.exc.NoResultFound):
+            self.session.query(DatasetStorage).filter(DatasetStorage.id == expected_id).one()
+
+    def test_dataset_storage_from_dict(self):
+        """Test that DatasetStorage can be created from a dictionary"""
+
+        dt = pendulum.now("UTC")
+        create_telescope_types(self.session, self.telescope_types, dt)
+
+        organisation = Organisation(
+            name="My Organisation",
+            gcp_project_id="project-id",
+            gcp_download_bucket="download-bucket",
+            gcp_transform_bucket="transform-bucket",
+            created=dt,
+            modified=dt,
+        )
+        self.session.add(organisation)
+        self.session.commit()
+
+        telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
+        telescope = Telescope(
+            name="Curtin ONIX Telescope",
+            extra={"view_id": 123456},
+            telescope_type=telescope_type,
+            organisation=organisation,
+            modified=dt,
+            created=dt,
+        )
+        self.session.add(telescope)
+        self.session.commit()
+
+        dataset = Dataset(
+            name="dataset",
+            extra={},
+            connection=telescope,
+            created=dt,
+            modified=dt,
+        )
+
+        self.session.add(dataset)
+        self.session.commit()
+
+        # Create
+        expected_id = 1
+        dt = pendulum.now("UTC")
+        dict_ = {
+            "dataset": {"id": 1},
+            "service": "google",
+            "address": "project.dataset.table",
+            "extra": {"table_type": "sharded"},
+            "created": dt,
+            "modified": dt,
+        }
+        obj = DatasetStorage(**dict_)
+        self.session.add(obj)
+        self.session.commit()
+        self.assertIsNotNone(obj.id)
+        self.assertEqual(obj.id, expected_id)
+
+        # Update with no new values
+        obj.update(**{})
+        self.session.commit()
+        self.assertEqual(dict_["service"], obj.service)
+        self.assertEqual(dict_["address"], obj.address)
+        self.assertEqual(dict_["extra"], obj.extra)
+        self.assertEqual(dt, pendulum.instance(obj.created))
+        self.assertEqual(dt, pendulum.instance(obj.modified))
+
+        # Update
+        dt = pendulum.now("UTC")
+        dict_ = {
+            "service": "google",
+            "address": "project.dataset.table",
+            "extra": {"table_type": "sharded"},
+            "dataset": {"id": 1},
+            "modified": dt,
+        }
+        obj.update(**dict_)
+        self.session.commit()
+        self.assertEqual(dict_["service"], obj.service)
+        self.assertEqual(dict_["address"], obj.address)
+        self.assertEqual(dict_["extra"], obj.extra)
+        self.assertEqual(dt, pendulum.instance(obj.modified))
+
+    def test_dataset_release(self):
+        """Test that DatasetRelease can be created, fetched, updates and deleted"""
+
+        dt = pendulum.now("UTC")
+        create_telescope_types(self.session, self.telescope_types, dt)
+
+        organisation = Organisation(
+            name="My Organisation",
+            gcp_project_id="project-id",
+            gcp_download_bucket="download-bucket",
+            gcp_transform_bucket="transform-bucket",
+            created=dt,
+            modified=dt,
+        )
+        self.session.add(organisation)
+        self.session.commit()
+
+        telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
+        telescope = Telescope(
+            name="Curtin ONIX Telescope",
+            extra={"view_id": 123456},
+            telescope_type=telescope_type,
+            organisation=organisation,
+            modified=dt,
+            created=dt,
+        )
+        self.session.add(telescope)
+        self.session.commit()
+
+        dataset = Dataset(
+            name="dataset",
+            extra={},
+            connection=telescope,
+            created=dt,
+            modified=dt,
+        )
+
+        self.session.add(dataset)
+        self.session.commit()
+
+        # Create DatasetRelease
+        created = pendulum.now("UTC")
+        dt = pendulum.now("UTC")
+        release = DatasetRelease(
+            schema_version="schema",
+            schema_version_alt="schema_alt",
+            start_date=dt,
+            end_date=dt,
+            ingestion_start=dt,
+            ingestion_end=dt,
+            created=created,
+            dataset=dataset,
+        )
+        self.session.add(release)
+        self.session.commit()
+
+        # Assert created object
+        expected_id = 1
+        self.assertIsNotNone(release.id)
+        self.assertEqual(release.id, expected_id)
+
+        # Update DatasetRelease
+        release = self.session.query(DatasetRelease).filter(DatasetRelease.id == expected_id).one()
+        new_schema = "new_schema"
+        release.schema_version = new_schema
+        self.session.commit()
+
+        # Assert update
+        release = self.session.query(DatasetRelease).filter(DatasetRelease.id == expected_id).one()
+        self.assertEqual(release.schema_version, new_schema)
+
+        # Delete items
+        self.session.query(DatasetRelease).filter(DatasetRelease.id == expected_id).delete()
+        with self.assertRaises(sqlalchemy.orm.exc.NoResultFound):
+            self.session.query(DatasetRelease).filter(DatasetRelease.id == expected_id).one()
+
+    def test_dataset_release_from_dict(self):
+        """Test that DatasetRelease can be created from a dictionary"""
+
+        dt = pendulum.now("UTC")
+        create_telescope_types(self.session, self.telescope_types, dt)
+
+        organisation = Organisation(
+            name="My Organisation",
+            gcp_project_id="project-id",
+            gcp_download_bucket="download-bucket",
+            gcp_transform_bucket="transform-bucket",
+            created=dt,
+            modified=dt,
+        )
+        self.session.add(organisation)
+        self.session.commit()
+
+        telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
+        telescope = Telescope(
+            name="Curtin ONIX Telescope",
+            extra={"view_id": 123456},
+            telescope_type=telescope_type,
+            organisation=organisation,
+            modified=dt,
+            created=dt,
+        )
+        self.session.add(telescope)
+        self.session.commit()
+
+        dataset = Dataset(
+            name="dataset",
+            extra={},
+            connection=telescope,
+            created=dt,
+            modified=dt,
+        )
+
+        self.session.add(dataset)
+        self.session.commit()
+
+        # Create
+        expected_id = 1
+        dt = pendulum.now("UTC")
+        dict_ = {
+            "schema_version": "schema",
+            "schema_version_alt": "schema_alt",
+            "start_date": dt,
+            "end_date": dt,
+            "ingestion_start": dt,
+            "ingestion_end": dt,
+            "modified": dt,
+            "created": dt,
+            "dataset": {"id": expected_id},
+        }
+        obj = DatasetRelease(**dict_)
+        self.session.add(obj)
+        self.session.commit()
+        self.assertIsNotNone(obj.id)
+        self.assertEqual(obj.id, expected_id)
+
+        # Update with no new values
+        obj.update(**{})
+        self.session.commit()
+        self.assertEqual(dict_["schema_version"], obj.schema_version)
+        self.assertEqual(dict_["schema_version_alt"], obj.schema_version_alt)
+
+        self.assertEqual(dt, pendulum.instance(obj.start_date))
+        self.assertEqual(dt, pendulum.instance(obj.end_date))
+        self.assertEqual(dt, pendulum.instance(obj.ingestion_start))
+        self.assertEqual(dt, pendulum.instance(obj.ingestion_end))
+
+        self.assertEqual(dt, pendulum.instance(obj.created))
+        self.assertEqual(dt, pendulum.instance(obj.modified))
+
+        # Update
+        dt = pendulum.now("UTC")
+        dict_ = {
+            "schema_version": "schema",
+            "schema_version_alt": "schema_alt",
+            "start_date": dt,
+            "end_date": dt,
+            "ingestion_start": dt,
+            "ingestion_end": dt,
+            "modified": dt,
+            "dataset": {"id": expected_id},
+        }
+        obj.update(**dict_)
+        self.session.commit()
+        self.assertEqual(dict_["schema_version"], obj.schema_version)
+        self.assertEqual(dict_["schema_version_alt"], obj.schema_version_alt)
+        self.assertEqual(dt, pendulum.instance(obj.start_date))
+        self.assertEqual(dt, pendulum.instance(obj.end_date))
+        self.assertEqual(dt, pendulum.instance(obj.ingestion_start))
+        self.assertEqual(dt, pendulum.instance(obj.ingestion_end))
+        self.assertEqual(dt, pendulum.instance(obj.modified))
+
+    def test_dataset(self):
+        """Test that Dataset can be created, fetched, updated and deleted"""
+
+        dt = pendulum.now("UTC")
+        create_telescope_types(self.session, self.telescope_types, dt)
+
+        organisation = Organisation(
+            name="My Organisation",
+            gcp_project_id="project-id",
+            gcp_download_bucket="download-bucket",
+            gcp_transform_bucket="transform-bucket",
+            created=dt,
+            modified=dt,
+        )
+        self.session.add(organisation)
+        self.session.commit()
+
+        telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
+        telescope = Telescope(
+            name="Curtin ONIX Telescope",
+            extra={"view_id": 123456},
+            telescope_type=telescope_type,
+            organisation=organisation,
+            modified=dt,
+            created=dt,
+        )
+        self.session.add(telescope)
+        self.session.commit()
+
+        dataset = Dataset(
+            name="dataset",
+            extra={},
+            connection=telescope,
+            created=dt,
+            modified=dt,
+        )
+
+        self.session.add(dataset)
+        self.session.commit()
+
+        # Assert created object
+        self.assertIsNotNone(dataset.id)
+        self.assertEqual(dataset.id, 1)
+
+        # Update Dataset
+        newname = "newname"
+
+        def get_dataset():
+            return self.session.query(Dataset).filter(Dataset.id == 1).one()
+
+        dataset = get_dataset()
+        dataset.name = newname
+        self.session.commit()
+
+        # Assert update
+        dataset = get_dataset()
+        self.assertEqual(dataset.name, newname)
+
+        # Delete items
+        self.session.query(Dataset).filter(Dataset.id == 1).delete()
+        with self.assertRaises(sqlalchemy.orm.exc.NoResultFound):
+            get_dataset()
+
+    def test_dataset_from_dict(self):
+        """Test that Dataset can be created and updated from a dictionary"""
+
+        dt = pendulum.now("UTC")
+        create_telescope_types(self.session, self.telescope_types, dt)
+
+        organisation = Organisation(
+            name="My Organisation",
+            gcp_project_id="project-id",
+            gcp_download_bucket="download-bucket",
+            gcp_transform_bucket="transform-bucket",
+            created=dt,
+            modified=dt,
+        )
+        self.session.add(organisation)
+        self.session.commit()
+
+        telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
+        telescope = Telescope(
+            name="Curtin ONIX Telescope",
+            extra={"view_id": 123456},
+            telescope_type=telescope_type,
+            organisation=organisation,
+            modified=dt,
+            created=dt,
+        )
+        self.session.add(telescope)
+        self.session.commit()
+
+        # Create Dataset
+        expected_id = 1
+        dt = pendulum.now("UTC")
+        dict_ = {
+            "connection": {"id": telescope.id},
+            "name": "name",
+            "extra": {},
+            "created": dt,
+            "modified": dt,
+        }
+
+        obj = Dataset(**dict_)
+        self.session.add(obj)
+        self.session.commit()
+        self.assertIsNotNone(obj.id)
+        self.assertEqual(obj.id, expected_id)
+
+        # Update with no new values
+        obj.update(**{})
+        self.session.commit()
+        self.assertEqual(expected_id, obj.connection.id)
+        self.assertEqual(dt, pendulum.instance(obj.created))
+        self.assertEqual(dt, pendulum.instance(obj.modified))
+
+        # Update Dataset
+        expected_id = 2
+        telescope = Telescope(
+            name="Curtin ONIX Telescope",
+            extra={"view_id": 123456},
+            telescope_type=telescope_type,
+            organisation=organisation,
+            modified=dt,
+            created=dt,
+        )
+        self.session.add(telescope)
+        self.session.commit()
+
+        dict_ = {
+            "connection": {"id": expected_id},
+            "name": "name",
+            "extra": {},
+            "modified": dt,
+        }
+        obj.update(**dict_)
+        self.session.commit()
+        self.assertEqual(expected_id, obj.connection.id)
+        self.assertEqual(dt, pendulum.instance(obj.created))
         self.assertEqual(dt, pendulum.instance(obj.modified))
