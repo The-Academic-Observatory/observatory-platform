@@ -29,7 +29,7 @@ from airflow.utils.state import DagRunState
 from croniter import croniter
 from observatory.platform.observatory_config import (
     TerraformConfig,
-    VirtualMachine,
+    AirflowMainVm,
 )
 from observatory.platform.terraform_api import TerraformApi, TerraformVariable
 from observatory.platform.utils.airflow_utils import (
@@ -72,7 +72,7 @@ class TerraformRelease:
         workspace_id = self.terraform_api.workspace_id(organization, workspace)
         return workspace_id
 
-    def get_vm_info(self) -> Tuple[Optional[VirtualMachine], Optional[TerraformVariable]]:
+    def get_vm_info(self) -> Tuple[Optional[AirflowMainVm], Optional[TerraformVariable]]:
         """Get the VirtualMachine data object, and TerraformVariable object for airflow_worker_vm.
 
         :return VirtualMachine and TerraformVariable objects.
@@ -82,7 +82,8 @@ class TerraformRelease:
 
         for var in variables:
             if var.key == TerraformRelease.TERRAFORM_CREATE_VM_KEY:
-                return VirtualMachine.from_hcl(var.value), var
+                var_dict = json.loads(var.value.replace('"=', '":'))
+                return AirflowMainVm.from_dict(var_dict), var
 
         return None, None
 

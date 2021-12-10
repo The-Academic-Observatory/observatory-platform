@@ -24,7 +24,7 @@ from airflow.models.connection import Connection
 from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
-from observatory.platform.observatory_config import VirtualMachine
+from observatory.platform.observatory_config import AirflowMainVm
 from observatory.platform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.test_utils import (
@@ -251,7 +251,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=False)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=False)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -287,7 +287,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -361,7 +361,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -401,7 +401,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -512,7 +512,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -631,7 +631,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -750,7 +750,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -869,7 +869,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -944,7 +944,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -1034,7 +1034,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",

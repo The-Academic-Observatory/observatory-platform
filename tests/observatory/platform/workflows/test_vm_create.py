@@ -1,5 +1,21 @@
+# Copyright 2021 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Tuan Chien
+
 import os
-from unittest.mock import Mock, PropertyMock, patch
+from unittest.mock import PropertyMock, patch
 
 import pendulum
 from airflow.models import XCom
@@ -7,7 +23,7 @@ from airflow.models.connection import Connection
 from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
-from observatory.platform.observatory_config import VirtualMachine
+from observatory.platform.observatory_config import AirflowMainVm
 from observatory.platform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.test_utils import (
@@ -55,7 +71,7 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
     def test_get_vm_info_no_target_vars(self, m_tapi, m_wid):
         """Test get_vm_info"""
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=False)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=False)
         vm_tf = TerraformVariable(
             key="not_target",
             value=vm.to_hcl(),
@@ -116,11 +132,11 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_workflow_vm_already_on(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_create workflow"
+        """Test the vm_create workflow"""
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -170,11 +186,11 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
     def test_workflow_vm_create(
         self, m_tapi, m_list_workspace_vars, m_update, m_create_run, m_run_details, m_send_slack_msg
     ):
-        "Test the vm_create workflow"
+        """Test the vm_create workflow"""
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=False)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=False)
         vm_tf = TerraformVariable(
             key="airflow_worker_vm",
             value=vm.to_hcl(),
