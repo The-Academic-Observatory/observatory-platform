@@ -404,7 +404,6 @@ class Dataset(Base):
         :param extra: additional metadata for a dataset, stored as JSON.
         :param created: datetime created in UTC.
         :param modified: datetime modified in UTC.
-        :param dataset_storage: the storage details associated with this dataset.
         """
 
         self.id = id
@@ -429,7 +428,6 @@ class Dataset(Base):
         :param name: the dataset name.
         :param extra: additional metadata for a dataset, stored as JSON.
         :param modified: datetime modified in UTC.
-        :param dataset_storage: the dataset storage info associated with this dataset.
         :return: None.
         """
 
@@ -454,9 +452,9 @@ class DatasetStorage(Base):
     service: str
     address: str
     extra: dict
-    dataset: Dataset = None
     created: pendulum.DateTime
     modified: pendulum.DateTime
+    dataset: Dataset = None
 
     id = Column(Integer, primary_key=True)
     service = Column(String(250), nullable=False)
@@ -540,8 +538,6 @@ class DatasetRelease(Base):
     ingestion_start: pendulum.DateTime
     ingestion_end: pendulum.DateTime
 
-    dataset: Dataset = None
-
     created: pendulum.DateTime
     modified: pendulum.DateTime
 
@@ -555,6 +551,8 @@ class DatasetRelease(Base):
     dataset_id = Column(Integer, ForeignKey("dataset.id"), nullable=False)
     created = Column(DateTime())
     modified = Column(DateTime())
+
+    dataset: Dataset = None
 
     def __init__(
         self,
