@@ -1064,7 +1064,7 @@ class ObservatoryConfig:
         :return: whether the config is valid or not.
         """
 
-        return self.validator is None or not len(self.validator._errors)
+        return self.validator is not None and not len(self.validator._errors)
 
     @property
     def errors(self) -> List[ValidationError]:
@@ -1074,6 +1074,8 @@ class ObservatoryConfig:
         """
 
         errors = []
+        if self.validator is None:
+            return [ValidationError("Validator", "Validator is None")]
         for key, values in self.validator.errors.items():
             for value in values:
                 if type(value) is dict:
