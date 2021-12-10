@@ -32,7 +32,8 @@ from observatory.api.server.orm import (
     Organisation,
     Telescope,
     TelescopeType,
-)from sqlalchemy import and_
+)
+from sqlalchemy import and_
 
 Response = Tuple[Any, int]
 session_ = None  # Global session
@@ -505,6 +506,7 @@ def get_datasets(limit: int, telescope_id: int = None) -> Response:
 
     # Return items that match with a limit
     return q.limit(limit).all()
+
 
 # def searchv2():
 #     """ Example of having a different function for an upgraded version of the API.
