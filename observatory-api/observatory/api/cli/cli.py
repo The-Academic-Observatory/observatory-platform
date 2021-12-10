@@ -26,7 +26,7 @@ def generate_openapi_spec(template_file, output_file, usage_type):
     """
 
     # Render file
-    renderer = OpenApiRenderer(template_file, type=usage_type)
+    renderer = OpenApiRenderer(template_file, usage_type=usage_type)
     render = renderer.render()
 
     # Save file
