@@ -25,7 +25,6 @@ import unittest
 import uuid
 from subprocess import Popen
 from typing import Set
-from unittest.mock import patch
 
 import requests
 import stringcase
@@ -45,7 +44,7 @@ from observatory.platform.observatory_config import (
 )
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.proc_utils import stream_process
-from observatory.platform.utils.test_utils import test_fixtures_path, find_free_port, save_empty_file
+from observatory.platform.utils.test_utils import test_fixtures_path, find_free_port
 from observatory.platform.utils.url_utils import wait_for_url
 
 
@@ -227,22 +226,21 @@ class TestCliFunctional(unittest.TestCase):
         redis = Redis(port=observatory.redis_port, socket_connect_timeout=1)
         self.assertTrue(redis.ping())
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
-    def test_run_platform_editable(self, mock_config_load):
+    def test_run_platform_editable(self):
         """Test that the platform runs when built from an editable project. API installed from PyPI."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
-            # Save empty config
-            config_path = save_empty_file(t, self.config_file_name)
-
             # Copy platform project
             self.copy_observatory_api(t)
             self.copy_observatory_platform(t)
 
             # Make config object
             config = self.make_editable_observatory_config(t)
-            mock_config_load.return_value = config
+
+            # Save config
+            config_path = os.path.join(t, self.config_file_name)
+            config.save(config_path)
 
             try:
                 # Test that start command works
@@ -263,15 +261,11 @@ class TestCliFunctional(unittest.TestCase):
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
-    def test_dag_load_workflows_project_editable(self, mock_config_load):
+    def test_dag_load_workflows_project_editable(self):
         """Test that the DAGs load when build from an editable workflows project. API installed from PyPI."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
-            # Save empty config
-            config_path = save_empty_file(t, self.config_file_name)
-
             # Copy projects
             self.copy_observatory_api(t)
             self.copy_observatory_platform(t)
@@ -289,7 +283,9 @@ class TestCliFunctional(unittest.TestCase):
                     )
                 ]
             )
-            mock_config_load.return_value = config
+            # Save config
+            config_path = os.path.join(t, self.config_file_name)
+            config.save(config_path)
 
             try:
                 # Test that start command works
@@ -315,13 +311,11 @@ class TestCliFunctional(unittest.TestCase):
     def make_sdist_observatory_config(
         self,
         temp_dir: str,
-        observatory_api_sdist_path: str,
         observatory_sdist_path: str,
     ) -> ObservatoryConfig:
         """Make an sdist observatory config.
 
         :param temp_dir: the temp dir.
-        :param observatory_api_sdist_path: the observatory-api sdist path.
         :param observatory_sdist_path: the observatory-platform sdist path.
         :return: ObservatoryConfig.
         """
@@ -347,26 +341,24 @@ class TestCliFunctional(unittest.TestCase):
             ),
         )
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
-    def test_run_platform_sdist(self, mock_config_load):
+    def test_run_platform_sdist(self):
         """Test that the platform runs when built from a source distribution. API package installed from PyPI."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
-            # Save empty config
-            config_path = save_empty_file(t, self.config_file_name)
-
             # Copy platform project
             self.copy_observatory_api(t)
             self.copy_observatory_platform(t)
 
             # Build sdist
-            observatory_api_sdist_path = build_sdist(os.path.join(t, self.observatory_api_package_name))
             observatory_platform_sdist_path = build_sdist(os.path.join(t, self.observatory_platform_package_name))
 
             # Make config object
-            config = self.make_sdist_observatory_config(t, observatory_api_sdist_path, observatory_platform_sdist_path)
-            mock_config_load.return_value = config
+            config = self.make_sdist_observatory_config(t, observatory_platform_sdist_path)
+
+            # Save config
+            config_path = os.path.join(t, self.config_file_name)
+            config.save(config_path)
 
             try:
                 # Test that start command works
@@ -387,27 +379,22 @@ class TestCliFunctional(unittest.TestCase):
             finally:
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
-    @patch("observatory.platform.platform_builder.ObservatoryConfig.load")
-    def test_dag_load_workflows_project_sdist(self, mock_config_load):
+    def test_dag_load_workflows_project_sdist(self):
         """Test that DAGs load from an sdist workflows project. API package installed from PyPI."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
-            # Save empty config
-            config_path = save_empty_file(t, self.config_file_name)
-
             # Copy projects
             self.copy_observatory_api(t)
             self.copy_observatory_platform(t)
             self.copy_workflows_project(t)
 
             # Build sdists
-            observatory_api_sdist_path = build_sdist(os.path.join(t, self.observatory_api_package_name))
             observatory_sdist_path = build_sdist(os.path.join(t, self.observatory_platform_package_name))
             workflows_sdist_path = build_sdist(os.path.join(t, self.workflows_package_name))
 
             # Make config object
-            config = self.make_sdist_observatory_config(t, observatory_api_sdist_path, observatory_sdist_path)
+            config = self.make_sdist_observatory_config(t, observatory_sdist_path)
             config.workflows_projects = WorkflowsProjects(
                 [
                     WorkflowsProject(
@@ -418,7 +405,10 @@ class TestCliFunctional(unittest.TestCase):
                     )
                 ]
             )
-            mock_config_load.return_value = config
+
+            # Save config
+            config_path = os.path.join(t, self.config_file_name)
+            config.save(config_path)
 
             try:
                 # Test that start command works

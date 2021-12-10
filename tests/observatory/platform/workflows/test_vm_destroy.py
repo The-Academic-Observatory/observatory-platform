@@ -1,3 +1,19 @@
+# Copyright 2021 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Tuan Chien
+
 import datetime
 import os
 from unittest.mock import patch
@@ -8,7 +24,7 @@ from airflow.models.connection import Connection
 from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
-from observatory.platform.observatory_config import VirtualMachine
+from observatory.platform.observatory_config import AirflowMainVm
 from observatory.platform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.test_utils import (
@@ -46,7 +62,7 @@ def xcom_push(*, key, value, dag_id, task_id, execution_date, session=None):
     )
 
 
-class TesVmDestroyWorkflow(ObservatoryTestCase):
+class TestVmDestroyWorkflow(ObservatoryTestCase):
     """Test the vm_destroy dag."""
 
     def __init__(self, *args, **kwargs):
@@ -231,11 +247,11 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_vm_already_off(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=False)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=False)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -267,11 +283,11 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_empty_watchlist(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -341,11 +357,11 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_manual_create(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -381,11 +397,11 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_prev_execution_and_start_time(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -492,11 +508,11 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_prev_execution_and_start_time_ge_destroy_time(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -611,11 +627,11 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_prev_execution_and_start_time_lt_destroy_time(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -730,11 +746,11 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_prev_execution_and_start_time_lt_destroy_time_catchup(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -849,11 +865,11 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_start_time_no_prev_execution(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -924,11 +940,11 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_dont_destroy_worker_slack_warning(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
@@ -1014,11 +1030,11 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_dont_destroy_worker_no_slack_warning(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
-        vm = VirtualMachine(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
+        vm = AirflowMainVm(machine_type="vm_type", disk_size=10, disk_type="ssd", create=True)
         m_list_workspace_vars.return_value = [
             TerraformVariable(
                 key="airflow_worker_vm",
