@@ -22,10 +22,7 @@ from unittest.mock import Mock, PropertyMock, patch
 
 from click.testing import CliRunner
 from observatory.platform.observatory_config import (
-    Api,
     BackendType,
-    GoogleCloud,
-    Observatory,
     PythonPackage,
     TerraformAPIConfig,
     TerraformConfig,
@@ -33,6 +30,7 @@ from observatory.platform.observatory_config import (
 from observatory.platform.terraform_builder import TerraformAPIBuilder, TerraformBuilder, default_observatory_home
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import get_file_hash
+from observatory.platform.utils.test_utils import save_terraform_api_config, save_terraform_config
 
 
 class Popen(Mock):
@@ -42,53 +40,6 @@ class Popen(Mock):
     @property
     def returncode(self):
         return 0
-
-
-def save_terraform_config(work_dir: str):
-    """Save a valid terraform config file
-
-    :param work_dir: Current working directory, used to save config file
-    :return: The full config  path
-    """
-    config_path = os.path.join(work_dir, "config.yaml")
-
-    # Create empty credentials file
-    credentials_path = os.path.abspath("creds.json")
-    open(credentials_path, "a").close()
-
-    # Set observatory platform path and observatory home
-    observatory_platform_path = module_file_path("observatory.platform", nav_back_steps=-3)
-    observatory_home = os.path.join(work_dir, ".observatory")
-
-    # Save config
-    observatory = Observatory(package=observatory_platform_path, observatory_home=observatory_home)
-    google_cloud = GoogleCloud(credentials=credentials_path)
-    TerraformConfig(observatory=observatory, google_cloud=google_cloud).save(config_path)
-
-    return config_path
-
-
-def save_terraform_api_config(work_dir: str):
-    """Save a valid terraform api config file
-
-    :param work_dir: Current working directory, used to save config file
-    :return: The full config  path
-    """
-    config_path = os.path.join(work_dir, "config.yaml")
-
-    # Create empty credentials file
-    credentials_path = os.path.abspath("creds.json")
-    open(credentials_path, "a").close()
-
-    # Get api package path
-    api_package = module_file_path("observatory.api", nav_back_steps=-3)
-
-    # Save config
-    api = Api(package=api_package)
-    google_cloud = GoogleCloud(credentials=credentials_path)
-    TerraformAPIConfig(google_cloud=google_cloud, api=api).save(config_path)
-
-    return config_path
 
 
 class TestTerraformBuilder(unittest.TestCase):

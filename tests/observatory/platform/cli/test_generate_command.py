@@ -57,7 +57,6 @@ from observatory.platform.observatory_config import (
     WorkflowsProjects,
 )
 from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.utils.file_utils import get_file_hash
 from observatory.platform.utils.proc_utils import stream_process
 from observatory.platform.utils.test_utils import ObservatoryTestCase
 
