@@ -164,6 +164,7 @@ def load_bigquery_table(
     project_id: str = None,
     cluster: bool = False,
     clustering_fields=None,
+    ignore_unknown_values: bool = False
 ) -> bool:
     """Load a BigQuery table from an object on Google Cloud Storage.
 
@@ -187,6 +188,7 @@ def load_bigquery_table(
     :param cluster: whether to cluster the table or not.
     :param clustering_fields: what fields to cluster on.
     Default is to overwrite.
+    :param ignore_unknown_values: whether to ignore unknown values or not.
     :return:
     """
 
@@ -216,6 +218,7 @@ def load_bigquery_table(
     job_config.schema = client.schema_from_json(schema_file_path)
     job_config.write_disposition = write_disposition
     job_config.destination_table_description = table_description
+    job_config.ignore_unknown_values = ignore_unknown_values
 
     # Set CSV options
     if source_format == SourceFormat.CSV:
