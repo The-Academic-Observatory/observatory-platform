@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Aniek Roelofs
+# Author: Aniek Roelofs, Tuan Chien
 
 import json
 import logging
@@ -28,7 +28,6 @@ from airflow.models.variable import Variable
 from airflow.utils.state import DagRunState
 from croniter import croniter
 from observatory.platform.observatory_config import (
-    Terraform,
     TerraformConfig,
     VirtualMachine,
 )
@@ -450,16 +449,16 @@ class VmDestroyWorkflow(Workflow):
 
         # If not destroying vm, check VM runtime.
         if not destroy_worker_vm:
-            self.check_runtime_vm(release, **kwargs)
+            self.check_runtime_vm(start_time_vm, **kwargs)
 
         return destroy_worker_vm
 
-    def check_runtime_vm(self, release: TerraformRelease, **kwargs):
+    def check_runtime_vm(self, start_time_vm: Optional[datetime], **kwargs):
         """Checks how long the VM has been turned on based on the xcom value from the terraform run task.
         A warning message will be sent in a slack channel if it has been on longer than the warning limit,
         the environment isn't develop and a message hasn't been sent already in the last x hours.
 
-        :param release: TerraformRelease object.
+        :param start_time_vm: Start time of the vm
         :param kwargs: the context passed from the PythonOperator. See
         https://airflow.apache.org/docs/stable/macros-ref.html for a list of the keyword arguments that are passed to
         this argument.
@@ -469,19 +468,11 @@ class VmDestroyWorkflow(Workflow):
         ti: TaskInstance = kwargs["ti"]
         last_warning_time = ti.xcom_pull(
             key=VmDestroyWorkflow.XCOM_WARNING_TIME,
-            task_ids=self.check_runtime_vm.__name__,
+            task_ids=ti.task_id,
             dag_id=VmDestroyWorkflow.DAG_ID,
             include_prior_dates=True,
         )
         last_warning_time = parse_datetime(last_warning_time)
-
-        start_time_vm = ti.xcom_pull(
-            key=release.XCOM_START_TIME_VM,
-            task_ids=self.run_terraform.__name__,
-            dag_id=VmCreateWorkflow.DAG_ID,
-            include_prior_dates=True,
-        )
-        start_time_vm = parse_datetime(start_time_vm)
 
         if start_time_vm:
             # calculate number of hours passed since start time vm and now
