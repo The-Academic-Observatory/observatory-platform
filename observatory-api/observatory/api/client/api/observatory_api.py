@@ -26,7 +26,6 @@ from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
 from observatory.api.client.model.dataset_storage import DatasetStorage
 from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.query_response import QueryResponse
 from observatory.api.client.model.telescope import Telescope
 from observatory.api.client.model.telescope_type import TelescopeType
 
@@ -46,7 +45,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': None,
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset',
                 'operation_id': 'delete_dataset',
@@ -95,7 +94,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': None,
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset_release',
                 'operation_id': 'delete_dataset_release',
@@ -144,7 +143,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': None,
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset_storage',
                 'operation_id': 'delete_dataset_storage',
@@ -193,7 +192,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': None,
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/organisation',
                 'operation_id': 'delete_organisation',
@@ -242,7 +241,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': None,
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/telescope',
                 'operation_id': 'delete_telescope',
@@ -291,7 +290,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': None,
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/telescope_type',
                 'operation_id': 'delete_telescope_type',
@@ -340,7 +339,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (Dataset,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset',
                 'operation_id': 'get_dataset',
@@ -391,7 +390,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (DatasetRelease,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset_release',
                 'operation_id': 'get_dataset_release',
@@ -442,7 +441,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': ([DatasetRelease],),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset_releases',
                 'operation_id': 'get_dataset_releases',
@@ -498,7 +497,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (DatasetStorage,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset_storage',
                 'operation_id': 'get_dataset_storage',
@@ -549,7 +548,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': ([DatasetStorage],),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset_storages',
                 'operation_id': 'get_dataset_storages',
@@ -605,7 +604,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': ([Dataset],),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/datasets',
                 'operation_id': 'get_datasets',
@@ -661,7 +660,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (Organisation,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/organisation',
                 'operation_id': 'get_organisation',
@@ -712,7 +711,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': ([Organisation],),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/organisations',
                 'operation_id': 'get_organisations',
@@ -763,7 +762,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (Telescope,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/telescope',
                 'operation_id': 'get_telescope',
@@ -814,7 +813,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (TelescopeType,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/telescope_type',
                 'operation_id': 'get_telescope_type',
@@ -868,7 +867,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': ([TelescopeType],),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/telescope_types',
                 'operation_id': 'get_telescope_types',
@@ -919,7 +918,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': ([Telescope],),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/telescopes',
                 'operation_id': 'get_telescopes',
@@ -980,7 +979,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (Dataset,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset',
                 'operation_id': 'post_dataset',
@@ -1032,7 +1031,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (DatasetRelease,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset_release',
                 'operation_id': 'post_dataset_release',
@@ -1084,7 +1083,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (DatasetStorage,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset_storage',
                 'operation_id': 'post_dataset_storage',
@@ -1136,7 +1135,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (Organisation,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/organisation',
                 'operation_id': 'post_organisation',
@@ -1188,7 +1187,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (Telescope,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/telescope',
                 'operation_id': 'post_telescope',
@@ -1240,7 +1239,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (TelescopeType,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/telescope_type',
                 'operation_id': 'post_telescope_type',
@@ -1292,7 +1291,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (Dataset,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset',
                 'operation_id': 'put_dataset',
@@ -1344,7 +1343,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (DatasetRelease,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset_release',
                 'operation_id': 'put_dataset_release',
@@ -1396,7 +1395,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (DatasetStorage,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/dataset_storage',
                 'operation_id': 'put_dataset_storage',
@@ -1448,7 +1447,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (Organisation,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/organisation',
                 'operation_id': 'put_organisation',
@@ -1500,7 +1499,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (Telescope,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/telescope',
                 'operation_id': 'put_telescope',
@@ -1552,7 +1551,7 @@ class ObservatoryApi(object):
             settings={
                 'response_type': (TelescopeType,),
                 'auth': [
-                    'api_key'
+                    'auth0_jwt'
                 ],
                 'endpoint_path': '/v1/telescope_type',
                 'operation_id': 'put_telescope_type',
@@ -1597,305 +1596,6 @@ class ObservatoryApi(object):
                 'content_type': [
                     'application/json'
                 ]
-            },
-            api_client=api_client
-        )
-        self.queryv1_endpoint = _Endpoint(
-            settings={
-                'response_type': (QueryResponse,),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/query',
-                'operation_id': 'queryv1',
-                'http_method': 'GET',
-                'servers': None,
-            },
-            params_map={
-                'all': [
-                    'agg',
-                    'subset',
-                    'index_date',
-                    '_from',
-                    'to',
-                    'limit',
-                    'scroll_id',
-                    'pit_id',
-                    'search_after_no',
-                    'search_after_text',
-                    'id',
-                    'name',
-                    'published_year',
-                    'coordinates',
-                    'country',
-                    'country_code',
-                    'region',
-                    'subregion',
-                    'access_type',
-                    'label',
-                    'status',
-                    'collaborator_coordinates',
-                    'collaborator_country',
-                    'collaborator_country_code',
-                    'collaborator_id',
-                    'collaborator_name',
-                    'collaborator_region',
-                    'collaborator_subregion',
-                    'field',
-                    'source',
-                    'funder_country_code',
-                    'funder_name',
-                    'funder_sub_type',
-                    'funder_type',
-                    'journal',
-                    'output_type',
-                    'publisher',
-                ],
-                'required': [
-                    'agg',
-                    'subset',
-                ],
-                'nullable': [
-                ],
-                'enum': [
-                    'agg',
-                    'subset',
-                ],
-                'validation': [
-                    '_from',
-                    'to',
-                    'limit',
-                ]
-            },
-            root_map={
-                'validations': {
-                    ('_from',): {
-
-                        'inclusive_maximum': 4,
-                        'inclusive_minimum': 4,
-                    },
-                    ('to',): {
-
-                        'inclusive_maximum': 4,
-                        'inclusive_minimum': 4,
-                    },
-                    ('limit',): {
-
-                        'inclusive_maximum': 10000,
-                    },
-                },
-                'allowed_values': {
-                    ('agg',): {
-
-                        "AUTHOR": "author",
-                        "COUNTRY": "country",
-                        "FUNDER": "funder",
-                        "GROUP": "group",
-                        "INSTITUTION": "institution",
-                        "PUBLISHER": "publisher"
-                    },
-                    ('subset',): {
-
-                        "CITATIONS": "citations",
-                        "COLLABORATIONS": "collaborations",
-                        "DISCIPLINES": "disciplines",
-                        "EVENTS": "events",
-                        "FUNDERS": "funders",
-                        "JOURNALS": "journals",
-                        "OA-METRICS": "oa-metrics",
-                        "OUTPUT-TYPES": "output-types",
-                        "PUBLISHERS": "publishers"
-                    },
-                },
-                'openapi_types': {
-                    'agg':
-                        (str,),
-                    'subset':
-                        (str,),
-                    'index_date':
-                        (date,),
-                    '_from':
-                        (int,),
-                    'to':
-                        (int,),
-                    'limit':
-                        (int,),
-                    'scroll_id':
-                        (str,),
-                    'pit_id':
-                        (str,),
-                    'search_after_no':
-                        (int,),
-                    'search_after_text':
-                        (str,),
-                    'id':
-                        ([str],),
-                    'name':
-                        ([str],),
-                    'published_year':
-                        ([str],),
-                    'coordinates':
-                        ([str],),
-                    'country':
-                        ([str],),
-                    'country_code':
-                        ([str],),
-                    'region':
-                        ([str],),
-                    'subregion':
-                        ([str],),
-                    'access_type':
-                        ([str],),
-                    'label':
-                        ([str],),
-                    'status':
-                        ([str],),
-                    'collaborator_coordinates':
-                        ([str],),
-                    'collaborator_country':
-                        ([str],),
-                    'collaborator_country_code':
-                        ([str],),
-                    'collaborator_id':
-                        ([str],),
-                    'collaborator_name':
-                        ([str],),
-                    'collaborator_region':
-                        ([str],),
-                    'collaborator_subregion':
-                        ([str],),
-                    'field':
-                        ([str],),
-                    'source':
-                        ([str],),
-                    'funder_country_code':
-                        ([str],),
-                    'funder_name':
-                        ([str],),
-                    'funder_sub_type':
-                        ([str],),
-                    'funder_type':
-                        ([str],),
-                    'journal':
-                        ([str],),
-                    'output_type':
-                        ([str],),
-                    'publisher':
-                        ([str],),
-                },
-                'attribute_map': {
-                    'agg': 'agg',
-                    'subset': 'subset',
-                    'index_date': 'index_date',
-                    '_from': 'from',
-                    'to': 'to',
-                    'limit': 'limit',
-                    'scroll_id': 'scroll_id',
-                    'pit_id': 'pit_id',
-                    'search_after_no': 'search_after_no',
-                    'search_after_text': 'search_after_text',
-                    'id': 'id',
-                    'name': 'name',
-                    'published_year': 'published_year',
-                    'coordinates': 'coordinates',
-                    'country': 'country',
-                    'country_code': 'country_code',
-                    'region': 'region',
-                    'subregion': 'subregion',
-                    'access_type': 'access_type',
-                    'label': 'label',
-                    'status': 'status',
-                    'collaborator_coordinates': 'collaborator_coordinates',
-                    'collaborator_country': 'collaborator_country',
-                    'collaborator_country_code': 'collaborator_country_code',
-                    'collaborator_id': 'collaborator_id',
-                    'collaborator_name': 'collaborator_name',
-                    'collaborator_region': 'collaborator_region',
-                    'collaborator_subregion': 'collaborator_subregion',
-                    'field': 'field',
-                    'source': 'source',
-                    'funder_country_code': 'funder_country_code',
-                    'funder_name': 'funder_name',
-                    'funder_sub_type': 'funder_sub_type',
-                    'funder_type': 'funder_type',
-                    'journal': 'journal',
-                    'output_type': 'output_type',
-                    'publisher': 'publisher',
-                },
-                'location_map': {
-                    'agg': 'query',
-                    'subset': 'query',
-                    'index_date': 'query',
-                    '_from': 'query',
-                    'to': 'query',
-                    'limit': 'query',
-                    'scroll_id': 'query',
-                    'pit_id': 'query',
-                    'search_after_no': 'query',
-                    'search_after_text': 'query',
-                    'id': 'query',
-                    'name': 'query',
-                    'published_year': 'query',
-                    'coordinates': 'query',
-                    'country': 'query',
-                    'country_code': 'query',
-                    'region': 'query',
-                    'subregion': 'query',
-                    'access_type': 'query',
-                    'label': 'query',
-                    'status': 'query',
-                    'collaborator_coordinates': 'query',
-                    'collaborator_country': 'query',
-                    'collaborator_country_code': 'query',
-                    'collaborator_id': 'query',
-                    'collaborator_name': 'query',
-                    'collaborator_region': 'query',
-                    'collaborator_subregion': 'query',
-                    'field': 'query',
-                    'source': 'query',
-                    'funder_country_code': 'query',
-                    'funder_name': 'query',
-                    'funder_sub_type': 'query',
-                    'funder_type': 'query',
-                    'journal': 'query',
-                    'output_type': 'query',
-                    'publisher': 'query',
-                },
-                'collection_format_map': {
-                    'id': 'multi',
-                    'name': 'multi',
-                    'published_year': 'multi',
-                    'coordinates': 'multi',
-                    'country': 'multi',
-                    'country_code': 'multi',
-                    'region': 'multi',
-                    'subregion': 'multi',
-                    'access_type': 'multi',
-                    'label': 'multi',
-                    'status': 'multi',
-                    'collaborator_coordinates': 'multi',
-                    'collaborator_country': 'multi',
-                    'collaborator_country_code': 'multi',
-                    'collaborator_id': 'multi',
-                    'collaborator_name': 'multi',
-                    'collaborator_region': 'multi',
-                    'collaborator_subregion': 'multi',
-                    'field': 'multi',
-                    'source': 'multi',
-                    'funder_country_code': 'multi',
-                    'funder_name': 'multi',
-                    'funder_sub_type': 'multi',
-                    'funder_type': 'multi',
-                    'journal': 'multi',
-                    'output_type': 'multi',
-                    'publisher': 'multi',
-                }
-            },
-            headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [],
             },
             api_client=api_client
         )
@@ -3881,109 +3581,4 @@ class ObservatoryApi(object):
         kwargs['body'] = \
             body
         return self.put_telescope_type_endpoint.call_with_http_info(**kwargs)
-
-    def queryv1(
-        self,
-        agg,
-        subset,
-        **kwargs
-    ):
-        """Search the Observatory API  # noqa: E501
-
-        Search the Observatory API  # noqa: E501
-        This method makes a synchronous HTTP request by default. To make an
-        asynchronous HTTP request, please pass async_req=True
-
-        >>> thread = api.queryv1(agg, subset, async_req=True)
-        >>> result = thread.get()
-
-        Args:
-            agg (str): The aggregation level
-            subset (str): The required subset
-
-        Keyword Args:
-            index_date (date): Index date, defaults to latest. [optional]
-            _from (int): Start year (included). [optional]
-            to (int): End year (not included). [optional]
-            limit (int): Limit number of results (max 10000). [optional]
-            scroll_id (str): The scroll id. [optional]
-            pit_id (str): The PIT id. [optional]
-            search_after_no (int): The search after key. [optional]
-            search_after_text (str): The search after key. [optional]
-            id ([str]): [optional]
-            name ([str]): [optional]
-            published_year ([str]): [optional]
-            coordinates ([str]): [optional]
-            country ([str]): [optional]
-            country_code ([str]): [optional]
-            region ([str]): [optional]
-            subregion ([str]): [optional]
-            access_type ([str]): [optional]
-            label ([str]): [optional]
-            status ([str]): [optional]
-            collaborator_coordinates ([str]): [optional]
-            collaborator_country ([str]): [optional]
-            collaborator_country_code ([str]): [optional]
-            collaborator_id ([str]): [optional]
-            collaborator_name ([str]): [optional]
-            collaborator_region ([str]): [optional]
-            collaborator_subregion ([str]): [optional]
-            field ([str]): [optional]
-            source ([str]): [optional]
-            funder_country_code ([str]): [optional]
-            funder_name ([str]): [optional]
-            funder_sub_type ([str]): [optional]
-            funder_type ([str]): [optional]
-            journal ([str]): [optional]
-            output_type ([str]): [optional]
-            publisher ([str]): [optional]
-            _return_http_data_only (bool): response data without head status
-                code and headers. Default is True.
-            _preload_content (bool): if False, the urllib3.HTTPResponse object
-                will be returned without reading/decoding response data.
-                Default is True.
-            _request_timeout (int/float/tuple): timeout setting for this request. If
-                one number provided, it will be total request timeout. It can also
-                be a pair (tuple) of (connection, read) timeouts.
-                Default is None.
-            _check_input_type (bool): specifies if type checking
-                should be done one the data sent to the server.
-                Default is True.
-            _check_return_type (bool): specifies if type checking
-                should be done one the data received from the server.
-                Default is True.
-            _host_index (int/None): specifies the index of the server
-                that we want to use.
-                Default is read from the configuration.
-            async_req (bool): execute request asynchronously
-
-        Returns:
-            QueryResponse
-                If the method is called asynchronously, returns the request
-                thread.
-        """
-        kwargs['async_req'] = kwargs.get(
-            'async_req', False
-        )
-        kwargs['_return_http_data_only'] = kwargs.get(
-            '_return_http_data_only', True
-        )
-        kwargs['_preload_content'] = kwargs.get(
-            '_preload_content', True
-        )
-        kwargs['_request_timeout'] = kwargs.get(
-            '_request_timeout', None
-        )
-        kwargs['_check_input_type'] = kwargs.get(
-            '_check_input_type', True
-        )
-        kwargs['_check_return_type'] = kwargs.get(
-            '_check_return_type', True
-        )
-        kwargs['_host_index'] = kwargs.get('_host_index')
-        kwargs['agg'] = \
-            agg
-        kwargs['subset'] = \
-            subset
-        return self.queryv1_endpoint.call_with_http_info(**kwargs)
 

@@ -36,7 +36,6 @@ from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
 from observatory.api.client.model.dataset_storage import DatasetStorage
 from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.query_response import QueryResponse
 from observatory.api.client.model.telescope import Telescope
 from observatory.api.client.model.telescope_type import TelescopeType
 # Defining the host is optional and defaults to https://api.observatory.academy
@@ -50,11 +49,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 
 # Enter a context with an instance of the API client
@@ -303,13 +302,6 @@ All URIs are relative to *https://api.observatory.academy*
 <td>create or update a TelescopeType</td>
 </tr>
 
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#queryv1"><strong>queryv1</strong></a></td>
-<td><strong>GET</strong> /v1/query</td>
-<td>Search the Observatory API</td>
-</tr>
-
 
 </tbody>
 </table></div>
@@ -323,7 +315,6 @@ All URIs are relative to *https://api.observatory.academy*
     DatasetRelease
     DatasetStorage
     Organisation
-    QueryResponse
     Telescope
     TelescopeType
     
@@ -332,9 +323,10 @@ All URIs are relative to *https://api.observatory.academy*
 ## Documentation For Authorization
 
 
-## api_key
+## auth0_jwt
 
-- **Type**: API key
-- **API key parameter name**: key
-- **Location**: URL query string
+- **Type**: OAuth
+- **Flow**: implicit
+- **Authorization URL**: https://dev-canowprn.us.auth0.com/authorize
+- **Scopes**: N/A
 

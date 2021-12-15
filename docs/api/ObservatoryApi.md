@@ -193,12 +193,6 @@ All URIs are relative to *https://api.observatory.academy*
   <td>create or update a TelescopeType</td>
 </tr>
 
-<tr>
-  <td><a href="ObservatoryApi.html#queryv1"><strong>queryv1</strong></a></td>
-  <td><strong>GET</strong> /v1/query</td>
-  <td>Search the Observatory API</td>
-</tr>
-
 
 </tbody>
 </table></div>
@@ -212,7 +206,7 @@ Delete a Dataset by passing it's id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -229,11 +223,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -286,7 +280,7 @@ void (empty response body)
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -328,7 +322,7 @@ Delete a DatasetRelease by passing it's id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -345,11 +339,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -402,7 +396,7 @@ void (empty response body)
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -444,7 +438,7 @@ Delete a DatasetStorage by passing it's id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -461,11 +455,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -518,7 +512,7 @@ void (empty response body)
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -560,7 +554,7 @@ Delete an Organisation by passing it's id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -577,11 +571,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -634,7 +628,7 @@ void (empty response body)
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -676,7 +670,7 @@ Delete a Telescope by passing it's id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -693,11 +687,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -750,7 +744,7 @@ void (empty response body)
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -792,7 +786,7 @@ Delete a TelescopeType by passing it's id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -809,11 +803,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -866,7 +860,7 @@ void (empty response body)
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -908,7 +902,7 @@ Get the details of a Dataset by passing its id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -926,11 +920,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -984,7 +978,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -1031,7 +1025,7 @@ Get the details of a DatasetRelease by passing it's id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -1049,11 +1043,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -1107,7 +1101,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -1154,7 +1148,7 @@ Get a list of DatasetRelease objects
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -1172,11 +1166,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -1246,7 +1240,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -1293,7 +1287,7 @@ Get the details of a DatasetStorage by passing it's id or dataset id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -1311,11 +1305,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -1369,7 +1363,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -1416,7 +1410,7 @@ Get a list of DatasetStorage objects
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -1434,11 +1428,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -1508,7 +1502,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -1555,7 +1549,7 @@ Gets a list of datasets
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -1573,11 +1567,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -1647,7 +1641,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -1694,7 +1688,7 @@ Get the details of an Organisation by passing its id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -1712,11 +1706,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -1770,7 +1764,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -1817,7 +1811,7 @@ Gets a list of organisations
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -1835,11 +1829,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -1893,7 +1887,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -1940,7 +1934,7 @@ Get the details of a Telescope by passing it's id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -1958,11 +1952,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -2016,7 +2010,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -2063,7 +2057,7 @@ Get the details of a TelescopeType by passing it's id or type_id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -2081,11 +2075,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -2145,7 +2139,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -2192,7 +2186,7 @@ Get a list of TelescopeType objects
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -2210,11 +2204,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -2268,7 +2262,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -2315,7 +2309,7 @@ Get a list of Telescope objects and optionally filter via a Telescope id and or 
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -2333,11 +2327,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -2414,7 +2408,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -2461,7 +2455,7 @@ Create a Dataset by passing a Dataset object, without an id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -2479,11 +2473,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -2561,7 +2555,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -2603,7 +2597,7 @@ Create a DatasetRelease by passing a DatasetRelease object, without an id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -2621,11 +2615,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -2712,7 +2706,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -2754,7 +2748,7 @@ Create a DatasetStorage by passing a DatasetStorage object, without an id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -2772,11 +2766,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -2860,7 +2854,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -2902,7 +2896,7 @@ Create an Organisation by passing an Organisation object, without an id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -2920,11 +2914,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -2984,7 +2978,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -3026,7 +3020,7 @@ Create a Telescope by passing a Telescope object, without an id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -3044,11 +3038,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -3126,7 +3120,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -3168,7 +3162,7 @@ Create a TelescopeType by passing a TelescopeType object, without an id.
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -3186,11 +3180,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -3248,7 +3242,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -3290,7 +3284,7 @@ Create a Dataset by passing a Dataset object, without an id. Update an existing 
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -3308,11 +3302,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -3390,7 +3384,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -3437,7 +3431,7 @@ Create a DatasetRelease by passing a DatasetRelease object, without an id. Updat
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -3455,11 +3449,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -3546,7 +3540,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -3593,7 +3587,7 @@ Create a DatasetStorage by passing a DatasetStorage object, without an id. Updat
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -3611,11 +3605,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -3699,7 +3693,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -3746,7 +3740,7 @@ Create an Organisation by passing an Organisation object, without an id. Update 
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -3764,11 +3758,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -3828,7 +3822,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -3875,7 +3869,7 @@ Create a Telescope by passing a Telescope object, without an id. Update an exist
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -3893,11 +3887,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -3975,7 +3969,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -4022,7 +4016,7 @@ Create a TelescopeType by passing a TelescopeType object, without an id. Update 
 
 ### Example
 
-* Api Key Authentication (api_key):
+* OAuth Authentication (auth0_jwt):
 ```python
 import time
 import observatory.api.client
@@ -4040,11 +4034,11 @@ configuration = observatory.api.client.Configuration(
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
+# Configure OAuth2 access token for authorization: auth0_jwt
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+configuration.access_token = 'YOUR_ACCESS_TOKEN'
 
 # Enter a context with an instance of the API client
 with observatory.api.client.ApiClient(configuration) as api_client:
@@ -4102,7 +4096,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Authorization
 
-[api_key](ObservatoryApi.html#api_key)
+[auth0_jwt](ObservatoryApi.html#auth0_jwt)
 
 ### HTTP request headers
 
@@ -4129,441 +4123,6 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 <tr>
     <td><strong>201</strong></td>
     <td>TelescopeType created, returning the created object with an id</td>
-    <td> - </td>
-</tr>
-<tr>
-    <td><strong>401</strong></td>
-    <td>API key is missing or invalid</td>
-    <td> * WWW_Authenticate -  <br> </td>
-</tr>
-
-</tbody>
-</table></div>
-
-## **queryv1**
-> QueryResponse queryv1(agg, subset)
-
-Search the Observatory API
-
-Search the Observatory API
-
-### Example
-
-* Api Key Authentication (api_key):
-```python
-import time
-import observatory.api.client
-from observatory.api.client.api import observatory_api
-from observatory.api.client.model.query_response import QueryResponse
-from pprint import pprint
-# Defining the host is optional and defaults to https://api.observatory.academy
-# See configuration.py for a list of all supported configuration parameters.
-configuration = observatory.api.client.Configuration(
-    host = "https://api.observatory.academy"
-)
-
-# The client must configure the authentication and authorization parameters
-# in accordance with the API server security policy.
-# Examples for each auth method are provided below, use the example that
-# satisfies your auth use case.
-
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
-
-# Enter a context with an instance of the API client
-with observatory.api.client.ApiClient(configuration) as api_client:
-    # Create an instance of the API class
-    api_instance = observatory_api.ObservatoryApi(api_client)
-    agg = "author" # str | The aggregation level
-    subset = "citations" # str | The required subset
-    index_date = dateutil_parser('1970-01-01').date() # date | Index date, defaults to latest (optional)
-    _from = 4 # int | Start year (included) (optional)
-    to = 4 # int | End year (not included) (optional)
-    limit = 1 # int | Limit number of results (max 10000) (optional)
-    scroll_id = "scroll_id_example" # str | The scroll id (optional)
-    pit_id = "pit_id_example" # str | The PIT id (optional)
-    search_after_no = 1 # int | The search after key (optional)
-    search_after_text = "search_after_text_example" # str | The search after key (optional)
-    id = [
-        "id_example",
-    ] # [str] |  (optional)
-    name = [
-        "name_example",
-    ] # [str] |  (optional)
-    published_year = [
-        "published_year_example",
-    ] # [str] |  (optional)
-    coordinates = [
-        "coordinates_example",
-    ] # [str] |  (optional)
-    country = [
-        "country_example",
-    ] # [str] |  (optional)
-    country_code = [
-        "country_code_example",
-    ] # [str] |  (optional)
-    region = [
-        "region_example",
-    ] # [str] |  (optional)
-    subregion = [
-        "subregion_example",
-    ] # [str] |  (optional)
-    access_type = [
-        "access_type_example",
-    ] # [str] |  (optional)
-    label = [
-        "label_example",
-    ] # [str] |  (optional)
-    status = [
-        "status_example",
-    ] # [str] |  (optional)
-    collaborator_coordinates = [
-        "collaborator_coordinates_example",
-    ] # [str] |  (optional)
-    collaborator_country = [
-        "collaborator_country_example",
-    ] # [str] |  (optional)
-    collaborator_country_code = [
-        "collaborator_country_code_example",
-    ] # [str] |  (optional)
-    collaborator_id = [
-        "collaborator_id_example",
-    ] # [str] |  (optional)
-    collaborator_name = [
-        "collaborator_name_example",
-    ] # [str] |  (optional)
-    collaborator_region = [
-        "collaborator_region_example",
-    ] # [str] |  (optional)
-    collaborator_subregion = [
-        "collaborator_subregion_example",
-    ] # [str] |  (optional)
-    field = [
-        "field_example",
-    ] # [str] |  (optional)
-    source = [
-        "source_example",
-    ] # [str] |  (optional)
-    funder_country_code = [
-        "funder_country_code_example",
-    ] # [str] |  (optional)
-    funder_name = [
-        "funder_name_example",
-    ] # [str] |  (optional)
-    funder_sub_type = [
-        "funder_sub_type_example",
-    ] # [str] |  (optional)
-    funder_type = [
-        "funder_type_example",
-    ] # [str] |  (optional)
-    journal = [
-        "journal_example",
-    ] # [str] |  (optional)
-    output_type = [
-        "output_type_example",
-    ] # [str] |  (optional)
-    publisher = [
-        "publisher_example",
-    ] # [str] |  (optional)
-
-    # example passing only required values which don't have defaults set
-    try:
-        # Search the Observatory API
-        api_response = api_instance.queryv1(agg, subset)
-        pprint(api_response)
-    except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->queryv1: %s\n" % e)
-
-    # example passing only required values which don't have defaults set
-    # and optional values
-    try:
-        # Search the Observatory API
-        api_response = api_instance.queryv1(agg, subset, index_date=index_date, _from=_from, to=to, limit=limit, scroll_id=scroll_id, pit_id=pit_id, search_after_no=search_after_no, search_after_text=search_after_text, id=id, name=name, published_year=published_year, coordinates=coordinates, country=country, country_code=country_code, region=region, subregion=subregion, access_type=access_type, label=label, status=status, collaborator_coordinates=collaborator_coordinates, collaborator_country=collaborator_country, collaborator_country_code=collaborator_country_code, collaborator_id=collaborator_id, collaborator_name=collaborator_name, collaborator_region=collaborator_region, collaborator_subregion=collaborator_subregion, field=field, source=source, funder_country_code=funder_country_code, funder_name=funder_name, funder_sub_type=funder_sub_type, funder_type=funder_type, journal=journal, output_type=output_type, publisher=publisher)
-        pprint(api_response)
-    except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->queryv1: %s\n" % e)
-```
-
-
-### Parameters
-
-
-<div class="wy-table-responsive"><table border="1" class="docutils">
-<thead>
-<tr>
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-
-
-
-<tr>
-<td><strong>agg</strong></td>
-<td><strong>str</strong></td>
-<td>The aggregation level</td>
-<td></td>
-</tr>
-
-<tr>
-<td><strong>subset</strong></td>
-<td><strong>str</strong></td>
-<td>The required subset</td>
-<td></td>
-</tr>
-
-
-
-
-
-<tr>
-<td><strong>index_date</strong></td>
-<td><strong>date</strong></td>
-<td>Index date, defaults to latest</td>
-<td>
-[optional]
-<tr>
-<td><strong>_from</strong></td>
-<td><strong>int</strong></td>
-<td>Start year (included)</td>
-<td>
-[optional]
-<tr>
-<td><strong>to</strong></td>
-<td><strong>int</strong></td>
-<td>End year (not included)</td>
-<td>
-[optional]
-<tr>
-<td><strong>limit</strong></td>
-<td><strong>int</strong></td>
-<td>Limit number of results (max 10000)</td>
-<td>
-[optional]
-<tr>
-<td><strong>scroll_id</strong></td>
-<td><strong>str</strong></td>
-<td>The scroll id</td>
-<td>
-[optional]
-<tr>
-<td><strong>pit_id</strong></td>
-<td><strong>str</strong></td>
-<td>The PIT id</td>
-<td>
-[optional]
-<tr>
-<td><strong>search_after_no</strong></td>
-<td><strong>int</strong></td>
-<td>The search after key</td>
-<td>
-[optional]
-<tr>
-<td><strong>search_after_text</strong></td>
-<td><strong>str</strong></td>
-<td>The search after key</td>
-<td>
-[optional]
-<tr>
-<td><strong>id</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>name</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>published_year</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>coordinates</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>country</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>country_code</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>region</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>subregion</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>access_type</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>label</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>status</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>collaborator_coordinates</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>collaborator_country</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>collaborator_country_code</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>collaborator_id</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>collaborator_name</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>collaborator_region</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>collaborator_subregion</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>field</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>source</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>funder_country_code</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>funder_name</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>funder_sub_type</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>funder_type</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>journal</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>output_type</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-<tr>
-<td><strong>publisher</strong></td>
-<td><strong>[str]</strong></td>
-<td></td>
-<td>
-[optional]
-</tbody>
-</table></div>
-
-
-### Return type
-
-[**QueryResponse**](QueryResponse.html)
-
-### Authorization
-
-[api_key](ObservatoryApi.html#api_key)
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-
-### HTTP response details
-<div class="wy-table-responsive"><table border="1" class="docutils">
-<thead>
-<tr>
-<th>Status code</th>
-<th>Description</th>
-<th>Response headers</th>
-</tr>
-</thead>
-<tbody>
-
-<tr>
-    <td><strong>200</strong></td>
-    <td>Successfully return query results</td>
     <td> - </td>
 </tr>
 <tr>
