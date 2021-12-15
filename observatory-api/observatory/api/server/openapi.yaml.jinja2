@@ -1132,39 +1132,6 @@ paths:
 
 
 definitions:
-  QueryResponse:
-    type: object
-    properties:
-      version:
-        type: string
-        description: The API version
-        example: 'v1'
-      index:
-        type: string
-        description: The full name of the elasticsearch index that is searched
-        example: 'citations-country-20201212'
-      scroll_id:
-        type: string
-        description: The scroll id that can be used to get the next batch of results (only active for 1min)
-        example: 'FGluY2x1ZGVfY29udGV4dF91dWlkDXF1ZXJ5QW5kRmV0Y2gBFlFkWThoZy1FUTZPQ2JhcXpGSnFjTEEAAAAAALEIyRZYRkVGWmNSRVRqU0VpTFdYbGFPUERR'
-      returned_hits:
-        type: integer
-        description: The number of returned hits (can be less than total_hits if a limit is set)
-        example: 10000
-      total_hits:
-        type: integer
-        description: The number of total hits
-        example: 126538
-      schema:
-        type: object
-        description: The schema for an individual hit
-        example: ''
-      results:
-        type: array
-        description: A list of the actual results (one dictionary per hit)
-        items:
-          type: object
-
   WorkflowType:
     type: object
     properties:

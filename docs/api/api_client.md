@@ -354,13 +354,6 @@ All URIs are relative to *https://api.observatory.academy*
 <td>create or update a WorkflowType</td>
 </tr>
 
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#queryv1"><strong>queryv1</strong></a></td>
-<td><strong>GET</strong> /v1/query</td>
-<td>Search the Observatory API</td>
-</tr>
-
 
 </tbody>
 </table></div>
@@ -375,7 +368,6 @@ All URIs are relative to *https://api.observatory.academy*
     DatasetRelease
     DatasetType
     Organisation
-    QueryResponse
     TableType
     Workflow
     WorkflowType
