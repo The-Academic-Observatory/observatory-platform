@@ -25,7 +25,7 @@ securityDefinitions:
     x-google-jwks_uri: "https://dev-canowprn.us.auth0.com/.well-known/jwks.json"
     x-google-audiences: "https://ao.api.observatory.academy"
 security:
-  - auth0_jwt_test
+  - auth0_jwt: []
 {%- endif %}
 
 {# Host settings #}
@@ -113,8 +113,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     post:
       tags:
       - {{ telescope_type_tag }}
@@ -139,8 +138,8 @@ paths:
           schema:
             $ref: '#/definitions/TelescopeType'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
+
     put:
       tags:
       - {{ telescope_type_tag }}
@@ -170,8 +169,7 @@ paths:
           schema:
             $ref: '#/definitions/TelescopeType'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     delete:
       tags:
       - {{ telescope_type_tag }}
@@ -193,8 +191,7 @@ paths:
         200:
           description: TelescopeType deleted
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
 
   /v1/telescope_types:
     get:
@@ -222,9 +219,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
-
+          $ref: "#/responses/UnauthorizedError"
   /v1/telescope:
     get:
       tags:
@@ -249,8 +244,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     post:
       tags:
       - {{ telescope_tag }}
@@ -275,8 +269,7 @@ paths:
           schema:
             $ref: '#/definitions/Telescope'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     put:
       tags:
       - {{ telescope_tag }}
@@ -306,8 +299,7 @@ paths:
           schema:
             $ref: '#/definitions/Telescope'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     delete:
       tags:
       - {{ telescope_tag }}
@@ -329,8 +321,7 @@ paths:
         200:
           description: Telescope deleted
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
 
   /v1/telescopes:
     get:
@@ -368,8 +359,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
 
   /v1/organisation:
     get:
@@ -395,8 +385,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     post:
       tags:
         - {{ organisation_tag }}
@@ -421,8 +410,7 @@ paths:
           schema:
             $ref: '#/definitions/Organisation'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     put:
       tags:
         - {{ organisation_tag }}
@@ -452,8 +440,7 @@ paths:
           schema:
             $ref: '#/definitions/Organisation'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     delete:
       tags:
         - {{ organisation_tag }}
@@ -475,8 +462,7 @@ paths:
         200:
           description: Organisation deleted
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
 
   /v1/organisations:
     get:
@@ -504,8 +490,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
 
   /v1/dataset_storage:
     get:
@@ -531,8 +516,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     post:
       tags:
       - {{ dataset_storage_tag }}
@@ -557,8 +541,7 @@ paths:
           schema:
             $ref: '#/definitions/DatasetStorage'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     put:
       tags:
       - {{ dataset_storage_tag }}
@@ -588,8 +571,7 @@ paths:
           schema:
             $ref: '#/definitions/DatasetStorage'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     delete:
       tags:
       - {{ dataset_storage_tag }}
@@ -611,8 +593,7 @@ paths:
         200:
           description: DatasetStorage deleted
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
 
   /v1/dataset_storages:
     get:
@@ -645,8 +626,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
 
   /v1/dataset_release:
     get:
@@ -672,8 +652,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     post:
       tags:
       - {{ dataset_release_tag }}
@@ -698,8 +677,7 @@ paths:
           schema:
             $ref: '#/definitions/DatasetRelease'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     put:
       tags:
       - {{ dataset_release_tag }}
@@ -729,8 +707,7 @@ paths:
           schema:
             $ref: '#/definitions/DatasetRelease'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     delete:
       tags:
       - {{ dataset_release_tag }}
@@ -752,8 +729,7 @@ paths:
         200:
           description: DatasetRelease deleted
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
 
   /v1/dataset_releases:
     get:
@@ -786,8 +762,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
 
   /v1/dataset:
     get:
@@ -813,8 +788,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     post:
       tags:
         - {{ dataset_tag }}
@@ -839,8 +813,7 @@ paths:
           schema:
             $ref: '#/definitions/Dataset'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     put:
       tags:
         - {{ dataset_tag }}
@@ -870,8 +843,7 @@ paths:
           schema:
             $ref: '#/definitions/Dataset'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
     delete:
       tags:
         - {{ dataset_tag }}
@@ -893,8 +865,7 @@ paths:
         200:
           description: Dataset deleted
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
 
   /v1/datasets:
     get:
@@ -927,8 +898,7 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
 
   /v1/bigquery_bytes_processed:
     get:
@@ -956,8 +926,8 @@ paths:
         400:
           description: bad input parameter
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
+
     post:
       tags:
       - {{ bigquery_bytes_processed_tag }}
@@ -982,44 +952,11 @@ paths:
           schema:
             $ref: '#/definitions/BigQueryBytesProcessed'
         401:
-          {% if type == 'openapi_generator' -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
+          $ref: "#/responses/UnauthorizedError"
+
 
 
 definitions:
-  QueryResponse:
-    type: object
-    properties:
-      version:
-        type: string
-        description: The API version
-        example: 'v1'
-      index:
-        type: string
-        description: The full name of the elasticsearch index that is searched
-        example: 'citations-country-20201212'
-      scroll_id:
-        type: string
-        description: The scroll id that can be used to get the next batch of results (only active for 1min)
-        example: 'FGluY2x1ZGVfY29udGV4dF91dWlkDXF1ZXJ5QW5kRmV0Y2gBFlFkWThoZy1FUTZPQ2JhcXpGSnFjTEEAAAAAALEIyRZYRkVGWmNSRVRqU0VpTFdYbGFPUERR'
-      returned_hits:
-        type: integer
-        description: The number of returned hits (can be less than total_hits if a limit is set)
-        example: 10000
-      total_hits:
-        type: integer
-        description: The number of total hits
-        example: 126538
-      schema:
-        type: object
-        description: The schema for an individual hit
-        example: ''
-      results:
-        type: array
-        description: A list of the actual results (one dictionary per hit)
-        items:
-          type: object
-
   TelescopeType:
     type: object
     properties:
@@ -1273,4 +1210,5 @@ responses:
     description: API key is missing or invalid
     headers:
       WWW_Authenticate:
-        type: string
+        schema:
+          type: string
