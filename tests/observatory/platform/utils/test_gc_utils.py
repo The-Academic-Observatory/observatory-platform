@@ -930,7 +930,7 @@ class TestBigQueryByteLimits(ObservatoryTestCase):
 
     @patch("observatory.platform.utils.gc_utils.update_bytes_processed")
     @patch("observatory.platform.utils.gc_utils.get_bytes_processed")
-    @patch("observatory.platform.utils.api.make_observatory_api")
+    @patch("observatory.platform.utils.gc_utils.make_observatory_api")
     @patch("observatory.platform.utils.gc_utils.Variable.get")
     @patch("observatory.platform.utils.gc_utils.bq_query_daily_limit_enabled")
     def test_bq_query_bytes_daily_limit_check_within_limit(self, m_enable, m_get, m_api, m_gbp, m_ubp):
@@ -947,7 +947,7 @@ class TestBigQueryByteLimits(ObservatoryTestCase):
 
     @patch("observatory.platform.utils.gc_utils.update_bytes_processed")
     @patch("observatory.platform.utils.gc_utils.get_bytes_processed")
-    @patch("observatory.platform.utils.api.make_observatory_api")
+    @patch("observatory.platform.utils.gc_utils.make_observatory_api")
     @patch("observatory.platform.utils.gc_utils.Variable.get")
     @patch("observatory.platform.utils.gc_utils.bq_query_daily_limit_enabled")
     def test_bq_query_bytes_daily_limit_check_breach_limit(self, m_enable, m_get, m_api, m_gbp, m_ubp):
