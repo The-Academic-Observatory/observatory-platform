@@ -621,115 +621,115 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 if blob.exists():
                     blob.delete()
 
-    # def test_azure_to_google_cloud_storage_transfer(self):
-    #     blob_name = f"mag/2021-09-27/{random_id()}.txt"
-    #     az_blob: Optional[BlobClient] = None
+    def test_azure_to_google_cloud_storage_transfer(self):
+        blob_name = f"mag/2021-09-27/{random_id()}.txt"
+        az_blob: Optional[BlobClient] = None
 
-    #     # Create client for working with Google Cloud storage bucket
-    #     storage_client = storage.Client()
-    #     bucket = storage_client.get_bucket(self.gc_bucket_name)
-    #     gc_bucket_path = "telescopes"
-    #     gc_blob_path = f"{gc_bucket_path}/{blob_name}"
-    #     gc_blob = bucket.blob(gc_blob_path)
+        # Create client for working with Google Cloud storage bucket
+        storage_client = storage.Client()
+        bucket = storage_client.get_bucket(self.gc_bucket_name)
+        gc_bucket_path = "telescopes"
+        gc_blob_path = f"{gc_bucket_path}/{blob_name}"
+        gc_blob = bucket.blob(gc_blob_path)
 
-    #     try:
-    #         # Create client for working with Azure storage bucket
-    #         account_url = make_account_url(self.az_storage_account_name)
-    #         client: BlobServiceClient = BlobServiceClient(account_url, self.az_container_sas_token)
-    #         az_blob: BlobClient = client.get_blob_client(container=self.az_container_name, blob=blob_name)
-    #         az_blob.upload_blob(self.data)
+        try:
+            # Create client for working with Azure storage bucket
+            account_url = make_account_url(self.az_storage_account_name)
+            client: BlobServiceClient = BlobServiceClient(account_url, self.az_container_sas_token)
+            az_blob: BlobClient = client.get_blob_client(container=self.az_container_name, blob=blob_name)
+            az_blob.upload_blob(self.data)
 
-    #         # Transfer data
-    #         transfer = azure_to_google_cloud_storage_transfer(
-    #             azure_storage_account_name=self.az_storage_account_name,
-    #             azure_sas_token=self.az_container_sas_token,
-    #             azure_container=self.az_container_name,
-    #             include_prefixes=[blob_name],
-    #             gc_project_id=self.gc_project_id,
-    #             gc_bucket=self.gc_bucket_name,
-    #             gc_bucket_path=gc_bucket_path,
-    #             description=f"Test Azure to Google Cloud Storage Transfer "
-    #             f"{pendulum.now('UTC').to_datetime_string()}",
-    #         )
+            # Transfer data
+            transfer = azure_to_google_cloud_storage_transfer(
+                azure_storage_account_name=self.az_storage_account_name,
+                azure_sas_token=self.az_container_sas_token,
+                azure_container=self.az_container_name,
+                include_prefixes=[blob_name],
+                gc_project_id=self.gc_project_id,
+                gc_bucket=self.gc_bucket_name,
+                gc_bucket_path=gc_bucket_path,
+                description=f"Test Azure to Google Cloud Storage Transfer "
+                f"{pendulum.now('UTC').to_datetime_string()}",
+            )
 
-    #         # Check that transfer was successful
-    #         self.assertTrue(transfer)
+            # Check that transfer was successful
+            self.assertTrue(transfer)
 
-    #         # Check that blob exists
-    #         self.assertTrue(gc_blob.exists())
+            # Check that blob exists
+            self.assertTrue(gc_blob.exists())
 
-    #         # Check that blob has expected crc32c token
-    #         gc_blob.update()
-    #         self.assertEqual(gc_blob.crc32c, self.expected_crc32c)
-    #     finally:
-    #         # Delete file on Google Cloud
-    #         if gc_blob.exists():
-    #             gc_blob.delete()
+            # Check that blob has expected crc32c token
+            gc_blob.update()
+            self.assertEqual(gc_blob.crc32c, self.expected_crc32c)
+        finally:
+            # Delete file on Google Cloud
+            if gc_blob.exists():
+                gc_blob.delete()
 
-    #         # Delete file on Azure
-    #         if az_blob is not None:
-    #             az_blob.delete_blob()
+            # Delete file on Azure
+            if az_blob is not None:
+                az_blob.delete_blob()
 
-    # def test_aws_to_google_cloud_storage_transfer(self):
-    #     blob_name = f"{random_id()}.txt"
-    #     aws_blob = None
+    def test_aws_to_google_cloud_storage_transfer(self):
+        blob_name = f"{random_id()}.txt"
+        aws_blob = None
 
-    #     # Create client for working with Google Cloud storage bucket
-    #     storage_client = storage.Client()
-    #     bucket = storage_client.get_bucket(self.gc_bucket_name)
-    #     gc_blob = bucket.blob(blob_name)
+        # Create client for working with Google Cloud storage bucket
+        storage_client = storage.Client()
+        bucket = storage_client.get_bucket(self.gc_bucket_name)
+        gc_blob = bucket.blob(blob_name)
 
-    #     try:
-    #         # Create client for working with AWS storage bucket
-    #         s3 = boto3.resource("s3", aws_access_key_id=self.aws_key_id, aws_secret_access_key=self.aws_secret_key)
-    #         aws_blob = s3.Object(self.aws_bucket_name, blob_name)
-    #         aws_blob.put(Body=self.data)
+        try:
+            # Create client for working with AWS storage bucket
+            s3 = boto3.resource("s3", aws_access_key_id=self.aws_key_id, aws_secret_access_key=self.aws_secret_key)
+            aws_blob = s3.Object(self.aws_bucket_name, blob_name)
+            aws_blob.put(Body=self.data)
 
-    #         # Test transfer where no data is found, because modified date is not between dates
-    #         success, objects_count = aws_to_google_cloud_storage_transfer(
-    #             self.aws_key_id,
-    #             self.aws_secret_key,
-    #             self.aws_bucket_name,
-    #             include_prefixes=[blob_name],
-    #             gc_project_id=self.gc_project_id,
-    #             gc_bucket=self.gc_bucket_name,
-    #             description=f"Test AWS to Google Cloud Storage Transfer " f"{pendulum.now('UTC').to_datetime_string()}",
-    #             last_modified_before=pendulum.datetime(2021, 1, 1),
-    #         )
-    #         # Check that transfer was successful, but no objects were transferred
-    #         self.assertTrue(success)
-    #         self.assertEqual(0, objects_count)
+            # Test transfer where no data is found, because modified date is not between dates
+            success, objects_count = aws_to_google_cloud_storage_transfer(
+                self.aws_key_id,
+                self.aws_secret_key,
+                self.aws_bucket_name,
+                include_prefixes=[blob_name],
+                gc_project_id=self.gc_project_id,
+                gc_bucket=self.gc_bucket_name,
+                description=f"Test AWS to Google Cloud Storage Transfer " f"{pendulum.now('UTC').to_datetime_string()}",
+                last_modified_before=pendulum.datetime(2021, 1, 1),
+            )
+            # Check that transfer was successful, but no objects were transferred
+            self.assertTrue(success)
+            self.assertEqual(0, objects_count)
 
-    #         # Transfer data
-    #         success, objects_count = aws_to_google_cloud_storage_transfer(
-    #             self.aws_key_id,
-    #             self.aws_secret_key,
-    #             self.aws_bucket_name,
-    #             include_prefixes=[blob_name],
-    #             gc_project_id=self.gc_project_id,
-    #             gc_bucket=self.gc_bucket_name,
-    #             description=f"Test AWS to Google Cloud Storage Transfer " f"{pendulum.now('UTC').to_datetime_string()}",
-    #             last_modified_since=pendulum.datetime(2021, 1, 1),
-    #             last_modified_before=pendulum.now("UTC") + timedelta(days=1),
-    #         )
-    #         # Check that transfer was successful and 1 object was transferred
-    #         self.assertTrue(success)
-    #         self.assertEqual(1, objects_count)
+            # Transfer data
+            success, objects_count = aws_to_google_cloud_storage_transfer(
+                self.aws_key_id,
+                self.aws_secret_key,
+                self.aws_bucket_name,
+                include_prefixes=[blob_name],
+                gc_project_id=self.gc_project_id,
+                gc_bucket=self.gc_bucket_name,
+                description=f"Test AWS to Google Cloud Storage Transfer " f"{pendulum.now('UTC').to_datetime_string()}",
+                last_modified_since=pendulum.datetime(2021, 1, 1),
+                last_modified_before=pendulum.now("UTC") + timedelta(days=1),
+            )
+            # Check that transfer was successful and 1 object was transferred
+            self.assertTrue(success)
+            self.assertEqual(1, objects_count)
 
-    #         # Check that blob exists
-    #         self.assertTrue(gc_blob.exists())
+            # Check that blob exists
+            self.assertTrue(gc_blob.exists())
 
-    #         # Check that blob has expected crc32c token
-    #         gc_blob.update()
-    #         self.assertEqual(gc_blob.crc32c, self.expected_crc32c)
-    #     finally:
-    #         # Delete file on Google Cloud
-    #         if gc_blob.exists():
-    #             gc_blob.delete()
+            # Check that blob has expected crc32c token
+            gc_blob.update()
+            self.assertEqual(gc_blob.crc32c, self.expected_crc32c)
+        finally:
+            # Delete file on Google Cloud
+            if gc_blob.exists():
+                gc_blob.delete()
 
-    #         # Delete file on AWS
-    #         if aws_blob is not None:
-    #             aws_blob.delete()
+            # Delete file on AWS
+            if aws_blob is not None:
+                aws_blob.delete()
 
     def test_delete_bigquery_dataset(self):
         def dataset_exists(project_id, dataset_id):
