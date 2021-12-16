@@ -91,12 +91,12 @@ class TestElastic(unittest.TestCase):
                 create_es_connection()
 
         with patch.dict(os.environ, {"ES_HOST": "address", "ES_API_KEY": ""}):
-            # Test APIError is raised when address or api_key is empty
+            # Test APIError is raised when api_key is empty
             with self.assertRaises(APIError):
                 create_es_connection()
 
-        with patch.dict(os.environ, {"ES_HOST": None, "ES_API_KEY": "api_key"}):
-            # Test APIError is raised when address or api_key is None
+        with patch.dict(os.environ, {"ES_HOST": "", "ES_API_KEY": "api_key"}):
+            # Test APIError is raised when address is empty
             with self.assertRaises(APIError):
                 create_es_connection()
 
