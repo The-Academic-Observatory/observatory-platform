@@ -675,10 +675,9 @@ def on_failure_callback(context):
         logging.info("Not sending slack notification in develop environment.")
     else:
         exception = context.get("exception")
-        tb = exception
         if isinstance(exception, Exception):
             formatted_exception = "".join(
-                traceback.format_exception(etype=type(exception), value=exception, tb=tb)
+                traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
             ).strip()
         else:
             formatted_exception = exception
