@@ -42,6 +42,7 @@ class AirflowVars:
     DAGS_MODULE_NAMES = "dags_module_names"
     ORCID_BUCKET = "orcid_bucket"
     VM_DAGS_WATCH_LIST = "vm_dags_watch_list"
+    BIGQUERY_DAILY_BYTES_LIMIT = "bigquery_daily_bytes_limit"
 
 
 class AirflowConns:

@@ -22,8 +22,11 @@ import jsonlines
 import pendulum
 from airflow.utils.state import State
 from google.cloud.bigquery import SourceFormat, TimePartitioningType
-
-from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, test_fixtures_path
+from observatory.platform.utils.test_utils import (
+    ObservatoryEnvironment,
+    ObservatoryTestCase,
+    test_fixtures_path,
+)
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
     blob_name,
@@ -31,7 +34,11 @@ from observatory.platform.utils.workflow_utils import (
     get_bq_load_info,
     table_ids_from_path,
 )
-from observatory.platform.workflows.stream_telescope import StreamRelease, StreamTelescope, get_data_interval
+from observatory.platform.workflows.stream_telescope import (
+    StreamRelease,
+    StreamTelescope,
+    get_data_interval,
+)
 
 DEFAULT_SCHEMA_PATH = "/path/to/schemas"
 
@@ -268,7 +275,8 @@ class TestStreamTelescope(ObservatoryTestCase):
                                     self.assert_table_content(table_id, expected_content)
 
                             # Test that row(s) is deleted from the main table in the second run
-                            ti = env.run_task(telescope.bq_delete_old.__name__)
+                            with patch("observatory.platform.utils.gc_utils.bq_query_bytes_daily_limit_check"):
+                                ti = env.run_task(telescope.bq_delete_old.__name__)
                             if run == self.run1:
                                 self.assertEqual("skipped", ti.state)
                             else:
@@ -471,6 +479,7 @@ class TestStreamTelescope(ObservatoryTestCase):
                                             main_table_id,
                                             partition_table_id,
                                             telescope.merge_partition_field,
+                                            bytes_budget=None,
                                         )
                                     )
                                 bq_delete_old.assert_has_calls(expected_calls, any_order=True)

@@ -59,6 +59,7 @@ tags:
 {%- set dataset_storage_tag="Observatory" -%}
 {%- set dataset_release_tag="Observatory" -%}
 {%- set dataset_tag="Observatory" -%}
+{%- set bigquery_bytes_processed_tag="Observatory" -%}
 {% else %}
 tags:
 - name: Reports
@@ -75,6 +76,8 @@ tags:
   description: Create, read, update, delete and list information about the dataset release info.
 - name: Dataset
   description: Create, read, update, delete and list information about the dataset info.
+- name: BigQueryBytesProcessed
+  description: Create, read, update, delete and list information about the number of bytes processed in BigQuery Query jobs.
 {%- set reports_tag="Reports" -%}
 {%- set organisation_tag="Organisation" -%}
 {%- set telescope_tag="Telescope" -%}
@@ -82,6 +85,7 @@ tags:
 {%- set dataset_storage_tag="DatasetStorage" -%}
 {%- set dataset_release_tag="DatasetRelease" -%}
 {%- set dataset_tag="Dataset" -%}
+{%- set bigquery_bytes_processed_tag="BigQueryBytesProcessed" -%}
 {%- endif %}
 
 {# Operation id namespace #}
@@ -1038,6 +1042,125 @@ paths:
           description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
+  /v1/bigquery_bytes_processed:
+    get:
+      tags:
+      - {{ bigquery_bytes_processed_tag }}
+      summary: get a BigQueryBytesProcessed
+      operationId: {{ operation_id_namespace }}get_bigquery_bytes_processed
+      description: |
+        Get the details of a BigQueryBytesProcessed by passing its id or the project name and date.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: BigQueryBytesProcessed id
+        required: false
+        type: integer
+      - in: query
+        name: project
+        description: BigQueryBytesProcessed type_id
+        required: false
+        type: string
+      - in: query
+        name: date
+        description: Queries date
+        required: false
+        type: string
+        minLength: 10
+        maxLength: 10
+      responses:
+        200:
+          description: the fetched BigQueryBytesProcessed
+          schema:
+            $ref: '#/definitions/BigQueryBytesProcessed'
+        400:
+          description: bad input parameter
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
+    post:
+      tags:
+      - {{ bigquery_bytes_processed_tag }}
+      summary: create a BigQueryBytesProcessed
+      operationId: {{ operation_id_namespace }}post_bigquery_bytes_processed
+      description: |
+        Create a BigQueryBytesProcessed by passing a BigQueryBytesProcessed object, without an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: BigQueryBytesProcessed to create
+        required: true
+        schema:
+          $ref: '#/definitions/BigQueryBytesProcessed'
+      responses:
+        201:
+          description: BigQueryBytesProcessed created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/BigQueryBytesProcessed'
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
+    put:
+      tags:
+      - {{ bigquery_bytes_processed_tag }}
+      summary: create or update a BigQueryBytesProcessed
+      operationId: {{ operation_id_namespace }}put_bigquery_bytes_processed
+      description: |
+        Create a BigQueryBytesProcessed by passing a BigQueryBytesProcessed object, without an id. Update an existing BigQueryBytesProcessed by
+        passing a BigQueryBytesProcessed object with an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: BigQueryBytesProcessed to create or update
+        required: true
+        schema:
+          $ref: '#/definitions/BigQueryBytesProcessed'
+      responses:
+        200:
+          description: BigQueryBytesProcessed updated
+          schema:
+            $ref: '#/definitions/BigQueryBytesProcessed'
+        201:
+          description: BigQueryBytesProcessed created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/BigQueryBytesProcessed'
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
+    delete:
+      tags:
+      - {{ bigquery_bytes_processed_tag }}
+      summary: delete a BigQueryBytesProcessed
+      operationId: {{ operation_id_namespace }}delete_bigquery_bytes_processed
+      description: |
+        Delete a BigQueryBytesProcessed by passing it's id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: BigQueryBytesProcessed id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: BigQueryBytesProcessed deleted
+        401:
+          description: API key is missing or invalid
+          $ref: '#/responses/UnauthorizedError'
+
 #  /v2/query:
 #    get:
 #      operationId: app.searchv2
@@ -1295,6 +1418,36 @@ definitions:
         minLength: 1
         maxLength: 512
         x-nullable: true
+      created:
+        type: string
+        format: date-time
+        example: 2020-01-01T20:01:05Z
+        readOnly: true
+      modified:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        readOnly: true
+
+  BigQueryBytesProcessed:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      project:
+        type: string
+        example: coki
+        minLength: 3
+        maxLength: 222
+      total:
+        type: integer
+        example: 0
+      date:
+        type: string
+        minLength: 10
+        maxLength: 10
+        example: 2020-01-01
       created:
         type: string
         format: date-time

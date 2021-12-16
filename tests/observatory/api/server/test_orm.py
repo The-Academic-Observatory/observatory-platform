@@ -21,6 +21,7 @@ from typing import List
 import pendulum
 import sqlalchemy
 from observatory.api.server.orm import (
+    BigQueryBytesProcessed,
     Dataset,
     DatasetRelease,
     DatasetStorage,
@@ -877,3 +878,88 @@ class TestOrm(unittest.TestCase):
         self.assertEqual(expected_id, obj.connection.id)
         self.assertEqual(dt, pendulum.instance(obj.created))
         self.assertEqual(dt, pendulum.instance(obj.modified))
+
+    def test_bigquery_bytes_processed(self):
+        """Test that BigQueryBytesProcfessed can be created, fetched, updated and deleted"""
+
+        dt = pendulum.now("UTC")
+        project = "project"
+        total = 10
+        date = "2021-01-01"
+        obj = BigQueryBytesProcessed(
+            project=project,
+            total=total,
+            date=date,
+            created=dt,
+            modified=dt,
+        )
+
+        self.session.add(obj)
+        self.session.commit()
+
+        # Assert created object
+        self.assertIsNotNone(obj.id)
+        self.assertEqual(obj.id, 1)
+        self.assertEqual(obj.project, project)
+        self.assertEqual(obj.total, total)
+        self.assertEqual(obj.date, date)
+
+    def test_bigquery_bytes_processed_from_dict(self):
+        """Test that BigQueryBytesProcessed can be created and updated from a dictionary"""
+
+        expected_id = 1
+        project = "project"
+        dt = pendulum.now("UTC")
+        d = "2021-01-01"
+        total = 10
+        dict_ = {
+            "project": project,
+            "total": total,
+            "date": d,
+            "modified": dt,
+        }
+
+        obj = BigQueryBytesProcessed(**dict_)
+        self.session.add(obj)
+        self.session.commit()
+        self.assertIsNotNone(obj.id)
+        self.assertEqual(obj.id, expected_id)
+
+        # Update
+        project = "new_project"
+        total = 37
+        d = "2000-01-01"
+        dict_ = {
+            "project": project,
+            "total": total,
+            "date": d,
+            "modified": dt,
+        }
+        obj.update(**dict_)
+        self.session.commit()
+        self.assertEqual(obj.project, project)
+        self.assertEqual(obj.total, total)
+        self.assertEqual(obj.date, d)
+
+        total = 27
+        dict_ = {
+            "total": total,
+            "date": d,
+            "modified": dt,
+        }
+        obj.update(**dict_)
+        self.session.commit()
+        self.assertEqual(obj.project, project)
+        self.assertEqual(obj.total, total)
+        self.assertEqual(obj.date, d)
+
+        total = 17
+        dict_ = {
+            "total": total,
+            "date": d,
+        }
+        obj.update(**dict_)
+        self.session.commit()
+        self.assertEqual(obj.project, project)
+        self.assertEqual(obj.total, total)
+        self.assertEqual(obj.date, d)

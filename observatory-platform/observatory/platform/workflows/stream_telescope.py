@@ -261,6 +261,7 @@ class StreamTelescope(Workflow):
             raise AirflowSkipException("Skipped, because first release")
 
         logging.info(f"Deleting old data from main table using partition with ingestion date of {release.end_date}")
+        bytes_budget = kwargs.get("bytes_budget", None)
         bq_load_info = get_bq_load_info(self.dag_id, release.transform_folder, release.transform_files, self.batch_load)
         for _, main_table_id, partition_table_id in bq_load_info:
             bq_delete_old(
@@ -269,6 +270,7 @@ class StreamTelescope(Workflow):
                 main_table_id,
                 partition_table_id,
                 self.merge_partition_field,
+                bytes_budget=bytes_budget,
             )
 
     def bq_append_new(self, release: StreamRelease, **kwargs):
