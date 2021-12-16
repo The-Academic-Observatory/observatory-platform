@@ -125,11 +125,11 @@ def create_es_connection() -> Union[Elasticsearch, str]:
 
     :return: elasticsearch connection
     """
-    api_key = os.environ.get("ES_API_KEY")
-    address = os.environ.get("ES_HOST")
+    api_key = os.environ.get("ES_API_KEY", "")
+    address = os.environ.get("ES_HOST", "")
 
     for value in [address, api_key]:
-        if value is None or value == "":
+        if value == "":
             raise APIError(
                 {
                     "code": "invalid_es_connection",
