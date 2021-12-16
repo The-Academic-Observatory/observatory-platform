@@ -1,3 +1,19 @@
+# Copyright 2021 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Tuan Chien
+
 import datetime
 import os
 from unittest.mock import patch
@@ -46,7 +62,7 @@ def xcom_push(*, key, value, dag_id, task_id, execution_date, session=None):
     )
 
 
-class TesVmDestroyWorkflow(ObservatoryTestCase):
+class TestVmDestroyWorkflow(ObservatoryTestCase):
     """Test the vm_destroy dag."""
 
     def __init__(self, *args, **kwargs):
@@ -231,7 +247,7 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_vm_already_off(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
@@ -267,7 +283,7 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_empty_watchlist(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
@@ -341,7 +357,7 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_manual_create(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
@@ -381,7 +397,7 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_prev_execution_and_start_time(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
@@ -492,7 +508,7 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_prev_execution_and_start_time_ge_destroy_time(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
@@ -611,7 +627,7 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_prev_execution_and_start_time_lt_destroy_time(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
@@ -730,7 +746,7 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_prev_execution_and_start_time_lt_destroy_time_catchup(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
@@ -849,7 +865,7 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_start_time_no_prev_execution(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
@@ -924,7 +940,7 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_dont_destroy_worker_slack_warning(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
@@ -1014,7 +1030,7 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_vm_destroy_dont_destroy_worker_no_slack_warning(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_destroy workflow"
+        """Test the vm_destroy workflow"""
 
         m_tapi.return_value = "workspace"
 
@@ -1044,30 +1060,6 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
                 self.assertEqual(ti.state, State.SUCCESS)
 
                 # check dags status
-                xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=TerraformRelease.XCOM_START_TIME_VM,
-                    value="2020-12-31",
-                )
-
-                xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=TerraformRelease.XCOM_PREV_START_TIME_VM,
-                    value="2021-01-01",
-                )
-
-                xcom_push(
-                    dag_id=VmDestroyWorkflow.DAG_ID,
-                    task_id=VmDestroyWorkflow.check_runtime_vm.__name__,
-                    execution_date=execution_date,
-                    key=VmDestroyWorkflow.XCOM_WARNING_TIME,
-                    value="2021-01-01",
-                )
-
                 class MockDR:
                     def __init__(self):
                         self.start_date = datetime.datetime(2000, 1, 1)
@@ -1086,16 +1078,26 @@ class TesVmDestroyWorkflow(ObservatoryTestCase):
                     def get_run_dates(self, *args):
                         return [datetime.datetime(2000, 1, 1)]
 
-                with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
-                    with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
-                        with patch(
-                            "observatory.platform.workflows.vm_workflow.VmDestroyWorkflow._check_success_runs"
-                        ) as m_check_success_runs:
-                            with patch("observatory.platform.workflows.vm_workflow.send_slack_msg") as m_slack:
-                                m_drfind.return_value = [MockDR()]
-                                m_getdag.return_value = MockDag()
-                                m_check_success_runs.return_value = False
+                with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind, patch(
+                    "observatory.platform.workflows.vm_workflow.DagBag.get_dag"
+                ) as m_getdag, patch(
+                    "observatory.platform.workflows.vm_workflow.VmDestroyWorkflow._check_success_runs"
+                ) as m_check_success_runs, patch(
+                    "observatory.platform.workflows.vm_workflow.send_slack_msg"
+                ) as m_slack, patch(
+                    "observatory.platform.workflows.vm_workflow.TaskInstance.xcom_pull"
+                ) as mock_xcom_pull:
+                    mock_xcom_pull.reset_mock()
+                    prev_start_time_vm = "2021-01-01"
+                    start_time_vm = "2020-12-31"
+                    warning_time = "2021-01-01"
+                    # First 2 None xcom usages are from 'check_dependencies' task
+                    mock_xcom_pull.side_effect = [None, None, prev_start_time_vm, start_time_vm, None, warning_time]
 
-                                ti = env.run_task(workflow.check_dags_status.__name__)
-                                self.assertEqual(ti.state, State.SUCCESS)
-                                self.assertEqual(m_slack.call_count, 0)
+                    m_drfind.return_value = [MockDR()]
+                    m_getdag.return_value = MockDag()
+                    m_check_success_runs.return_value = False
+
+                    ti = env.run_task(workflow.check_dags_status.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(m_slack.call_count, 0)
