@@ -58,9 +58,10 @@ DEFAULT_CHUNK_SIZE = 256 * 1024 * 4
 # BigQuery daily query byte limit.
 BIGQUERY_QUERY_DAILY_BYTE_LIMIT = 1024 * 1024 * 1024 * 1024 * 5  # 5 TiB
 
-# Disable for now.  Tests across the different *-workflows repos need changing.
 
-
+# This function makes it easier to mock out in tests. This mechanism is here to allow you to hard code disabling the
+# daily quota check across the platform.  When you are convinced the feature is working correctly in production and
+# that you wan't it always on, then the mechanism can be removed.
 def bq_query_daily_limit_enabled():
     """Whether to turn on BigQuery daily limits.
 
