@@ -300,7 +300,7 @@ def load_bigquery_table(
     project_id: str = None,
     cluster: bool = False,
     clustering_fields=None,
-    ignore_unknown_values: bool = False
+    ignore_unknown_values: bool = False,
 ) -> bool:
     """Load a BigQuery table from an object on Google Cloud Storage.
 
@@ -391,8 +391,8 @@ def load_bigquery_table(
     return state
 
 
-def run_bigquery_query(query: str, bytes_budget: Optional[int] = None) -> list:
-    """Run a BigQuery query.
+def run_bigquery_query(query: str, bytes_budget: Optional[int] = 549755813888) -> list:
+    """Run a BigQuery query.  Defaults to 0.5 TiB query budget.
 
     :param query: the query to run.
     :param bytes_budget: Maximum bytes allowed to be processed by the query.
@@ -472,9 +472,9 @@ def create_bigquery_table_from_query(
     require_partition_filter=True,
     cluster: bool = False,
     clustering_fields=None,
-    bytes_budget: Optional[int] = None,
+    bytes_budget: Optional[int] = 549755813888,
 ) -> bool:
-    """Create a BigQuery dataset from a provided query.
+    """Create a BigQuery dataset from a provided query. Defaults to 0.5 TiB query budget.
 
     :param sql: the sql query to be executed
     :param labels: labels to place on the new table
