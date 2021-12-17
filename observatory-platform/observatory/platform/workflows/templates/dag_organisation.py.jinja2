@@ -17,7 +17,7 @@
 
 from {{ package_name }}.identifiers import TelescopeTypes
 from {{ package_name }}.workflows.{{ workflow_module }} import {{ workflow_class }}
-from observatory.platform.utils.workflow_utils import make_observatory_api
+from observatory.platform.utils.api import make_observatory_api
 
 # Fetch all telescopes
 api = make_observatory_api()

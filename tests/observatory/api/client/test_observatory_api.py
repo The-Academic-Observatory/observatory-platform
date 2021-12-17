@@ -39,6 +39,9 @@ from observatory.api.client.exceptions import (
     ApiValueError,
     NotFoundException,
 )
+from observatory.api.client.model.big_query_bytes_processed import (
+    BigQueryBytesProcessed,
+)
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
 from observatory.api.client.model.dataset_storage import DatasetStorage
@@ -1680,6 +1683,161 @@ class TestObservatoryApi(unittest.TestCase):
                 self.api.delete_dataset_release(expected_id)
             self.assertEqual(404, e.exception.status)
             self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
+
+    def test_get_bigquery_bytes_processed(self):
+        """Test case for delete_dataset_release"""
+
+        with self.env.create():
+            expected_id = 1
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_bigquery_bytes_processed(id=expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: BigQueryBytesProcessed with id {expected_id}"\n', e.exception.body)
+
+            with self.assertRaises(ApiException) as e:
+                self.api.get_bigquery_bytes_processed()
+                self.assertEqual(400, e.exception.status)
+                self.assertEqual(
+                    e.exception.body, "If the ID is not specified, both project and date must be specified."
+                )
+
+            with self.assertRaises(ApiException) as e:
+                self.api.get_bigquery_bytes_processed(id=1, project="project")
+                self.assertEqual(400, e.exception.status)
+                self.assertEqual(e.exception.body, "If the ID is specified, project and date must be omitted.")
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_bigquery_bytes_processed(project="project", date="2021-01-01")
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(
+                '"Not found: BigQueryBytesProcessed with project project and date 2021-01-01"\n', e.exception.body
+            )
+
+            dt = pendulum.now(self.timezone)
+            d = "2021-01-01"
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(
+                orm.BigQueryBytesProcessed(
+                    project="project",
+                    total=10,
+                    date=d,
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Assert that BigQueryBytesProcessed with given id exists
+            obj = self.api.get_bigquery_bytes_processed(id=expected_id)
+            self.assertIsInstance(obj, BigQueryBytesProcessed)
+
+            # Assert that BigQueryBytesProcessed with given project and date exists
+            obj = self.api.get_bigquery_bytes_processed(project="project", date=d)
+            self.assertIsInstance(obj, BigQueryBytesProcessed)
+            self.assertEqual(expected_id, obj.id)
+            self.assertEqual("project", obj.project)
+            self.assertEqual(10, obj.total)
+            self.assertEqual(d, obj.date)
+            self.assertEqual(dt_utc, obj.created)
+            self.assertEqual(dt_utc, obj.modified)
+
+            # Search by dataset_id
+            obj = self.api.get_bigquery_bytes_processed(id=expected_id)
+            self.assertIsInstance(obj, BigQueryBytesProcessed)
+            self.assertEqual(obj.project, "project")
+            self.assertEqual(10, obj.total)
+            self.assertEqual(d, obj.date)
+
+            # DatasetRelease not found
+            dataset_id = 2
+            self.assertRaises(NotFoundException, self.api.get_bigquery_bytes_processed, id=dataset_id)
+
+    def test_put_bigquery_bytes_processed(self):
+        """Test case for put_dataset_release"""
+
+        with self.env.create():
+            dt = pendulum.now(self.timezone)
+            expected_id = 1
+            d = "2021-01-01"
+            project = "project"
+            total = 10
+            obj = BigQueryBytesProcessed(
+                project=project,
+                total=total,
+                date=d,
+            )
+            result = self.api.put_bigquery_bytes_processed(obj)
+            self.assertIsInstance(result, BigQueryBytesProcessed)
+            self.assertEqual(expected_id, result.id)
+            self.assertEqual(project, result.project)
+            self.assertEqual(total, result.total)
+            self.assertEqual(d, result.date)
+
+            # Put update
+            project = "new_project"
+            obj = BigQueryBytesProcessed(id=expected_id, project=project)
+            result = self.api.put_bigquery_bytes_processed(obj)
+            self.assertIsInstance(result, BigQueryBytesProcessed)
+            self.assertEqual(expected_id, result.id)
+            self.assertEqual(project, result.project)
+            self.assertEqual(total, result.total)
+            self.assertEqual(d, result.date)
+
+            # Put not found
+            expected_id = 2
+            with self.assertRaises(NotFoundException) as e:
+                self.api.put_bigquery_bytes_processed(BigQueryBytesProcessed(id=expected_id, project=project))
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: BigQueryBytesProcessed with id {expected_id}"\n', e.exception.body)
+
+    def test_post_bigquery_bytes_processed(self):
+        """Test case for post_dataset"""
+
+        with self.env.create():
+            expected_id = 1
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            d = "2021-01-01"
+            project = "project"
+            total = 10
+
+            # Post BigQueryBytesProcessed
+            obj = BigQueryBytesProcessed(
+                project=project,
+                total=total,
+                date=d,
+            )
+            result = self.api.post_bigquery_bytes_processed(obj)
+            self.assertIsInstance(result, BigQueryBytesProcessed)
+            self.assertEqual(expected_id, result.id)
+            self.assertEqual(project, result.project)
+            self.assertEqual(total, result.total)
+            self.assertEqual(d, result.date)
+
+    def test_delete_bigquery_bytes_processed(self):
+        """Test case for delete_bigquery_bytes_processed"""
+
+        with self.env.create():
+            expected_id = 1
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            d = "2021-01-01"
+            project = "project"
+            total = 10
+
+            # Post BigQueryBytesProcessed
+            obj = BigQueryBytesProcessed(
+                project=project,
+                total=total,
+                date=d,
+            )
+            self.api.post_bigquery_bytes_processed(obj)
+            self.api.delete_bigquery_bytes_processed(expected_id)
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.delete_bigquery_bytes_processed(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: BigQueryBytesProcessed with id {expected_id}"\n', e.exception.body)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ observatory/api/client/api/__init__.py
 observatory/api/client/api/observatory_api.py
 observatory/api/client/api_client.py
 observatory/api/client/configuration.py
+observatory/api/client/docs/BigQueryBytesProcessed.md
 observatory/api/client/docs/Dataset.md
 observatory/api/client/docs/DatasetRelease.md
 observatory/api/client/docs/DatasetStorage.md
@@ -14,6 +15,7 @@ observatory/api/client/docs/Telescope.md
 observatory/api/client/docs/TelescopeType.md
 observatory/api/client/exceptions.py
 observatory/api/client/model/__init__.py
+observatory/api/client/model/big_query_bytes_processed.py
 observatory/api/client/model/dataset.py
 observatory/api/client/model/dataset_release.py
 observatory/api/client/model/dataset_storage.py
@@ -24,6 +26,7 @@ observatory/api/client/model/telescope_type.py
 observatory/api/client/model_utils.py
 observatory/api/client/rest.py
 observatory/api/client/test/__init__.py
+observatory/api/client/test/test_big_query_bytes_processed.py
 observatory/api/client/test/test_dataset.py
 observatory/api/client/test/test_dataset_release.py
 observatory/api/client/test/test_dataset_storage.py

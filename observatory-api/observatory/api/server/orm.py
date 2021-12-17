@@ -25,6 +25,7 @@ import pendulum
 from sqlalchemy import (
     JSON,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -634,3 +635,71 @@ class DatasetRelease(Base):
 
         if dataset is not None:
             self.dataset = fetch_db_object(Dataset, dataset)
+
+
+@dataclass
+class BigQueryBytesProcessed(Base):
+    __tablename__ = "bigquery_bytes_processed"
+
+    id: int
+    project: str
+    total: int
+    date: str
+    created: pendulum.DateTime
+    modified: pendulum.DateTime
+
+    id = Column(Integer, primary_key=True)
+    project = Column(String(250))
+    total = Column(Integer)
+    date = Column(String(10))
+    created = Column(DateTime())
+    modified = Column(DateTime())
+
+    def __init__(
+        self,
+        id: int = None,
+        project: str = None,
+        total: int = None,
+        date: str = None,
+        created: pendulum.DateTime = None,
+        modified: pendulum.DateTime = None,
+    ):
+        """Construct a BigQueryBytesProcessed object.
+
+        :param id: unique id.
+        :param project: GCP project.
+        :param total: Total number of processed bytes.
+        :param date: Date of queries in YYYY-MM-DD format.
+        :param created: datetime created in UTC.
+        :param modified: datetime modified in UTC.
+        """
+
+        self.id = id
+        self.project = project
+        self.total = total
+        self.date = date
+        self.created = to_datetime_utc(created)
+        self.modified = to_datetime_utc(modified)
+
+    def update(self, project: str = None, date: str = None, total: int = None, modified: pendulum.DateTime = None):
+        """Update the properties of an existing BigQueryBytesProcessed object. This method is handy when you want to
+        update the BigQueryBytesProcessed from a dictionary, e.g. obj.update(**{'total': 100}).
+
+        :param project: GCP project name.
+        :param date: Date of queries in YYYY-MM-DD format.
+        :param total: Total number of processed bytes.
+        :param modified: datetime modified in UTC.
+        :return: None.
+        """
+
+        if project is not None:
+            self.project = project
+
+        if date is not None:
+            self.date = date
+
+        if total is not None:
+            self.total = total
+
+        if modified is not None:
+            self.modified = to_datetime_utc(modified)

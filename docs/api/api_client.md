@@ -32,6 +32,7 @@ import time
 import observatory.api.client
 from pprint import pprint
 from observatory.api.client.api import observatory_api
+from observatory.api.client.model.big_query_bytes_processed import BigQueryBytesProcessed
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
 from observatory.api.client.model.dataset_storage import DatasetStorage
@@ -61,13 +62,13 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | Dataset id
+    id = 1 # int | BigQueryBytesProcessed id
 
     try:
-        # delete a Dataset
-        api_instance.delete_dataset(id)
+        # delete a BigQueryBytesProcessed
+        api_instance.delete_bigquery_bytes_processed(id)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->delete_dataset: %s\n" % e)
+        print("Exception when calling ObservatoryApi->delete_bigquery_bytes_processed: %s\n" % e)
 ```
 
 ## Documentation for API Endpoints
@@ -92,6 +93,13 @@ All URIs are relative to *https://api.observatory.academy*
 </thead>
 <tbody>
 
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#delete_bigquery_bytes_processed"><strong>delete_bigquery_bytes_processed</strong></a></td>
+<td><strong>DELETE</strong> /v1/bigquery_bytes_processed</td>
+<td>delete a BigQueryBytesProcessed</td>
+</tr>
 
 <tr>
 <td><em>ObservatoryApi</em></td>
@@ -133,6 +141,13 @@ All URIs are relative to *https://api.observatory.academy*
 <td><a href="ObservatoryApi.html#delete_telescope_type"><strong>delete_telescope_type</strong></a></td>
 <td><strong>DELETE</strong> /v1/telescope_type</td>
 <td>delete a TelescopeType</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_bigquery_bytes_processed"><strong>get_bigquery_bytes_processed</strong></a></td>
+<td><strong>GET</strong> /v1/bigquery_bytes_processed</td>
+<td>get a BigQueryBytesProcessed</td>
 </tr>
 
 <tr>
@@ -221,6 +236,13 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#post_bigquery_bytes_processed"><strong>post_bigquery_bytes_processed</strong></a></td>
+<td><strong>POST</strong> /v1/bigquery_bytes_processed</td>
+<td>create a BigQueryBytesProcessed</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
 <td><a href="ObservatoryApi.html#post_dataset"><strong>post_dataset</strong></a></td>
 <td><strong>POST</strong> /v1/dataset</td>
 <td>create a Dataset</td>
@@ -259,6 +281,13 @@ All URIs are relative to *https://api.observatory.academy*
 <td><a href="ObservatoryApi.html#post_telescope_type"><strong>post_telescope_type</strong></a></td>
 <td><strong>POST</strong> /v1/telescope_type</td>
 <td>create a TelescopeType</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#put_bigquery_bytes_processed"><strong>put_bigquery_bytes_processed</strong></a></td>
+<td><strong>PUT</strong> /v1/bigquery_bytes_processed</td>
+<td>create or update a BigQueryBytesProcessed</td>
 </tr>
 
 <tr>
@@ -319,6 +348,7 @@ All URIs are relative to *https://api.observatory.academy*
 .. toctree::
     :maxdepth: 1
 
+    BigQueryBytesProcessed
     Dataset
     DatasetRelease
     DatasetStorage
