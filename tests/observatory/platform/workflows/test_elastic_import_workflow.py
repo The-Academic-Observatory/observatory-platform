@@ -368,7 +368,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 self.assertEqual(expected_state, ti.state)
 
                 # Test list_release_info task
-                ti = env.run_task(workflow.list_release_info.__name__)
+                with patch("observatory.platform.utils.gc_utils.bq_query_bytes_daily_limit_check"):
+                    ti = env.run_task(workflow.list_release_info.__name__)
                 self.assertEqual(expected_state, ti.state)
                 table_id = bigquery_sharded_table_id(self.table_name, release_date)
                 expected_msg = {"release_date": release_date.format("YYYYMMDD"), "table_ids": [table_id]}

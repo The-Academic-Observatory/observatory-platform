@@ -35,6 +35,7 @@ from observatory.api.server.elastic import (
 )
 from observatory.api.server.openapi_renderer import OpenApiRenderer
 from observatory.api.server.orm import (
+    BigQueryBytesProcessed,
     Dataset,
     DatasetRelease,
     DatasetStorage,
@@ -515,6 +516,76 @@ def get_datasets(limit: int, telescope_id: int = None) -> Response:
 
     # Return items that match with a limit
     return q.limit(limit).all()
+
+
+def get_bigquery_bytes_processed(id: int = None, project: str = None, date: str = None) -> Response:
+    """Get a BigQueryBytesProcessed object from either its id or GCP project ID and date.
+
+    :param id: BigQueryBytesProcessed ID.
+    :param project: GCP project ID.
+    :param date: Query date.
+    """
+
+    if id is not None and (project is not None or date is not None):
+        body = "If the ID is specified, project and date must be omitted."
+        logging.error(body)
+        return body, 400
+
+    if id is None and (project is None or date is None):
+        body = "If the ID is not specified, both project and date must be specified."
+        logging.error(body)
+        return body, 400
+
+    if id is not None:
+        return get_item(BigQueryBytesProcessed, id)
+
+    item = (
+        session_.query(BigQueryBytesProcessed)
+        .filter(
+            and_(
+                BigQueryBytesProcessed.project == project,
+                BigQueryBytesProcessed.date == date,
+            )
+        )
+        .one_or_none()
+    )
+
+    if item is None:
+        body = f"Not found: BigQueryBytesProcessed with project {project} and date {date}"
+        logging.info(body)
+        return body, 404
+
+    return item
+
+
+def put_bigquery_bytes_processed(body: Dict) -> Response:
+    """Create or update a BigQueryBytesProcessed.
+
+    :param body: the BigQueryBytesProcessed in the form of a dictionary.
+    :return: a Response object.
+    """
+
+    return put_item(BigQueryBytesProcessed, body)
+
+
+def post_bigquery_bytes_processed(body: Dict) -> Response:
+    """Create a BigQueryBytesProcessed.
+
+    :param body: the BigQueryBytesProcessed in the form of a dictionary.
+    :return: a Response object.
+    """
+
+    return post_item(BigQueryBytesProcessed, body)
+
+
+def delete_bigquery_bytes_processed(id: int) -> Response:
+    """Delete a BigQueryBytesProcessed.
+
+    :param id: the BigQueryBytesProcessed id.
+    :return: a Response object.
+    """
+
+    return delete_item(BigQueryBytesProcessed, id)
 
 
 def queryv1() -> Union[Tuple[str, int], dict]:

@@ -21,27 +21,164 @@ import logging
 import multiprocessing
 import os
 import re
+import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from copy import deepcopy
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
-from typing import List, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import pendulum
+from airflow.models import Variable
 from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat
+from google.cloud.bigquery.job import QueryJobConfig
 from google.cloud.exceptions import Conflict, NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
-from requests.exceptions import ChunkedEncodingError
-
+from observatory.api.client.exceptions import NotFoundException
+from observatory.api.client.model.big_query_bytes_processed import (
+    BigQueryBytesProcessed,
+)
+from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
+from observatory.platform.utils.api import make_observatory_api
 from observatory.platform.utils.config_utils import utils_templates_path
 from observatory.platform.utils.file_utils import crc32c_base64_hash
-from observatory.platform.utils.jinja2_utils import make_sql_jinja2_filename, render_template
+from observatory.platform.utils.jinja2_utils import (
+    make_sql_jinja2_filename,
+    render_template,
+)
+from requests.exceptions import ChunkedEncodingError
 
 # The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
 DEFAULT_CHUNK_SIZE = 256 * 1024 * 4
+
+# BigQuery daily query byte limit.
+BIGQUERY_QUERY_DAILY_BYTE_LIMIT = 1024 * 1024 * 1024 * 1024 * 5  # 5 TiB
+
+
+# This function makes it easier to mock out in tests. This mechanism is here to allow you to hard code disabling the
+# daily quota check across the platform.  When you are convinced the feature is working correctly in production and
+# that you wan't it always on, then the mechanism can be removed.
+def bq_query_daily_limit_enabled():
+    """Whether to turn on BigQuery daily limits.
+
+    :return: Whether to use daily limits.
+    """
+
+    return True
+
+
+def bq_query_bytes_estimate(*args, **kwargs) -> int:
+    """Do a dry run of a BigQuery query to estimate the bytes processed.
+
+    :param args: Positional arguments to pass onto the callable.
+    :param kwargs: Named arguments to pass onto the callable.
+    :return: Query bytes estimate.
+    """
+
+    if "job_config" not in kwargs:
+        kwargs["job_config"] = QueryJobConfig()
+
+    config = deepcopy(kwargs["job_config"])
+    config.dry_run = True
+    kwargs["job_config"] = config
+
+    bytes_estimate = bigquery.Client().query(*args, **kwargs).total_bytes_processed
+    return bytes_estimate
+
+
+def bq_query_bytes_budget_check(*, bytes_budget: Optional[int], bytes_estimate: int):
+    """Check that the estimated number of processed bytes required does not exceed the budgeted number of bytes for the
+    query. If the estimate exceeds the budget, this function throws an exception.
+
+    :param bytes_budget: The processed bytes budget for this query.
+    :param bytes_estimate: Estimated number of bytes processed in query.
+    """
+
+    if bytes_budget is None:
+        return
+
+    if bytes_estimate > bytes_budget:
+        raise Exception(f"Bytes estimate {bytes_estimate} exceeds the budget {bytes_budget}.")
+
+
+def get_bytes_processed(*, api, project: str, date: str) -> int:
+    """Get the bytes processed for a given project and date. If no record exists, create one.
+
+    :param api: Observatory platform API client object.
+    :param project: GCP project.
+    :param date: Date of queries.
+    :return: Number of bytes processed.
+    """
+
+    try:
+        obj = api.get_bigquery_bytes_processed(project=project, date=date)
+        bytes_processed = obj.total
+    except NotFoundException:
+        obj = api.post_bigquery_bytes_processed(
+            BigQueryBytesProcessed(
+                project=project,
+                total=0,
+                date=date,
+            )
+        )
+        bytes_processed = 0
+
+    return bytes_processed
+
+
+def update_bytes_processed(*, api: Any, project: str, date: str, bytes_estimate: int):
+    """Update the number of bytes processed.
+
+    :param api: Observatory platform API client object.
+    :param project: GCP project.
+    :param date: Date of queries.
+    :param bytes_estimate: Bytes estimate of the current query.
+    """
+
+    current_record = api.get_bigquery_bytes_processed(project=project, date=date)
+
+    updated_record = BigQueryBytesProcessed(
+        id=current_record.id,
+        project=project,
+        total=current_record.total + bytes_estimate,
+        date=date,
+    )
+
+    api.put_bigquery_bytes_processed(updated_record)
+
+
+def bq_query_bytes_daily_limit_check(bytes_estimate: int):
+    """Check the daily byte limit. Raise exception if the current query will put us over the limit.
+
+    :param bytes_estimate: Estimated number of bytes processed in query.
+    """
+
+    # Disable if other repos not ready yet
+    if not bq_query_daily_limit_enabled():
+        return
+
+    try:
+        project = Variable.get(AirflowVars.PROJECT_ID)
+        api = make_observatory_api()
+    except Exception as e:
+        logging.warning(f"Skipping daily byte limit check: {e}")
+        return
+
+    date = pendulum.now("UTC").date().isoformat()
+    bytes_processed = get_bytes_processed(api=api, project=project, date=date)
+
+    projected_estimate = bytes_processed + bytes_estimate
+    if projected_estimate > BIGQUERY_QUERY_DAILY_BYTE_LIMIT:
+        raise Exception(
+            f"The projected bytes estimate of {projected_estimate} exceeds the daily limit of {BIGQUERY_QUERY_DAILY_BYTE_LIMIT}"
+        )
+
+    # Assumes the actual query will run after
+    update_bytes_processed(api=api, project=project, date=date, bytes_estimate=bytes_estimate)
 
 
 def table_name_from_blob(blob_name: str, file_extension: str):
@@ -164,7 +301,7 @@ def load_bigquery_table(
     project_id: str = None,
     cluster: bool = False,
     clustering_fields=None,
-    ignore_unknown_values: bool = False
+    ignore_unknown_values: bool = False,
 ) -> bool:
     """Load a BigQuery table from an object on Google Cloud Storage.
 
@@ -255,12 +392,19 @@ def load_bigquery_table(
     return state
 
 
-def run_bigquery_query(query: str) -> List:
-    """Run a BigQuery query.
+def run_bigquery_query(query: str, bytes_budget: Optional[int] = 549755813888) -> list:
+    """Run a BigQuery query.  Defaults to 0.5 TiB query budget.
 
     :param query: the query to run.
+    :param bytes_budget: Maximum bytes allowed to be processed by the query.
     :return: the results.
     """
+
+    bytes_estimate = bq_query_bytes_estimate(query)
+
+    bq_query_bytes_budget_check(bytes_budget=bytes_budget, bytes_estimate=bytes_estimate)
+
+    bq_query_bytes_daily_limit_check(bytes_estimate)
 
     client = bigquery.Client()
     query_job = client.query(query)
@@ -329,8 +473,9 @@ def create_bigquery_table_from_query(
     require_partition_filter=True,
     cluster: bool = False,
     clustering_fields=None,
+    bytes_budget: Optional[int] = 549755813888,
 ) -> bool:
-    """Create a BigQuery dataset from a provided query.
+    """Create a BigQuery dataset from a provided query. Defaults to 0.5 TiB query budget.
 
     :param sql: the sql query to be executed
     :param labels: labels to place on the new table
@@ -347,6 +492,7 @@ def create_bigquery_table_from_query(
     :param require_partition_filter: whether the partition filter is required or not when querying the table.
     :param cluster: whether to cluster the table or not.
     :param clustering_fields: what fields to cluster on.
+    :param bytes_budget: Maximum bytes allowed to be processed by query.
     :return:
     """
 
@@ -391,6 +537,12 @@ def create_bigquery_table_from_query(
 
     if cluster:
         job_config.clustering_fields = clustering_fields
+
+    bytes_estimate = bq_query_bytes_estimate(sql, job_config=job_config)
+
+    bq_query_bytes_budget_check(bytes_budget=bytes_budget, bytes_estimate=bytes_estimate)
+
+    bq_query_bytes_daily_limit_check(bytes_estimate)
 
     query_job: QueryJob = client.query(sql, job_config=job_config)
     query_job.result()

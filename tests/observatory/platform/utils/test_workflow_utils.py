@@ -41,6 +41,7 @@ from click.testing import CliRunner
 from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.api import make_observatory_api
 from observatory.platform.utils.file_utils import (
     gzip_file_crc,
     list_to_jsonl_gz,
@@ -69,7 +70,6 @@ from observatory.platform.utils.workflow_utils import (
     get_chunks,
     is_first_dag_run,
     make_dag_id,
-    make_observatory_api,
     make_release_date,
     make_sftp_connection,
     make_table_name,
@@ -721,7 +721,17 @@ class TestTemplateUtils(unittest.TestCase):
                         ingestion_date=ingestion_date_str,
                     )
                 )
-                mock_run_bigquery_query.assert_called_once_with(expected_query)
+                mock_run_bigquery_query.assert_called_once_with(expected_query, bytes_budget=None)
+
+                bq_delete_old(
+                    release.end_date,
+                    telescope.dataset_id,
+                    main_table_id,
+                    partition_table_id,
+                    telescope.merge_partition_field,
+                    bytes_budget=10,
+                )
+                mock_run_bigquery_query.assert_called_with(expected_query, bytes_budget=10)
 
     @patch("observatory.platform.utils.workflow_utils.copy_bigquery_table")
     @patch("airflow.models.variable.Variable.get")
@@ -847,7 +857,10 @@ class TestTemplateUtils(unittest.TestCase):
 
         on_failure_callback(context)
         mock_send_slack_msg.assert_called_once_with(
-            comments="Task failed, exception:\n" "airflow.exceptions.AirflowException: Exception message", project_id="project_id", ti=ti, execution_date=execution_date
+            comments="Task failed, exception:\n" "airflow.exceptions.AirflowException: Exception message",
+            project_id="project_id",
+            ti=ti,
+            execution_date=execution_date,
         )
 
 

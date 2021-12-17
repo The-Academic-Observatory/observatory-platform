@@ -763,10 +763,10 @@ class Endpoint(object):
         Example:
 
         api_instance = ObservatoryApi()
-        api_instance.delete_dataset  # this is an instance of the class Endpoint
-        api_instance.delete_dataset()  # this invokes api_instance.delete_dataset.__call__()
+        api_instance.delete_bigquery_bytes_processed  # this is an instance of the class Endpoint
+        api_instance.delete_bigquery_bytes_processed()  # this invokes api_instance.delete_bigquery_bytes_processed.__call__()
         which then invokes the callable functions stored in that endpoint at
-        api_instance.delete_dataset.callable or self.callable in this class
+        api_instance.delete_bigquery_bytes_processed.callable or self.callable in this class
 
         """
         return self.callable(self, *args, **kwargs)

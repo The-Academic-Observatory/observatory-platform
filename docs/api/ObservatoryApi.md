@@ -14,6 +14,12 @@ All URIs are relative to *https://api.observatory.academy*
 
 
 <tr>
+  <td><a href="ObservatoryApi.html#delete_bigquery_bytes_processed"><strong>delete_bigquery_bytes_processed</strong></a></td>
+  <td><strong>DELETE</strong> /v1/bigquery_bytes_processed</td>
+  <td>delete a BigQueryBytesProcessed</td>
+</tr>
+
+<tr>
   <td><a href="ObservatoryApi.html#delete_dataset"><strong>delete_dataset</strong></a></td>
   <td><strong>DELETE</strong> /v1/dataset</td>
   <td>delete a Dataset</td>
@@ -47,6 +53,12 @@ All URIs are relative to *https://api.observatory.academy*
   <td><a href="ObservatoryApi.html#delete_telescope_type"><strong>delete_telescope_type</strong></a></td>
   <td><strong>DELETE</strong> /v1/telescope_type</td>
   <td>delete a TelescopeType</td>
+</tr>
+
+<tr>
+  <td><a href="ObservatoryApi.html#get_bigquery_bytes_processed"><strong>get_bigquery_bytes_processed</strong></a></td>
+  <td><strong>GET</strong> /v1/bigquery_bytes_processed</td>
+  <td>get a BigQueryBytesProcessed</td>
 </tr>
 
 <tr>
@@ -122,6 +134,12 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
+  <td><a href="ObservatoryApi.html#post_bigquery_bytes_processed"><strong>post_bigquery_bytes_processed</strong></a></td>
+  <td><strong>POST</strong> /v1/bigquery_bytes_processed</td>
+  <td>create a BigQueryBytesProcessed</td>
+</tr>
+
+<tr>
   <td><a href="ObservatoryApi.html#post_dataset"><strong>post_dataset</strong></a></td>
   <td><strong>POST</strong> /v1/dataset</td>
   <td>create a Dataset</td>
@@ -155,6 +173,12 @@ All URIs are relative to *https://api.observatory.academy*
   <td><a href="ObservatoryApi.html#post_telescope_type"><strong>post_telescope_type</strong></a></td>
   <td><strong>POST</strong> /v1/telescope_type</td>
   <td>create a TelescopeType</td>
+</tr>
+
+<tr>
+  <td><a href="ObservatoryApi.html#put_bigquery_bytes_processed"><strong>put_bigquery_bytes_processed</strong></a></td>
+  <td><strong>PUT</strong> /v1/bigquery_bytes_processed</td>
+  <td>create or update a BigQueryBytesProcessed</td>
 </tr>
 
 <tr>
@@ -199,6 +223,122 @@ All URIs are relative to *https://api.observatory.academy*
   <td>Search the Observatory API</td>
 </tr>
 
+
+</tbody>
+</table></div>
+
+## **delete_bigquery_bytes_processed**
+> delete_bigquery_bytes_processed(id)
+
+delete a BigQueryBytesProcessed
+
+Delete a BigQueryBytesProcessed by passing it's id. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    id = 1 # int | BigQueryBytesProcessed id
+
+    # example passing only required values which don't have defaults set
+    try:
+        # delete a BigQueryBytesProcessed
+        api_instance.delete_bigquery_bytes_processed(id)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->delete_bigquery_bytes_processed: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+<tr>
+<td><strong>id</strong></td>
+<td><strong>int</strong></td>
+<td>BigQueryBytesProcessed id</td>
+<td></td>
+</tr>
+
+
+
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>200</strong></td>
+    <td>BigQueryBytesProcessed deleted</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
 
 </tbody>
 </table></div>
@@ -888,6 +1028,142 @@ void (empty response body)
 <tr>
     <td><strong>200</strong></td>
     <td>TelescopeType deleted</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
+## **get_bigquery_bytes_processed**
+> BigQueryBytesProcessed get_bigquery_bytes_processed()
+
+get a BigQueryBytesProcessed
+
+Get the details of a BigQueryBytesProcessed by passing its id or the project name and date. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from observatory.api.client.model.big_query_bytes_processed import BigQueryBytesProcessed
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    id = 1 # int | BigQueryBytesProcessed id (optional)
+    project = "project_example" # str | BigQueryBytesProcessed type_id (optional)
+    date = "date_example" # str | Queries date (optional)
+
+    # example passing only required values which don't have defaults set
+    # and optional values
+    try:
+        # get a BigQueryBytesProcessed
+        api_response = api_instance.get_bigquery_bytes_processed(id=id, project=project, date=date)
+        pprint(api_response)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->get_bigquery_bytes_processed: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+
+
+<tr>
+<td><strong>id</strong></td>
+<td><strong>int</strong></td>
+<td>BigQueryBytesProcessed id</td>
+<td>
+[optional]
+<tr>
+<td><strong>project</strong></td>
+<td><strong>str</strong></td>
+<td>BigQueryBytesProcessed type_id</td>
+<td>
+[optional]
+<tr>
+<td><strong>date</strong></td>
+<td><strong>str</strong></td>
+<td>Queries date</td>
+<td>
+[optional]
+</tbody>
+</table></div>
+
+
+### Return type
+
+[**BigQueryBytesProcessed**](BigQueryBytesProcessed.html)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>200</strong></td>
+    <td>the fetched BigQueryBytesProcessed</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>400</strong></td>
+    <td>bad input parameter</td>
     <td> - </td>
 </tr>
 <tr>
@@ -2452,6 +2728,129 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
+## **post_bigquery_bytes_processed**
+> BigQueryBytesProcessed post_bigquery_bytes_processed(body)
+
+create a BigQueryBytesProcessed
+
+Create a BigQueryBytesProcessed by passing a BigQueryBytesProcessed object, without an id. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from observatory.api.client.model.big_query_bytes_processed import BigQueryBytesProcessed
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    body = BigQueryBytesProcessed(
+        id=1,
+        project="coki",
+        total=0,
+        date="2020-01-01T00:00:00.000+0000",
+    ) # BigQueryBytesProcessed | BigQueryBytesProcessed to create
+
+    # example passing only required values which don't have defaults set
+    try:
+        # create a BigQueryBytesProcessed
+        api_response = api_instance.post_bigquery_bytes_processed(body)
+        pprint(api_response)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->post_bigquery_bytes_processed: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+<tr>
+<td><strong>body</strong></td>
+<td><a href="BigQueryBytesProcessed.html"><strong>BigQueryBytesProcessed</strong></a></td>
+<td>BigQueryBytesProcessed to create</td>
+<td></td>
+</tr>
+
+
+
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+[**BigQueryBytesProcessed**](BigQueryBytesProcessed.html)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>201</strong></td>
+    <td>BigQueryBytesProcessed created, returning the created object with an id</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
 ## **post_dataset**
 > Dataset post_dataset(body)
 
@@ -3270,6 +3669,134 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 <tr>
     <td><strong>201</strong></td>
     <td>TelescopeType created, returning the created object with an id</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
+## **put_bigquery_bytes_processed**
+> BigQueryBytesProcessed put_bigquery_bytes_processed(body)
+
+create or update a BigQueryBytesProcessed
+
+Create a BigQueryBytesProcessed by passing a BigQueryBytesProcessed object, without an id. Update an existing BigQueryBytesProcessed by passing a BigQueryBytesProcessed object with an id. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from observatory.api.client.model.big_query_bytes_processed import BigQueryBytesProcessed
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    body = BigQueryBytesProcessed(
+        id=1,
+        project="coki",
+        total=0,
+        date="2020-01-01T00:00:00.000+0000",
+    ) # BigQueryBytesProcessed | BigQueryBytesProcessed to create or update
+
+    # example passing only required values which don't have defaults set
+    try:
+        # create or update a BigQueryBytesProcessed
+        api_response = api_instance.put_bigquery_bytes_processed(body)
+        pprint(api_response)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->put_bigquery_bytes_processed: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+<tr>
+<td><strong>body</strong></td>
+<td><a href="BigQueryBytesProcessed.html"><strong>BigQueryBytesProcessed</strong></a></td>
+<td>BigQueryBytesProcessed to create or update</td>
+<td></td>
+</tr>
+
+
+
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+[**BigQueryBytesProcessed**](BigQueryBytesProcessed.html)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>200</strong></td>
+    <td>BigQueryBytesProcessed updated</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>201</strong></td>
+    <td>BigQueryBytesProcessed created, returning the created object with an id</td>
     <td> - </td>
 </tr>
 <tr>

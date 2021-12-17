@@ -45,6 +45,7 @@ from observatory.platform.utils.airflow_utils import (
     AirflowVars,
     send_slack_msg,
 )
+from observatory.platform.utils.api import make_observatory_api
 from observatory.platform.utils.config_utils import find_schema, utils_templates_path
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
@@ -549,6 +550,7 @@ def bq_delete_old(
     main_table_id: str,
     partition_table_id: str,
     merge_partition_field: str,
+    bytes_budget: Optional[int] = None,
 ):
     """Will run a BigQuery query that deletes rows from the main table that are matched with rows from
     a specific partition of the partition table.
@@ -559,6 +561,7 @@ def bq_delete_old(
     :param main_table_id: Main table id.
     :param partition_table_id: Partition table id.
     :param merge_partition_field: Merge partition field.
+    :param bytes_budget: Maximum bytes allowed to be processed.
     :return: None.
     """
     ingestion_date = ingestion_date.strftime("%Y-%m-%d")
@@ -577,7 +580,7 @@ def bq_delete_old(
         merge_condition_field=merge_condition_field,
         ingestion_date=ingestion_date,
     )
-    run_bigquery_query(query)
+    run_bigquery_query(query, bytes_budget=bytes_budget)
 
 
 def bq_append_from_partition(
@@ -847,45 +850,6 @@ class SftpFolders:
                 in_progress_file = os.path.join(self.in_progress, file_name)
                 finished_file = os.path.join(self.finished, file_name)
                 sftp.rename(in_progress_file, finished_file)
-
-
-def make_observatory_api() -> "ObservatoryApi":  # noqa: F821
-    """Make the ObservatoryApi object, configuring it with a host and api_key.
-
-    :return: the ObservatoryApi.
-    """
-
-    try:
-        from observatory.api.client.api.observatory_api import ObservatoryApi
-        from observatory.api.client.api_client import ApiClient
-        from observatory.api.client.configuration import Configuration
-    except ImportError as e:
-        logging.error("Please install the observatory-api Python package to use the make_observatory_api function")
-        raise e
-
-    # Get connection
-    conn = BaseHook.get_connection(AirflowConns.OBSERVATORY_API)
-
-    # Assert connection has required fields
-    assert (
-        conn.conn_type != "" and conn.conn_type is not None
-    ), f"Airflow Connection {AirflowConns.OBSERVATORY_API} conn_type must not be None"
-    assert (
-        conn.host != "" and conn.host is not None
-    ), f"Airflow Connection {AirflowConns.OBSERVATORY_API} host must not be None"
-    assert (
-        conn.password != "" and conn.password is not None
-    ), f"Airflow Connection {AirflowConns.OBSERVATORY_API} password must not be None"
-
-    # Make host
-    host = f'{str(conn.conn_type).replace("_", "-").lower()}://{conn.host}'
-    if conn.port:
-        host += f":{conn.port}"
-
-    # Return ObservatoryApi
-    config = Configuration(host=host, api_key={"api_key": conn.password})
-    api_client = ApiClient(config)
-    return ObservatoryApi(api_client=api_client)
 
 
 def make_dag_id(namespace: str, organisation_name: str) -> str:
