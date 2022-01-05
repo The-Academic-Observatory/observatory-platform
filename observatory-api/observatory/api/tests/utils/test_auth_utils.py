@@ -105,8 +105,12 @@ class TestAuthUtils(unittest.TestCase):
     @patch("observatory.api.utils.auth_utils.get_token_auth")
     def test_has_scope(self, mock_token):
         claims = {"scope": "scope1 scope2"}
+        no_claims = {}
+
         token = jwt.encode(claims, "secret")
-        mock_token.return_value = token
+        token_no_claims = jwt.encode(no_claims, "secret")
+
+        mock_token.side_effect = [token, token, token_no_claims]
 
         # Test with scope that is not included in token
         result = has_scope("scope3")
@@ -115,3 +119,7 @@ class TestAuthUtils(unittest.TestCase):
         # Test with scope that is included in token
         result = has_scope("scope1")
         self.assertTrue(result)
+
+        # Test when the claims do not contain any scopes
+        result = has_scope("scope")
+        self.assertFalse(result)
