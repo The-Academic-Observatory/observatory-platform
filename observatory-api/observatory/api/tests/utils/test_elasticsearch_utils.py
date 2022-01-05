@@ -15,63 +15,186 @@
 # Author: Aniek Roelofs
 
 import os
-import copy
 import unittest
+from typing import Dict
 from unittest.mock import patch
 
 from elasticsearch import Elasticsearch
-
 from observatory.api.server.api import create_app
 from observatory.api.utils.elasticsearch_utils import (
+    ElasticsearchIndex,
     create_es_connection,
     create_search_body,
     list_available_index_dates,
     parse_args,
     process_response,
 )
-from observatory.api.utils.exception_utils import APIError
-
-# AGGREGATIONS = ["author", "country", "funder", "group", "institution", "publisher"]
-# SUBSETS = [
-#     "citations",
-#     "collaborations",
-#     "disciplines",
-#     "events",
-#     "funders",
-#     "journals",
-#     "oa-metrics",
-#     "output-types",
-#     "publishers",
-# ]
-# SCROLL_ID = "FGluY2x1ZGVfY29udGV4dF91dWlkDXF1ZXJ5QW5kRmV0Y2gBFlVrbkJuSmNzVFMtSUh3MkcxVmxXRVEAAAAAAJDtdhZkejJRLUUwZ1N0T05nUTV6ZUlVNGRn "
-# RES_EXAMPLE = {
-#     "_scroll_id": SCROLL_ID,
-#     "hits": {
-#         "total": {"value": 452},
-#         "hits": [
-#             {
-#                 "_index": "journals-institution-20201205",
-#                 "_type": "_doc",
-#                 "_id": "bQ88QXYBGinIh2YA4IaO",
-#                 "_score": None,
-#                 "_source": {"id": "example_id", "name": "Example Name", "published_year": "2018-12-31"},
-#                 "sort": [77250],
-#             },
-#             {
-#                 "_index": "journals-institution-20201205",
-#                 "_type": "_doc",
-#                 "_id": "bQ88QXYBGinIh2YA4Ia1",
-#                 "_score": None,
-#                 "_source": {"id": "example_id2", "name": "Example Name2", "published_year": "2018-12-31"},
-#                 "sort": [77251],
-#             },
-#         ],
-#     },
-# }
+from observatory.api.utils.exception_utils import APIError, AuthError
 
 
-class TestElastic(unittest.TestCase):
-    """Tests for the 'query' endpoint of the API."""
+class UnittestElasticsearchIndex(ElasticsearchIndex):
+    def __init__(self, es: Elasticsearch, agg: str, subagg: str = None, index_date: str = None):
+        super().__init__(es, agg, subagg, index_date)
+
+    @property
+    def agg_mappings(self) -> Dict[str, str]:
+        return {
+            "agg": "es_agg_id",
+        }
+
+    @property
+    def subagg_mappings(self) -> Dict[str, str]:
+        return {"subagg": "es_subagg_id"}
+
+    def get_required_scope(self) -> str:
+        scope = "group:COKI%20Team"
+        return scope
+
+    def set_alias(self) -> [bool, str]:
+        if self.subagg:
+            alias = f"{self.agg}-{self.subagg}"
+        else:
+            alias = f"{self.agg}-unique-list"
+        return alias
+
+
+@patch("observatory.api.utils.elasticsearch_utils.Elasticsearch.ping")
+@patch("observatory.api.utils.elasticsearch_utils.has_scope")
+@patch("observatory.api.utils.elasticsearch_utils.list_available_index_dates")
+@patch.dict(os.environ, {"ES_HOST": "address", "ES_API_KEY": "api_key"})
+class TestElasticsearchIndex(unittest.TestCase):
+    def test_valid_init(self, mock_list_dates, mock_has_scope, mock_es_ping):
+        # Set up mock values
+        mock_list_dates.return_value = ["20220101", "20220201"]
+        mock_has_scope.return_value = True
+        mock_es_ping.return_value = True
+
+        es = create_es_connection()
+
+        # Create class instance with agg and subagg
+        es_index = UnittestElasticsearchIndex(es, "agg", "subagg", "20220101")
+
+        self.assertIsInstance(es_index, ElasticsearchIndex)
+        self.assertEqual("agg", es_index.agg)
+        self.assertEqual("es_agg_id", es_index.agg_field)
+        self.assertDictEqual(
+            {
+                "agg": "es_agg_id",
+            },
+            es_index.agg_mappings,
+        )
+        self.assertEqual("agg-subagg", es_index.alias)
+        self.assertEqual(es, es_index.es)
+        self.assertEqual("20220101", es_index.index_date)
+        self.assertEqual("agg-subagg-20220101", es_index.name)
+        self.assertEqual("subagg", es_index.subagg)
+        self.assertEqual("es_subagg_id", es_index.subagg_field)
+        self.assertDictEqual(
+            {
+                "subagg": "es_subagg_id",
+            },
+            es_index.subagg_mappings,
+        )
+
+        # Create class instance with agg only
+        es_index = UnittestElasticsearchIndex(es, "agg", None, "20220101")
+
+        self.assertEqual("agg-unique-list", es_index.alias)
+        self.assertEqual("agg-unique-list-20220101", es_index.name)
+        self.assertEqual(None, es_index.subagg)
+        self.assertEqual(None, es_index.subagg_field)
+
+        # Create class instance without given index date
+        es_index = UnittestElasticsearchIndex(es, "agg", None, None)
+        self.assertEqual("20220101", es_index.index_date)
+
+    def test_invalid_scope_init(self, mock_list_dates, mock_has_scope, mock_es_ping):
+        # Set up mock values
+        mock_list_dates.return_value = ["20220101"]
+        mock_has_scope.return_value = False
+        mock_es_ping.return_value = True
+
+        # Create class instance
+        es = create_es_connection()
+        with self.assertRaises(AuthError):
+            UnittestElasticsearchIndex(es, "agg", "subagg", "20220101")
+
+    def test_invalid_date_init(self, mock_list_dates, mock_has_scope, mock_es_ping):
+        # Set up mock values
+        mock_list_dates.side_effect = [["20220101"], []]
+        mock_has_scope.return_value = True
+        mock_es_ping.return_value = True
+
+        # Create class instance
+        es = create_es_connection()
+
+        # Test when date given, but not in dates available
+        with self.assertRaises(APIError):
+            UnittestElasticsearchIndex(es, "agg", "subagg", "20211201")
+
+        # Test when no date given and no dates are available
+        with self.assertRaises(APIError):
+            UnittestElasticsearchIndex(es, "agg", "subagg", None)
+
+
+class TestElasticsearchUtils(unittest.TestCase):
+    def test_parse_args(self):
+        """Test that parse_args returns values as expected when using different query parameters.
+
+        :return: None.
+        """
+
+        app = create_app()
+        with app.app.test_client() as test_client:
+            # Test with no parameters set
+            test_client.get()
+            args = parse_args()
+            expected_args = [], [], None, None, None, 10000, None, None, False
+            self.assertEqual(expected_args, args)
+
+            # Test with all parameters set
+            parameters = {
+                "agg_id": ["id1", "id2"],
+                "subagg_id": "id3",
+                "index_date": "2022-01-01",
+                "from": 2000,
+                "to": 2020,
+                "limit": 100,
+                "search_after": "1234",
+                "pit": "dfg9asbc0",
+                "pretty": True,
+            }
+            test_client.get(query_string=parameters)
+            args = parse_args()
+            expected_args = (
+                ["id1", "id2"],
+                ["id3"],
+                "20220101",
+                "2000-12-31",
+                "2020-12-31",
+                100,
+                "1234",
+                "dfg9asbc0",
+                "True",
+            )
+            self.assertEqual(expected_args, args)
+
+            # Test with limit set above max
+            parameters["limit"] = 100000
+            test_client.get(query_string=parameters)
+            args = parse_args()
+            expected_args = (
+                ["id1", "id2"],
+                ["id3"],
+                "20220101",
+                "2000-12-31",
+                "2020-12-31",
+                10000,
+                "1234",
+                "dfg9asbc0",
+                "True",
+            )
+            self.assertEqual(expected_args, args)
 
     @patch("observatory.api.utils.elasticsearch_utils.Elasticsearch.ping")
     def test_create_es_connection(self, mock_elasticsearch_ping):
@@ -100,173 +223,150 @@ class TestElastic(unittest.TestCase):
             with self.assertRaises(APIError):
                 create_es_connection()
 
-    #
-    # def test_parse_args(self):
-    #     """Test that parse_args returns values as expected when using different query parameters.
-    #
-    #     :return: None.
-    #     """
-    #
-    #     app = create_app()
-    #     with app.app.test_client() as test_client:
-    #         # test minimal parameters
-    #         parameters = {"agg": "author", "subset": "citations"}
-    #         test_client.get("/query", query_string=parameters)
-    #         alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-    #         self.assertIsNone(from_date)
-    #         self.assertIsNone(to_date)
-    #         for field in filter_fields:
-    #             self.assertIsNone(filter_fields[field])
-    #         self.assertEqual(10000, size)
-    #         self.assertIsNone(scroll_id)
-    #
-    #         # test filter parameters
-    #         parameters = {}
-    #         for field in QUERY_FILTER_PARAMETERS:
-    #             parameters[field] = "test1,test2"
-    #         test_client.get("/query", query_string=parameters)
-    #         alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-    #         for field in filter_fields:
-    #             self.assertEqual(["test1", "test2"], filter_fields[field])
-    #
-    #         # test from & to dates
-    #         parameters = {"from": 2000, "to": 2010}
-    #         test_client.get("/query", query_string=parameters)
-    #         alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-    #         self.assertEqual("2000-12-31", from_date)
-    #         self.assertEqual("2010-12-31", to_date)
-    #
-    #         # test aliases
-    #         parameters = {}
-    #         for agg in AGGREGATIONS:
-    #             for subset in SUBSETS:
-    #                 parameters["agg"] = agg
-    #                 parameters["subset"] = subset
-    #                 test_client.get("/query", query_string=parameters)
-    #                 alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-    #
-    #                 if agg == "publisher" and subset == "collaborations":
-    #                     self.assertEqual("", alias)
-    #                 else:
-    #                     if agg == "author" or agg == "funder":
-    #                         self.assertEqual(f"{subset}-{agg}_test", alias)
-    #                     else:
-    #                         self.assertEqual(f"{subset}-{agg}", alias)
-    #
-    #         # test index date
-    #         parameters = {"index_date": "2020-01-01"}
-    #         test_client.get("/query", query_string=parameters)
-    #         alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-    #         self.assertEqual("20200101", index_date)
-    #
-    #         test_client.get("/query")
-    #         alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-    #         self.assertEqual(None, index_date)
-    #
-    #         # test limit
-    #         parameters = {"limit": 500}
-    #         test_client.get("/query", query_string=parameters)
-    #         alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-    #         self.assertEqual(500, size)
-    #
-    #         test_client.get("/query")
-    #         alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-    #         self.assertEqual(10000, size)
-    #
-    #         # test scroll_id
-    #         parameters = {"scroll_id": SCROLL_ID}
-    #         test_client.get("/query", query_string=parameters)
-    #         alias, index_date, from_date, to_date, filter_fields, size, scroll_id = parse_args()
-    #         self.assertEqual(SCROLL_ID, scroll_id)
-    #
-    # def test_create_search_body(self):
-    #     """Test that resulting search_body is as expected with different arguments.
-    #
-    #     :return: None.
-    #     """
-    #     # test dates
-    #     from_year = "2000-12-31"
-    #     to_year = "2010-12-31"
-    #     filter_fields = dict.fromkeys(QUERY_FILTER_PARAMETERS)
-    #     size = 500
-    #     search_body = create_search_body(from_year, to_year, filter_fields, size)
-    #     expected_range_dict = {"range": {"published_year": {"format": "yyyy-MM-dd", "gte": from_year, "lt": to_year}}}
-    #     self.assertIn(expected_range_dict, search_body["query"]["bool"]["filter"])
-    #
-    #     from_year = None
-    #     to_year = "2010-12-31"
-    #     search_body = create_search_body(from_year, to_year, filter_fields, size)
-    #     expected_range_dict = {"range": {"published_year": {"format": "yyyy-MM-dd", "lt": to_year}}}
-    #     self.assertIn(expected_range_dict, search_body["query"]["bool"]["filter"])
-    #
-    #     from_year = "2000-12-31"
-    #     to_year = None
-    #     search_body = create_search_body(from_year, to_year, filter_fields, size)
-    #     expected_range_dict = {"range": {"published_year": {"format": "yyyy-MM-dd", "gte": from_year}}}
-    #     self.assertIn(expected_range_dict, search_body["query"]["bool"]["filter"])
-    #
-    #     # test empty dates and empty filter fields
-    #     from_year = None
-    #     to_year = None
-    #     search_body = create_search_body(from_year, to_year, filter_fields, size)
-    #     self.assertEqual([], search_body["query"]["bool"]["filter"])
-    #
-    #     # test filter fields
-    #     from_year = "2000-12-31"
-    #     to_year = "2010-12-31"
-    #     filter_fields = {}
-    #     for field in QUERY_FILTER_PARAMETERS:
-    #         filter_fields[field] = ["test1", "test2"]
-    #     search_body = create_search_body(from_year, to_year, filter_fields, size)
-    #     for field in filter_fields:
-    #         list_entry = {"terms": {f"{field}.keyword": filter_fields[field]}}
-    #         self.assertIn(list_entry, search_body["query"]["bool"]["filter"])
-    #
-    #     # test size
-    #     size = 500
-    #     search_body = create_search_body(from_year, to_year, filter_fields, size)
-    #     self.assertEqual(500, search_body["size"])
-    #
-    # def test_process_response(self):
-    #     """Test that the response from the elasticsearch search/scroll query is as expected.
-    #
-    #     :return:
-    #     """
-    #     scroll_id, hits = process_response(copy.deepcopy(RES_EXAMPLE))
-    #     self.assertEqual(SCROLL_ID, scroll_id)
-    #     expected_hits = [
-    #         {
-    #             "_index": "journals-institution-20201205",
-    #             "_type": "_doc",
-    #             "_id": "bQ88QXYBGinIh2YA4IaO",
-    #             "_score": None,
-    #             "sort": [77250],
-    #             "id": "example_id",
-    #             "name": "Example Name",
-    #             "published_year": "2018-12-31",
-    #         },
-    #         {
-    #             "_index": "journals-institution-20201205",
-    #             "_type": "_doc",
-    #             "_id": "bQ88QXYBGinIh2YA4Ia1",
-    #             "_score": None,
-    #             "sort": [77251],
-    #             "id": "example_id2",
-    #             "name": "Example Name2",
-    #             "published_year": "2018-12-31",
-    #         },
-    #     ]
-    #     self.assertEqual(expected_hits, hits)
-    #
-    # @patch("elasticsearch.client.CatClient.indices")
-    # def test_list_available_index_dates(self, mock_es_indices):
-    #     """Test parsing of available dates from elasticsearch's cat.indices() response.
-    #
-    #     :return: None.
-    #     """
-    #     dates = ["20201212", "20201201"]
-    #     alias = "subset-agg"
-    #     mock_es_indices.return_value = [{"index": f"{alias}-{dates[0]}"}, {"index": f"{alias}-{dates[1]}"}]
-    #
-    #     available_dates = list_available_index_dates(Elasticsearch(), alias)
-    #     self.assertEqual(dates, available_dates)
+    @patch("elasticsearch.client.CatClient.indices")
+    def test_list_available_index_dates(self, mock_es_indices):
+        """Test parsing of available dates from elasticsearch's cat.indices() response.
+
+        :return: None.
+        """
+        dates = ["20201212", "20201201"]
+        alias = "subset-agg"
+        mock_es_indices.return_value = [{"index": f"{alias}-{dates[0]}"}, {"index": f"{alias}-{dates[1]}"}]
+
+        available_dates = list_available_index_dates(Elasticsearch(), alias)
+        self.assertEqual(dates, available_dates)
+
+    def test_create_search_body(self):
+        """Test that resulting search_body is as expected with different arguments.
+
+        :return: None.
+        """
+        agg_field = "agg"
+        subagg_field = None
+        subagg_ids = None
+        size = 500
+        search_after = None
+        pit_id = None
+        from_date = None
+        to_date = None
+
+        expected = {"size": size, "query": {"bool": {"filter": []}}, "track_total_hits": True, "sort": "_id"}
+
+        # Test aggregate & subaggregate filters
+        agg_ids = ["id1", "id2"]
+        search_body = create_search_body(
+            agg_field, agg_ids, subagg_field, subagg_ids, from_date, to_date, size, search_after, pit_id
+        )
+        expected["query"]["bool"]["filter"] = [{"terms": {"agg.keyword": agg_ids}}]
+        self.assertDictEqual(expected, search_body)
+
+        subagg_field = "subagg"
+        subagg_ids = ["id1", "id2"]
+        search_body = create_search_body(
+            agg_field, agg_ids, subagg_field, subagg_ids, from_date, to_date, size, search_after, pit_id
+        )
+        expected["query"]["bool"]["filter"] = [
+            {"terms": {"agg.keyword": agg_ids}},
+            {"terms": {"subagg.keyword": subagg_ids}},
+        ]
+        self.assertDictEqual(expected, search_body)
+
+        agg_ids = None
+        subagg_ids = None
+        search_body = create_search_body(
+            agg_field, agg_ids, subagg_field, subagg_ids, from_date, to_date, size, search_after, pit_id
+        )
+        expected["query"]["bool"]["filter"] = []
+        self.assertDictEqual(expected, search_body)
+
+        # Test date filters
+        from_date = "2000-12-31"
+        to_date = "2010-12-31"
+        search_body = create_search_body(
+            agg_field, agg_ids, subagg_field, subagg_ids, from_date, to_date, size, search_after, pit_id
+        )
+        expected["query"]["bool"]["filter"] = [
+            {"range": {"published_year": {"format": "yyyy-MM-dd", "gte": from_date, "lte": to_date}}}
+        ]
+        self.assertDictEqual(expected, search_body)
+
+        from_date = None
+        to_date = "2010-12-31"
+        search_body = create_search_body(
+            agg_field, agg_ids, subagg_field, subagg_ids, from_date, to_date, size, search_after, pit_id
+        )
+        expected["query"]["bool"]["filter"] = [{"range": {"published_year": {"format": "yyyy-MM-dd", "lte": to_date}}}]
+        self.assertDictEqual(expected, search_body)
+
+        from_date = "2000-12-31"
+        to_date = None
+        search_body = create_search_body(
+            agg_field, agg_ids, subagg_field, subagg_ids, from_date, to_date, size, search_after, pit_id
+        )
+        expected["query"]["bool"]["filter"] = [
+            {"range": {"published_year": {"format": "yyyy-MM-dd", "gte": from_date}}}
+        ]
+        self.assertDictEqual(expected, search_body)
+
+        from_date = None
+        to_date = None
+        search_body = create_search_body(
+            agg_field, agg_ids, subagg_field, subagg_ids, from_date, to_date, size, search_after, pit_id
+        )
+        expected["query"]["bool"]["filter"] = []
+        self.assertDictEqual(expected, search_body)
+
+        # Test search after option
+        search_after = "1234"
+        search_body = create_search_body(
+            agg_field, agg_ids, subagg_field, subagg_ids, from_date, to_date, size, search_after, pit_id
+        )
+        expected["search_after"] = [search_after]
+        self.assertDictEqual(expected, search_body)
+
+        # Test pit_id option
+        pit_id = "4810vac9w0"
+        search_body = create_search_body(
+            agg_field, agg_ids, subagg_field, subagg_ids, from_date, to_date, size, search_after, pit_id
+        )
+        expected["pit"] = {"id": pit_id, "keep_alive": "1m"}
+        expected["sort"] = "_shard_doc"
+        self.assertDictEqual(expected, search_body)
+
+    def test_process_response(self):
+        """Test that the response from the elasticsearch search query is as expected.
+
+        :return:
+        """
+        res_example = {
+            "pit_id": "238cvjhs9",
+            "took": "10",
+            "hits": {
+                "total": {"value": 452},
+                "hits": [
+                    {
+                        "_index": "journals-institution-20201205",
+                        "_type": "_doc",
+                        "_id": "bQ88QXYBGinIh2YA4IaO",
+                        "_score": None,
+                        "_source": {"id": "example_id", "name": "Example Name", "published_year": "2018-12-31"},
+                        "sort": [77250],
+                    },
+                    {
+                        "_index": "journals-institution-20201205",
+                        "_type": "_doc",
+                        "_id": "bQ88QXYBGinIh2YA4Ia1",
+                        "_score": None,
+                        "_source": {"id": "example_id2", "name": "Example Name2", "published_year": "2018-12-31"},
+                        "sort": [77251],
+                    },
+                ],
+            },
+        }
+
+        new_pit_id, search_after_text, hits, took = process_response(res_example)
+
+        self.assertEqual(res_example["pit_id"], new_pit_id)
+        self.assertEqual(res_example["hits"]["hits"][-1]["sort"][0], search_after_text)
+        self.assertEqual(res_example["hits"]["hits"], hits)
+        self.assertEqual(res_example["took"], took)
