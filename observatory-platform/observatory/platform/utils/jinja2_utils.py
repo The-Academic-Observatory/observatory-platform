@@ -27,14 +27,14 @@ def render_template(template_path: str, template_kwargs: dict = None, **kwargs) 
     :return: the rendered template as a string.
     """
     if template_kwargs is None:
-        template_kwargs = {}
+        template_kwargs = {"keep_trailing_newline": True}
 
     # Read file contents
     with open(template_path, "r") as file:
         contents = file.read()
 
     # Fill template with text
-    template = Template(contents, keep_trailing_newline=True, **template_kwargs)
+    template = Template(contents, **template_kwargs)
 
     # Render template
     rendered = template.render(**kwargs)

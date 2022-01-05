@@ -25,8 +25,10 @@ from observatory.platform.utils.jinja2_utils import render_template, make_jinja2
 class TestJinja2Utils(unittest.TestCase):
     def test_render_template(self):
         template_path = "query.sql.jinja2"
-        template = "{# Test comment #}SELECT * FROM `{{ project_id }}.{{ dataset_id }}.Affiliations{{ release_date.strftime('%Y%m%d') }}` LIMIT 1000"
-        expected_render = "SELECT * FROM `academic-observatory.mag.Affiliations20200810` LIMIT 1000"
+        template = (
+            "{# Test comment #}SELECT * FROM `{{ project_id }}.{{ dataset_id }}.Affiliations{{ "
+            "release_date.strftime('%Y%m%d') }}` LIMIT 1000\n"
+        )
 
         with CliRunner().isolated_filesystem():
             # Write test template
@@ -40,6 +42,18 @@ class TestJinja2Utils(unittest.TestCase):
                 dataset_id="mag",
                 release_date=pendulum.datetime(year=2020, month=8, day=10),
             )
+            expected_render = "SELECT * FROM `academic-observatory.mag.Affiliations20200810` LIMIT 1000\n"
+            self.assertEqual(render, expected_render)
+
+            # Render template with Template setting to remove trailing newline
+            render = render_template(
+                template_path,
+                template_kwargs={"keep_trailing_newline": False},
+                project_id="academic-observatory",
+                dataset_id="mag",
+                release_date=pendulum.datetime(year=2020, month=8, day=10),
+            )
+            expected_render = "SELECT * FROM `academic-observatory.mag.Affiliations20200810` LIMIT 1000"
             self.assertEqual(render, expected_render)
 
     def test_make_jinja2_filename(self):
