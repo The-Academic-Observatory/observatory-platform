@@ -47,8 +47,8 @@ class OpenApiRenderer:
         """Construct an object that renders an OpenAPI 2 Jinja2 file.
 
         :param openapi_template_path: the path to the OpenAPI 2 Jinja2 template.
-        :param cloud_endpoints: whether to render the file for the backend (default) or Cloud Endpoints.
-        :param api_client: whether to render the file for the Server (default) or the Client.
+        :param usage_type: The usage type for which the OpenAPI file is generated, one of: cloud_endpoints, backend,
+            openapi_generator
         """
 
         self.openapi_template_path = openapi_template_path
@@ -63,12 +63,7 @@ class OpenApiRenderer:
         :return: the rendered output.
         """
 
-        return render_template(
-            self.openapi_template_path,
-            type=self.type
-            # cloud_endpoints=self.cloud_endpoints,
-            # api_client=self.api_client,
-        )
+        return render_template(self.openapi_template_path, type=self.type)
 
     def to_dict(self) -> Dict:
         """Render and output the OpenAPI file as a dictionary.
