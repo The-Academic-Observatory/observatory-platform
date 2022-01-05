@@ -1,3 +1,19 @@
+# Copyright 2022 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Aniek Roelofs
+
 from typing import List, Optional, Tuple, Union
 
 import pendulum
@@ -12,7 +28,7 @@ from typing import Dict
 
 
 class ElasticsearchIndex:
-    def __init__(self, es: Elasticsearch, agg: str, subagg: str, index_date: str):
+    def __init__(self, es: Elasticsearch, agg: str, subagg: Optional[str], index_date: Optional[str]):
         self.es = es
         self.agg = agg
         self.subagg = subagg
@@ -32,17 +48,25 @@ class ElasticsearchIndex:
 
         # Set index date
         index_dates = list_available_index_dates(es, self.alias)
-        self.index_date = index_date if index_date else index_dates[0]
-        if self.index_date not in index_dates:
-            index_dates_str = "\n".join(index_dates)
-            raise APIError(
-                {
-                    "code": "index_error",
-                    "description": f"Index not available for given index date: {index_date}.\nAvailable "
-                    f"index dates: {index_dates_str}",
-                },
-                500,
-            )
+        if index_date:
+            self.index_date = index_date
+
+            # Check if given index date is in available dates
+            if self.index_date not in index_dates:
+                index_dates_str = "\n".join(index_dates)
+                raise APIError(
+                    {
+                        "code": "index_error",
+                        "description": f"Index not available for given index date: {index_date}.\nAvailable "
+                        f"index dates: {index_dates_str}",
+                    },
+                    500,
+                )
+        else:
+            if index_dates:
+                self.index_date = index_dates[0]
+            else:
+                raise APIError({"code": "index_error", "description": "No dates available for given index"}, 500)
 
     @property
     def name(self) -> str:
@@ -169,20 +193,26 @@ def list_available_index_dates(es: Elasticsearch, alias: str) -> List[str]:
 
 def create_search_body(
     agg_field: str,
-    agg_ids: List[str],
-    subagg_field: str,
-    subagg_ids: List[str],
-    from_year: Union[str, None],
-    to_year: Union[str, None],
+    agg_ids: Optional[List[str]],
+    subagg_field: Optional[str],
+    subagg_ids: Optional[List[str]],
+    from_year: Optional[str],
+    to_year: Optional[str],
     size: int,
     search_after: str = None,
     pit_id: str = None,
 ) -> dict:
     """Create a search body that is passed on to the elasticsearch 'search' method.
 
+    :param agg_field: The aggregate that is queried
+    :param agg_ids: List of aggregate values on which is filtered
+    :param subagg_field: The subaggregate that is queried
+    :param subagg_ids: List of subaggregate values on which is filtered
     :param from_year: Refers to published year, add to 'range'. Include results where published year >= from_year
     :param to_year: Refers to published year, add to 'rangen'. Include results where published year < to_year
     :param size: The returned size (number of hits)
+    :param search_after: Return results from after this unique id (used for pagination)
+    :param pit_id: The unique point in time IDn (used for pagination)
     :return: search body
     """
     filter_list = []
@@ -220,7 +250,7 @@ def create_search_body(
 
 
 def process_response(res: dict) -> Tuple[Optional[str], Optional[str], list, Optional[str]]:
-    """Get the scroll id and hits from the response of an elasticsearch search query.
+    """Get the search_after id and hits from the response of an elasticsearch search query.
 
     :param res: The response.
     :return: pit id, search after and hits
