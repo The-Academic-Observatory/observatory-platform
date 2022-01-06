@@ -20,17 +20,13 @@ import json
 import logging
 import multiprocessing
 import os
+import pendulum
 import re
-import sys
 import time
+from airflow.models import Variable
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from copy import deepcopy
 from enum import Enum
-from multiprocessing import BoundedSemaphore, cpu_count
-from typing import Any, List, Optional, Tuple, Union
-
-import pendulum
-from airflow.models import Variable
 from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat
@@ -38,11 +34,11 @@ from google.cloud.bigquery.job import QueryJobConfig
 from google.cloud.exceptions import Conflict, NotFound
 from google.cloud.storage import Blob
 from googleapiclient import discovery as gcp_api
-from observatory.api.client.exceptions import NotFoundException
+from multiprocessing import BoundedSemaphore, cpu_count
 from observatory.api.client.model.big_query_bytes_processed import (
     BigQueryBytesProcessed,
 )
-from observatory.platform.utils.airflow_utils import AirflowVars, check_variables
+from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.api import make_observatory_api
 from observatory.platform.utils.config_utils import utils_templates_path
 from observatory.platform.utils.file_utils import crc32c_base64_hash
@@ -51,6 +47,7 @@ from observatory.platform.utils.jinja2_utils import (
     render_template,
 )
 from requests.exceptions import ChunkedEncodingError
+from typing import List, Optional, Tuple, Union
 
 # The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
 DEFAULT_CHUNK_SIZE = 256 * 1024 * 4
@@ -105,53 +102,7 @@ def bq_query_bytes_budget_check(*, bytes_budget: Optional[int], bytes_estimate: 
         raise Exception(f"Bytes estimate {bytes_estimate} exceeds the budget {bytes_budget}.")
 
 
-def get_bytes_processed(*, api, project: str, date: str) -> int:
-    """Get the bytes processed for a given project and date. If no record exists, create one.
-
-    :param api: Observatory platform API client object.
-    :param project: GCP project.
-    :param date: Date of queries.
-    :return: Number of bytes processed.
-    """
-
-    try:
-        obj = api.get_bigquery_bytes_processed(project=project, date=date)
-        bytes_processed = obj.total
-    except NotFoundException:
-        obj = api.post_bigquery_bytes_processed(
-            BigQueryBytesProcessed(
-                project=project,
-                total=0,
-                date=date,
-            )
-        )
-        bytes_processed = 0
-
-    return bytes_processed
-
-
-def update_bytes_processed(*, api: Any, project: str, date: str, bytes_estimate: int):
-    """Update the number of bytes processed.
-
-    :param api: Observatory platform API client object.
-    :param project: GCP project.
-    :param date: Date of queries.
-    :param bytes_estimate: Bytes estimate of the current query.
-    """
-
-    current_record = api.get_bigquery_bytes_processed(project=project, date=date)
-
-    updated_record = BigQueryBytesProcessed(
-        id=current_record.id,
-        project=project,
-        total=current_record.total + bytes_estimate,
-        date=date,
-    )
-
-    api.put_bigquery_bytes_processed(updated_record)
-
-
-def bq_query_bytes_daily_limit_check(bytes_estimate: int):
+def bq_query_bytes_daily_limit_check(bytes_estimate: int) -> BigQueryBytesProcessed:
     """Check the daily byte limit. Raise exception if the current query will put us over the limit.
 
     :param bytes_estimate: Estimated number of bytes processed in query.
@@ -168,17 +119,35 @@ def bq_query_bytes_daily_limit_check(bytes_estimate: int):
         logging.warning(f"Skipping daily byte limit check: {e}")
         return
 
-    date = pendulum.now("UTC").date().isoformat()
-    bytes_processed = get_bytes_processed(api=api, project=project, date=date)
+    # Get bytes processed over last 24 hours
+    obj = api.get_bigquery_bytes_processed(project=project)
+    bytes_processed = obj.total
 
+    # Check that the bytes processed over the last 24 hours + the estimated query amount is below the daily limit
     projected_estimate = bytes_processed + bytes_estimate
     if projected_estimate > BIGQUERY_QUERY_DAILY_BYTE_LIMIT:
         raise Exception(
             f"The projected bytes estimate of {projected_estimate} exceeds the daily limit of {BIGQUERY_QUERY_DAILY_BYTE_LIMIT}"
         )
 
+    # Save the estimate
     # Assumes the actual query will run after
-    update_bytes_processed(api=api, project=project, date=date, bytes_estimate=bytes_estimate)
+    record = BigQueryBytesProcessed(
+        project=project,
+        total=bytes_estimate,
+    )
+    return api.post_bigquery_bytes_processed(record)
+
+
+def rollback_bytes_processed(id: int):
+    try:
+        api = make_observatory_api()
+    except Exception as e:
+        logging.warning(f"Skipping rollback bytes processed: {e}")
+        return
+
+    # Get bytes processed over last 24 hours
+    api.delete_bytes_processed(id=id)
 
 
 def table_name_from_blob(blob_name: str, file_extension: str):
@@ -409,6 +378,8 @@ def run_bigquery_query(query: str, bytes_budget: Optional[int] = 549755813888) -
     client = bigquery.Client()
     query_job = client.query(query)
     rows = query_job.result()
+    success = query_job.errors is None
+
     return list(rows)
 
 

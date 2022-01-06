@@ -14,17 +14,13 @@
 
 # Author: James Diprose, Aniek Roelofs
 
-import os
-import unittest
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Optional
-from unittest.mock import patch
-
 import boto3
+import os
 import pendulum
+import unittest
 from azure.storage.blob import BlobClient, BlobServiceClient
 from click.testing import CliRunner
+from datetime import datetime, timedelta
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import SourceFormat
 from google.cloud.bigquery.job import QueryJob, QueryJobConfig
@@ -55,12 +51,12 @@ from observatory.platform.utils.gc_utils import (
     delete_bucket_dir,
     download_blob_from_cloud_storage,
     download_blobs_from_cloud_storage,
-    get_bytes_processed,
+    # get_bytes_processed,
     load_bigquery_table,
     run_bigquery_query,
     select_table_shard_dates,
     table_name_from_blob,
-    update_bytes_processed,
+    # update_bytes_processed,
     upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
 )
@@ -70,6 +66,9 @@ from observatory.platform.utils.test_utils import (
     random_id,
     test_fixtures_path,
 )
+from pathlib import Path
+from typing import Optional
+from unittest.mock import patch
 
 
 def make_account_url(account_name: str) -> str:
@@ -874,39 +873,6 @@ class TestBigQueryByteLimits(ObservatoryTestCase):
 
         # FAIL
         self.assertRaises(Exception, bq_query_bytes_budget_check, bytes_budget=9, bytes_estimate=10)
-
-    def test_get_bytes_processed_existing(self):
-        project = "project"
-        date = "2021-01-01"
-        with self.env.create():
-            obj = BigQueryBytesProcessed(
-                project=project,
-                total=10,
-                date=date,
-            )
-            self.api.post_bigquery_bytes_processed(obj)
-
-            total = get_bytes_processed(api=self.api, project=project, date=date)
-            self.assertEqual(total, 10)
-
-    def test_get_bytes_processed_not_exist(self):
-        project = "project"
-        date = "2021-01-01"
-        with self.env.create():
-            total = get_bytes_processed(api=self.api, project=project, date=date)
-            self.assertEqual(total, 0)
-            obj = self.api.get_bigquery_bytes_processed(project=project, date=date)
-            self.assertEqual(obj.total, 0)
-
-    def test_update_bytes_processed(self):
-        project = "project"
-        date = "2021-01-01"
-        with self.env.create():
-            total = get_bytes_processed(api=self.api, project=project, date=date)
-            self.assertEqual(total, 0)
-            update_bytes_processed(api=self.api, project=project, date=date, bytes_estimate=10)
-            total = get_bytes_processed(api=self.api, project=project, date=date)
-            self.assertEqual(total, 10)
 
     @patch("observatory.platform.utils.gc_utils.Variable.get")
     @patch("observatory.platform.utils.gc_utils.bq_query_daily_limit_enabled")

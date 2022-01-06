@@ -1018,32 +1018,22 @@ paths:
       summary: get a BigQueryBytesProcessed
       operationId: {{ operation_id_namespace }}get_bigquery_bytes_processed
       description: |
-        Get the details of a BigQueryBytesProcessed by passing its id or the project name and date.
+        Get the total bytes processed by a BigQuery project for the last 24 hours.
       produces:
       - application/json
       parameters:
       - in: query
-        name: id
-        description: BigQueryBytesProcessed id
-        required: false
-        type: integer
-      - in: query
         name: project
-        description: BigQueryBytesProcessed type_id
-        required: false
+        description: the project id
+        required: true
         type: string
-      - in: query
-        name: date
-        description: Queries date
-        required: false
-        type: string
-        minLength: 10
-        maxLength: 10
       responses:
         200:
           description: the fetched BigQueryBytesProcessed
           schema:
-            $ref: '#/definitions/BigQueryBytesProcessed'
+            type: integer
+            description: The total number of BigQuery bytes used for the project in the last 24 hours
+            example: 126538
         400:
           description: bad input parameter
         401:
@@ -1071,58 +1061,6 @@ paths:
           description: BigQueryBytesProcessed created, returning the created object with an id
           schema:
             $ref: '#/definitions/BigQueryBytesProcessed'
-        401:
-          $ref: '#/responses/UnauthorizedError'
-    put:
-      tags:
-      - {{ bigquery_bytes_processed_tag }}
-      summary: create or update a BigQueryBytesProcessed
-      operationId: {{ operation_id_namespace }}put_bigquery_bytes_processed
-      description: |
-        Create a BigQueryBytesProcessed by passing a BigQueryBytesProcessed object, without an id. Update an existing BigQueryBytesProcessed by
-        passing a BigQueryBytesProcessed object with an id.
-      consumes:
-      - application/json
-      produces:
-      - application/json
-      parameters:
-      - in: body
-        name: body
-        description: BigQueryBytesProcessed to create or update
-        required: true
-        schema:
-          $ref: '#/definitions/BigQueryBytesProcessed'
-      responses:
-        200:
-          description: BigQueryBytesProcessed updated
-          schema:
-            $ref: '#/definitions/BigQueryBytesProcessed'
-        201:
-          description: BigQueryBytesProcessed created, returning the created object with an id
-          schema:
-            $ref: '#/definitions/BigQueryBytesProcessed'
-        401:
-          $ref: '#/responses/UnauthorizedError'
-    delete:
-      tags:
-      - {{ bigquery_bytes_processed_tag }}
-      summary: delete a BigQueryBytesProcessed
-      operationId: {{ operation_id_namespace }}delete_bigquery_bytes_processed
-      description: |
-        Delete a BigQueryBytesProcessed by passing it's id.
-      consumes:
-      - application/json
-      produces:
-      - application/json
-      parameters:
-      - in: query
-        name: id
-        description: BigQueryBytesProcessed id
-        required: true
-        type: integer
-      responses:
-        200:
-          description: BigQueryBytesProcessed deleted
         401:
           $ref: '#/responses/UnauthorizedError'
 
@@ -1408,11 +1346,6 @@ definitions:
       total:
         type: integer
         example: 0
-      date:
-        type: string
-        minLength: 10
-        maxLength: 10
-        example: 2020-01-01
       created:
         type: string
         format: date-time

@@ -25,8 +25,8 @@ from observatory.api.client.model_utils import (  # noqa: F401
     file_type,
     none_type,
     validate_get_composed_info,
+    OpenApiModel
 )
-from ..model_utils import OpenApiModel
 from observatory.api.client.exceptions import ApiAttributeError
 
 
@@ -63,10 +63,6 @@ class BigQueryBytesProcessed(ModelNormal):
             'max_length': 222,
             'min_length': 3,
         },
-        ('date',): {
-            'max_length': 10,
-            'min_length': 10,
-        },
     }
 
     additional_properties_type = None
@@ -87,7 +83,6 @@ class BigQueryBytesProcessed(ModelNormal):
             'id': (int,),  # noqa: E501, F821
             'project': (str,),  # noqa: E501, F821
             'total': (int,),  # noqa: E501, F821
-            'date': (str,),  # noqa: E501, F821
             'created': (datetime,),  # noqa: E501, F821
             'modified': (datetime,),  # noqa: E501, F821
         }
@@ -101,7 +96,6 @@ class BigQueryBytesProcessed(ModelNormal):
         'id': 'id',  # noqa: E501
         'project': 'project',  # noqa: E501
         'total': 'total',  # noqa: E501
-        'date': 'date',  # noqa: E501
         'created': 'created',  # noqa: E501
         'modified': 'modified',  # noqa: E501
     }
@@ -152,7 +146,6 @@ class BigQueryBytesProcessed(ModelNormal):
             id (int): [optional]  # noqa: E501
             project (str): [optional]  # noqa: E501
             total (int): [optional]  # noqa: E501
-            date (str): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
             modified (datetime): [optional]  # noqa: E501
         """
@@ -239,7 +232,6 @@ class BigQueryBytesProcessed(ModelNormal):
             id (int): [optional]  # noqa: E501
             project (str): [optional]  # noqa: E501
             total (int): [optional]  # noqa: E501
-            date (str): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
             modified (datetime): [optional]  # noqa: E501
         """
