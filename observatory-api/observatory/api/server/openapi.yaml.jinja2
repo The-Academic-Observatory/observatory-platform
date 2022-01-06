@@ -191,6 +191,7 @@ paths:
           schema:
             $ref: '#/definitions/QueryResponse'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
       produces:
         - application/json
@@ -224,6 +225,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -249,6 +251,7 @@ paths:
           schema:
             $ref: '#/definitions/TelescopeType'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -279,6 +282,7 @@ paths:
           schema:
             $ref: '#/definitions/TelescopeType'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -301,6 +305,7 @@ paths:
         200:
           description: TelescopeType deleted
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/telescope_types:
@@ -329,6 +334,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/telescope:
@@ -355,6 +361,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -380,6 +387,7 @@ paths:
           schema:
             $ref: '#/definitions/Telescope'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -410,6 +418,7 @@ paths:
           schema:
             $ref: '#/definitions/Telescope'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -432,6 +441,7 @@ paths:
         200:
           description: Telescope deleted
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/telescopes:
@@ -470,6 +480,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/organisation:
@@ -496,6 +507,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -521,6 +533,7 @@ paths:
           schema:
             $ref: '#/definitions/Organisation'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -551,6 +564,7 @@ paths:
           schema:
             $ref: '#/definitions/Organisation'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -573,6 +587,7 @@ paths:
         200:
           description: Organisation deleted
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/organisations:
@@ -601,6 +616,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/dataset_storage:
@@ -627,6 +643,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -652,6 +669,7 @@ paths:
           schema:
             $ref: '#/definitions/DatasetStorage'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -682,6 +700,7 @@ paths:
           schema:
             $ref: '#/definitions/DatasetStorage'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -704,6 +723,7 @@ paths:
         200:
           description: DatasetStorage deleted
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/dataset_storages:
@@ -737,6 +757,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
  
   /v1/dataset_release:
@@ -763,6 +784,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -788,6 +810,7 @@ paths:
           schema:
             $ref: '#/definitions/DatasetRelease'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -818,6 +841,7 @@ paths:
           schema:
             $ref: '#/definitions/DatasetRelease'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -840,6 +864,7 @@ paths:
         200:
           description: DatasetRelease deleted
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/dataset_releases:
@@ -873,6 +898,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/dataset:
@@ -899,6 +925,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -924,6 +951,7 @@ paths:
           schema:
             $ref: '#/definitions/Dataset'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
@@ -954,6 +982,7 @@ paths:
           schema:
             $ref: '#/definitions/Dataset'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
@@ -976,6 +1005,7 @@ paths:
         200:
           description: Dataset deleted
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/datasets:
@@ -1009,6 +1039,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
   /v1/bigquery_bytes_processed:
@@ -1037,6 +1068,7 @@ paths:
         400:
           description: bad input parameter
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
@@ -1062,6 +1094,7 @@ paths:
           schema:
             $ref: '#/definitions/BigQueryBytesProcessed'
         401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
 #  /v2/query:
