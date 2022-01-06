@@ -259,26 +259,26 @@ def delete_bigquery_dataset(project_id: str, dataset_id: str):
 
 
 def load_bigquery_table(
-        uri: str,
-        dataset_id: str,
-        location: str,
-        table: str,
-        schema_file_path: str,
-        source_format: str,
-        csv_field_delimiter: str = ",",
-        csv_quote_character: str = '"',
-        csv_allow_quoted_newlines: bool = False,
-        csv_skip_leading_rows: int = 0,
-        partition: bool = False,
-        partition_field: Union[None, str] = None,
-        partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
-        require_partition_filter=False,
-        write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE,
-        table_description: str = "",
-        project_id: str = None,
-        cluster: bool = False,
-        clustering_fields=None,
-        ignore_unknown_values: bool = False,
+    uri: str,
+    dataset_id: str,
+    location: str,
+    table: str,
+    schema_file_path: str,
+    source_format: str,
+    csv_field_delimiter: str = ",",
+    csv_quote_character: str = '"',
+    csv_allow_quoted_newlines: bool = False,
+    csv_skip_leading_rows: int = 0,
+    partition: bool = False,
+    partition_field: Union[None, str] = None,
+    partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
+    require_partition_filter=False,
+    write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE,
+    table_description: str = "",
+    project_id: str = None,
+    cluster: bool = False,
+    clustering_fields=None,
+    ignore_unknown_values: bool = False,
 ) -> bool:
     """Load a BigQuery table from an object on Google Cloud Storage.
 
@@ -392,10 +392,10 @@ def run_bigquery_query(query: str, bytes_budget: Optional[int] = 549755813888) -
 
 
 def copy_bigquery_table(
-        source_table_id: Union[str, list],
-        destination_table_id: str,
-        data_location: str,
-        write_disposition: bigquery.WriteDisposition = bigquery.WriteDisposition.WRITE_TRUNCATE,
+    source_table_id: Union[str, list],
+    destination_table_id: str,
+    data_location: str,
+    write_disposition: bigquery.WriteDisposition = bigquery.WriteDisposition.WRITE_TRUNCATE,
 ) -> bool:
     """Copy a BigQuery table.
 
@@ -438,21 +438,21 @@ def create_bigquery_view(project_id: str, dataset_id: str, view_name: str, query
 
 
 def create_bigquery_table_from_query(
-        sql: str,
-        project_id: str,
-        dataset_id: str,
-        table_id: str,
-        location: str,
-        description: str = "",
-        labels=None,
-        query_parameters=None,
-        partition: bool = False,
-        partition_field: Union[None, str] = None,
-        partition_type: str = bigquery.TimePartitioningType.DAY,
-        require_partition_filter=True,
-        cluster: bool = False,
-        clustering_fields=None,
-        bytes_budget: Optional[int] = 549755813888,
+    sql: str,
+    project_id: str,
+    dataset_id: str,
+    table_id: str,
+    location: str,
+    description: str = "",
+    labels=None,
+    query_parameters=None,
+    partition: bool = False,
+    partition_field: Union[None, str] = None,
+    partition_type: str = bigquery.TimePartitioningType.DAY,
+    require_partition_filter=True,
+    cluster: bool = False,
+    clustering_fields=None,
+    bytes_budget: Optional[int] = 549755813888,
 ) -> bool:
     """Create a BigQuery dataset from a provided query. Defaults to 0.5 TiB query budget.
 
@@ -545,7 +545,7 @@ def storage_bucket_exists(bucket_name: str):
 
 
 def create_cloud_storage_bucket(
-        bucket_name: str, location: str = None, project_id: str = None, lifecycle_delete_age: int = None
+    bucket_name: str, location: str = None, project_id: str = None, lifecycle_delete_age: int = None
 ) -> bool:
     """Create a cloud storage bucket
 
@@ -577,7 +577,7 @@ def create_cloud_storage_bucket(
 
 
 def copy_blob_from_cloud_storage(
-        blob_name: str, bucket_name: str, destination_bucket_name: str, new_name: str = None
+    blob_name: str, bucket_name: str, destination_bucket_name: str, new_name: str = None
 ) -> bool:
     """Copy a blob from one bucket to another
 
@@ -607,12 +607,12 @@ def copy_blob_from_cloud_storage(
 
 
 def download_blob_from_cloud_storage(
-        bucket_name: str,
-        blob_name: str,
-        file_path: str,
-        retries: int = 3,
-        connection_sem: BoundedSemaphore = None,
-        chunk_size: int = DEFAULT_CHUNK_SIZE,
+    bucket_name: str,
+    blob_name: str,
+    file_path: str,
+    retries: int = 3,
+    connection_sem: BoundedSemaphore = None,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
 ) -> bool:
     """Download a blob to a file.
 
@@ -682,13 +682,13 @@ def download_blob_from_cloud_storage(
 
 
 def download_blobs_from_cloud_storage(
-        bucket_name: str,
-        prefix: str,
-        destination_path: str,
-        max_processes: int = cpu_count(),
-        max_connections: int = cpu_count(),
-        retries: int = 3,
-        chunk_size: int = DEFAULT_CHUNK_SIZE,
+    bucket_name: str,
+    prefix: str,
+    destination_path: str,
+    max_processes: int = cpu_count(),
+    max_connections: int = cpu_count(),
+    retries: int = 3,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
 ) -> bool:
     """Download all blobs on a Google Cloud Storage bucket that are within a prefixed path, to a destination on the
     local file system.
@@ -758,13 +758,13 @@ def download_blobs_from_cloud_storage(
 
 
 def upload_files_to_cloud_storage(
-        bucket_name: str,
-        blob_names: List[str],
-        file_paths: List[str],
-        max_processes: int = cpu_count(),
-        max_connections: int = cpu_count(),
-        retries: int = 3,
-        chunk_size: int = DEFAULT_CHUNK_SIZE,
+    bucket_name: str,
+    blob_names: List[str],
+    file_paths: List[str],
+    max_processes: int = cpu_count(),
+    max_connections: int = cpu_count(),
+    retries: int = 3,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
 ) -> bool:
     """Upload a list of files to Google Cloud storage.
 
@@ -819,13 +819,13 @@ def upload_files_to_cloud_storage(
 
 
 def upload_file_to_cloud_storage(
-        bucket_name: str,
-        blob_name: str,
-        file_path: str,
-        retries: int = 3,
-        connection_sem: BoundedSemaphore = None,
-        chunk_size: int = DEFAULT_CHUNK_SIZE,
-        project_id: str = None,
+    bucket_name: str,
+    blob_name: str,
+    file_path: str,
+    retries: int = 3,
+    connection_sem: BoundedSemaphore = None,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    project_id: str = None,
 ) -> Tuple[bool, bool]:
     """Upload a file to Google Cloud Storage.
 
@@ -954,16 +954,16 @@ def google_cloud_storage_transfer_job(job: dict, func_name: str, gc_project_id: 
 
 
 def azure_to_google_cloud_storage_transfer(
-        *,
-        azure_storage_account_name: str,
-        azure_sas_token: str,
-        azure_container: str,
-        include_prefixes: List[str],
-        gc_project_id: str,
-        gc_bucket: str,
-        description: str,
-        gc_bucket_path: str = None,
-        start_date: pendulum.DateTime = pendulum.now("UTC"),
+    *,
+    azure_storage_account_name: str,
+    azure_sas_token: str,
+    azure_container: str,
+    include_prefixes: List[str],
+    gc_project_id: str,
+    gc_bucket: str,
+    description: str,
+    gc_bucket_path: str = None,
+    start_date: pendulum.DateTime = pendulum.now("UTC"),
 ) -> bool:
     """Transfer files from an Azure blob container to a Google Cloud Storage bucket.
 
@@ -1014,16 +1014,16 @@ def azure_to_google_cloud_storage_transfer(
 
 
 def aws_to_google_cloud_storage_transfer(
-        aws_access_key_id: str,
-        aws_secret_key: str,
-        aws_bucket: str,
-        include_prefixes: List[str],
-        gc_project_id: str,
-        gc_bucket: str,
-        description: str,
-        last_modified_since: pendulum.DateTime = None,
-        last_modified_before: pendulum.DateTime = None,
-        start_date: pendulum.DateTime = pendulum.now("UTC"),
+    aws_access_key_id: str,
+    aws_secret_key: str,
+    aws_bucket: str,
+    include_prefixes: List[str],
+    gc_project_id: str,
+    gc_bucket: str,
+    description: str,
+    last_modified_since: pendulum.DateTime = None,
+    last_modified_before: pendulum.DateTime = None,
+    start_date: pendulum.DateTime = pendulum.now("UTC"),
 ) -> Tuple[bool, int]:
     """Transfer files from an AWS bucket to a Google Cloud Storage bucket.
 
@@ -1075,8 +1075,7 @@ def aws_to_google_cloud_storage_transfer(
 
 
 def select_table_shard_dates(
-        project_id: str, dataset_id: str, table_id: str, end_date: Union[pendulum.DateTime, pendulum.Date],
-        limit: int = 1
+    project_id: str, dataset_id: str, table_id: str, end_date: Union[pendulum.DateTime, pendulum.Date], limit: int = 1
 ) -> List[pendulum.Date]:
     """Returns a list of table shard dates, sorted from the most recent to the oldest date. By default it returns
     the first result.
