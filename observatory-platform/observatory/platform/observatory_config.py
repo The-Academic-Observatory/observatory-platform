@@ -1496,12 +1496,11 @@ class TerraformAPIConfig(ObservatoryConfig):
         :return: a list of TerraformVariable instances.
         """
 
-        # TODO change back
-        sensitive = False
+        sensitive = True
         return [
             TerraformVariable("environment", self.backend.environment.value),
             TerraformVariable("google_cloud", self.google_cloud.to_hcl(), sensitive=sensitive, hcl=True),
-            TerraformVariable("api", self.api.to_hcl(), hcl=True),
+            TerraformVariable("api", self.api.to_hcl(), sensitive=sensitive, hcl=True),
             TerraformVariable("api_type", self.api_type.to_hcl(), sensitive=sensitive, hcl=True),
         ]
 
