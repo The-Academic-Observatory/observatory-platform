@@ -544,7 +544,7 @@ def get_bigquery_bytes_processed(project: str) -> Response:
     if total is None:
         total = 0
 
-    return total, 200
+    return int(total), 200
 
 
 def post_bigquery_bytes_processed(body: Dict) -> Response:
