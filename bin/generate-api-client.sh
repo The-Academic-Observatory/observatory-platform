@@ -1,6 +1,7 @@
 #!/bin/bash
 
 export PATH=$PATH:~/bin/openapitools/
+export OPENAPI_GENERATOR_VERSION=5.3.0
 
 if ! command -v openapi-generator-cli &> /dev/null
 then

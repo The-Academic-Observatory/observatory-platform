@@ -18,10 +18,8 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
-from typing import Any, ClassVar, Dict, List, Union
-
 import pendulum
+from dataclasses import dataclass
 from sqlalchemy import (
     JSON,
     Column,
@@ -29,11 +27,13 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    BigInteger,
     String,
     create_engine,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relation, relationship, scoped_session, sessionmaker
+from typing import Any, ClassVar, Dict, List, Union
 
 Base = declarative_base()
 session_ = None  # Global session
@@ -644,14 +644,12 @@ class BigQueryBytesProcessed(Base):
     id: int
     project: str
     total: int
-    date: str
     created: pendulum.DateTime
     modified: pendulum.DateTime
 
     id = Column(Integer, primary_key=True)
     project = Column(String(250))
-    total = Column(Integer)
-    date = Column(String(10))
+    total = Column(BigInteger)
     created = Column(DateTime())
     modified = Column(DateTime())
 
@@ -660,7 +658,6 @@ class BigQueryBytesProcessed(Base):
         id: int = None,
         project: str = None,
         total: int = None,
-        date: str = None,
         created: pendulum.DateTime = None,
         modified: pendulum.DateTime = None,
     ):
@@ -669,15 +666,13 @@ class BigQueryBytesProcessed(Base):
         :param id: unique id.
         :param project: GCP project.
         :param total: Total number of processed bytes.
-        :param date: Date of queries in YYYY-MM-DD format.
-        :param created: datetime created in UTC.
+        :param created: datetime created in UTC, i.e. the date that the query was made.
         :param modified: datetime modified in UTC.
         """
 
         self.id = id
         self.project = project
         self.total = total
-        self.date = date
         self.created = to_datetime_utc(created)
         self.modified = to_datetime_utc(modified)
 
@@ -694,9 +689,6 @@ class BigQueryBytesProcessed(Base):
 
         if project is not None:
             self.project = project
-
-        if date is not None:
-            self.date = date
 
         if total is not None:
             self.total = total

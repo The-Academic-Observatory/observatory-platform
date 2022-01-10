@@ -16,8 +16,7 @@
 
 import os
 import unittest
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import timedelta
 from typing import Optional
 from unittest.mock import patch
 
@@ -27,7 +26,7 @@ from azure.storage.blob import BlobClient, BlobServiceClient
 from click.testing import CliRunner
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import SourceFormat
-from google.cloud.bigquery.job import QueryJob, QueryJobConfig
+from google.cloud.bigquery.job import QueryJobConfig
 from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
 from observatory.api.client.model.big_query_bytes_processed import (
@@ -60,12 +59,11 @@ from observatory.platform.utils.gc_utils import (
     run_bigquery_query,
     select_table_shard_dates,
     table_name_from_blob,
-    update_bytes_processed,
+    save_bytes_processed,
     upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
 )
 from observatory.platform.utils.test_utils import (
-    ObservatoryEnvironment,
     ObservatoryTestCase,
     random_id,
     test_fixtures_path,
@@ -877,35 +875,31 @@ class TestBigQueryByteLimits(ObservatoryTestCase):
 
     def test_get_bytes_processed_existing(self):
         project = "project"
-        date = "2021-01-01"
         with self.env.create():
             obj = BigQueryBytesProcessed(
                 project=project,
-                total=10,
-                date=date,
+                total=10
             )
             self.api.post_bigquery_bytes_processed(obj)
 
-            total = get_bytes_processed(api=self.api, project=project, date=date)
+            total = get_bytes_processed(api=self.api, project=project)
             self.assertEqual(total, 10)
 
     def test_get_bytes_processed_not_exist(self):
         project = "project"
-        date = "2021-01-01"
         with self.env.create():
-            total = get_bytes_processed(api=self.api, project=project, date=date)
+            total = get_bytes_processed(api=self.api, project=project)
             self.assertEqual(total, 0)
-            obj = self.api.get_bigquery_bytes_processed(project=project, date=date)
-            self.assertEqual(obj.total, 0)
+            total = self.api.get_bigquery_bytes_processed(project=project)
+            self.assertEqual(total, 0)
 
-    def test_update_bytes_processed(self):
+    def test_save_bytes_processed(self):
         project = "project"
-        date = "2021-01-01"
         with self.env.create():
-            total = get_bytes_processed(api=self.api, project=project, date=date)
+            total = get_bytes_processed(api=self.api, project=project)
             self.assertEqual(total, 0)
-            update_bytes_processed(api=self.api, project=project, date=date, bytes_estimate=10)
-            total = get_bytes_processed(api=self.api, project=project, date=date)
+            save_bytes_processed(api=self.api, project=project, bytes_estimate=10)
+            total = get_bytes_processed(api=self.api, project=project)
             self.assertEqual(total, 10)
 
     @patch("observatory.platform.utils.gc_utils.Variable.get")
@@ -928,7 +922,7 @@ class TestBigQueryByteLimits(ObservatoryTestCase):
         self.assertEqual(m_get.call_count, 1)
         self.assertEqual(m_log.call_count, 1)
 
-    @patch("observatory.platform.utils.gc_utils.update_bytes_processed")
+    @patch("observatory.platform.utils.gc_utils.save_bytes_processed")
     @patch("observatory.platform.utils.gc_utils.get_bytes_processed")
     @patch("observatory.platform.utils.gc_utils.make_observatory_api")
     @patch("observatory.platform.utils.gc_utils.Variable.get")
@@ -945,7 +939,7 @@ class TestBigQueryByteLimits(ObservatoryTestCase):
         _, kwargs = m_ubp.call_args
         self.assertEqual(kwargs["bytes_estimate"], 10)
 
-    @patch("observatory.platform.utils.gc_utils.update_bytes_processed")
+    @patch("observatory.platform.utils.gc_utils.save_bytes_processed")
     @patch("observatory.platform.utils.gc_utils.get_bytes_processed")
     @patch("observatory.platform.utils.gc_utils.make_observatory_api")
     @patch("observatory.platform.utils.gc_utils.Variable.get")

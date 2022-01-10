@@ -14,12 +14,10 @@
 
 # Author: James Diprose
 
-import unittest
-from datetime import datetime
-from typing import List
-
 import pendulum
 import sqlalchemy
+import unittest
+from datetime import datetime
 from observatory.api.server.orm import (
     BigQueryBytesProcessed,
     Dataset,
@@ -35,6 +33,7 @@ from observatory.api.server.orm import (
 )
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.pool import StaticPool
+from typing import List
 
 
 def create_telescope_types(session: scoped_session, telescope_types: List, created: datetime):
@@ -889,7 +888,6 @@ class TestOrm(unittest.TestCase):
         obj = BigQueryBytesProcessed(
             project=project,
             total=total,
-            date=date,
             created=dt,
             modified=dt,
         )
@@ -902,7 +900,6 @@ class TestOrm(unittest.TestCase):
         self.assertEqual(obj.id, 1)
         self.assertEqual(obj.project, project)
         self.assertEqual(obj.total, total)
-        self.assertEqual(obj.date, date)
 
     def test_bigquery_bytes_processed_from_dict(self):
         """Test that BigQueryBytesProcessed can be created and updated from a dictionary"""
@@ -910,12 +907,10 @@ class TestOrm(unittest.TestCase):
         expected_id = 1
         project = "project"
         dt = pendulum.now("UTC")
-        d = "2021-01-01"
         total = 10
         dict_ = {
             "project": project,
             "total": total,
-            "date": d,
             "modified": dt,
         }
 
@@ -939,7 +934,6 @@ class TestOrm(unittest.TestCase):
         self.session.commit()
         self.assertEqual(obj.project, project)
         self.assertEqual(obj.total, total)
-        self.assertEqual(obj.date, d)
 
         total = 27
         dict_ = {
@@ -951,7 +945,6 @@ class TestOrm(unittest.TestCase):
         self.session.commit()
         self.assertEqual(obj.project, project)
         self.assertEqual(obj.total, total)
-        self.assertEqual(obj.date, d)
 
         total = 17
         dict_ = {
@@ -962,4 +955,3 @@ class TestOrm(unittest.TestCase):
         self.session.commit()
         self.assertEqual(obj.project, project)
         self.assertEqual(obj.total, total)
-        self.assertEqual(obj.date, d)

@@ -16,13 +16,11 @@
 
 from __future__ import annotations
 
+import connexion
 import logging
 import os
-import time
-from typing import Any, ClassVar, Dict, Tuple, Union
-
-import connexion
 import pendulum
+import time
 from connexion import NoContent
 from flask import jsonify
 from observatory.api.server.elastic import (
@@ -44,6 +42,8 @@ from observatory.api.server.orm import (
     TelescopeType,
 )
 from sqlalchemy import and_
+from sqlalchemy import func
+from typing import Any, ClassVar, Dict, Tuple, Union
 
 Response = Tuple[Any, int]
 session_ = None  # Global session
@@ -518,54 +518,33 @@ def get_datasets(limit: int, telescope_id: int = None) -> Response:
     return q.limit(limit).all()
 
 
-def get_bigquery_bytes_processed(id: int = None, project: str = None, date: str = None) -> Response:
-    """Get a BigQueryBytesProcessed object from either its id or GCP project ID and date.
+def get_bigquery_bytes_processed(project: str) -> Response:
+    """Get the bytes processed by BigQuery project for the past 24 hours
 
-    :param id: BigQueryBytesProcessed ID.
     :param project: GCP project ID.
-    :param date: Query date.
     """
 
-    if id is not None and (project is not None or date is not None):
-        body = "If the ID is specified, project and date must be omitted."
-        logging.error(body)
-        return body, 400
+    date_24_hrs = pendulum.now("UTC").subtract(hours=24)
 
-    if id is None and (project is None or date is None):
-        body = "If the ID is not specified, both project and date must be specified."
-        logging.error(body)
-        return body, 400
-
-    if id is not None:
-        return get_item(BigQueryBytesProcessed, id)
-
-    item = (
-        session_.query(BigQueryBytesProcessed)
+    result = (
+        session_.query(func.sum(BigQueryBytesProcessed.total).label("total"))
         .filter(
             and_(
                 BigQueryBytesProcessed.project == project,
-                BigQueryBytesProcessed.date == date,
+                BigQueryBytesProcessed.created >= date_24_hrs,
             )
         )
-        .one_or_none()
+        .first()
     )
 
-    if item is None:
-        body = f"Not found: BigQueryBytesProcessed with project {project} and date {date}"
-        logging.info(body)
-        return body, 404
+    # Get total
+    total = result.total
 
-    return item
+    # Set total to zero when no results returned
+    if total is None:
+        total = 0
 
-
-def put_bigquery_bytes_processed(body: Dict) -> Response:
-    """Create or update a BigQueryBytesProcessed.
-
-    :param body: the BigQueryBytesProcessed in the form of a dictionary.
-    :return: a Response object.
-    """
-
-    return put_item(BigQueryBytesProcessed, body)
+    return int(total), 200
 
 
 def post_bigquery_bytes_processed(body: Dict) -> Response:
@@ -576,16 +555,6 @@ def post_bigquery_bytes_processed(body: Dict) -> Response:
     """
 
     return post_item(BigQueryBytesProcessed, body)
-
-
-def delete_bigquery_bytes_processed(id: int) -> Response:
-    """Delete a BigQueryBytesProcessed.
-
-    :param id: the BigQueryBytesProcessed id.
-    :return: a Response object.
-    """
-
-    return delete_item(BigQueryBytesProcessed, id)
 
 
 def queryv1() -> Union[Tuple[str, int], dict]:
