@@ -30,7 +30,7 @@ import elasticsearch.exceptions
 import google.cloud.bigquery as bigquery
 import pendulum
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+import airflow.hooks.base
 from airflow.models import TaskInstance
 from airflow.sensors.external_task import ExternalTaskSensor
 from natsort import natsorted
@@ -41,7 +41,7 @@ from observatory.platform.elastic.elastic import (
     make_sharded_index,
 )
 from observatory.platform.elastic.kibana import Kibana, ObjectType, TimeField
-from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
+from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.file_utils import (
     load_file,
     write_to_file,
@@ -71,10 +71,12 @@ def default_index_keep_info():
 
 @dataclass
 class ElasticImportConfig:
-    dag_id: str = None
-    project_id: str = None
-    dataset_id: str = None
-    bucket_name: str = None
+    dag_id: str
+    project_id: str
+    dataset_id: str
+    bucket_name: str
+    elastic_conn_key: str
+    kibana_conn_key: str
     data_location: str = None
     file_type: str = None
     sensor_dag_ids: List[str] = None
@@ -210,6 +212,8 @@ def load_elastic_index(
     elastic_mappings_func: Callable,
     file_type: str,
     elastic_host: str,
+    elastic_api_key_id: str,
+    elastic_api_key: str,
     chunk_size: int,
     num_threads: int,
 ) -> bool:
@@ -221,7 +225,9 @@ def load_elastic_index(
     :param file_type: the file type of the data that will be loaded.
     :param elastic_mappings_folder: the mappings path.
     :param elastic_mappings_func: the mappings Callable.
-    :param elastic_host: the full Elasticsearch host including username and password.
+    :param elastic_host: the full Elasticsearch host.
+    :param elastic_api_key_id: the Elastic API key id.
+    :param elastic_api_key: the Elastic API key.
     :param chunk_size: the size of the batches to load.
     :param num_threads: the number of threads to use for loading.
     :return: whether the data loading successfully or not.
@@ -252,7 +258,13 @@ def load_elastic_index(
         else:
             raise ValueError(f"load_index: file type '{file_type}' is not supported")
 
-        client = Elastic(host=elastic_host, chunk_size=chunk_size, thread_count=num_threads)
+        client = Elastic(
+            host=elastic_host,
+            chunk_size=chunk_size,
+            thread_count=num_threads,
+            api_key_id=elastic_api_key_id,
+            api_key=elastic_api_key,
+        )
 
         # Delete existing index
         index_id_sharded = make_sharded_index(index_prefix, release_date)
@@ -286,11 +298,13 @@ class ElasticImportRelease(SnapshotRelease):
         bucket_name: str,
         data_location: str,
         elastic_host: str,
+        elastic_api_key_id: str,
+        elastic_api_key: str,
         elastic_mappings_folder: str,
         elastic_mappings_func: Callable,
         kibana_host: str,
-        kibana_username: str,
-        kibana_password: str,
+        kibana_api_key_id: str,
+        kibana_api_key: str,
         kibana_spaces: List,
         kibana_time_fields: List[TimeField],
         chunk_size: int = 10000,
@@ -305,11 +319,13 @@ class ElasticImportRelease(SnapshotRelease):
         self.bucket_name = bucket_name
         self.data_location = data_location
         self.elastic_host = elastic_host
+        self.elastic_api_key_id = elastic_api_key_id
+        self.elastic_api_key = elastic_api_key
         self.elastic_mappings_folder = elastic_mappings_folder
         self.elastic_mappings_func = elastic_mappings_func
         self.kibana_host = kibana_host
-        self.kibana_username = kibana_username
-        self.kibana_password = kibana_password
+        self.kibana_api_key_id = kibana_api_key_id
+        self.kibana_api_key = kibana_api_key
         self.kibana_spaces = kibana_spaces
         self.kibana_time_fields = kibana_time_fields
         self.chunk_size = chunk_size
@@ -444,6 +460,8 @@ class ElasticImportRelease(SnapshotRelease):
                     elastic_mappings_func=self.elastic_mappings_func,
                     file_type=self.file_type,
                     elastic_host=self.elastic_host,
+                    elastic_api_key_id=self.elastic_api_key_id,
+                    elastic_api_key=self.elastic_api_key,
                     chunk_size=self.chunk_size,
                     num_threads=self.num_threads,
                 )
@@ -472,7 +490,7 @@ class ElasticImportRelease(SnapshotRelease):
         :return: whether the aliases updated correctly or not,
         """
 
-        client = Elastic(host=self.elastic_host)
+        client = Elastic(host=self.elastic_host, api_key_id=self.elastic_api_key_id, api_key=self.elastic_api_key)
 
         # Make aliases and indexes
         aliases = []
@@ -521,7 +539,7 @@ class ElasticImportRelease(SnapshotRelease):
         :return: whether the index patterns were created successfully or not.
         """
 
-        kibana = Kibana(host=self.kibana_host, username=self.kibana_username, password=self.kibana_password)
+        kibana = Kibana(host=self.kibana_host, api_key_id=self.kibana_api_key_id, api_key=self.kibana_api_key)
 
         results = []
         for table_id in self.table_ids:
@@ -544,7 +562,7 @@ class ElasticImportRelease(SnapshotRelease):
         :param index_keep_info: Dictionary of settings on how to retain Elastic indices.
         """
 
-        client = Elastic(host=self.elastic_host)
+        client = Elastic(host=self.elastic_host, api_key_id=self.elastic_api_key_id, api_key=self.elastic_api_key)
 
         # If you want to do a global cleanup of all indices, we can just call delete_stale_indices on index="*" instead
         indexed_table_ids = self.read_import_state()
@@ -563,7 +581,9 @@ class ElasticImportWorkflow(Workflow):
         project_id: str,
         dataset_id: str,
         bucket_name: str,
-        data_location="us",
+        elastic_conn_key: str,
+        kibana_conn_key: str,
+        data_location: str = "us",
         file_type: str = "csv.gz",
         sensor_dag_ids: List[str] = None,
         elastic_mappings_folder: str = None,
@@ -583,6 +603,8 @@ class ElasticImportWorkflow(Workflow):
         :param project_id: the project id to import data from.
         :param dataset_id: the dataset id to import data from.
         :param bucket_name: the bucket name where the exported BigQuery data will be saved.
+        :param elastic_conn_key: the key of the Airflow connection with elasticsearch info
+        :param kibana_conn_key: the key of the Airflow connection with kibana info
         :param data_location: the location of?
         :param file_type:  the file type to import, can be csv or jsonl.
         :param sensor_dag_ids: a list of the DAG ids to wait for with sensors.
@@ -600,7 +622,7 @@ class ElasticImportWorkflow(Workflow):
             airflow_vars = [AirflowVars.DATA_PATH]
 
         if airflow_conns is None:
-            airflow_conns = [AirflowConns.ELASTIC, AirflowConns.KIBANA]
+            airflow_conns = [elastic_conn_key, kibana_conn_key]
 
         self.index_keep_info = index_keep_info if index_keep_info is not None else default_index_keep_info()
 
@@ -617,6 +639,8 @@ class ElasticImportWorkflow(Workflow):
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.bucket_name = bucket_name
+        self.elastic_conn_key = elastic_conn_key
+        self.kibana_conn_key = kibana_conn_key
         self.data_location = data_location
         self.file_type = file_type
         self.elastic_mappings_folder = elastic_mappings_folder
@@ -690,9 +714,15 @@ class ElasticImportWorkflow(Workflow):
         table_ids = record["table_ids"]
 
         # Get Airflow connections
-        elastic_host = BaseHook.get_connection(AirflowConns.ELASTIC).get_uri()
-        kibana_conn = BaseHook.get_connection(AirflowConns.KIBANA)
-        kibana_host = kibana_conn.get_uri()
+        elastic_conn = airflow.hooks.base.BaseHook.get_connection(self.elastic_conn_key)
+        elastic_host = f"{elastic_conn.conn_type}://{elastic_conn.host}:{elastic_conn.port}"
+        elastic_api_key_id = elastic_conn.login
+        elastic_api_key = elastic_conn.password
+
+        kibana_conn = airflow.hooks.base.BaseHook.get_connection(self.kibana_conn_key)
+        kibana_host = f"{kibana_conn.conn_type}://{kibana_conn.host}:{kibana_conn.port}"
+        kibana_api_key_id = kibana_conn.login
+        kibana_api_key = kibana_conn.password
 
         return ElasticImportRelease(
             dag_id=self.dag_id,
@@ -704,11 +734,13 @@ class ElasticImportWorkflow(Workflow):
             bucket_name=self.bucket_name,
             data_location=self.data_location,
             elastic_host=elastic_host,
+            elastic_api_key_id=elastic_api_key_id,
+            elastic_api_key=elastic_api_key,
             elastic_mappings_folder=self.elastic_mappings_folder,
             elastic_mappings_func=self.elastic_mappings_func,
             kibana_host=kibana_host,
-            kibana_username=kibana_conn.login,
-            kibana_password=kibana_conn.password,
+            kibana_api_key_id=kibana_api_key_id,
+            kibana_api_key=kibana_api_key,
             kibana_spaces=self.kibana_spaces,
             kibana_time_fields=self.kibana_time_fields,
         )

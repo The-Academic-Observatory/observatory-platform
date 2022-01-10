@@ -26,14 +26,14 @@ class TestParseKibanaUrl(unittest.TestCase):
     def test_parse_kibana_url(self):
         """Parse Kibana URL"""
 
-        url = "https://user.account:password@random-id.us-west1.gcp.cloud.es.io:9243"
+        url = "https://api_key_id:api_key@random-id.us-west1.gcp.cloud.es.io:9243"
         expected_host = "https://random-id.us-west1.gcp.cloud.es.io:9243"
-        expected_username = "user.account"
-        expected_password = "password"
+        expected_key_id = "api_key_id"
+        expected_key = "api_key"
         kibana_host, username, password = parse_kibana_url(url)
         self.assertEqual(expected_host, kibana_host)
-        self.assertEqual(expected_username, username)
-        self.assertEqual(expected_password, password)
+        self.assertEqual(expected_key_id, username)
+        self.assertEqual(expected_key, password)
 
 
 class TestKibana(unittest.TestCase):
@@ -44,13 +44,13 @@ class TestKibana(unittest.TestCase):
 
         kibana_host: str = os.getenv("TEST_KIBANA_HOST")
         assert kibana_host is not None, "TestKibana: please set the TEST_KIBANA_HOST environment variable."
-        self.kibana_host, self.username, self.password = parse_kibana_url(kibana_host)
+        self.kibana_host, self.key_id, self.api_key = parse_kibana_url(kibana_host)
 
     def test_create_delete_space(self):
         """Test the creation and deletion of spaces"""
 
         # Make clients
-        kibana = Kibana(host=self.kibana_host, username=self.username, password=self.password)
+        kibana = Kibana(host=self.kibana_host, api_key_id=self.key_id, api_key=self.api_key)
 
         # Parameters
         space_id = random_id()
@@ -71,7 +71,7 @@ class TestKibana(unittest.TestCase):
         """Test the creation and deletion of index patterns"""
 
         # Make clients
-        kibana = Kibana(host=self.kibana_host, username=self.username, password=self.password)
+        kibana = Kibana(host=self.kibana_host, api_key_id=self.key_id, api_key=self.api_key)
         elastic = Elastic(host=self.elastic_host)
 
         # Parameters

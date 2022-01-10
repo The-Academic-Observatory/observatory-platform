@@ -17,8 +17,9 @@
 # licensed under the Apache 2.0 license according to the license notice:
 # https://github.com/elastic/kibana/blob/7.10/LICENSE.txt
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
+import base64
 import dataclasses
 import json
 import logging
@@ -77,21 +78,19 @@ class Kibana:
 
     headers = {"Content-Type": "application/json", "kbn-xsrf": "true"}
 
-    def __init__(self, host: str = "http://kibana:5601/", username: str = None, password: str = None):
+    def __init__(self, host: str = "http://kibana:5601/", api_key_id: str = None, api_key: str = None):
         """Create a Kibana API client.
 
         :param host: the host including the hostname and port.
-        :param username: the Kibana username.
-        :param password: the Kibana password.
+        :param api_key_id: the Kibana API key id.
+        :param api_key: the Kibana API key.
         """
 
         self.host = host
-        self.username = username
-        self.password = password
 
-        self.auth = None
-        if self.username is not None and self.password is not None:
-            self.auth = (self.username, self.password)
+        if api_key_id and api_key:
+            auth = base64.b64encode(f"{api_key_id}:{api_key}".encode()).decode()
+            self.headers["Authorization"] = f"ApiKey {auth}"
 
     def create_space(
         self,
@@ -134,7 +133,7 @@ class Kibana:
             body["imageUrl"] = image_url
 
         url = self._make_spaces_url()
-        response = requests.post(url, headers=self.headers, data=json.dumps(body), auth=self.auth)
+        response = requests.post(url, headers=self.headers, data=json.dumps(body))
 
         success = response.status_code == 200
         if not success:
@@ -150,7 +149,7 @@ class Kibana:
         """
 
         url = self._make_spaces_url(space_id=space_id)
-        response = requests.delete(url, headers=self.headers, auth=self.auth)
+        response = requests.delete(url, headers=self.headers)
 
         success = response.status_code == 200
         if not success:
@@ -190,7 +189,7 @@ class Kibana:
         params = (("overwrite", overwrite),)
 
         url = self._make_saved_object_url(object_type, object_id, space_id=space_id)
-        response = requests.post(url, headers=self.headers, params=params, data=json.dumps(body), auth=self.auth)
+        response = requests.post(url, headers=self.headers, params=params, data=json.dumps(body))
 
         success = response.status_code == 200 or (exists_ok and response.status_code == 409)
         if not success:
@@ -212,7 +211,7 @@ class Kibana:
 
         params = (("force", force),)
 
-        response = requests.delete(url, headers=self.headers, params=params, auth=self.auth)
+        response = requests.delete(url, headers=self.headers, params=params)
 
         success = response.status_code == 200
         if not success:
@@ -271,7 +270,7 @@ class Kibana:
         """
 
         url = self._make_index_pattern_url(index_pattern_id, space_id=space_id)
-        response = requests.get(url, headers=self.headers, auth=self.auth)
+        response = requests.get(url, headers=self.headers)
 
         # If index pattern is not found (404) return None
         if response.status_code == self.HTTP_NOT_FOUND:

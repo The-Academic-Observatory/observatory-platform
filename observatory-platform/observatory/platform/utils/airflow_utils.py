@@ -51,8 +51,6 @@ class AirflowConns:
     CROSSREF = "crossref"
     TERRAFORM = "terraform"
     SLACK = "slack"
-    ELASTIC = "elastic"
-    KIBANA = "kibana"
     GEOIP_LICENSE_KEY = "geoip_license_key"
     OAPEN_IRUS_UK_API = "oapen_irus_uk_api"
     OAPEN_IRUS_UK_LOGIN = "oapen_irus_uk_login"

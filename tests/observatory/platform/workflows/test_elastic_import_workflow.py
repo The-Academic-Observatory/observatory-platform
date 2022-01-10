@@ -26,11 +26,10 @@ from unittest.mock import PropertyMock, patch
 import pendulum
 from airflow import DAG
 from airflow.models import Connection
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from faker import Faker
 from observatory.platform.elastic.elastic import Elastic
 from observatory.platform.elastic.kibana import Kibana, TimeField
-from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.file_utils import load_jsonl
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.test_utils import (
@@ -63,7 +62,7 @@ def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
         default_args={"owner": "airflow", "start_date": execution_date},
         catchup=False,
     ) as dag:
-        task1 = DummyOperator(task_id="dummy_task")
+        DummyOperator(task_id="dummy_task")
 
     return dag
 
@@ -122,11 +121,13 @@ class TestElasticImportRelease(unittest.TestCase):
             bucket_name="bucket",
             data_location=os.environ["TEST_GCP_DATA_LOCATION"],
             elastic_host="",
+            elastic_api_key_id="",
+            elastic_api_key="",
             elastic_mappings_folder="",
             elastic_mappings_func=None,
             kibana_host="",
-            kibana_username="",
-            kibana_password="",
+            kibana_api_key_id="",
+            kibana_api_key="",
             kibana_spaces=list(),
             kibana_time_fields=list(),
         )
@@ -176,6 +177,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             project_id="project-id",
             dataset_id="dataset-id",
             bucket_name="bucket-name",
+            elastic_conn_key="elastic_main",
+            kibana_conn_key="kibana_main",
             data_location="us",
             file_type="jsonl.gz",
             sensor_dag_ids=["doi"],
@@ -203,6 +206,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             project_id="project-id",
             dataset_id="dataset-id",
             bucket_name="bucket-name",
+            elastic_conn_key="elastic_main",
+            kibana_conn_key="kibana_main",
             data_location="us",
             file_type="jsonl.gz",
             sensor_dag_ids=["doi"],
@@ -280,10 +285,6 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         )
         dataset_id = env.add_dataset(prefix="data_export")
         with env.create() as t:
-            # Create connections
-            env.add_connection(Connection(conn_id=AirflowConns.ELASTIC, uri=self.elastic_uri))
-            env.add_connection(Connection(conn_id=AirflowConns.KIBANA, uri=self.kibana_uri))
-
             # Create settings
             start_date = pendulum.datetime(year=2021, month=5, day=9)
             dag_id_sensor = "doi"
@@ -294,6 +295,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 project_id=self.project_id,
                 dataset_id=dataset_id,
                 bucket_name=env.download_bucket,
+                elastic_conn_key="elastic_main",
+                kibana_conn_key="kibana_main",
                 data_location=self.data_location,
                 file_type="jsonl.gz",
                 sensor_dag_ids=[dag_id_sensor],
@@ -304,6 +307,10 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 start_date=start_date,
             )
             es_dag = workflow.make_dag()
+
+            # Create connections
+            env.add_connection(Connection(conn_id=workflow.elastic_conn_key, uri=self.elastic_uri))
+            env.add_connection(Connection(conn_id=workflow.kibana_conn_key, uri=self.kibana_uri))
 
             # Create Kibana space
             self.kibana.create_space(space_id, "SPCE")
