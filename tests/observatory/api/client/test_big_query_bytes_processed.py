@@ -35,7 +35,6 @@ class TestBigQueryBytesProcessed(unittest.TestCase):
             id=1,
             project="project",
             total=2,
-            date="2021-01-01",
             _configuration=Configuration(),
             unknown="var",
         )
@@ -44,7 +43,6 @@ class TestBigQueryBytesProcessed(unittest.TestCase):
             id=1,
             project="project",
             total=2,
-            date="2021-01-01",
             _configuration=None,
         )
 
@@ -53,7 +51,6 @@ class TestBigQueryBytesProcessed(unittest.TestCase):
             BigQueryBytesProcessed,
             project="project",
             total=2,
-            date="2021-01-01",
             _configuration=Configuration(),
             unknown="var",
             created=dt,
