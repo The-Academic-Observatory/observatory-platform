@@ -4,7 +4,7 @@
 +------------------------------+---------+
 | Summary                      |         |
 +==============================+=========+
-| Runs on remote worker        | True    |
+| Runs on remote worker        | False   |
 +------------------------------+---------+
 | Catchup missed runs          | False   |
 +------------------------------+---------+
@@ -34,8 +34,8 @@ Elasticsearch
   Privileges: 'all'
   
 Kibana  
-- To create/delete index patterns, for a limited set of kibana spaces
-  Spaces: <required spaces>
+- To create/delete index patterns, for a limited set of kibana spaces  
+  Spaces: <required spaces>  
   Privileges: Customize -> Management -> Index Pattern Management: All
 
 ### Creating an API key
