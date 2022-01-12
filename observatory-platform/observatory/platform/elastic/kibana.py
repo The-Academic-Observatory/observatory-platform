@@ -43,25 +43,6 @@ class TimeField:
     field_name: str = None
 
 
-def parse_kibana_url(url):
-    """Parse a Kibana URL into host + port and username and password.
-
-    :param url: the full url.
-    :return: the host + port, username and password.
-    """
-
-    parts = urlparse(url)
-    username = parts.username
-    password = parts.password
-    port = parts.port
-    parts = parts._replace(netloc=parts.hostname)
-    kibana_host = parts.geturl()
-    if port is not None:
-        kibana_host += f":{port}"
-
-    return kibana_host, username, password
-
-
 class ObjectType(Enum):
     """Valid Kibana saved object types"""
 

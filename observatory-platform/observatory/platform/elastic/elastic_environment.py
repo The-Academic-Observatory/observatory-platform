@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
 import logging
 import os
@@ -29,11 +29,19 @@ from observatory.platform.utils.config_utils import module_file_path
 class ElasticEnvironment(ComposeRunner):
     HTTP_OK = 200
 
+    # Version of Elastic products
+    VERSION = "7.16.2"
+    # Set the cluster name
+    CLUSTER_NAME = "docker-cluster"
+    # Set to 'basic' or 'trial' to automatically start the 30-day trial
+    LICENSE = "basic"
+
     def __init__(
         self,
         build_path: str,
         elastic_port: int = 9200,
         kibana_port: int = 5601,
+        password: str = "observatory",
         wait: bool = True,
         wait_time_secs: int = 120,
     ):
@@ -49,18 +57,17 @@ class ElasticEnvironment(ComposeRunner):
         self.elastic_module_path = module_file_path("observatory.platform.elastic")
         self.wait = wait
         self.wait_time_secs = wait_time_secs
-        self.elastic_uri = f"http://localhost:{elastic_port}/"
+        self.elastic_port = elastic_port
+        self.elastic_uri = f"https://localhost:{elastic_port}/"
         self.kibana_uri = f"http://localhost:{kibana_port}/"
+        self.password = password
+        self.build_path = build_path
+        self.ca_certs_path = os.path.join(self.build_path, "certs", "ca", "ca.crt")
         super().__init__(
             compose_template_path=os.path.join(self.elastic_module_path, "docker-compose.yml.jinja2"),
             build_path=build_path,
-            compose_template_kwargs={"elastic_port": elastic_port, "kibana_port": kibana_port},
+            compose_template_kwargs={"elastic_port": elastic_port, "kibana_port": kibana_port, "password": password},
             debug=True,
-        )
-
-        # Add files
-        self.add_file(
-            path=os.path.join(self.elastic_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
         )
 
         # Stop the awful unnecessary Elasticsearch connection warnings being logged
@@ -72,8 +79,8 @@ class ElasticEnvironment(ComposeRunner):
 
         :return: the environment.
         """
-
-        return os.environ.copy()
+        elastic_settings = {"VERSION": self.VERSION, "CLUSTER_NAME": self.CLUSTER_NAME, "LICENSE": self.LICENSE}
+        return {**os.environ.copy(), **elastic_settings}
 
     def start(self) -> ProcessOutput:
         """Start the Elastic environment.
@@ -86,6 +93,22 @@ class ElasticEnvironment(ComposeRunner):
         if self.wait:
             self.wait_until_started()
         return process_output
+
+    def create_api_key(self) -> [str, str]:
+        """Create an API key for the 'elastic' superuser
+
+        :return: API key id and API key
+        """
+        es = Elasticsearch(
+            [f"elastic:{self.password}@localhost:{self.elastic_port}/"],
+            use_ssl=True,
+            verify_certs=True,
+            ca_certs=self.ca_certs_path,
+        )
+        response = es.security.create_api_key(body={"name": "elastic_environment_key"})
+        api_key_id = response["id"]
+        api_key = response["api_key"]
+        return api_key_id, api_key
 
     def kibana_ping(self):
         """Check if Kibana has started or not.
@@ -105,8 +128,12 @@ class ElasticEnvironment(ComposeRunner):
 
         :return: whether started or not.
         """
-
-        es = Elasticsearch([self.elastic_uri])
+        es = Elasticsearch(
+            [f"https://elastic:{self.password}@localhost:{self.elastic_port}/"],
+            use_ssl=True,
+            verify_certs=True,
+            ca_certs=self.ca_certs_path,
+        )
         start = time.time()
         while True:
             elastic_found = es.ping()

@@ -46,7 +46,6 @@ class TestElasticEnvironment(unittest.TestCase):
                 self.assertEqual(response.return_code, 0)
 
                 # Check that files are copied
-                self.assertTrue(os.path.isfile(os.path.join(build_path, "elasticsearch.yml")))
                 self.assertTrue(os.path.isfile(os.path.join(build_path, "docker-compose.yml")))
 
                 # Wait until found

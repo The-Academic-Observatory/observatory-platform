@@ -143,12 +143,13 @@ class StaleIndexCleaner:
 class Elastic:
     def __init__(
         self,
-        host: str = "http://elasticsearch:9200/",
+        host: str,
         thread_count: int = cpu_count(),
         chunk_size: int = 10000,
         timeout: int = 30000,
         api_key_id: str = None,
         api_key: str = None,
+        elasticsearch_kwargs: dict = None,
     ):
         """Create an Elastic API client.
 
@@ -164,7 +165,11 @@ class Elastic:
         self.thread_count = thread_count
         self.chunk_size = chunk_size
         self.timeout = timeout
-        self.es = Elasticsearch(hosts=[self.host], timeout=timeout, api_key=(api_key_id, api_key))
+        if not elasticsearch_kwargs:
+            elasticsearch_kwargs = {}
+        self.es = Elasticsearch(
+            hosts=[self.host], timeout=timeout, api_key=(api_key_id, api_key), **elasticsearch_kwargs
+        )
 
     def query(self, index: str, query: Dict = None):
         if query is None:
