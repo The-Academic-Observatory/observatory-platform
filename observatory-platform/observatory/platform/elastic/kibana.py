@@ -26,7 +26,6 @@ import logging
 from enum import Enum
 from posixpath import join as urljoin
 from typing import Dict, List
-from urllib.parse import urlparse
 
 import requests
 
@@ -57,7 +56,7 @@ class ObjectType(Enum):
 class Kibana:
     HTTP_NOT_FOUND = 404
 
-    headers = {"Content-Type": "application/json", "kbn-xsrf": "true"}
+    headers: dict = None
 
     def __init__(
         self,
@@ -75,6 +74,8 @@ class Kibana:
         :param api_key_id: the Kibana API key id.
         :param api_key: the Kibana API key.
         """
+        if not self.headers:
+            self.headers = {"Content-Type": "application/json", "kbn-xsrf": "true"}
 
         self.host = host
 
