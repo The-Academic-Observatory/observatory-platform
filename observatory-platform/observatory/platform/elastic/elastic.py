@@ -143,7 +143,7 @@ class StaleIndexCleaner:
 class Elastic:
     def __init__(
         self,
-        host: str,
+        host: str = "http://elasticsearch:9200/",
         thread_count: int = cpu_count(),
         chunk_size: int = 10000,
         timeout: int = 30000,

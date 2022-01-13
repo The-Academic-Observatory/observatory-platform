@@ -80,7 +80,7 @@ class Kibana:
 
         if username and password:
             auth = base64.b64encode(f"{username}:{password}".encode()).decode()
-            self.headers["Authroization"] = f"Basic {auth}"
+            self.headers["Authorization"] = f"Basic {auth}"
 
         if api_key_id and api_key:
             auth = base64.b64encode(f"{api_key_id}:{api_key}".encode()).decode()

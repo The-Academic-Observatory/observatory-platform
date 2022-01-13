@@ -45,6 +45,23 @@ class TestKibana(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestKibana, self).__init__(*args, **kwargs)
 
+    def test_kibana(self):
+        """Test initialisation of Kibana class with different arguments"""
+        kibana = Kibana(host="host")
+        self.assertEqual("host", kibana.host)
+        self.assertDictEqual({"Content-Type": "application/json", "kbn-xsrf": "true"}, kibana.headers)
+
+        kibana = Kibana(username="user", password="password")
+        self.assertDictEqual(
+            {"Content-Type": "application/json", "kbn-xsrf": "true", "Authorization": "Basic dXNlcjpwYXNzd29yZA=="},
+            kibana.headers,
+        )
+
+        kibana = Kibana(api_key_id="id", api_key="key")
+        self.assertDictEqual(
+            {"Content-Type": "application/json", "kbn-xsrf": "true", "Authorization": "ApiKey aWQ6a2V5"}, kibana.headers
+        )
+
     def test_create_delete_space(self):
         """Test the creation and deletion of spaces"""
         # Parameters
