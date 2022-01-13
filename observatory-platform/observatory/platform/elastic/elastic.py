@@ -149,7 +149,6 @@ class Elastic:
         timeout: int = 30000,
         api_key_id: str = None,
         api_key: str = None,
-        elasticsearch_kwargs: dict = None,
     ):
         """Create an Elastic API client.
 
@@ -165,11 +164,7 @@ class Elastic:
         self.thread_count = thread_count
         self.chunk_size = chunk_size
         self.timeout = timeout
-        if not elasticsearch_kwargs:
-            elasticsearch_kwargs = {}
-        self.es = Elasticsearch(
-            hosts=[self.host], timeout=timeout, api_key=(api_key_id, api_key), **elasticsearch_kwargs
-        )
+        self.es = Elasticsearch(hosts=[self.host], timeout=timeout, api_key=(api_key_id, api_key))
 
     def query(self, index: str, query: Dict = None):
         if query is None:

@@ -16,8 +16,6 @@
 
 import json
 import os
-import shutil
-import tempfile
 import unittest
 
 import pendulum
@@ -31,35 +29,25 @@ from observatory.platform.elastic.elastic import (
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.file_utils import load_file, yield_csv
 from observatory.platform.utils.test_utils import random_id, test_fixtures_path
+from click.testing import CliRunner
 
 
 class TestElastic(unittest.TestCase):
     es: ElasticEnvironment = None
-    temp_dir: str = None
 
     @classmethod
     def setUpClass(cls) -> None:
-        # Create a temporary directory
-        cls.temp_dir = tempfile.mkdtemp()
+        with CliRunner().isolated_filesystem() as temp_dir:
+            # Start an Elastic environment
+            elastic_build_path = os.path.join(temp_dir, "elastic")
+            cls.es = ElasticEnvironment(build_path=elastic_build_path)
+            cls.es.start()
 
-        # Start an Elastic environment
-        elastic_build_path = os.path.join(cls.temp_dir, "elastic")
-        cls.es = ElasticEnvironment(build_path=elastic_build_path)
-        cls.es.start()
-
-        # Create API key
-        api_key_id, api_key = cls.es.create_api_key()
-
-        # Create elasticsearch client
-        es_settings = {"use_ssl": True, "verify_certs": True, "ca_certs": cls.es.ca_certs_path}
-        cls.client = Elastic(
-            host=cls.es.elastic_uri, api_key_id=api_key_id, api_key=api_key, elasticsearch_kwargs=es_settings
-        )
+            # Create elasticsearch client
+            cls.client = Elastic(host=cls.es.elastic_uri)
 
     @classmethod
     def tearDownClass(cls) -> None:
-        if os.path.isdir(cls.temp_dir):
-            shutil.rmtree(cls.temp_dir)
         cls.es.stop()
 
     def __init__(self, *args, **kwargs):

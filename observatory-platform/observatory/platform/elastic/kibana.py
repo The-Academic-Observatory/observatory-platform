@@ -59,15 +59,28 @@ class Kibana:
 
     headers = {"Content-Type": "application/json", "kbn-xsrf": "true"}
 
-    def __init__(self, host: str = "http://kibana:5601/", api_key_id: str = None, api_key: str = None):
+    def __init__(
+        self,
+        host: str = "http://kibana:5601/",
+        username: str = None,
+        password: str = None,
+        api_key_id: str = None,
+        api_key: str = None,
+    ):
         """Create a Kibana API client.
 
         :param host: the host including the hostname and port.
+        :param username: the Kibana username
+        :param password: the Kibana password
         :param api_key_id: the Kibana API key id.
         :param api_key: the Kibana API key.
         """
 
         self.host = host
+
+        if username and password:
+            auth = base64.b64encode(f"{username}:{password}".encode()).decode()
+            self.headers["Authroization"] = f"Basic {auth}"
 
         if api_key_id and api_key:
             auth = base64.b64encode(f"{api_key_id}:{api_key}".encode()).decode()
