@@ -42,9 +42,6 @@ class TestKibana(unittest.TestCase):
     def tearDownClass(cls) -> None:
         cls.es.stop()
 
-    def __init__(self, *args, **kwargs):
-        super(TestKibana, self).__init__(*args, **kwargs)
-
     def test_kibana(self):
         """Test initialisation of Kibana class with different arguments"""
         kibana = Kibana(host="host")
