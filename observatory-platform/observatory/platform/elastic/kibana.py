@@ -56,8 +56,6 @@ class ObjectType(Enum):
 class Kibana:
     HTTP_NOT_FOUND = 404
 
-    headers: dict = None
-
     def __init__(
         self,
         host: str = "http://kibana:5601/",
@@ -65,6 +63,7 @@ class Kibana:
         password: str = None,
         api_key_id: str = None,
         api_key: str = None,
+        headers: dict = None,
     ):
         """Create a Kibana API client.
 
@@ -73,7 +72,9 @@ class Kibana:
         :param password: the Kibana password
         :param api_key_id: the Kibana API key id.
         :param api_key: the Kibana API key.
+        :param headers: the headers that will be used with the Kibana API
         """
+        self.headers = headers
         if not self.headers:
             self.headers = {"Content-Type": "application/json", "kbn-xsrf": "true"}
 
