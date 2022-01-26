@@ -26,11 +26,10 @@ from unittest.mock import PropertyMock, patch
 import pendulum
 from airflow import DAG
 from airflow.models import Connection
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from faker import Faker
 from observatory.platform.elastic.elastic import Elastic
 from observatory.platform.elastic.kibana import Kibana, TimeField
-from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.file_utils import load_jsonl
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.test_utils import (
@@ -63,7 +62,7 @@ def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
         default_args={"owner": "airflow", "start_date": execution_date},
         catchup=False,
     ) as dag:
-        task1 = DummyOperator(task_id="dummy_task")
+        DummyOperator(task_id="dummy_task")
 
     return dag
 
@@ -122,11 +121,13 @@ class TestElasticImportRelease(unittest.TestCase):
             bucket_name="bucket",
             data_location=os.environ["TEST_GCP_DATA_LOCATION"],
             elastic_host="",
+            elastic_api_key_id="",
+            elastic_api_key="",
             elastic_mappings_folder="",
             elastic_mappings_func=None,
             kibana_host="",
-            kibana_username="",
-            kibana_password="",
+            kibana_api_key_id="",
+            kibana_api_key="",
             kibana_spaces=list(),
             kibana_time_fields=list(),
         )
@@ -162,10 +163,6 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
 
         self.elastic_port = 9201
         self.kibana_port = 5602
-        self.elastic_uri = f"http://localhost:{self.elastic_port}"
-        self.kibana_uri = f"http://localhost:{self.kibana_port}"
-        self.elastic = Elastic(host=self.elastic_uri)
-        self.kibana = Kibana(host=self.kibana_uri)
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
         self.table_name = "ao_author"
@@ -176,6 +173,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             project_id="project-id",
             dataset_id="dataset-id",
             bucket_name="bucket-name",
+            elastic_conn_key="elastic_main",
+            kibana_conn_key="kibana_main",
             data_location="us",
             file_type="jsonl.gz",
             sensor_dag_ids=["doi"],
@@ -203,6 +202,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             project_id="project-id",
             dataset_id="dataset-id",
             bucket_name="bucket-name",
+            elastic_conn_key="elastic_main",
+            kibana_conn_key="kibana_main",
             data_location="us",
             file_type="jsonl.gz",
             sensor_dag_ids=["doi"],
@@ -258,12 +259,12 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             tables=tables, bucket_name=bucket_name, release_date=release_date, data_location=self.data_location
         )
 
-    def test_telescope(self):
+    @patch("observatory.platform.workflows.elastic_import_workflow.Kibana")
+    def test_telescope(self, mock_kibana):
         """Test the DAG end to end.
 
         :return: None.
         """
-
         # Create ground truth author records
         author_records = generate_authors_table(num_rows=10)
         sort_key = lambda x: x["name"]
@@ -280,10 +281,6 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         )
         dataset_id = env.add_dataset(prefix="data_export")
         with env.create() as t:
-            # Create connections
-            env.add_connection(Connection(conn_id=AirflowConns.ELASTIC, uri=self.elastic_uri))
-            env.add_connection(Connection(conn_id=AirflowConns.KIBANA, uri=self.kibana_uri))
-
             # Create settings
             start_date = pendulum.datetime(year=2021, month=5, day=9)
             dag_id_sensor = "doi"
@@ -294,6 +291,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 project_id=self.project_id,
                 dataset_id=dataset_id,
                 bucket_name=env.download_bucket,
+                elastic_conn_key="elastic_main",
+                kibana_conn_key="kibana_main",
                 data_location=self.data_location,
                 file_type="jsonl.gz",
                 sensor_dag_ids=[dag_id_sensor],
@@ -305,8 +304,19 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             )
             es_dag = workflow.make_dag()
 
+            # Create Elastic/Kibana clients
+            elastic = Elastic(host=env.elastic_env.elastic_uri)
+            kibana = Kibana(host=env.elastic_env.kibana_uri, username="elastic", password="observatory")
+
+            # Create connections
+            env.add_connection(Connection(conn_id=workflow.elastic_conn_key, uri=env.elastic_env.elastic_uri))
+            env.add_connection(Connection(conn_id=workflow.kibana_conn_key, uri=env.elastic_env.kibana_uri))
+
+            # Mock kibana inside workflow, using username/password instead of api key
+            mock_kibana.return_value = kibana
+
             # Create Kibana space
-            self.kibana.create_space(space_id, "SPCE")
+            kibana.create_space(space_id, "SPCE")
 
             # Test that DAG waits for sensor
             # Test that sensors do go into the 'up_for_reschedule' state as the DAGs that they wait for haven't run
@@ -401,8 +411,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 index_id = f"ao-author-{release_date.strftime('%Y%m%d')}"
                 ti = env.run_task(workflow.import_to_elastic.__name__)
                 self.assertEqual(expected_state, ti.state)
-                self.assertTrue(self.elastic.es.indices.exists(index=index_id))  # Check that index exists
-                actual_rows = self.elastic.query(index_id)
+                self.assertTrue(elastic.es.indices.exists(index=index_id))  # Check that index exists
+                actual_rows = elastic.query(index_id)
                 actual_rows.sort(key=sort_key)
                 self.assertEqual(len(expected_rows), len(actual_rows))
                 self.assertListEqual(expected_rows, actual_rows)  # check that author records matches es index
@@ -412,18 +422,17 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 ti = env.run_task(workflow.update_elastic_aliases.__name__)
                 self.assertEqual(expected_state, ti.state)
                 expected_indexes = [index_id]
-                actual_indexes = self.elastic.get_alias_indexes(expected_alias_id)
+                actual_indexes = elastic.get_alias_indexes(expected_alias_id)
                 self.assertListEqual(expected_indexes, actual_indexes)  # Check that aliases updated
 
                 # Test delete_stale_indices task
                 # Artificially load extra indices for ao-author
-                client = Elastic(host=self.elastic_uri)
-                client.create_index("ao-author-20210523")
-                client.create_index("ao-author-20210524")
-                client.create_index("ao-author-20210525")
+                elastic.create_index("ao-author-20210523")
+                elastic.create_index("ao-author-20210524")
+                elastic.create_index("ao-author-20210525")
                 ti = env.run_task(workflow.delete_stale_indices.__name__)
                 self.assertEqual(expected_state, ti.state)
-                indices_after_cleanup = set(client.list_indices("ao-author-*"))
+                indices_after_cleanup = set(elastic.list_indices("ao-author-*"))
                 self.assertEqual(len(indices_after_cleanup), 2)
                 self.assertTrue("ao-author-20210525" in indices_after_cleanup)
                 self.assertTrue("ao-author-20210524" in indices_after_cleanup)
@@ -433,7 +442,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 ti = env.run_task(workflow.create_kibana_index_patterns.__name__)
                 self.assertEqual(expected_state, ti.state)
                 self.assertTrue(
-                    self.kibana.get_index_pattern(expected_index_pattern_id, space_id=space_id)
+                    kibana.get_index_pattern(expected_index_pattern_id, space_id=space_id)
                 )  # Check that index pattern created
 
                 # Test list cleanup info task

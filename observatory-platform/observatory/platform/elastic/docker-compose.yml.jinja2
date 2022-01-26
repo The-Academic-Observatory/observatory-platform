@@ -1,6 +1,6 @@
 services:
   elasticsearch:
-    image: "docker.elastic.co/elasticsearch/elasticsearch:7.13.3"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:7.16.2"
     restart: always
     volumes:
       - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
@@ -8,9 +8,13 @@ services:
       - {{ elastic_port }}:9200
     environment:
       - discovery.type=single-node
+      - ELASTIC_PASSWORD={{ password }}
 
   kibana:
-    image: "docker.elastic.co/kibana/kibana:7.13.3"
+    image: "docker.elastic.co/kibana/kibana:7.16.2"
     restart: always
     ports:
       - {{ kibana_port }}:5601
+    environment:
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD={{ password }}
