@@ -147,6 +147,8 @@ class Elastic:
         thread_count: int = cpu_count(),
         chunk_size: int = 10000,
         timeout: int = 30000,
+        api_key_id: str = None,
+        api_key: str = None,
     ):
         """Create an Elastic API client.
 
@@ -154,13 +156,15 @@ class Elastic:
         :param thread_count: the number of threads to use when loading data into Elastic.
         :param chunk_size: the batch size for loading documents.
         :param timeout: the timeout in seconds.
+        :param api_key_id: the Elastic API key id.
+        :param api_key: the Elastic API key.
         """
 
         self.host = host
         self.thread_count = thread_count
         self.chunk_size = chunk_size
         self.timeout = timeout
-        self.es = Elasticsearch(hosts=[self.host], timeout=timeout)
+        self.es = Elasticsearch(hosts=[self.host], timeout=timeout, api_key=(api_key_id, api_key))
 
     def query(self, index: str, query: Dict = None):
         if query is None:
@@ -219,7 +223,6 @@ class Elastic:
         """
 
         # Load mapping and create index
-
         body = {
             "settings": {
                 "index": {"number_of_shards": 1, "number_of_replicas": 1},

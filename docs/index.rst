@@ -18,6 +18,13 @@ Tutorials
 
     tutorials/index
 
+Workflows
+=======================
+.. toctree::
+    :maxdepth: 2
+
+    workflows/index
+
 REST API
 =========================
 .. toctree::

@@ -12,68 +12,72 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
 import os
 import unittest
 
 from observatory.platform.elastic.elastic import Elastic
-from observatory.platform.elastic.kibana import Kibana, ObjectType, parse_kibana_url
+from observatory.platform.elastic.elastic_environment import ElasticEnvironment
+from observatory.platform.elastic.kibana import Kibana, ObjectType
 from observatory.platform.utils.test_utils import random_id
-
-
-class TestParseKibanaUrl(unittest.TestCase):
-    def test_parse_kibana_url(self):
-        """Parse Kibana URL"""
-
-        url = "https://user.account:password@random-id.us-west1.gcp.cloud.es.io:9243"
-        expected_host = "https://random-id.us-west1.gcp.cloud.es.io:9243"
-        expected_username = "user.account"
-        expected_password = "password"
-        kibana_host, username, password = parse_kibana_url(url)
-        self.assertEqual(expected_host, kibana_host)
-        self.assertEqual(expected_username, username)
-        self.assertEqual(expected_password, password)
+from click.testing import CliRunner
 
 
 class TestKibana(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestKibana, self).__init__(*args, **kwargs)
-        self.elastic_host: str = os.getenv("TEST_ELASTIC_HOST")
-        assert self.elastic_host is not None, "TestKibana: please set the TEST_ELASTIC_HOST environment variable."
+    es: ElasticEnvironment = None
 
-        kibana_host: str = os.getenv("TEST_KIBANA_HOST")
-        assert kibana_host is not None, "TestKibana: please set the TEST_KIBANA_HOST environment variable."
-        self.kibana_host, self.username, self.password = parse_kibana_url(kibana_host)
+    @classmethod
+    def setUpClass(cls) -> None:
+        with CliRunner().isolated_filesystem() as temp_dir:
+            # Start an Elastic environment
+            elastic_build_path = os.path.join(temp_dir, "elastic")
+            cls.es = ElasticEnvironment(build_path=elastic_build_path)
+            cls.es.start()
+
+            cls.elastic = Elastic(host=cls.es.elastic_uri)
+            cls.kibana = Kibana(host=cls.es.kibana_uri, username="elastic", password="observatory")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.es.stop()
+
+    def test_kibana(self):
+        """Test initialisation of Kibana class with different arguments"""
+        kibana = Kibana(host="host")
+        self.assertEqual("host", kibana.host)
+        self.assertDictEqual({"Content-Type": "application/json", "kbn-xsrf": "true"}, kibana.headers)
+
+        kibana = Kibana(username="user", password="password")
+        self.assertDictEqual(
+            {"Content-Type": "application/json", "kbn-xsrf": "true", "Authorization": "Basic dXNlcjpwYXNzd29yZA=="},
+            kibana.headers,
+        )
+
+        kibana = Kibana(api_key_id="id", api_key="key")
+        self.assertDictEqual(
+            {"Content-Type": "application/json", "kbn-xsrf": "true", "Authorization": "ApiKey aWQ6a2V5"}, kibana.headers
+        )
 
     def test_create_delete_space(self):
         """Test the creation and deletion of spaces"""
-
-        # Make clients
-        kibana = Kibana(host=self.kibana_host, username=self.username, password=self.password)
-
         # Parameters
         space_id = random_id()
 
         try:
             # Create spaces
-            result = kibana.create_space(space_id, "Test Space")
+            result = self.kibana.create_space(space_id, "Test Space")
             self.assertTrue(result)
 
             # Delete space
-            result = kibana.delete_space(space_id)
+            result = self.kibana.delete_space(space_id)
             self.assertFalse(result)
         finally:
             # Delete space
-            kibana.delete_space(space_id)
+            self.kibana.delete_space(space_id)
 
     def test_create_delete_index_pattern(self):
         """Test the creation and deletion of index patterns"""
-
-        # Make clients
-        kibana = Kibana(host=self.kibana_host, username=self.username, password=self.password)
-        elastic = Elastic(host=self.elastic_host)
-
         # Parameters
         index_id = random_id()
         space_id = random_id()
@@ -83,7 +87,7 @@ class TestKibana(unittest.TestCase):
 
         try:
             # Create space
-            result = kibana.create_space(space_id, "Test Space")
+            result = self.kibana.create_space(space_id, "Test Space")
             self.assertTrue(result)
 
             # Create index
@@ -91,21 +95,21 @@ class TestKibana(unittest.TestCase):
                 "settings": {"number_of_shards": 1, "number_of_replicas": 0},
                 "mappings": {"properties": {"published_year": {"type": "date", "format": "yyyy-MM-dd"}}},
             }
-            elastic.es.indices.create(index=index_id, body=body, ignore=400)
+            self.elastic.es.indices.create(index=index_id, body=body, ignore=400)
 
             # Create index pattern
-            result = kibana.create_object(object_type, object_id, attributes, space_id=space_id)
+            result = self.kibana.create_object(object_type, object_id, attributes, space_id=space_id)
             self.assertTrue(result)
 
             # Delete index pattern
-            result = kibana.delete_object(object_type, object_id, space_id=space_id)
+            result = self.kibana.delete_object(object_type, object_id, space_id=space_id)
             self.assertTrue(result)
         finally:
             # Delete index
-            elastic.delete_index(index_id)
+            self.elastic.delete_index(index_id)
 
             # Delete index pattern
-            kibana.delete_object(object_type, object_id, space_id=space_id, force=True)
+            self.kibana.delete_object(object_type, object_id, space_id=space_id, force=True)
 
             # Delete spaces
-            kibana.delete_space(space_id)
+            self.kibana.delete_space(space_id)

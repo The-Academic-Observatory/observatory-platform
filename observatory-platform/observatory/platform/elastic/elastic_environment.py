@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Aniek Roelofs
 
 import logging
 import os
@@ -34,6 +34,7 @@ class ElasticEnvironment(ComposeRunner):
         build_path: str,
         elastic_port: int = 9200,
         kibana_port: int = 5601,
+        password: str = "observatory",
         wait: bool = True,
         wait_time_secs: int = 120,
     ):
@@ -49,12 +50,15 @@ class ElasticEnvironment(ComposeRunner):
         self.elastic_module_path = module_file_path("observatory.platform.elastic")
         self.wait = wait
         self.wait_time_secs = wait_time_secs
+        self.elastic_port = elastic_port
         self.elastic_uri = f"http://localhost:{elastic_port}/"
         self.kibana_uri = f"http://localhost:{kibana_port}/"
+        self.password = password
+        self.build_path = build_path
         super().__init__(
             compose_template_path=os.path.join(self.elastic_module_path, "docker-compose.yml.jinja2"),
             build_path=build_path,
-            compose_template_kwargs={"elastic_port": elastic_port, "kibana_port": kibana_port},
+            compose_template_kwargs={"elastic_port": elastic_port, "kibana_port": kibana_port, "password": password},
             debug=True,
         )
 
@@ -72,7 +76,6 @@ class ElasticEnvironment(ComposeRunner):
 
         :return: the environment.
         """
-
         return os.environ.copy()
 
     def start(self) -> ProcessOutput:
@@ -105,7 +108,6 @@ class ElasticEnvironment(ComposeRunner):
 
         :return: whether started or not.
         """
-
         es = Elasticsearch([self.elastic_uri])
         start = time.time()
         while True:

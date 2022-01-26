@@ -62,8 +62,6 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/google_application_credentials.json
           TEST_TERRAFORM_TOKEN: ${{ secrets.TEST_TERRAFORM_TOKEN }}
           TEST_TERRAFORM_ORGANISATION: ${{ secrets.TEST_TERRAFORM_ORGANISATION }}
-          TEST_ELASTIC_HOST: ${{ secrets.TEST_ELASTIC_HOST }}
-          TEST_KIBANA_HOST: ${{ secrets.TEST_KIBANA_HOST }}
           AIRFLOW__CORE__LOAD_EXAMPLES: false
         run: |
           echo "${TEST_GCP_SERVICE_KEY}" | base64 --decode > /tmp/google_application_credentials.json
