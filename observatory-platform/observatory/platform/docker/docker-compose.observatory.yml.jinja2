@@ -46,7 +46,7 @@ version: '3.8'
 x-environment: &environment
   # Airflow settings
   AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgres+psycopg2://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
+  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
   AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
   AIRFLOW__CORE__LOAD_EXAMPLES: "False"
   AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"

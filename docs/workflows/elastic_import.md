@@ -15,44 +15,51 @@
 ```
 
 ## Authentication
-This workflow connects to both the Elasticsearch and Kibana server.  
-Through the Elasticsearch client old indices are deleted and new indices as well as aliases are created. 
-Through the Kibana API new index patterns are created in each of the given kibana spaces.  
-Both servers are accessed using the same API key, see below for info on how to create this.
+This workflow connects to both the Elasticsearch and Kibana server. Through the Elasticsearch client old indices are 
+deleted and new indices as well as aliases are created. Through the Kibana API new index patterns are created in each 
+of the given Kibana spaces. Both servers are accessed using the same API key, see below for info on how to create this.
 
-### Required permissions
-It is recommended to create a separate user account for this workflow through the Kibana UI, and to assign a role
- with a limited set of permissions to this account.
-The minimal permissions that are required for this workflow are:
+### Creating the API key
+In the Kibana dev console, run the below command, being careful to customise the following:
+* index.names: add wildcard prefixes for indexes that this API key should have access to, or give it access
+  to all indexes with the wildcard "*".
+* applications.resources: add the specific spaces that the API key should have access to in the form "space:my-space-id",
+  or give the API key access to all spaces with the wildcard "*".
 
-Elasticsearch  
-- To create new indices  
-  Indices: '*'  
-  Privileges: 'create_index'
-- To delete indices and add/remove aliases, for a limited set of indices  
-  Indices: 'custom-*'
-  Privileges: 'all'
-  
-Kibana  
-- To create/delete index patterns, for a limited set of kibana spaces  
-  Spaces: <required spaces>  
-  Privileges: Customize -> Management -> Index Pattern Management: All
-
-### Creating an API key
-After setting up the permissions and creating a dedicated user account, it is possible to create an API key for this
- user through the Elasticsearch API. 
-Creating an API key for a user other than yourself does require the cluster privilege 'grant_api_key' on your
- Elasticsearch user account.
- 
-For example to create an API key for the new user account named 'airflow', with the password 'my_password':
 ```
-POST /_security/api_key/grant
+POST /_security/api_key 
 {
-  "grant_type": "password",
-  "username" : "airflow",
-  "password" : "my_password",
-  "api_key" : {
-    "name": "elastic_import_workflow"
+  "name": "airflow-api-key",
+  "role_descriptors": {
+    "role-airflow": {
+      "cluster": [],
+      "index": [
+        {
+          "names": [
+            "my-index-prefix-a-*", "my-index-prefix-b-*"
+          ],
+          "privileges": [
+            "read",
+            "write",
+            "create_index",
+            "delete_index",
+            "view_index_metadata",
+            "manage"
+          ]
+        }
+      ],
+      "applications": [
+        {
+          "application": "kibana-.kibana",
+          "privileges": [
+            "feature_indexPatterns.all"
+          ],
+          "resources": [
+            "space:my-space-id"
+          ]
+        }
+      ]
+    }
   }
 }
 ```
@@ -61,16 +68,15 @@ This will return a response with the API key id, name and api_key, for example:
 ```
 {
   "id" : "OmyIQn4BWGb2uJ7Wu4uX",
-  "name" : "elastic_import_workflow",
+  "name" : "airflow-api-key",
   "api_key" : "nNfS6FiGQdWJFGSo-4ACGg"
 }
 ```
 
 ## Airflow connections
-Note that all values need to be urlencoded. 
-In the DAG file for this workflow are ElasticImportConfig instances defined.
-In each config instance, there is a 'elastic_conn_key' and 'kibana_conn_key' variable defined.
-These refer to the Airflow connections that are used to connect to the Elasticsearch/Kibana servers.
+Note that all values need to be urlencoded. In the DAG file for this workflow are ElasticImportConfig instances defined.
+In each config instance, there is a 'elastic_conn_key' and 'kibana_conn_key' variable defined. These refer to the 
+Airflow connections that are used to connect to the Elasticsearch/Kibana servers.
 
 For example, if in one of the configs elastic_conn_key="elastic_main" and kibana_conn_key="kibana_main":
 
