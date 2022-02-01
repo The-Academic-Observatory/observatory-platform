@@ -23,8 +23,8 @@ of the given Kibana spaces. Both servers are accessed using the same API key, se
 In the Kibana dev console, run the below command, being careful to customise the following:
 * index.names: add wildcard prefixes for indexes that this API key should have access to, or give it access
   to all indexes with the wildcard "*".
-* applications.resources: add the specific spaces that the API key should have access to in the form "space:my-space-id",
-  or give the API key access to all spaces with the wildcard "*".
+* applications.resources: add the specific Kibana spaces that the API key should have access to in the form 
+  "space:my-space-id", or give the API key access to all spaces with the wildcard "*".
 
 ```
 POST /_security/api_key 
