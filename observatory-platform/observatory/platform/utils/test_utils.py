@@ -659,6 +659,23 @@ class ObservatoryTestCase(unittest.TestCase):
                 [], actual_content, msg=f"Rows in actual content that are not in expected content: {actual_content}"
             )
 
+    def assert_table_bytes(self, table_id: str, expected_bytes: int):
+        """Assert whether the given bytes from a BigQuery table matches the expected bytes.
+
+        :param table_id: the BigQuery table id.
+        :param expected_bytes: the expected number of bytes.
+        :return: whether the table exists and the expected bytes match
+        """
+
+        table = None
+        try:
+            table = self.bigquery_client.get_table(table_id)
+        except NotFound:
+            pass
+
+        self.assertIsNotNone(table)
+        self.assertEqual(expected_bytes, table.num_bytes)
+
     def assert_file_integrity(self, file_path: str, expected_hash: str, algorithm: str):
         """Assert that a file exists and it has the correct hash.
 
