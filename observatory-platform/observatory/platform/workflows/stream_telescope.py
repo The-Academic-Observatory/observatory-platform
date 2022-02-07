@@ -184,6 +184,7 @@ class StreamTelescope(Workflow):
         When the batch_load property of the telescope is set to False, each blob in the transform folder will be used to
         create/update an individual table.
 
+        :param release: The release object.
         :return: List with tuples of transform_blob, main_table_id and partition_table_id
         """
         bq_info = []
