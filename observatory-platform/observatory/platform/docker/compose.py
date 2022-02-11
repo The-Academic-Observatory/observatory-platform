@@ -18,6 +18,7 @@ import dataclasses
 import os
 import shutil
 import subprocess
+import sys
 from abc import ABC, abstractmethod
 from subprocess import Popen
 from typing import Dict, List
@@ -272,8 +273,9 @@ class ComposeRunner(ComposeRunnerInterface):
         self.make_files()
 
         # Build the containers first
+        cmd = self.COMPOSE_ARGS_PREFIX + [self.compose_file_name] + args
         proc: Popen = subprocess.Popen(
-            self.COMPOSE_ARGS_PREFIX + [self.compose_file_name] + args,
+            cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=env,
@@ -282,5 +284,15 @@ class ComposeRunner(ComposeRunnerInterface):
 
         # Wait for results
         output, error = wait_for_process(proc)
+
+        if self.debug:
+            print(" ".join(cmd))
+            print("Return Code:")
+            print(f"{proc.returncode}")
+            print("Output:")
+            print(f"{output}")
+            print("Error:")
+            print(f"{error}")
+            sys.stdout.flush()
 
         return ProcessOutput(output, error, proc.returncode)
