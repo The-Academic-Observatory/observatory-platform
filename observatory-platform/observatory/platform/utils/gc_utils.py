@@ -1021,8 +1021,10 @@ def aws_to_google_cloud_storage_transfer(
     gc_project_id: str,
     gc_bucket: str,
     description: str,
+    gc_bucket_path: str = None,
     last_modified_since: pendulum.DateTime = None,
     last_modified_before: pendulum.DateTime = None,
+    transfer_manifest: str = None,
     start_date: pendulum.DateTime = pendulum.now("UTC"),
 ) -> Tuple[bool, int]:
     """Transfer files from an AWS bucket to a Google Cloud Storage bucket.
@@ -1032,10 +1034,12 @@ def aws_to_google_cloud_storage_transfer(
     :param aws_bucket: the name of the aws S3 bucket where files will be copied from.
     :param include_prefixes: the prefixes of blobs to download from the Azure blob container.
     :param gc_project_id: the Google Cloud project id that holds the Google Cloud Storage bucket.
-    :param last_modified_since:
-    :param last_modified_before:
     :param gc_bucket: the Google Cloud bucket name.
     :param description: a description for the transfer job.
+    :param gc_bucket_path: the destination folder inside the Google Cloud bucket.
+    :param last_modified_since:
+    :param last_modified_before:
+    :param transfer_manifest: Path to manifest file in Google Cloud bucket (incl gs://)
     :param start_date: the date that the transfer job will start.
     :return: whether the transfer was a success or not.
     """
@@ -1061,6 +1065,9 @@ def aws_to_google_cloud_storage_transfer(
             "gcsDataSink": {"bucketName": gc_bucket},
         },
     }
+    if gc_bucket_path:
+        job["transferSpec"]["gcsDataSink"]["path"] = gc_bucket_path
+
     if last_modified_since:
         job["transferSpec"]["objectConditions"]["lastModifiedSince"] = last_modified_since.isoformat().replace(
             "+00:00", "Z"
@@ -1069,6 +1076,9 @@ def aws_to_google_cloud_storage_transfer(
         job["transferSpec"]["objectConditions"]["lastModifiedBefore"] = last_modified_before.isoformat().replace(
             "+00:00", "Z"
         )
+
+    if transfer_manifest:
+        job["transferSpec"]["transferManifest"] = {"location": transfer_manifest}
 
     success, objects_count = google_cloud_storage_transfer_job(job, func_name, gc_project_id)
     return success, objects_count

@@ -15,7 +15,7 @@
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
 
 import logging
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 
 import pendulum
 from airflow.exceptions import AirflowSkipException
@@ -24,13 +24,15 @@ from croniter import croniter
 from google.cloud.bigquery import SourceFormat
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.workflow_utils import (
+    batch_blob_name,
+    blob_name,
     bq_append_from_file,
     bq_append_from_partition,
     bq_delete_old,
     bq_load_ingestion_partition,
     delete_old_xcoms,
-    get_bq_load_info,
     is_first_dag_run,
+    table_ids_from_path,
     upload_files_from_list,
 )
 from observatory.platform.workflows.workflow import Release, Workflow
@@ -174,6 +176,30 @@ class StreamTelescope(Workflow):
 
         return start_date, end_date, first_release
 
+    def get_bq_load_info(self, release: StreamRelease) -> List[Tuple[str, str, str]]:
+        """Get (a list of) the transform blob, main table id and partition table id that are used to load data into
+        BigQuery.
+        When the batch_load property of the telescope is set to True, all blobs in the transform folder will be loaded
+        into 1 table at once.
+        When the batch_load property of the telescope is set to False, each blob in the transform folder will be used to
+        create/update an individual table.
+
+        :param release: The release object.
+        :return: List with tuples of transform_blob, main_table_id and partition_table_id
+        """
+        bq_info = []
+        if self.batch_load:
+            if release.transform_files:
+                transform_blob = batch_blob_name(release.transform_folder)
+                main_table_id, partition_table_id = (self.dag_id, f"{self.dag_id}_partitions")
+                bq_info = [(transform_blob, main_table_id, partition_table_id)]
+        else:
+            for transform_path in release.transform_files:
+                transform_blob = blob_name(transform_path)
+                main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                bq_info.append((transform_blob, main_table_id, partition_table_id))
+        return bq_info
+
     def download(self, release: StreamRelease, **kwargs):
         """Task to download the StreamRelease release.
 
@@ -231,7 +257,7 @@ class StreamTelescope(Workflow):
             # because a first release can be relatively big in size.
             raise AirflowSkipException("Skipped, because first release")
 
-        bq_load_info = get_bq_load_info(self.dag_id, release.transform_folder, release.transform_files, self.batch_load)
+        bq_load_info = self.get_bq_load_info(release)
         for transform_blob, main_table_id, partition_table_id in bq_load_info:
             table_description = self.table_descriptions.get(main_table_id, "")
             bq_load_ingestion_partition(
@@ -262,7 +288,7 @@ class StreamTelescope(Workflow):
 
         logging.info(f"Deleting old data from main table using partition with ingestion date of {release.end_date}")
         bytes_budget = kwargs.get("bytes_budget", None)
-        bq_load_info = get_bq_load_info(self.dag_id, release.transform_folder, release.transform_files, self.batch_load)
+        bq_load_info = self.get_bq_load_info(release)
         for _, main_table_id, partition_table_id in bq_load_info:
             bq_delete_old(
                 release.end_date,
@@ -280,7 +306,7 @@ class StreamTelescope(Workflow):
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
-        bq_load_info = get_bq_load_info(self.dag_id, release.transform_folder, release.transform_files, self.batch_load)
+        bq_load_info = self.get_bq_load_info(release)
 
         if release.first_release:
             for transform_blob, main_table_id, partition_table_id in bq_load_info:

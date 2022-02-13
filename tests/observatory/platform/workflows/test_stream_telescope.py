@@ -31,7 +31,6 @@ from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
     blob_name,
     create_date_table_id,
-    get_bq_load_info,
     table_ids_from_path,
 )
 from observatory.platform.workflows.stream_telescope import (
@@ -231,12 +230,7 @@ class TestStreamTelescope(ObservatoryTestCase):
                                 self.assert_blob_integrity(env.transform_bucket, blob_name(file), file)
 
                             # Get bq_load_info
-                            bq_load_info = get_bq_load_info(
-                                telescope.dag_id,
-                                release.transform_folder,
-                                release.transform_files,
-                                telescope.batch_load,
-                            )
+                            bq_load_info = telescope.get_bq_load_info(release)
                             if batch_load:
                                 transform_blob = batch_blob_name(release.transform_folder)
                                 main_table_id, partition_table_id = (telescope.dag_id, f"{telescope.dag_id}_partitions")
@@ -413,12 +407,7 @@ class TestStreamTelescope(ObservatoryTestCase):
                             )
 
                             # Test that bq load info for bq load functions is as expected
-                            bq_load_info = get_bq_load_info(
-                                telescope.dag_id,
-                                release.transform_folder,
-                                release.transform_files,
-                                telescope.batch_load,
-                            )
+                            bq_load_info = telescope.get_bq_load_info(release)
                             if batch_load:
                                 transform_blob = batch_blob_name(release.transform_folder)
                                 main_table_id, partition_table_id = (telescope.dag_id, f"{telescope.dag_id}_partitions")
