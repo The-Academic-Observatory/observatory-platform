@@ -826,6 +826,7 @@ def upload_file_to_cloud_storage(
     connection_sem: BoundedSemaphore = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     project_id: str = None,
+    check_blob_hash: bool = True
 ) -> Tuple[bool, bool]:
     """Upload a file to Google Cloud Storage.
 
@@ -836,6 +837,7 @@ def upload_file_to_cloud_storage(
     :param connection_sem: a BoundedSemaphore to limit the number of upload connections that can run at once.
     :param chunk_size: the chunk size to use when uploading a blob in multiple parts, must be a multiple of 256 KB.
     :param project_id: the project in which the bucket is located, defaults to inferred from the environment.
+    :param check_blob_hash: check whether the blob exists and if the crc32c hashes match, in which case skip uploading.
     :return: whether the task was successful or not and whether the file was uploaded.
     """
     func_name = upload_file_to_cloud_storage.__name__
@@ -851,7 +853,7 @@ def upload_file_to_cloud_storage(
     blob = bucket.blob(blob_name)
 
     # Check if blob exists already and matches the file we are uploading
-    if blob.exists():
+    if check_blob_hash and blob.exists():
         # Get blob hash
         blob.reload()
         expected_hash = blob.crc32c
