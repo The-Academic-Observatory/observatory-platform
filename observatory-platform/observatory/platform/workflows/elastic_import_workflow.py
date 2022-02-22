@@ -249,6 +249,7 @@ def load_elastic_index(
     if len(file_paths) == 0:
         # If no files found then set result to False
         results.append(False)
+        logging.error(f"No files found for index, using file pattern: {file_pattern}")
     else:
         # Load function
         if file_type in CSV_TYPES:
@@ -473,9 +474,9 @@ class ElasticImportRelease(SnapshotRelease):
             for future in as_completed(futures):
                 success = future.result()
                 results.append(success)
+                table_id = futures_msgs[future]
                 if success:
                     # Update the state of table_ids that have been indexed
-                    table_id = futures_msgs[future]
                     indexed_table_ids.append(table_id)
                     self.write_import_state(indexed_table_ids)
                     logging.info(f"Loading index success: {table_id}")
