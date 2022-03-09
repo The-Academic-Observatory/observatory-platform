@@ -909,7 +909,7 @@ def bq_load_tables(
 
         # Save to JSONL
         for table in tables:
-            blob_name = f"{table.table_name}.jsonl.gz"
+            blob_name = f"{table.dataset_id}-{table.table_name}.jsonl.gz"
             file_path = os.path.join(t, blob_name)
             list_to_jsonl_gz(file_path, table.records)
             files_list.append(file_path)
