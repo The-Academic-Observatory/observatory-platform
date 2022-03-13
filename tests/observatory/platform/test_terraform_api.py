@@ -149,7 +149,7 @@ class TestTerraformApi(unittest.TestCase):
 
         # Delete workspace
         response_code = self.terraform_api.delete_workspace(self.organisation, workspace_id)
-        self.assertEqual(response_code, 200)
+        self.assertEqual(response_code, 204)  # must have changed from 200 to 204 in Feb / March 2022
 
         # Try to delete non-existing workspace
         response_code = self.terraform_api.delete_workspace(self.organisation, workspace_id)
