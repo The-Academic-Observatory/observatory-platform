@@ -239,7 +239,7 @@ class TestStreamTelescope(ObservatoryTestCase):
                                 )
                             else:
                                 expected_bq_info = []
-                                for transform_path in release.transform_files:
+                                for transform_path in sorted(release.transform_files):
                                     transform_blob = blob_name(transform_path)
                                     main_table_id, partition_table_id = table_ids_from_path(transform_path)
                                     expected_bq_info.append((transform_blob, main_table_id, partition_table_id))
@@ -416,7 +416,7 @@ class TestStreamTelescope(ObservatoryTestCase):
                                 )
                             else:
                                 expected_bq_info = []
-                                for transform_path in release.transform_files:
+                                for transform_path in sorted(release.transform_files):
                                     transform_blob = blob_name(transform_path)
                                     main_table_id, partition_table_id = table_ids_from_path(transform_path)
                                     expected_bq_info.append((transform_blob, main_table_id, partition_table_id))

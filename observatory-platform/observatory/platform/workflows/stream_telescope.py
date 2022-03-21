@@ -199,6 +199,7 @@ class StreamTelescope(Workflow):
                 transform_blob = blob_name(transform_path)
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
                 bq_info.append((transform_blob, main_table_id, partition_table_id))
+        bq_info.sort(key=lambda x: x[0])
         return bq_info
 
     def download(self, release: StreamRelease, **kwargs):
