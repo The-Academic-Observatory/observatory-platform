@@ -100,6 +100,7 @@ class StreamTelescope(Workflow):
         batch_load: bool = False,
         airflow_vars: list = None,
         airflow_conns: list = None,
+        workflow_id: int = None,
     ):
         """Construct a StreamTelescope instance.
 
@@ -122,6 +123,7 @@ class StreamTelescope(Workflow):
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
+        :param workflow_id: api workflow id.
         """
 
         # Set transform_bucket_name as required airflow variable
@@ -139,6 +141,7 @@ class StreamTelescope(Workflow):
             max_active_runs=max_active_runs,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
+            workflow_id=workflow_id,
         )
 
         self.schema_prefix = schema_prefix
