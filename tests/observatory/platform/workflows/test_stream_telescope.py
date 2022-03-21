@@ -469,6 +469,7 @@ class TestStreamTelescope(ObservatoryTestCase):
                                             partition_table_id,
                                             telescope.merge_partition_field,
                                             bytes_budget=None,
+                                            project_id=self.project_id,
                                         )
                                     )
                                 bq_delete_old.assert_has_calls(expected_calls, any_order=True)
