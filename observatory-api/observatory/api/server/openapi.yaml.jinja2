@@ -56,7 +56,8 @@ tags:
 {%- set organisation_tag="Observatory" -%}
 {%- set telescope_tag="Observatory" -%}
 {%- set telescope_type_tag="Observatory" -%}
-{%- set dataset_storage_tag="Observatory" -%}
+{%- set table_type_tag="Observatory" -%}
+{%- set dataset_type_tag="Observatory" -%}
 {%- set dataset_release_tag="Observatory" -%}
 {%- set dataset_tag="Observatory" -%}
 {%- set bigquery_bytes_processed_tag="Observatory" -%}
@@ -70,8 +71,10 @@ tags:
   description: Create, read, update, delete and list information about telescopes.
 - name: TelescopeType
   description: Create, read, update, delete and list information about the type of telescopes that exist.
-- name: DatasetStorage
-  description: Create, read, update, delete and list information about the dataset storage info.
+- name: TableType
+  description: Create, read, update, delete and list information about the type of tables that exist.
+- name: DatasetType
+  description: Create, read, update, delete and list information about the type of datasets that exist.
 - name: DatasetRelease
   description: Create, read, update, delete and list information about the dataset release info.
 - name: Dataset
@@ -82,7 +85,8 @@ tags:
 {%- set organisation_tag="Organisation" -%}
 {%- set telescope_tag="Telescope" -%}
 {%- set telescope_type_tag="TelescopeType" -%}
-{%- set dataset_storage_tag="DatasetStorage" -%}
+{%- set table_type_tag="TableType" -%}
+{%- set dataset_type_tag="DatasetType" -%}
 {%- set dataset_release_tag="DatasetRelease" -%}
 {%- set dataset_tag="Dataset" -%}
 {%- set bigquery_bytes_processed_tag="BigQueryBytesProcessed" -%}
@@ -619,27 +623,32 @@ paths:
           {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
-  /v1/dataset_storage:
+  /v1/table_type:
     get:
       tags:
-      - {{ dataset_storage_tag }}
-      summary: get a DatasetStorage
-      operationId: {{ operation_id_namespace }}get_dataset_storage
+      - {{ table_type_tag }}
+      summary: get a TableType
+      operationId: {{ operation_id_namespace }}get_table_type
       description: |
-        Get the details of a DatasetStorage by passing it's id or dataset id.
+        Get the details of a TableType by passing it's id or type_id.
       produces:
       - application/json
       parameters:
       - in: query
         name: id
-        description: DatasetStorage id
-        required: true
+        description: TableType id
+        required: false
         type: integer
+      - in: query
+        name: type_id
+        description: TableType type_id
+        required: false
+        type: string
       responses:
         200:
-          description: the fetched DatasetStorage
+          description: the fetched TableType
           schema:
-            $ref: '#/definitions/DatasetStorage'
+            $ref: '#/definitions/TableType'
         400:
           description: bad input parameter
         401:
@@ -647,11 +656,11 @@ paths:
           $ref: '#/responses/UnauthorizedError'
     post:
       tags:
-      - {{ dataset_storage_tag }}
-      summary: create a DatasetStorage
-      operationId: {{ operation_id_namespace }}post_dataset_storage
+      - {{ table_type_tag }}
+      summary: create a TableType
+      operationId: {{ operation_id_namespace }}post_table_type
       description: |
-        Create a DatasetStorage by passing a DatasetStorage object, without an id.
+        Create a TableType by passing a TableType object, without an id.
       consumes:
       - application/json
       produces:
@@ -659,26 +668,26 @@ paths:
       parameters:
       - in: body
         name: body
-        description: DatasetStorage to create
+        description: TableType to create
         required: true
         schema:
-          $ref: '#/definitions/DatasetStorage'
+          $ref: '#/definitions/TableType'
       responses:
         201:
-          description: DatasetStorage created, returning the created object with an id
+          description: TableType created, returning the created object with an id
           schema:
-            $ref: '#/definitions/DatasetStorage'
+            $ref: '#/definitions/TableType'
         401:
           {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
-      - {{ dataset_storage_tag }}
-      summary: create or update a DatasetStorage
-      operationId: {{ operation_id_namespace }}put_dataset_storage
+      - {{ table_type_tag }}
+      summary: create or update a TableType
+      operationId: {{ operation_id_namespace }}put_table_type
       description: |
-        Create a DatasetStorage by passing a DatasetStorage object, without an id. Update an existing DatasetStorage by
-        passing a DatasetStorage object with an id.
+        Create a TableType by passing a TableType object, without an id. Update an existing TableType by
+        passing a TableType object with an id.
       consumes:
       - application/json
       produces:
@@ -686,29 +695,29 @@ paths:
       parameters:
       - in: body
         name: body
-        description: DatasetStorage to create or update
+        description: TableType to create or update
         required: true
         schema:
-          $ref: '#/definitions/DatasetStorage'
+          $ref: '#/definitions/TableType'
       responses:
         200:
-          description: DatasetStorage updated
+          description: TableType updated
           schema:
-            $ref: '#/definitions/DatasetStorage'
+            $ref: '#/definitions/TableType'
         201:
-          description: DatasetStorage created, returning the created object with an id
+          description: TableType created, returning the created object with an id
           schema:
-            $ref: '#/definitions/DatasetStorage'
+            $ref: '#/definitions/TableType'
         401:
           {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
-      - {{ dataset_storage_tag }}
-      summary: delete a DatasetStorage
-      operationId: {{ operation_id_namespace }}delete_dataset_storage
+      - {{ table_type_tag }}
+      summary: delete a TableType
+      operationId: {{ operation_id_namespace }}delete_table_type
       description: |
-        Delete a DatasetStorage by passing it's id.
+        Delete a TableType by passing it's id.
       consumes:
       - application/json
       produces:
@@ -716,24 +725,24 @@ paths:
       parameters:
       - in: query
         name: id
-        description: DatasetStorage id
+        description: TableType id
         required: true
         type: integer
       responses:
         200:
-          description: DatasetStorage deleted
+          description: TableType deleted
         401:
           {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
 
-  /v1/dataset_storages:
+  /v1/table_types:
     get:
       tags:
-      - {{ dataset_storage_tag }}
-      summary: Get a list of DatasetStorage objects
-      operationId: {{ operation_id_namespace }}get_dataset_storages
+      - {{ table_type_tag }}
+      summary: Get a list of TableType objects
+      operationId: {{ operation_id_namespace }}get_table_types
       description: |
-        Get a list of DatasetStorage objects
+        Get a list of TableType objects
       produces:
       - application/json
       parameters:
@@ -742,24 +751,160 @@ paths:
         description: the maximum number of results to return
         required: true
         type: integer
-      - in: query
-        name: dataset_id
-        description: the dataset_id to filter for.
-        required: false
-        type: integer
       responses:
         200:
-          description: a list of DatasetStorage objects
+          description: a list of TableType objects
           schema:
             type: array
             items:
-              $ref: '#/definitions/DatasetStorage'
+              $ref: '#/definitions/TableType'
         400:
           description: bad input parameter
         401:
           {% if api_client -%}description: API key is missing or invalid{%- endif %}
           $ref: '#/responses/UnauthorizedError'
- 
+
+  /v1/dataset_type:
+    get:
+      tags:
+      - {{ dataset_type_tag }}
+      summary: get a DatasetType
+      operationId: {{ operation_id_namespace }}get_dataset_type
+      description: |
+        Get the details of a DatasetType by passing it's id or type_id.
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: DatasetType id
+        required: false
+        type: integer
+      - in: query
+        name: type_id
+        description: DatasetType type_id
+        required: false
+        type: string
+      responses:
+        200:
+          description: the fetched DatasetType
+          schema:
+            $ref: '#/definitions/DatasetType'
+        400:
+          description: bad input parameter
+        401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          $ref: '#/responses/UnauthorizedError'
+    post:
+      tags:
+      - {{ dataset_type_tag }}
+      summary: create a DatasetType
+      operationId: {{ operation_id_namespace }}post_dataset_type
+      description: |
+        Create a DatasetType by passing a DatasetType object, without an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: DatasetType to create
+        required: true
+        schema:
+          $ref: '#/definitions/DatasetType'
+      responses:
+        201:
+          description: DatasetType created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/DatasetType'
+        401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          $ref: '#/responses/UnauthorizedError'
+    put:
+      tags:
+      - {{ dataset_type_tag }}
+      summary: create or update a DatasetType
+      operationId: {{ operation_id_namespace }}put_dataset_type
+      description: |
+        Create a DatasetType by passing a DatasetType object, without an id. Update an existing DatasetType by
+        passing a DatasetType object with an id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: DatasetType to create or update
+        required: true
+        schema:
+          $ref: '#/definitions/DatasetType'
+      responses:
+        200:
+          description: DatasetType updated
+          schema:
+            $ref: '#/definitions/DatasetType'
+        201:
+          description: DatasetType created, returning the created object with an id
+          schema:
+            $ref: '#/definitions/DatasetType'
+        401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          $ref: '#/responses/UnauthorizedError'
+    delete:
+      tags:
+      - {{ dataset_type_tag }}
+      summary: delete a DatasetType
+      operationId: {{ operation_id_namespace }}delete_dataset_type
+      description: |
+        Delete a DatasetType by passing it's id.
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: id
+        description: DatasetType id
+        required: true
+        type: integer
+      responses:
+        200:
+          description: DatasetType deleted
+        401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          $ref: '#/responses/UnauthorizedError'
+
+  /v1/dataset_types:
+    get:
+      tags:
+      - {{ dataset_type_tag }}
+      summary: Get a list of DatasetType objects
+      operationId: {{ operation_id_namespace }}get_dataset_types
+      description: |
+        Get a list of DatasetType objects
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: limit
+        description: the maximum number of results to return
+        required: true
+        type: integer
+      responses:
+        200:
+          description: a list of DatasetType objects
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/DatasetType'
+        400:
+          description: bad input parameter
+        401:
+          {% if api_client -%}description: API key is missing or invalid{%- endif %}
+          $ref: '#/responses/UnauthorizedError'
+
   /v1/dataset_release:
     get:
       tags:
@@ -1026,7 +1171,7 @@ paths:
         type: integer
       - in: query
         name: telescope_id
-        description: Dataset id to filter by
+        description: Telescope id to filter for
         required: false
         type: integer
       responses:
@@ -1187,6 +1332,12 @@ definitions:
         minLength: 1
         maxLength: 512
         x-nullable: true
+      tags:
+        type: string
+        example: oaebu
+        minLength: 1
+        maxLength: 250
+        x-nullable: true
       organisation:
         $ref: '#/definitions/Organisation'
       telescope_type:
@@ -1251,30 +1402,57 @@ definitions:
         example: 2020-01-02T20:01:05Z
         readOnly: true
 
-  DatasetStorage:
+  TableType:
     type: object
     properties:
       id:
         type: integer
         example: 1
-      service:
+      type_id:
         type: string
-        example: google
+        example: bq_partitioned
         minLength: 1
         maxLength: 250
-      address:
+      name:
         type: string
-        example: curtin_gcp_project_id.my_dataset_id.my_table
+        example: BigQuery partitioned table
+        minLength: 1
+        maxLength: 250
+      created:
+        type: string
+        format: date-time
+        example: 2020-01-01T20:01:05Z
+        readOnly: true
+      modified:
+        type: string
+        format: date-time
+        example: 2020-01-02T20:01:05Z
+        readOnly: true
+
+  DatasetType:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      type_id:
+        type: string
+        example: onix
+        minLength: 1
+        maxLength: 250
+      name:
+        type: string
+        example: ONIX dataset
         minLength: 1
         maxLength: 250
       extra:
         type: object
-        example: {'table_type': 'partitioned'}
+        example: {'isbn_field': 'ISBN', 'type': 'snapshot'}
         minLength: 1
-        maxLength: 500
+        maxLength: 512
         x-nullable: true
-      dataset:
-        $ref: '#/definitions/Dataset'
+      table_type:
+        $ref: '#/definitions/TableType'
       created:
         type: string
         format: date-time
@@ -1292,32 +1470,11 @@ definitions:
       id:
         type: integer
         example: 1
-      schema_version:
-        type: string
-        example: 20211031
-        minLength: 1
-        maxLength: 250
-      schema_version_alt:
-        type: string
-        example: wok5.4
-        x-nullable: true
-        minLength: 1
-        maxLength: 250
       start_date:
         type: string
         format: date-time
         example: 2020-01-02T20:01:05Z
       end_date:
-        type: string
-        format: date-time
-        example: 2020-01-02T20:01:05Z
-        x-nullable: true
-      ingestion_start:
-        type: string
-        format: date-time
-        example: 2020-01-02T20:01:05Z
-        x-nullable: true
-      ingestion_end:
         type: string
         format: date-time
         example: 2020-01-02T20:01:05Z
@@ -1348,12 +1505,16 @@ definitions:
         maxLength: 250
       connection:
         $ref: '#/definitions/Telescope'
-      extra:
-        type: object
-        example: {'isbn_field': 'ISBN', 'type': 'snapshot'}
+      service:
+        type: string
+        example: google
         minLength: 1
-        maxLength: 512
-        x-nullable: true
+        maxLength: 250
+      address:
+        type: string
+        example: curtin_gcp_project_id.my_dataset_id.my_table
+        minLength: 1
+        maxLength: 250
       created:
         type: string
         format: date-time
@@ -1364,6 +1525,8 @@ definitions:
         format: date-time
         example: 2020-01-02T20:01:05Z
         readOnly: true
+      dataset_type:
+        $ref: '#/definitions/DatasetType'
 
   BigQueryBytesProcessed:
     type: object

@@ -25,9 +25,10 @@ from observatory.api.client.model_utils import (  # noqa: F401
 from observatory.api.client.model.big_query_bytes_processed import BigQueryBytesProcessed
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
-from observatory.api.client.model.dataset_storage import DatasetStorage
+from observatory.api.client.model.dataset_type import DatasetType
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.query_response import QueryResponse
+from observatory.api.client.model.table_type import TableType
 from observatory.api.client.model.telescope import Telescope
 from observatory.api.client.model.telescope_type import TelescopeType
 
@@ -141,14 +142,14 @@ class ObservatoryApi(object):
             },
             api_client=api_client
         )
-        self.delete_dataset_storage_endpoint = _Endpoint(
+        self.delete_dataset_type_endpoint = _Endpoint(
             settings={
                 'response_type': None,
                 'auth': [
                     'api_key'
                 ],
-                'endpoint_path': '/v1/dataset_storage',
-                'operation_id': 'delete_dataset_storage',
+                'endpoint_path': '/v1/dataset_type',
+                'operation_id': 'delete_dataset_type',
                 'http_method': 'DELETE',
                 'servers': None,
             },
@@ -198,6 +199,55 @@ class ObservatoryApi(object):
                 ],
                 'endpoint_path': '/v1/organisation',
                 'operation_id': 'delete_organisation',
+                'http_method': 'DELETE',
+                'servers': None,
+            },
+            params_map={
+                'all': [
+                    'id',
+                ],
+                'required': [
+                    'id',
+                ],
+                'nullable': [
+                ],
+                'enum': [
+                ],
+                'validation': [
+                ]
+            },
+            root_map={
+                'validations': {
+                },
+                'allowed_values': {
+                },
+                'openapi_types': {
+                    'id':
+                        (int,),
+                },
+                'attribute_map': {
+                    'id': 'id',
+                },
+                'location_map': {
+                    'id': 'query',
+                },
+                'collection_format_map': {
+                }
+            },
+            headers_map={
+                'accept': [],
+                'content_type': [],
+            },
+            api_client=api_client
+        )
+        self.delete_table_type_endpoint = _Endpoint(
+            settings={
+                'response_type': None,
+                'auth': [
+                    'api_key'
+                ],
+                'endpoint_path': '/v1/table_type',
+                'operation_id': 'delete_table_type',
                 'http_method': 'DELETE',
                 'servers': None,
             },
@@ -546,24 +596,23 @@ class ObservatoryApi(object):
             },
             api_client=api_client
         )
-        self.get_dataset_storage_endpoint = _Endpoint(
+        self.get_dataset_type_endpoint = _Endpoint(
             settings={
-                'response_type': (DatasetStorage,),
+                'response_type': (DatasetType,),
                 'auth': [
                     'api_key'
                 ],
-                'endpoint_path': '/v1/dataset_storage',
-                'operation_id': 'get_dataset_storage',
+                'endpoint_path': '/v1/dataset_type',
+                'operation_id': 'get_dataset_type',
                 'http_method': 'GET',
                 'servers': None,
             },
             params_map={
                 'all': [
                     'id',
+                    'type_id',
                 ],
-                'required': [
-                    'id',
-                ],
+                'required': [],
                 'nullable': [
                 ],
                 'enum': [
@@ -579,12 +628,16 @@ class ObservatoryApi(object):
                 'openapi_types': {
                     'id':
                         (int,),
+                    'type_id':
+                        (str,),
                 },
                 'attribute_map': {
                     'id': 'id',
+                    'type_id': 'type_id',
                 },
                 'location_map': {
                     'id': 'query',
+                    'type_id': 'query',
                 },
                 'collection_format_map': {
                 }
@@ -597,21 +650,20 @@ class ObservatoryApi(object):
             },
             api_client=api_client
         )
-        self.get_dataset_storages_endpoint = _Endpoint(
+        self.get_dataset_types_endpoint = _Endpoint(
             settings={
-                'response_type': ([DatasetStorage],),
+                'response_type': ([DatasetType],),
                 'auth': [
                     'api_key'
                 ],
-                'endpoint_path': '/v1/dataset_storages',
-                'operation_id': 'get_dataset_storages',
+                'endpoint_path': '/v1/dataset_types',
+                'operation_id': 'get_dataset_types',
                 'http_method': 'GET',
                 'servers': None,
             },
             params_map={
                 'all': [
                     'limit',
-                    'dataset_id',
                 ],
                 'required': [
                     'limit',
@@ -631,16 +683,12 @@ class ObservatoryApi(object):
                 'openapi_types': {
                     'limit':
                         (int,),
-                    'dataset_id':
-                        (int,),
                 },
                 'attribute_map': {
                     'limit': 'limit',
-                    'dataset_id': 'dataset_id',
                 },
                 'location_map': {
                     'limit': 'query',
-                    'dataset_id': 'query',
                 },
                 'collection_format_map': {
                 }
@@ -768,6 +816,111 @@ class ObservatoryApi(object):
                 ],
                 'endpoint_path': '/v1/organisations',
                 'operation_id': 'get_organisations',
+                'http_method': 'GET',
+                'servers': None,
+            },
+            params_map={
+                'all': [
+                    'limit',
+                ],
+                'required': [
+                    'limit',
+                ],
+                'nullable': [
+                ],
+                'enum': [
+                ],
+                'validation': [
+                ]
+            },
+            root_map={
+                'validations': {
+                },
+                'allowed_values': {
+                },
+                'openapi_types': {
+                    'limit':
+                        (int,),
+                },
+                'attribute_map': {
+                    'limit': 'limit',
+                },
+                'location_map': {
+                    'limit': 'query',
+                },
+                'collection_format_map': {
+                }
+            },
+            headers_map={
+                'accept': [
+                    'application/json'
+                ],
+                'content_type': [],
+            },
+            api_client=api_client
+        )
+        self.get_table_type_endpoint = _Endpoint(
+            settings={
+                'response_type': (TableType,),
+                'auth': [
+                    'api_key'
+                ],
+                'endpoint_path': '/v1/table_type',
+                'operation_id': 'get_table_type',
+                'http_method': 'GET',
+                'servers': None,
+            },
+            params_map={
+                'all': [
+                    'id',
+                    'type_id',
+                ],
+                'required': [],
+                'nullable': [
+                ],
+                'enum': [
+                ],
+                'validation': [
+                ]
+            },
+            root_map={
+                'validations': {
+                },
+                'allowed_values': {
+                },
+                'openapi_types': {
+                    'id':
+                        (int,),
+                    'type_id':
+                        (str,),
+                },
+                'attribute_map': {
+                    'id': 'id',
+                    'type_id': 'type_id',
+                },
+                'location_map': {
+                    'id': 'query',
+                    'type_id': 'query',
+                },
+                'collection_format_map': {
+                }
+            },
+            headers_map={
+                'accept': [
+                    'application/json'
+                ],
+                'content_type': [],
+            },
+            api_client=api_client
+        )
+        self.get_table_types_endpoint = _Endpoint(
+            settings={
+                'response_type': ([TableType],),
+                'auth': [
+                    'api_key'
+                ],
+                'endpoint_path': '/v1/table_types',
+                'operation_id': 'get_table_types',
                 'http_method': 'GET',
                 'servers': None,
             },
@@ -1184,14 +1337,14 @@ class ObservatoryApi(object):
             },
             api_client=api_client
         )
-        self.post_dataset_storage_endpoint = _Endpoint(
+        self.post_dataset_type_endpoint = _Endpoint(
             settings={
-                'response_type': (DatasetStorage,),
+                'response_type': (DatasetType,),
                 'auth': [
                     'api_key'
                 ],
-                'endpoint_path': '/v1/dataset_storage',
-                'operation_id': 'post_dataset_storage',
+                'endpoint_path': '/v1/dataset_type',
+                'operation_id': 'post_dataset_type',
                 'http_method': 'POST',
                 'servers': None,
             },
@@ -1216,7 +1369,7 @@ class ObservatoryApi(object):
                 },
                 'openapi_types': {
                     'body':
-                        (DatasetStorage,),
+                        (DatasetType,),
                 },
                 'attribute_map': {
                 },
@@ -1269,6 +1422,58 @@ class ObservatoryApi(object):
                 'openapi_types': {
                     'body':
                         (Organisation,),
+                },
+                'attribute_map': {
+                },
+                'location_map': {
+                    'body': 'body',
+                },
+                'collection_format_map': {
+                }
+            },
+            headers_map={
+                'accept': [
+                    'application/json'
+                ],
+                'content_type': [
+                    'application/json'
+                ]
+            },
+            api_client=api_client
+        )
+        self.post_table_type_endpoint = _Endpoint(
+            settings={
+                'response_type': (TableType,),
+                'auth': [
+                    'api_key'
+                ],
+                'endpoint_path': '/v1/table_type',
+                'operation_id': 'post_table_type',
+                'http_method': 'POST',
+                'servers': None,
+            },
+            params_map={
+                'all': [
+                    'body',
+                ],
+                'required': [
+                    'body',
+                ],
+                'nullable': [
+                ],
+                'enum': [
+                ],
+                'validation': [
+                ]
+            },
+            root_map={
+                'validations': {
+                },
+                'allowed_values': {
+                },
+                'openapi_types': {
+                    'body':
+                        (TableType,),
                 },
                 'attribute_map': {
                 },
@@ -1496,14 +1701,14 @@ class ObservatoryApi(object):
             },
             api_client=api_client
         )
-        self.put_dataset_storage_endpoint = _Endpoint(
+        self.put_dataset_type_endpoint = _Endpoint(
             settings={
-                'response_type': (DatasetStorage,),
+                'response_type': (DatasetType,),
                 'auth': [
                     'api_key'
                 ],
-                'endpoint_path': '/v1/dataset_storage',
-                'operation_id': 'put_dataset_storage',
+                'endpoint_path': '/v1/dataset_type',
+                'operation_id': 'put_dataset_type',
                 'http_method': 'PUT',
                 'servers': None,
             },
@@ -1528,7 +1733,7 @@ class ObservatoryApi(object):
                 },
                 'openapi_types': {
                     'body':
-                        (DatasetStorage,),
+                        (DatasetType,),
                 },
                 'attribute_map': {
                 },
@@ -1581,6 +1786,58 @@ class ObservatoryApi(object):
                 'openapi_types': {
                     'body':
                         (Organisation,),
+                },
+                'attribute_map': {
+                },
+                'location_map': {
+                    'body': 'body',
+                },
+                'collection_format_map': {
+                }
+            },
+            headers_map={
+                'accept': [
+                    'application/json'
+                ],
+                'content_type': [
+                    'application/json'
+                ]
+            },
+            api_client=api_client
+        )
+        self.put_table_type_endpoint = _Endpoint(
+            settings={
+                'response_type': (TableType,),
+                'auth': [
+                    'api_key'
+                ],
+                'endpoint_path': '/v1/table_type',
+                'operation_id': 'put_table_type',
+                'http_method': 'PUT',
+                'servers': None,
+            },
+            params_map={
+                'all': [
+                    'body',
+                ],
+                'required': [
+                    'body',
+                ],
+                'nullable': [
+                ],
+                'enum': [
+                ],
+                'validation': [
+                ]
+            },
+            root_map={
+                'validations': {
+                },
+                'allowed_values': {
+                },
+                'openapi_types': {
+                    'body':
+                        (TableType,),
                 },
                 'attribute_map': {
                 },
@@ -2136,22 +2393,22 @@ class ObservatoryApi(object):
             id
         return self.delete_dataset_release_endpoint.call_with_http_info(**kwargs)
 
-    def delete_dataset_storage(
+    def delete_dataset_type(
         self,
         id,
         **kwargs
     ):
-        """delete a DatasetStorage  # noqa: E501
+        """delete a DatasetType  # noqa: E501
 
-        Delete a DatasetStorage by passing it's id.   # noqa: E501
+        Delete a DatasetType by passing it's id.   # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
 
-        >>> thread = api.delete_dataset_storage(id, async_req=True)
+        >>> thread = api.delete_dataset_type(id, async_req=True)
         >>> result = thread.get()
 
         Args:
-            id (int): DatasetStorage id
+            id (int): DatasetType id
 
         Keyword Args:
             _return_http_data_only (bool): response data without head status
@@ -2200,7 +2457,7 @@ class ObservatoryApi(object):
         kwargs['_host_index'] = kwargs.get('_host_index')
         kwargs['id'] = \
             id
-        return self.delete_dataset_storage_endpoint.call_with_http_info(**kwargs)
+        return self.delete_dataset_type_endpoint.call_with_http_info(**kwargs)
 
     def delete_organisation(
         self,
@@ -2267,6 +2524,72 @@ class ObservatoryApi(object):
         kwargs['id'] = \
             id
         return self.delete_organisation_endpoint.call_with_http_info(**kwargs)
+
+    def delete_table_type(
+        self,
+        id,
+        **kwargs
+    ):
+        """delete a TableType  # noqa: E501
+
+        Delete a TableType by passing it's id.   # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+
+        >>> thread = api.delete_table_type(id, async_req=True)
+        >>> result = thread.get()
+
+        Args:
+            id (int): TableType id
+
+        Keyword Args:
+            _return_http_data_only (bool): response data without head status
+                code and headers. Default is True.
+            _preload_content (bool): if False, the urllib3.HTTPResponse object
+                will be returned without reading/decoding response data.
+                Default is True.
+            _request_timeout (int/float/tuple): timeout setting for this request. If
+                one number provided, it will be total request timeout. It can also
+                be a pair (tuple) of (connection, read) timeouts.
+                Default is None.
+            _check_input_type (bool): specifies if type checking
+                should be done one the data sent to the server.
+                Default is True.
+            _check_return_type (bool): specifies if type checking
+                should be done one the data received from the server.
+                Default is True.
+            _host_index (int/None): specifies the index of the server
+                that we want to use.
+                Default is read from the configuration.
+            async_req (bool): execute request asynchronously
+
+        Returns:
+            None
+                If the method is called asynchronously, returns the request
+                thread.
+        """
+        kwargs['async_req'] = kwargs.get(
+            'async_req', False
+        )
+        kwargs['_return_http_data_only'] = kwargs.get(
+            '_return_http_data_only', True
+        )
+        kwargs['_preload_content'] = kwargs.get(
+            '_preload_content', True
+        )
+        kwargs['_request_timeout'] = kwargs.get(
+            '_request_timeout', None
+        )
+        kwargs['_check_input_type'] = kwargs.get(
+            '_check_input_type', True
+        )
+        kwargs['_check_return_type'] = kwargs.get(
+            '_check_return_type', True
+        )
+        kwargs['_host_index'] = kwargs.get('_host_index')
+        kwargs['id'] = \
+            id
+        return self.delete_table_type_endpoint.call_with_http_info(**kwargs)
 
     def delete_telescope(
         self,
@@ -2665,24 +2988,23 @@ class ObservatoryApi(object):
             limit
         return self.get_dataset_releases_endpoint.call_with_http_info(**kwargs)
 
-    def get_dataset_storage(
+    def get_dataset_type(
         self,
-        id,
         **kwargs
     ):
-        """get a DatasetStorage  # noqa: E501
+        """get a DatasetType  # noqa: E501
 
-        Get the details of a DatasetStorage by passing it's id or dataset id.   # noqa: E501
+        Get the details of a DatasetType by passing it's id or type_id.   # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
 
-        >>> thread = api.get_dataset_storage(id, async_req=True)
+        >>> thread = api.get_dataset_type(async_req=True)
         >>> result = thread.get()
 
-        Args:
-            id (int): DatasetStorage id
 
         Keyword Args:
+            id (int): DatasetType id. [optional]
+            type_id (str): DatasetType type_id. [optional]
             _return_http_data_only (bool): response data without head status
                 code and headers. Default is True.
             _preload_content (bool): if False, the urllib3.HTTPResponse object
@@ -2704,7 +3026,7 @@ class ObservatoryApi(object):
             async_req (bool): execute request asynchronously
 
         Returns:
-            DatasetStorage
+            DatasetType
                 If the method is called asynchronously, returns the request
                 thread.
         """
@@ -2727,29 +3049,26 @@ class ObservatoryApi(object):
             '_check_return_type', True
         )
         kwargs['_host_index'] = kwargs.get('_host_index')
-        kwargs['id'] = \
-            id
-        return self.get_dataset_storage_endpoint.call_with_http_info(**kwargs)
+        return self.get_dataset_type_endpoint.call_with_http_info(**kwargs)
 
-    def get_dataset_storages(
+    def get_dataset_types(
         self,
         limit,
         **kwargs
     ):
-        """Get a list of DatasetStorage objects  # noqa: E501
+        """Get a list of DatasetType objects  # noqa: E501
 
-        Get a list of DatasetStorage objects   # noqa: E501
+        Get a list of DatasetType objects   # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
 
-        >>> thread = api.get_dataset_storages(limit, async_req=True)
+        >>> thread = api.get_dataset_types(limit, async_req=True)
         >>> result = thread.get()
 
         Args:
             limit (int): the maximum number of results to return
 
         Keyword Args:
-            dataset_id (int): the dataset_id to filter for.. [optional]
             _return_http_data_only (bool): response data without head status
                 code and headers. Default is True.
             _preload_content (bool): if False, the urllib3.HTTPResponse object
@@ -2771,7 +3090,7 @@ class ObservatoryApi(object):
             async_req (bool): execute request asynchronously
 
         Returns:
-            [DatasetStorage]
+            [DatasetType]
                 If the method is called asynchronously, returns the request
                 thread.
         """
@@ -2796,7 +3115,7 @@ class ObservatoryApi(object):
         kwargs['_host_index'] = kwargs.get('_host_index')
         kwargs['limit'] = \
             limit
-        return self.get_dataset_storages_endpoint.call_with_http_info(**kwargs)
+        return self.get_dataset_types_endpoint.call_with_http_info(**kwargs)
 
     def get_datasets(
         self,
@@ -2816,7 +3135,7 @@ class ObservatoryApi(object):
             limit (int): the maximum number of results to return
 
         Keyword Args:
-            telescope_id (int): Dataset id to filter by. [optional]
+            telescope_id (int): Telescope id to filter for. [optional]
             _return_http_data_only (bool): response data without head status
                 code and headers. Default is True.
             _preload_content (bool): if False, the urllib3.HTTPResponse object
@@ -2996,6 +3315,135 @@ class ObservatoryApi(object):
         kwargs['limit'] = \
             limit
         return self.get_organisations_endpoint.call_with_http_info(**kwargs)
+
+    def get_table_type(
+        self,
+        **kwargs
+    ):
+        """get a TableType  # noqa: E501
+
+        Get the details of a TableType by passing it's id or type_id.   # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+
+        >>> thread = api.get_table_type(async_req=True)
+        >>> result = thread.get()
+
+
+        Keyword Args:
+            id (int): TableType id. [optional]
+            type_id (str): TableType type_id. [optional]
+            _return_http_data_only (bool): response data without head status
+                code and headers. Default is True.
+            _preload_content (bool): if False, the urllib3.HTTPResponse object
+                will be returned without reading/decoding response data.
+                Default is True.
+            _request_timeout (int/float/tuple): timeout setting for this request. If
+                one number provided, it will be total request timeout. It can also
+                be a pair (tuple) of (connection, read) timeouts.
+                Default is None.
+            _check_input_type (bool): specifies if type checking
+                should be done one the data sent to the server.
+                Default is True.
+            _check_return_type (bool): specifies if type checking
+                should be done one the data received from the server.
+                Default is True.
+            _host_index (int/None): specifies the index of the server
+                that we want to use.
+                Default is read from the configuration.
+            async_req (bool): execute request asynchronously
+
+        Returns:
+            TableType
+                If the method is called asynchronously, returns the request
+                thread.
+        """
+        kwargs['async_req'] = kwargs.get(
+            'async_req', False
+        )
+        kwargs['_return_http_data_only'] = kwargs.get(
+            '_return_http_data_only', True
+        )
+        kwargs['_preload_content'] = kwargs.get(
+            '_preload_content', True
+        )
+        kwargs['_request_timeout'] = kwargs.get(
+            '_request_timeout', None
+        )
+        kwargs['_check_input_type'] = kwargs.get(
+            '_check_input_type', True
+        )
+        kwargs['_check_return_type'] = kwargs.get(
+            '_check_return_type', True
+        )
+        kwargs['_host_index'] = kwargs.get('_host_index')
+        return self.get_table_type_endpoint.call_with_http_info(**kwargs)
+
+    def get_table_types(
+        self,
+        limit,
+        **kwargs
+    ):
+        """Get a list of TableType objects  # noqa: E501
+
+        Get a list of TableType objects   # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+
+        >>> thread = api.get_table_types(limit, async_req=True)
+        >>> result = thread.get()
+
+        Args:
+            limit (int): the maximum number of results to return
+
+        Keyword Args:
+            _return_http_data_only (bool): response data without head status
+                code and headers. Default is True.
+            _preload_content (bool): if False, the urllib3.HTTPResponse object
+                will be returned without reading/decoding response data.
+                Default is True.
+            _request_timeout (int/float/tuple): timeout setting for this request. If
+                one number provided, it will be total request timeout. It can also
+                be a pair (tuple) of (connection, read) timeouts.
+                Default is None.
+            _check_input_type (bool): specifies if type checking
+                should be done one the data sent to the server.
+                Default is True.
+            _check_return_type (bool): specifies if type checking
+                should be done one the data received from the server.
+                Default is True.
+            _host_index (int/None): specifies the index of the server
+                that we want to use.
+                Default is read from the configuration.
+            async_req (bool): execute request asynchronously
+
+        Returns:
+            [TableType]
+                If the method is called asynchronously, returns the request
+                thread.
+        """
+        kwargs['async_req'] = kwargs.get(
+            'async_req', False
+        )
+        kwargs['_return_http_data_only'] = kwargs.get(
+            '_return_http_data_only', True
+        )
+        kwargs['_preload_content'] = kwargs.get(
+            '_preload_content', True
+        )
+        kwargs['_request_timeout'] = kwargs.get(
+            '_request_timeout', None
+        )
+        kwargs['_check_input_type'] = kwargs.get(
+            '_check_input_type', True
+        )
+        kwargs['_check_return_type'] = kwargs.get(
+            '_check_return_type', True
+        )
+        kwargs['_host_index'] = kwargs.get('_host_index')
+        kwargs['limit'] = \
+            limit
+        return self.get_table_types_endpoint.call_with_http_info(**kwargs)
 
     def get_telescope(
         self,
@@ -3458,22 +3906,22 @@ class ObservatoryApi(object):
             body
         return self.post_dataset_release_endpoint.call_with_http_info(**kwargs)
 
-    def post_dataset_storage(
+    def post_dataset_type(
         self,
         body,
         **kwargs
     ):
-        """create a DatasetStorage  # noqa: E501
+        """create a DatasetType  # noqa: E501
 
-        Create a DatasetStorage by passing a DatasetStorage object, without an id.   # noqa: E501
+        Create a DatasetType by passing a DatasetType object, without an id.   # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
 
-        >>> thread = api.post_dataset_storage(body, async_req=True)
+        >>> thread = api.post_dataset_type(body, async_req=True)
         >>> result = thread.get()
 
         Args:
-            body (DatasetStorage): DatasetStorage to create
+            body (DatasetType): DatasetType to create
 
         Keyword Args:
             _return_http_data_only (bool): response data without head status
@@ -3497,7 +3945,7 @@ class ObservatoryApi(object):
             async_req (bool): execute request asynchronously
 
         Returns:
-            DatasetStorage
+            DatasetType
                 If the method is called asynchronously, returns the request
                 thread.
         """
@@ -3522,7 +3970,7 @@ class ObservatoryApi(object):
         kwargs['_host_index'] = kwargs.get('_host_index')
         kwargs['body'] = \
             body
-        return self.post_dataset_storage_endpoint.call_with_http_info(**kwargs)
+        return self.post_dataset_type_endpoint.call_with_http_info(**kwargs)
 
     def post_organisation(
         self,
@@ -3589,6 +4037,72 @@ class ObservatoryApi(object):
         kwargs['body'] = \
             body
         return self.post_organisation_endpoint.call_with_http_info(**kwargs)
+
+    def post_table_type(
+        self,
+        body,
+        **kwargs
+    ):
+        """create a TableType  # noqa: E501
+
+        Create a TableType by passing a TableType object, without an id.   # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+
+        >>> thread = api.post_table_type(body, async_req=True)
+        >>> result = thread.get()
+
+        Args:
+            body (TableType): TableType to create
+
+        Keyword Args:
+            _return_http_data_only (bool): response data without head status
+                code and headers. Default is True.
+            _preload_content (bool): if False, the urllib3.HTTPResponse object
+                will be returned without reading/decoding response data.
+                Default is True.
+            _request_timeout (int/float/tuple): timeout setting for this request. If
+                one number provided, it will be total request timeout. It can also
+                be a pair (tuple) of (connection, read) timeouts.
+                Default is None.
+            _check_input_type (bool): specifies if type checking
+                should be done one the data sent to the server.
+                Default is True.
+            _check_return_type (bool): specifies if type checking
+                should be done one the data received from the server.
+                Default is True.
+            _host_index (int/None): specifies the index of the server
+                that we want to use.
+                Default is read from the configuration.
+            async_req (bool): execute request asynchronously
+
+        Returns:
+            TableType
+                If the method is called asynchronously, returns the request
+                thread.
+        """
+        kwargs['async_req'] = kwargs.get(
+            'async_req', False
+        )
+        kwargs['_return_http_data_only'] = kwargs.get(
+            '_return_http_data_only', True
+        )
+        kwargs['_preload_content'] = kwargs.get(
+            '_preload_content', True
+        )
+        kwargs['_request_timeout'] = kwargs.get(
+            '_request_timeout', None
+        )
+        kwargs['_check_input_type'] = kwargs.get(
+            '_check_input_type', True
+        )
+        kwargs['_check_return_type'] = kwargs.get(
+            '_check_return_type', True
+        )
+        kwargs['_host_index'] = kwargs.get('_host_index')
+        kwargs['body'] = \
+            body
+        return self.post_table_type_endpoint.call_with_http_info(**kwargs)
 
     def post_telescope(
         self,
@@ -3854,22 +4368,22 @@ class ObservatoryApi(object):
             body
         return self.put_dataset_release_endpoint.call_with_http_info(**kwargs)
 
-    def put_dataset_storage(
+    def put_dataset_type(
         self,
         body,
         **kwargs
     ):
-        """create or update a DatasetStorage  # noqa: E501
+        """create or update a DatasetType  # noqa: E501
 
-        Create a DatasetStorage by passing a DatasetStorage object, without an id. Update an existing DatasetStorage by passing a DatasetStorage object with an id.   # noqa: E501
+        Create a DatasetType by passing a DatasetType object, without an id. Update an existing DatasetType by passing a DatasetType object with an id.   # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
 
-        >>> thread = api.put_dataset_storage(body, async_req=True)
+        >>> thread = api.put_dataset_type(body, async_req=True)
         >>> result = thread.get()
 
         Args:
-            body (DatasetStorage): DatasetStorage to create or update
+            body (DatasetType): DatasetType to create or update
 
         Keyword Args:
             _return_http_data_only (bool): response data without head status
@@ -3893,7 +4407,7 @@ class ObservatoryApi(object):
             async_req (bool): execute request asynchronously
 
         Returns:
-            DatasetStorage
+            DatasetType
                 If the method is called asynchronously, returns the request
                 thread.
         """
@@ -3918,7 +4432,7 @@ class ObservatoryApi(object):
         kwargs['_host_index'] = kwargs.get('_host_index')
         kwargs['body'] = \
             body
-        return self.put_dataset_storage_endpoint.call_with_http_info(**kwargs)
+        return self.put_dataset_type_endpoint.call_with_http_info(**kwargs)
 
     def put_organisation(
         self,
@@ -3985,6 +4499,72 @@ class ObservatoryApi(object):
         kwargs['body'] = \
             body
         return self.put_organisation_endpoint.call_with_http_info(**kwargs)
+
+    def put_table_type(
+        self,
+        body,
+        **kwargs
+    ):
+        """create or update a TableType  # noqa: E501
+
+        Create a TableType by passing a TableType object, without an id. Update an existing TableType by passing a TableType object with an id.   # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+
+        >>> thread = api.put_table_type(body, async_req=True)
+        >>> result = thread.get()
+
+        Args:
+            body (TableType): TableType to create or update
+
+        Keyword Args:
+            _return_http_data_only (bool): response data without head status
+                code and headers. Default is True.
+            _preload_content (bool): if False, the urllib3.HTTPResponse object
+                will be returned without reading/decoding response data.
+                Default is True.
+            _request_timeout (int/float/tuple): timeout setting for this request. If
+                one number provided, it will be total request timeout. It can also
+                be a pair (tuple) of (connection, read) timeouts.
+                Default is None.
+            _check_input_type (bool): specifies if type checking
+                should be done one the data sent to the server.
+                Default is True.
+            _check_return_type (bool): specifies if type checking
+                should be done one the data received from the server.
+                Default is True.
+            _host_index (int/None): specifies the index of the server
+                that we want to use.
+                Default is read from the configuration.
+            async_req (bool): execute request asynchronously
+
+        Returns:
+            TableType
+                If the method is called asynchronously, returns the request
+                thread.
+        """
+        kwargs['async_req'] = kwargs.get(
+            'async_req', False
+        )
+        kwargs['_return_http_data_only'] = kwargs.get(
+            '_return_http_data_only', True
+        )
+        kwargs['_preload_content'] = kwargs.get(
+            '_preload_content', True
+        )
+        kwargs['_request_timeout'] = kwargs.get(
+            '_request_timeout', None
+        )
+        kwargs['_check_input_type'] = kwargs.get(
+            '_check_input_type', True
+        )
+        kwargs['_check_return_type'] = kwargs.get(
+            '_check_return_type', True
+        )
+        kwargs['_host_index'] = kwargs.get('_host_index')
+        kwargs['body'] = \
+            body
+        return self.put_table_type_endpoint.call_with_http_info(**kwargs)
 
     def put_telescope(
         self,

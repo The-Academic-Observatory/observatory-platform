@@ -35,9 +35,10 @@ from observatory.api.client.api import observatory_api
 from observatory.api.client.model.big_query_bytes_processed import BigQueryBytesProcessed
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
-from observatory.api.client.model.dataset_storage import DatasetStorage
+from observatory.api.client.model.dataset_type import DatasetType
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.query_response import QueryResponse
+from observatory.api.client.model.table_type import TableType
 from observatory.api.client.model.telescope import Telescope
 from observatory.api.client.model.telescope_type import TelescopeType
 # Defining the host is optional and defaults to https://api.observatory.academy
@@ -110,9 +111,9 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#delete_dataset_storage"><strong>delete_dataset_storage</strong></a></td>
-<td><strong>DELETE</strong> /v1/dataset_storage</td>
-<td>delete a DatasetStorage</td>
+<td><a href="ObservatoryApi.html#delete_dataset_type"><strong>delete_dataset_type</strong></a></td>
+<td><strong>DELETE</strong> /v1/dataset_type</td>
+<td>delete a DatasetType</td>
 </tr>
 
 <tr>
@@ -120,6 +121,13 @@ All URIs are relative to *https://api.observatory.academy*
 <td><a href="ObservatoryApi.html#delete_organisation"><strong>delete_organisation</strong></a></td>
 <td><strong>DELETE</strong> /v1/organisation</td>
 <td>delete an Organisation</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#delete_table_type"><strong>delete_table_type</strong></a></td>
+<td><strong>DELETE</strong> /v1/table_type</td>
+<td>delete a TableType</td>
 </tr>
 
 <tr>
@@ -166,16 +174,16 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_dataset_storage"><strong>get_dataset_storage</strong></a></td>
-<td><strong>GET</strong> /v1/dataset_storage</td>
-<td>get a DatasetStorage</td>
+<td><a href="ObservatoryApi.html#get_dataset_type"><strong>get_dataset_type</strong></a></td>
+<td><strong>GET</strong> /v1/dataset_type</td>
+<td>get a DatasetType</td>
 </tr>
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_dataset_storages"><strong>get_dataset_storages</strong></a></td>
-<td><strong>GET</strong> /v1/dataset_storages</td>
-<td>Get a list of DatasetStorage objects</td>
+<td><a href="ObservatoryApi.html#get_dataset_types"><strong>get_dataset_types</strong></a></td>
+<td><strong>GET</strong> /v1/dataset_types</td>
+<td>Get a list of DatasetType objects</td>
 </tr>
 
 <tr>
@@ -197,6 +205,20 @@ All URIs are relative to *https://api.observatory.academy*
 <td><a href="ObservatoryApi.html#get_organisations"><strong>get_organisations</strong></a></td>
 <td><strong>GET</strong> /v1/organisations</td>
 <td>Get a list of Organisations</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_table_type"><strong>get_table_type</strong></a></td>
+<td><strong>GET</strong> /v1/table_type</td>
+<td>get a TableType</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_table_types"><strong>get_table_types</strong></a></td>
+<td><strong>GET</strong> /v1/table_types</td>
+<td>Get a list of TableType objects</td>
 </tr>
 
 <tr>
@@ -250,9 +272,9 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#post_dataset_storage"><strong>post_dataset_storage</strong></a></td>
-<td><strong>POST</strong> /v1/dataset_storage</td>
-<td>create a DatasetStorage</td>
+<td><a href="ObservatoryApi.html#post_dataset_type"><strong>post_dataset_type</strong></a></td>
+<td><strong>POST</strong> /v1/dataset_type</td>
+<td>create a DatasetType</td>
 </tr>
 
 <tr>
@@ -260,6 +282,13 @@ All URIs are relative to *https://api.observatory.academy*
 <td><a href="ObservatoryApi.html#post_organisation"><strong>post_organisation</strong></a></td>
 <td><strong>POST</strong> /v1/organisation</td>
 <td>create an Organisation</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#post_table_type"><strong>post_table_type</strong></a></td>
+<td><strong>POST</strong> /v1/table_type</td>
+<td>create a TableType</td>
 </tr>
 
 <tr>
@@ -292,9 +321,9 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#put_dataset_storage"><strong>put_dataset_storage</strong></a></td>
-<td><strong>PUT</strong> /v1/dataset_storage</td>
-<td>create or update a DatasetStorage</td>
+<td><a href="ObservatoryApi.html#put_dataset_type"><strong>put_dataset_type</strong></a></td>
+<td><strong>PUT</strong> /v1/dataset_type</td>
+<td>create or update a DatasetType</td>
 </tr>
 
 <tr>
@@ -302,6 +331,13 @@ All URIs are relative to *https://api.observatory.academy*
 <td><a href="ObservatoryApi.html#put_organisation"><strong>put_organisation</strong></a></td>
 <td><strong>PUT</strong> /v1/organisation</td>
 <td>create or update an Organisation</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#put_table_type"><strong>put_table_type</strong></a></td>
+<td><strong>PUT</strong> /v1/table_type</td>
+<td>create or update a TableType</td>
 </tr>
 
 <tr>
@@ -337,9 +373,10 @@ All URIs are relative to *https://api.observatory.academy*
     BigQueryBytesProcessed
     Dataset
     DatasetRelease
-    DatasetStorage
+    DatasetType
     Organisation
     QueryResponse
+    TableType
     Telescope
     TelescopeType
     

@@ -26,15 +26,21 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#delete_dataset_storage"><strong>delete_dataset_storage</strong></a></td>
-  <td><strong>DELETE</strong> /v1/dataset_storage</td>
-  <td>delete a DatasetStorage</td>
+  <td><a href="ObservatoryApi.html#delete_dataset_type"><strong>delete_dataset_type</strong></a></td>
+  <td><strong>DELETE</strong> /v1/dataset_type</td>
+  <td>delete a DatasetType</td>
 </tr>
 
 <tr>
   <td><a href="ObservatoryApi.html#delete_organisation"><strong>delete_organisation</strong></a></td>
   <td><strong>DELETE</strong> /v1/organisation</td>
   <td>delete an Organisation</td>
+</tr>
+
+<tr>
+  <td><a href="ObservatoryApi.html#delete_table_type"><strong>delete_table_type</strong></a></td>
+  <td><strong>DELETE</strong> /v1/table_type</td>
+  <td>delete a TableType</td>
 </tr>
 
 <tr>
@@ -74,15 +80,15 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#get_dataset_storage"><strong>get_dataset_storage</strong></a></td>
-  <td><strong>GET</strong> /v1/dataset_storage</td>
-  <td>get a DatasetStorage</td>
+  <td><a href="ObservatoryApi.html#get_dataset_type"><strong>get_dataset_type</strong></a></td>
+  <td><strong>GET</strong> /v1/dataset_type</td>
+  <td>get a DatasetType</td>
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#get_dataset_storages"><strong>get_dataset_storages</strong></a></td>
-  <td><strong>GET</strong> /v1/dataset_storages</td>
-  <td>Get a list of DatasetStorage objects</td>
+  <td><a href="ObservatoryApi.html#get_dataset_types"><strong>get_dataset_types</strong></a></td>
+  <td><strong>GET</strong> /v1/dataset_types</td>
+  <td>Get a list of DatasetType objects</td>
 </tr>
 
 <tr>
@@ -101,6 +107,18 @@ All URIs are relative to *https://api.observatory.academy*
   <td><a href="ObservatoryApi.html#get_organisations"><strong>get_organisations</strong></a></td>
   <td><strong>GET</strong> /v1/organisations</td>
   <td>Get a list of Organisations</td>
+</tr>
+
+<tr>
+  <td><a href="ObservatoryApi.html#get_table_type"><strong>get_table_type</strong></a></td>
+  <td><strong>GET</strong> /v1/table_type</td>
+  <td>get a TableType</td>
+</tr>
+
+<tr>
+  <td><a href="ObservatoryApi.html#get_table_types"><strong>get_table_types</strong></a></td>
+  <td><strong>GET</strong> /v1/table_types</td>
+  <td>Get a list of TableType objects</td>
 </tr>
 
 <tr>
@@ -146,15 +164,21 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#post_dataset_storage"><strong>post_dataset_storage</strong></a></td>
-  <td><strong>POST</strong> /v1/dataset_storage</td>
-  <td>create a DatasetStorage</td>
+  <td><a href="ObservatoryApi.html#post_dataset_type"><strong>post_dataset_type</strong></a></td>
+  <td><strong>POST</strong> /v1/dataset_type</td>
+  <td>create a DatasetType</td>
 </tr>
 
 <tr>
   <td><a href="ObservatoryApi.html#post_organisation"><strong>post_organisation</strong></a></td>
   <td><strong>POST</strong> /v1/organisation</td>
   <td>create an Organisation</td>
+</tr>
+
+<tr>
+  <td><a href="ObservatoryApi.html#post_table_type"><strong>post_table_type</strong></a></td>
+  <td><strong>POST</strong> /v1/table_type</td>
+  <td>create a TableType</td>
 </tr>
 
 <tr>
@@ -182,15 +206,21 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#put_dataset_storage"><strong>put_dataset_storage</strong></a></td>
-  <td><strong>PUT</strong> /v1/dataset_storage</td>
-  <td>create or update a DatasetStorage</td>
+  <td><a href="ObservatoryApi.html#put_dataset_type"><strong>put_dataset_type</strong></a></td>
+  <td><strong>PUT</strong> /v1/dataset_type</td>
+  <td>create or update a DatasetType</td>
 </tr>
 
 <tr>
   <td><a href="ObservatoryApi.html#put_organisation"><strong>put_organisation</strong></a></td>
   <td><strong>PUT</strong> /v1/organisation</td>
   <td>create or update an Organisation</td>
+</tr>
+
+<tr>
+  <td><a href="ObservatoryApi.html#put_table_type"><strong>put_table_type</strong></a></td>
+  <td><strong>PUT</strong> /v1/table_type</td>
+  <td>create or update a TableType</td>
 </tr>
 
 <tr>
@@ -447,12 +477,12 @@ void (empty response body)
 </tbody>
 </table></div>
 
-## **delete_dataset_storage**
-> delete_dataset_storage(id)
+## **delete_dataset_type**
+> delete_dataset_type(id)
 
-delete a DatasetStorage
+delete a DatasetType
 
-Delete a DatasetStorage by passing it's id. 
+Delete a DatasetType by passing it's id. 
 
 ### Example
 
@@ -483,14 +513,14 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | DatasetStorage id
+    id = 1 # int | DatasetType id
 
     # example passing only required values which don't have defaults set
     try:
-        # delete a DatasetStorage
-        api_instance.delete_dataset_storage(id)
+        # delete a DatasetType
+        api_instance.delete_dataset_type(id)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->delete_dataset_storage: %s\n" % e)
+        print("Exception when calling ObservatoryApi->delete_dataset_type: %s\n" % e)
 ```
 
 
@@ -513,7 +543,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 <tr>
 <td><strong>id</strong></td>
 <td><strong>int</strong></td>
-<td>DatasetStorage id</td>
+<td>DatasetType id</td>
 <td></td>
 </tr>
 
@@ -551,7 +581,7 @@ void (empty response body)
 
 <tr>
     <td><strong>200</strong></td>
-    <td>DatasetStorage deleted</td>
+    <td>DatasetType deleted</td>
     <td> - </td>
 </tr>
 <tr>
@@ -668,6 +698,122 @@ void (empty response body)
 <tr>
     <td><strong>200</strong></td>
     <td>Organisation deleted</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
+## **delete_table_type**
+> delete_table_type(id)
+
+delete a TableType
+
+Delete a TableType by passing it's id. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    id = 1 # int | TableType id
+
+    # example passing only required values which don't have defaults set
+    try:
+        # delete a TableType
+        api_instance.delete_table_type(id)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->delete_table_type: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+<tr>
+<td><strong>id</strong></td>
+<td><strong>int</strong></td>
+<td>TableType id</td>
+<td></td>
+</tr>
+
+
+
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>200</strong></td>
+    <td>TableType deleted</td>
     <td> - </td>
 </tr>
 <tr>
@@ -1418,12 +1564,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **get_dataset_storage**
-> DatasetStorage get_dataset_storage(id)
+## **get_dataset_type**
+> DatasetType get_dataset_type()
 
-get a DatasetStorage
+get a DatasetType
 
-Get the details of a DatasetStorage by passing it's id or dataset id. 
+Get the details of a DatasetType by passing it's id or type_id. 
 
 ### Example
 
@@ -1432,7 +1578,7 @@ Get the details of a DatasetStorage by passing it's id or dataset id.
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.dataset_storage import DatasetStorage
+from observatory.api.client.model.dataset_type import DatasetType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -1455,15 +1601,17 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | DatasetStorage id
+    id = 1 # int | DatasetType id (optional)
+    type_id = "type_id_example" # str | DatasetType type_id (optional)
 
     # example passing only required values which don't have defaults set
+    # and optional values
     try:
-        # get a DatasetStorage
-        api_response = api_instance.get_dataset_storage(id)
+        # get a DatasetType
+        api_response = api_instance.get_dataset_type(id=id, type_id=type_id)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->get_dataset_storage: %s\n" % e)
+        print("Exception when calling ObservatoryApi->get_dataset_type: %s\n" % e)
 ```
 
 
@@ -1483,23 +1631,27 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 
 
+
+
 <tr>
 <td><strong>id</strong></td>
 <td><strong>int</strong></td>
-<td>DatasetStorage id</td>
-<td></td>
-</tr>
-
-
-
-
+<td>DatasetType id</td>
+<td>
+[optional]
+<tr>
+<td><strong>type_id</strong></td>
+<td><strong>str</strong></td>
+<td>DatasetType type_id</td>
+<td>
+[optional]
 </tbody>
 </table></div>
 
 
 ### Return type
 
-[**DatasetStorage**](DatasetStorage.html)
+[**DatasetType**](DatasetType.html)
 
 ### Authorization
 
@@ -1524,7 +1676,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>200</strong></td>
-    <td>the fetched DatasetStorage</td>
+    <td>the fetched DatasetType</td>
     <td> - </td>
 </tr>
 <tr>
@@ -1541,12 +1693,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **get_dataset_storages**
-> [DatasetStorage] get_dataset_storages(limit)
+## **get_dataset_types**
+> [DatasetType] get_dataset_types(limit)
 
-Get a list of DatasetStorage objects
+Get a list of DatasetType objects
 
-Get a list of DatasetStorage objects 
+Get a list of DatasetType objects 
 
 ### Example
 
@@ -1555,7 +1707,7 @@ Get a list of DatasetStorage objects
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.dataset_storage import DatasetStorage
+from observatory.api.client.model.dataset_type import DatasetType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -1579,24 +1731,14 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
     limit = 1 # int | the maximum number of results to return
-    dataset_id = 1 # int | the dataset_id to filter for. (optional)
 
     # example passing only required values which don't have defaults set
     try:
-        # Get a list of DatasetStorage objects
-        api_response = api_instance.get_dataset_storages(limit)
+        # Get a list of DatasetType objects
+        api_response = api_instance.get_dataset_types(limit)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->get_dataset_storages: %s\n" % e)
-
-    # example passing only required values which don't have defaults set
-    # and optional values
-    try:
-        # Get a list of DatasetStorage objects
-        api_response = api_instance.get_dataset_storages(limit, dataset_id=dataset_id)
-        pprint(api_response)
-    except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->get_dataset_storages: %s\n" % e)
+        print("Exception when calling ObservatoryApi->get_dataset_types: %s\n" % e)
 ```
 
 
@@ -1626,19 +1768,13 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 
 
-<tr>
-<td><strong>dataset_id</strong></td>
-<td><strong>int</strong></td>
-<td>the dataset_id to filter for.</td>
-<td>
-[optional]
 </tbody>
 </table></div>
 
 
 ### Return type
 
-[**[DatasetStorage]**](DatasetStorage.html)
+[**[DatasetType]**](DatasetType.html)
 
 ### Authorization
 
@@ -1663,7 +1799,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>200</strong></td>
-    <td>a list of DatasetStorage objects</td>
+    <td>a list of DatasetType objects</td>
     <td> - </td>
 </tr>
 <tr>
@@ -1718,7 +1854,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
     limit = 1 # int | the maximum number of results to return
-    telescope_id = 1 # int | Dataset id to filter by (optional)
+    telescope_id = 1 # int | Telescope id to filter for (optional)
 
     # example passing only required values which don't have defaults set
     try:
@@ -1768,7 +1904,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 <tr>
 <td><strong>telescope_id</strong></td>
 <td><strong>int</strong></td>
-<td>Dataset id to filter by</td>
+<td>Telescope id to filter for</td>
 <td>
 [optional]
 </tbody>
@@ -2049,6 +2185,258 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 <tr>
     <td><strong>200</strong></td>
     <td>a list of Organisation objects</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>400</strong></td>
+    <td>bad input parameter</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
+## **get_table_type**
+> TableType get_table_type()
+
+get a TableType
+
+Get the details of a TableType by passing it's id or type_id. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from observatory.api.client.model.table_type import TableType
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    id = 1 # int | TableType id (optional)
+    type_id = "type_id_example" # str | TableType type_id (optional)
+
+    # example passing only required values which don't have defaults set
+    # and optional values
+    try:
+        # get a TableType
+        api_response = api_instance.get_table_type(id=id, type_id=type_id)
+        pprint(api_response)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->get_table_type: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+
+
+<tr>
+<td><strong>id</strong></td>
+<td><strong>int</strong></td>
+<td>TableType id</td>
+<td>
+[optional]
+<tr>
+<td><strong>type_id</strong></td>
+<td><strong>str</strong></td>
+<td>TableType type_id</td>
+<td>
+[optional]
+</tbody>
+</table></div>
+
+
+### Return type
+
+[**TableType**](TableType.html)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>200</strong></td>
+    <td>the fetched TableType</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>400</strong></td>
+    <td>bad input parameter</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
+## **get_table_types**
+> [TableType] get_table_types(limit)
+
+Get a list of TableType objects
+
+Get a list of TableType objects 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from observatory.api.client.model.table_type import TableType
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    limit = 1 # int | the maximum number of results to return
+
+    # example passing only required values which don't have defaults set
+    try:
+        # Get a list of TableType objects
+        api_response = api_instance.get_table_types(limit)
+        pprint(api_response)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->get_table_types: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+<tr>
+<td><strong>limit</strong></td>
+<td><strong>int</strong></td>
+<td>the maximum number of results to return</td>
+<td></td>
+</tr>
+
+
+
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+[**[TableType]**](TableType.html)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>200</strong></td>
+    <td>a list of TableType objects</td>
     <td> - </td>
 </tr>
 <tr>
@@ -2752,6 +3140,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
             id=1,
             name="Curtin University ONIX Telescope",
             extra={},
+            tags="oaebu",
             organisation=Organisation(
                 id=1,
                 name="Curtin University",
@@ -2768,7 +3157,19 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                 Dataset(),
             ],
         ),
-        extra={},
+        service="google",
+        address="curtin_gcp_project_id.my_dataset_id.my_table",
+        dataset_type=DatasetType(
+            id=1,
+            type_id="onix",
+            name="ONIX dataset",
+            extra={},
+            table_type=TableType(
+                id=1,
+                type_id="bq_partitioned",
+                name="BigQuery partitioned table",
+            ),
+        ),
     ) # Dataset | Dataset to create
 
     # example passing only required values which don't have defaults set
@@ -2889,12 +3290,8 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     api_instance = observatory_api.ObservatoryApi(api_client)
     body = DatasetRelease(
         id=1,
-        schema_version="20211031",
-        schema_version_alt="wok5.4",
         start_date=dateutil_parser('1970-01-01T00:00:00.00Z'),
         end_date=dateutil_parser('1970-01-01T00:00:00.00Z'),
-        ingestion_start=dateutil_parser('1970-01-01T00:00:00.00Z'),
-        ingestion_end=dateutil_parser('1970-01-01T00:00:00.00Z'),
         dataset=Dataset(
             id=1,
             name="RoR",
@@ -2902,6 +3299,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                 id=1,
                 name="Curtin University ONIX Telescope",
                 extra={},
+                tags="oaebu",
                 organisation=Organisation(
                     id=1,
                     name="Curtin University",
@@ -2918,7 +3316,19 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                     Dataset(),
                 ],
             ),
-            extra={},
+            service="google",
+            address="curtin_gcp_project_id.my_dataset_id.my_table",
+            dataset_type=DatasetType(
+                id=1,
+                type_id="onix",
+                name="ONIX dataset",
+                extra={},
+                table_type=TableType(
+                    id=1,
+                    type_id="bq_partitioned",
+                    name="BigQuery partitioned table",
+                ),
+            ),
         ),
     ) # DatasetRelease | DatasetRelease to create
 
@@ -3001,12 +3411,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **post_dataset_storage**
-> DatasetStorage post_dataset_storage(body)
+## **post_dataset_type**
+> DatasetType post_dataset_type(body)
 
-create a DatasetStorage
+create a DatasetType
 
-Create a DatasetStorage by passing a DatasetStorage object, without an id. 
+Create a DatasetType by passing a DatasetType object, without an id. 
 
 ### Example
 
@@ -3015,7 +3425,7 @@ Create a DatasetStorage by passing a DatasetStorage object, without an id.
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.dataset_storage import DatasetStorage
+from observatory.api.client.model.dataset_type import DatasetType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -3038,45 +3448,25 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    body = DatasetStorage(
+    body = DatasetType(
         id=1,
-        service="google",
-        address="curtin_gcp_project_id.my_dataset_id.my_table",
+        type_id="onix",
+        name="ONIX dataset",
         extra={},
-        dataset=Dataset(
+        table_type=TableType(
             id=1,
-            name="RoR",
-            connection=Telescope(
-                id=1,
-                name="Curtin University ONIX Telescope",
-                extra={},
-                organisation=Organisation(
-                    id=1,
-                    name="Curtin University",
-                    gcp_project_id="curtin-dev",
-                    gcp_download_bucket="curtin-dev-download",
-                    gcp_transform_bucket="curtin-dev-transform",
-                ),
-                telescope_type=TelescopeType(
-                    id=1,
-                    type_id="onix",
-                    name="Scopus",
-                ),
-                datasets=[
-                    Dataset(),
-                ],
-            ),
-            extra={},
+            type_id="bq_partitioned",
+            name="BigQuery partitioned table",
         ),
-    ) # DatasetStorage | DatasetStorage to create
+    ) # DatasetType | DatasetType to create
 
     # example passing only required values which don't have defaults set
     try:
-        # create a DatasetStorage
-        api_response = api_instance.post_dataset_storage(body)
+        # create a DatasetType
+        api_response = api_instance.post_dataset_type(body)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->post_dataset_storage: %s\n" % e)
+        print("Exception when calling ObservatoryApi->post_dataset_type: %s\n" % e)
 ```
 
 
@@ -3098,8 +3488,8 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>body</strong></td>
-<td><a href="DatasetStorage.html"><strong>DatasetStorage</strong></a></td>
-<td>DatasetStorage to create</td>
+<td><a href="DatasetType.html"><strong>DatasetType</strong></a></td>
+<td>DatasetType to create</td>
 <td></td>
 </tr>
 
@@ -3112,7 +3502,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Return type
 
-[**DatasetStorage**](DatasetStorage.html)
+[**DatasetType**](DatasetType.html)
 
 ### Authorization
 
@@ -3137,7 +3527,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>201</strong></td>
-    <td>DatasetStorage created, returning the created object with an id</td>
+    <td>DatasetType created, returning the created object with an id</td>
     <td> - </td>
 </tr>
 <tr>
@@ -3273,6 +3663,128 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
+## **post_table_type**
+> TableType post_table_type(body)
+
+create a TableType
+
+Create a TableType by passing a TableType object, without an id. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from observatory.api.client.model.table_type import TableType
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    body = TableType(
+        id=1,
+        type_id="bq_partitioned",
+        name="BigQuery partitioned table",
+    ) # TableType | TableType to create
+
+    # example passing only required values which don't have defaults set
+    try:
+        # create a TableType
+        api_response = api_instance.post_table_type(body)
+        pprint(api_response)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->post_table_type: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+<tr>
+<td><strong>body</strong></td>
+<td><a href="TableType.html"><strong>TableType</strong></a></td>
+<td>TableType to create</td>
+<td></td>
+</tr>
+
+
+
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+[**TableType**](TableType.html)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>201</strong></td>
+    <td>TableType created, returning the created object with an id</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
 ## **post_telescope**
 > Telescope post_telescope(body)
 
@@ -3314,6 +3826,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         id=1,
         name="Curtin University ONIX Telescope",
         extra={},
+        tags="oaebu",
         organisation=Organisation(
             id=1,
             name="Curtin University",
@@ -3331,7 +3844,19 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                 id=1,
                 name="RoR",
                 connection=Telescope(),
-                extra={},
+                service="google",
+                address="curtin_gcp_project_id.my_dataset_id.my_table",
+                dataset_type=DatasetType(
+                    id=1,
+                    type_id="onix",
+                    name="ONIX dataset",
+                    extra={},
+                    table_type=TableType(
+                        id=1,
+                        type_id="bq_partitioned",
+                        name="BigQuery partitioned table",
+                    ),
+                ),
             ),
         ],
     ) # Telescope | Telescope to create
@@ -3581,6 +4106,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
             id=1,
             name="Curtin University ONIX Telescope",
             extra={},
+            tags="oaebu",
             organisation=Organisation(
                 id=1,
                 name="Curtin University",
@@ -3597,7 +4123,19 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                 Dataset(),
             ],
         ),
-        extra={},
+        service="google",
+        address="curtin_gcp_project_id.my_dataset_id.my_table",
+        dataset_type=DatasetType(
+            id=1,
+            type_id="onix",
+            name="ONIX dataset",
+            extra={},
+            table_type=TableType(
+                id=1,
+                type_id="bq_partitioned",
+                name="BigQuery partitioned table",
+            ),
+        ),
     ) # Dataset | Dataset to create or update
 
     # example passing only required values which don't have defaults set
@@ -3723,12 +4261,8 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     api_instance = observatory_api.ObservatoryApi(api_client)
     body = DatasetRelease(
         id=1,
-        schema_version="20211031",
-        schema_version_alt="wok5.4",
         start_date=dateutil_parser('1970-01-01T00:00:00.00Z'),
         end_date=dateutil_parser('1970-01-01T00:00:00.00Z'),
-        ingestion_start=dateutil_parser('1970-01-01T00:00:00.00Z'),
-        ingestion_end=dateutil_parser('1970-01-01T00:00:00.00Z'),
         dataset=Dataset(
             id=1,
             name="RoR",
@@ -3736,6 +4270,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                 id=1,
                 name="Curtin University ONIX Telescope",
                 extra={},
+                tags="oaebu",
                 organisation=Organisation(
                     id=1,
                     name="Curtin University",
@@ -3752,7 +4287,19 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                     Dataset(),
                 ],
             ),
-            extra={},
+            service="google",
+            address="curtin_gcp_project_id.my_dataset_id.my_table",
+            dataset_type=DatasetType(
+                id=1,
+                type_id="onix",
+                name="ONIX dataset",
+                extra={},
+                table_type=TableType(
+                    id=1,
+                    type_id="bq_partitioned",
+                    name="BigQuery partitioned table",
+                ),
+            ),
         ),
     ) # DatasetRelease | DatasetRelease to create or update
 
@@ -3840,12 +4387,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **put_dataset_storage**
-> DatasetStorage put_dataset_storage(body)
+## **put_dataset_type**
+> DatasetType put_dataset_type(body)
 
-create or update a DatasetStorage
+create or update a DatasetType
 
-Create a DatasetStorage by passing a DatasetStorage object, without an id. Update an existing DatasetStorage by passing a DatasetStorage object with an id. 
+Create a DatasetType by passing a DatasetType object, without an id. Update an existing DatasetType by passing a DatasetType object with an id. 
 
 ### Example
 
@@ -3854,7 +4401,7 @@ Create a DatasetStorage by passing a DatasetStorage object, without an id. Updat
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.dataset_storage import DatasetStorage
+from observatory.api.client.model.dataset_type import DatasetType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -3877,45 +4424,25 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    body = DatasetStorage(
+    body = DatasetType(
         id=1,
-        service="google",
-        address="curtin_gcp_project_id.my_dataset_id.my_table",
+        type_id="onix",
+        name="ONIX dataset",
         extra={},
-        dataset=Dataset(
+        table_type=TableType(
             id=1,
-            name="RoR",
-            connection=Telescope(
-                id=1,
-                name="Curtin University ONIX Telescope",
-                extra={},
-                organisation=Organisation(
-                    id=1,
-                    name="Curtin University",
-                    gcp_project_id="curtin-dev",
-                    gcp_download_bucket="curtin-dev-download",
-                    gcp_transform_bucket="curtin-dev-transform",
-                ),
-                telescope_type=TelescopeType(
-                    id=1,
-                    type_id="onix",
-                    name="Scopus",
-                ),
-                datasets=[
-                    Dataset(),
-                ],
-            ),
-            extra={},
+            type_id="bq_partitioned",
+            name="BigQuery partitioned table",
         ),
-    ) # DatasetStorage | DatasetStorage to create or update
+    ) # DatasetType | DatasetType to create or update
 
     # example passing only required values which don't have defaults set
     try:
-        # create or update a DatasetStorage
-        api_response = api_instance.put_dataset_storage(body)
+        # create or update a DatasetType
+        api_response = api_instance.put_dataset_type(body)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->put_dataset_storage: %s\n" % e)
+        print("Exception when calling ObservatoryApi->put_dataset_type: %s\n" % e)
 ```
 
 
@@ -3937,8 +4464,8 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>body</strong></td>
-<td><a href="DatasetStorage.html"><strong>DatasetStorage</strong></a></td>
-<td>DatasetStorage to create or update</td>
+<td><a href="DatasetType.html"><strong>DatasetType</strong></a></td>
+<td>DatasetType to create or update</td>
 <td></td>
 </tr>
 
@@ -3951,7 +4478,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Return type
 
-[**DatasetStorage**](DatasetStorage.html)
+[**DatasetType**](DatasetType.html)
 
 ### Authorization
 
@@ -3976,12 +4503,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>200</strong></td>
-    <td>DatasetStorage updated</td>
+    <td>DatasetType updated</td>
     <td> - </td>
 </tr>
 <tr>
     <td><strong>201</strong></td>
-    <td>DatasetStorage created, returning the created object with an id</td>
+    <td>DatasetType created, returning the created object with an id</td>
     <td> - </td>
 </tr>
 <tr>
@@ -4122,6 +4649,133 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
+## **put_table_type**
+> TableType put_table_type(body)
+
+create or update a TableType
+
+Create a TableType by passing a TableType object, without an id. Update an existing TableType by passing a TableType object with an id. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from observatory.api.client.model.table_type import TableType
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    body = TableType(
+        id=1,
+        type_id="bq_partitioned",
+        name="BigQuery partitioned table",
+    ) # TableType | TableType to create or update
+
+    # example passing only required values which don't have defaults set
+    try:
+        # create or update a TableType
+        api_response = api_instance.put_table_type(body)
+        pprint(api_response)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->put_table_type: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+<tr>
+<td><strong>body</strong></td>
+<td><a href="TableType.html"><strong>TableType</strong></a></td>
+<td>TableType to create or update</td>
+<td></td>
+</tr>
+
+
+
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+[**TableType**](TableType.html)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>200</strong></td>
+    <td>TableType updated</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>201</strong></td>
+    <td>TableType created, returning the created object with an id</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
 ## **put_telescope**
 > Telescope put_telescope(body)
 
@@ -4163,6 +4817,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         id=1,
         name="Curtin University ONIX Telescope",
         extra={},
+        tags="oaebu",
         organisation=Organisation(
             id=1,
             name="Curtin University",
@@ -4180,7 +4835,19 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                 id=1,
                 name="RoR",
                 connection=Telescope(),
-                extra={},
+                service="google",
+                address="curtin_gcp_project_id.my_dataset_id.my_table",
+                dataset_type=DatasetType(
+                    id=1,
+                    type_id="onix",
+                    name="ONIX dataset",
+                    extra={},
+                    table_type=TableType(
+                        id=1,
+                        type_id="bq_partitioned",
+                        name="BigQuery partitioned table",
+                    ),
+                ),
             ),
         ],
     ) # Telescope | Telescope to create or update

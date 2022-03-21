@@ -33,12 +33,8 @@ class TestDatasetRelease(unittest.TestCase):
         dt = datetime.datetime.utcnow()
         DatasetRelease(
             id=1,
-            schema_version="schema",
-            schema_version_alt="altschema",
             start_date=dt,
             end_date=dt,
-            ingestion_start=dt,
-            ingestion_end=dt,
             extra={},
             _configuration=Configuration(),
             unknown="var",
@@ -47,12 +43,8 @@ class TestDatasetRelease(unittest.TestCase):
         self.assertRaises(
             ApiAttributeError,
             DatasetRelease,
-            schema_version="schema",
-            schema_version_alt="altschema",
             start_date=dt,
             end_date=dt,
-            ingestion_start=dt,
-            ingestion_end=dt,
             extra={},
             _configuration=Configuration(),
             unknown="var",

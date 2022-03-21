@@ -71,6 +71,10 @@ class Telescope(ModelNormal):
             'max_length': 250,
             'min_length': 1,
         },
+        ('tags',): {
+            'max_length': 250,
+            'min_length': 1,
+        },
     }
 
     additional_properties_type = None
@@ -92,6 +96,7 @@ class Telescope(ModelNormal):
             'id': (int,),  # noqa: E501, F821
             'name': (str, none_type,),  # noqa: E501, F821
             'extra': (bool, date, datetime, dict, float, int, list, str, none_type,),  # noqa: E501, F821
+            'tags': (str, none_type,),  # noqa: E501, F821
             'organisation': (Organisation,),  # noqa: E501, F821
             'telescope_type': (TelescopeType,),  # noqa: E501, F821
             'datasets': ([Dataset],),  # noqa: E501, F821
@@ -108,6 +113,7 @@ class Telescope(ModelNormal):
         'id': 'id',  # noqa: E501
         'name': 'name',  # noqa: E501
         'extra': 'extra',  # noqa: E501
+        'tags': 'tags',  # noqa: E501
         'organisation': 'organisation',  # noqa: E501
         'telescope_type': 'telescope_type',  # noqa: E501
         'datasets': 'datasets',  # noqa: E501
@@ -161,6 +167,7 @@ class Telescope(ModelNormal):
             id (int): [optional]  # noqa: E501
             name (str, none_type): [optional]  # noqa: E501
             extra (bool, date, datetime, dict, float, int, list, str, none_type): [optional]  # noqa: E501
+            tags (str, none_type): [optional]  # noqa: E501
             organisation (Organisation): [optional]  # noqa: E501
             telescope_type (TelescopeType): [optional]  # noqa: E501
             datasets ([Dataset]): [optional]  # noqa: E501
@@ -250,6 +257,7 @@ class Telescope(ModelNormal):
             id (int): [optional]  # noqa: E501
             name (str, none_type): [optional]  # noqa: E501
             extra (bool, date, datetime, dict, float, int, list, str, none_type): [optional]  # noqa: E501
+            tags (str, none_type): [optional]  # noqa: E501
             organisation (Organisation): [optional]  # noqa: E501
             telescope_type (TelescopeType): [optional]  # noqa: E501
             datasets ([Dataset]): [optional]  # noqa: E501

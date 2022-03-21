@@ -13,10 +13,8 @@ import unittest
 
 from observatory.api.client.exceptions import ApiAttributeError, ApiTypeError
 from observatory.api.client.model.dataset_release import DatasetRelease
-from observatory.api.client.model.dataset_storage import DatasetStorage
 
 globals()["DatasetRelease"] = DatasetRelease
-globals()["DatasetStorage"] = DatasetStorage
 import datetime
 
 from observatory.api.client.model.dataset import Dataset
@@ -50,14 +48,16 @@ class TestDataset(unittest.TestCase):
             organisation=organisation,
             telescope_type=TelescopeType(id=1, name="ONIX Telescope"),
             extra={"view_id": 123456},
+            tags='["oaebu"]',
         )
 
         dt = datetime.datetime.utcnow()
         Dataset(
             id=1,
             name="name",
+            service="bigquery",
+            address="project.dataset.table",
             connection=connection,
-            extra={},
             _configuration=Configuration(),
             unknown="var",
         )
@@ -67,8 +67,9 @@ class TestDataset(unittest.TestCase):
             Dataset,
             id=1,
             name="name",
+            service="bigquery",
+            address="project.dataset.table",
             connection=connection,
-            extra={},
             _configuration=Configuration(),
             unknown="var",
             created=dt,

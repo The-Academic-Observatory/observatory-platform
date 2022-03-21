@@ -31,7 +31,9 @@ from observatory.api.client.exceptions import ApiAttributeError
 
 
 def lazy_import():
+    from observatory.api.client.model.dataset_type import DatasetType
     from observatory.api.client.model.telescope import Telescope
+    globals()['DatasetType'] = DatasetType
     globals()['Telescope'] = Telescope
 
 
@@ -67,6 +69,14 @@ class Dataset(ModelNormal):
             'max_length': 250,
             'min_length': 1,
         },
+        ('service',): {
+            'max_length': 250,
+            'min_length': 1,
+        },
+        ('address',): {
+            'max_length': 250,
+            'min_length': 1,
+        },
     }
 
     additional_properties_type = None
@@ -88,9 +98,11 @@ class Dataset(ModelNormal):
             'id': (int,),  # noqa: E501, F821
             'name': (str,),  # noqa: E501, F821
             'connection': (Telescope,),  # noqa: E501, F821
-            'extra': (bool, date, datetime, dict, float, int, list, str, none_type,),  # noqa: E501, F821
+            'service': (str,),  # noqa: E501, F821
+            'address': (str,),  # noqa: E501, F821
             'created': (datetime,),  # noqa: E501, F821
             'modified': (datetime,),  # noqa: E501, F821
+            'dataset_type': (DatasetType,),  # noqa: E501, F821
         }
 
     @cached_property
@@ -102,9 +114,11 @@ class Dataset(ModelNormal):
         'id': 'id',  # noqa: E501
         'name': 'name',  # noqa: E501
         'connection': 'connection',  # noqa: E501
-        'extra': 'extra',  # noqa: E501
+        'service': 'service',  # noqa: E501
+        'address': 'address',  # noqa: E501
         'created': 'created',  # noqa: E501
         'modified': 'modified',  # noqa: E501
+        'dataset_type': 'dataset_type',  # noqa: E501
     }
 
     read_only_vars = {
@@ -153,9 +167,11 @@ class Dataset(ModelNormal):
             id (int): [optional]  # noqa: E501
             name (str): [optional]  # noqa: E501
             connection (Telescope): [optional]  # noqa: E501
-            extra (bool, date, datetime, dict, float, int, list, str, none_type): [optional]  # noqa: E501
+            service (str): [optional]  # noqa: E501
+            address (str): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
             modified (datetime): [optional]  # noqa: E501
+            dataset_type (DatasetType): [optional]  # noqa: E501
         """
 
         _check_type = kwargs.pop('_check_type', True)
@@ -240,9 +256,11 @@ class Dataset(ModelNormal):
             id (int): [optional]  # noqa: E501
             name (str): [optional]  # noqa: E501
             connection (Telescope): [optional]  # noqa: E501
-            extra (bool, date, datetime, dict, float, int, list, str, none_type): [optional]  # noqa: E501
+            service (str): [optional]  # noqa: E501
+            address (str): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
             modified (datetime): [optional]  # noqa: E501
+            dataset_type (DatasetType): [optional]  # noqa: E501
         """
 
         _check_type = kwargs.pop('_check_type', True)

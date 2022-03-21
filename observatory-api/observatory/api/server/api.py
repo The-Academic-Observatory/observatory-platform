@@ -36,10 +36,11 @@ from observatory.api.server.orm import (
     BigQueryBytesProcessed,
     Dataset,
     DatasetRelease,
-    DatasetStorage,
     Organisation,
     Telescope,
     TelescopeType,
+    TableType,
+    DatasetType,
 )
 from sqlalchemy import and_
 from sqlalchemy import func
@@ -336,65 +337,134 @@ def get_organisations(limit: int) -> Response:
     return get_items(Organisation, limit)
 
 
-def get_dataset_storage(id: int) -> Response:
-    """Get a DatasetStorage.
+def get_table_type(id: int = None, type_id: str = None) -> Response:
+    """Get a TableType.
 
-    :param id: the DatasetStorage id.
+    :param id: the TableType id.
+    :param type_id: the TableType type_id.
     :return: a Response object.
     """
 
-    return get_item(DatasetStorage, id)
+    if (id is not None and type_id is not None) or (id is None and type_id is None):
+        body = "At least one and only one of id or type_id must be specified"
+        logging.error(body)
+        return body, 400
+    elif id is not None:
+        return get_item(TableType, id)
+    else:
+        item = session_.query(TableType).filter(TableType.type_id == type_id).one_or_none()
+        if item is not None:
+            logging.info(f"Found: TableType with type_id {type_id}")
+            return jsonify(item)
+
+        body = f"Not found: TableType with type_id {type_id}"
+        logging.info(body)
+        return body, 404
 
 
-def post_dataset_storage(body: Dict) -> Response:
-    """Create a DatasetStorage.
+def post_table_type(body: Dict) -> Response:
+    """Create a TableType.
 
-    :param body: the DatasetStorage in the form of a dictionary.
+    :param body: the TableType in the form of a dictionary.
     :return: a Response object.
     """
 
-    return post_item(DatasetStorage, body)
+    return post_item(TableType, body)
 
 
-def put_dataset_storage(body: Dict) -> Response:
-    """Create or update a DatasetStorage.
+def put_table_type(body: Dict) -> Response:
+    """Create or update a TableType.
 
-    :param body: the DatasetStorage in the form of a dictionary.
+    :param body: the TableType in the form of a dictionary.
     :return: a Response object.
     """
 
-    return put_item(DatasetStorage, body)
+    return put_item(TableType, body)
 
 
-def delete_dataset_storage(id: int) -> Response:
-    """Delete a DatasetStorage.
+def delete_table_type(id: int) -> Response:
+    """Delete a TableType.
 
-    :param id: the DatasetStorage id.
+    :param id: the TableType id.
     :return: a Response object.
     """
 
-    return delete_item(DatasetStorage, id)
+    return delete_item(TableType, id)
 
 
-def get_dataset_storages(limit: int, dataset_id: int = None) -> Response:
-    """Get a list of DatasetStorage objects.
+def get_table_types(limit: int) -> Response:
+    """Get a list of TableType objects.
 
-    :param limit: the maximum number of DatasetStorage objects to return.
-    :param dataset_id: the dataset id to filter for.
+    :param limit: the maximum number of TableType objects to return.
     :return: a Response object.
     """
 
-    q = session_.query(DatasetStorage)
+    return get_items(TableType, limit)
 
-    # Create filters based on parameters
-    filters = []
-    if dataset_id is not None:
-        filters.append(DatasetStorage.dataset_id == dataset_id)
-    if len(filters):
-        q = q.filter(and_(*filters))
 
-    # Return items that match with a limit
-    return q.limit(limit).all()
+def get_dataset_type(id: int = None, type_id: str = None) -> Response:
+    """Get a DatasetType.
+
+    :param id: the DatasetType id.
+    :param type_id: the DatasetType type_id.
+    :return: a Response object.
+    """
+
+    if (id is not None and type_id is not None) or (id is None and type_id is None):
+        body = "At least one and only one of id or type_id must be specified"
+        logging.error(body)
+        return body, 400
+    elif id is not None:
+        return get_item(DatasetType, id)
+    else:
+        item = session_.query(DatasetType).filter(DatasetType.type_id == type_id).one_or_none()
+        if item is not None:
+            logging.info(f"Found: DatasetType with type_id {type_id}")
+            return jsonify(item)
+
+        body = f"Not found: DatasetType with type_id {type_id}"
+        logging.info(body)
+        return body, 404
+
+
+def post_dataset_type(body: Dict) -> Response:
+    """Create a DatasetType.
+
+    :param body: the DatasetType in the form of a dictionary.
+    :return: a Response object.
+    """
+
+    return post_item(DatasetType, body)
+
+
+def put_dataset_type(body: Dict) -> Response:
+    """Create or update a DatasetType.
+
+    :param body: the DatasetType in the form of a dictionary.
+    :return: a Response object.
+    """
+
+    return put_item(DatasetType, body)
+
+
+def delete_dataset_type(id: int) -> Response:
+    """Delete a DatasetType.
+
+    :param id: the DatasetType id.
+    :return: a Response object.
+    """
+
+    return delete_item(DatasetType, id)
+
+
+def get_dataset_types(limit: int) -> Response:
+    """Get a list of DatasetType objects.
+
+    :param limit: the maximum number of DatasetType objects to return.
+    :return: a Response object.
+    """
+
+    return get_items(DatasetType, limit)
 
 
 def get_dataset_release(id: int) -> Response:

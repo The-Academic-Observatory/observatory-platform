@@ -1,4 +1,4 @@
-# Dataset
+# DatasetType
 
 ## Properties
 <div class="wy-table-responsive"><table border="1" class="docutils">
@@ -24,26 +24,26 @@
     <td>[optional] </td>
 </tr>
 <tr>
+    <td><strong>type_id</strong></td>
+    <td><strong>str</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
     <td><strong>name</strong></td>
     <td><strong>str</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>connection</strong></td>
-    <td><a href="Telescope.html"><strong>Telescope</strong></a></td>
+    <td><strong>extra</strong></td>
+    <td><strong>bool, date, datetime, dict, float, int, list, str, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>service</strong></td>
-    <td><strong>str</strong></td>
-    <td></td>
-    <td>[optional] </td>
-</tr>
-<tr>
-    <td><strong>address</strong></td>
-    <td><strong>str</strong></td>
+    <td><strong>table_type</strong></td>
+    <td><a href="TableType.html"><strong>TableType</strong></a></td>
     <td></td>
     <td>[optional] </td>
 </tr>
@@ -58,12 +58,6 @@
     <td><strong>datetime</strong></td>
     <td></td>
     <td>[optional] [readonly] </td>
-</tr>
-<tr>
-    <td><strong>dataset_type</strong></td>
-    <td><a href="DatasetType.html"><strong>DatasetType</strong></a></td>
-    <td></td>
-    <td>[optional] </td>
 </tr>
 
 
