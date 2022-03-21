@@ -37,6 +37,13 @@ from observatory.platform.utils.workflow_utils import (
 )
 from observatory.platform.workflows.workflow import Release, Workflow
 from airflow.models import Variable
+from observatory.platform.utils.release_utils import (
+    is_first_release,
+    get_dataset_releases,
+    get_datasets,
+    get_latest_dataset_release,
+)
+from airflow.models import Variable
 
 
 class StreamRelease(Release):
@@ -65,17 +72,6 @@ class StreamRelease(Release):
         self.first_release = first_release
         release_id = self.start_date.strftime("%Y_%m_%d") + "-" + self.end_date.strftime("%Y_%m_%d")
         super().__init__(dag_id, release_id, download_files_regex, extract_files_regex, transform_files_regex)
-
-
-def get_data_interval(
-    execution_date: pendulum.DateTime, schedule_interval: str
-) -> Tuple[pendulum.DateTime, pendulum.DateTime]:
-    """Get the data interval for a DAG Run. TODO: replace this in Airflow 2.2 when data intervals are part of
-    the DAG model"""
-
-    schedule_interval = croniter(schedule_interval, execution_date)
-    end_date = pendulum.from_timestamp(schedule_interval.get_next())
-    return execution_date, end_date
 
 
 class StreamTelescope(Workflow):
@@ -154,26 +150,24 @@ class StreamTelescope(Workflow):
         self.batch_load = batch_load
 
     def get_release_info(self, **kwargs) -> Tuple[pendulum.DateTime, pendulum.DateTime, bool]:
-        """Return release information with the start and end date.
+        """Return release information with the start and end date. [start date, end date) Includes start date, excludes end date.
         :param kwargs: The context passed from the PythonOperator.
         :return: None.
         """
 
         # Check if first release or not
-        dag_run: DagRun = kwargs["dag_run"]
-        first_release = is_first_dag_run(dag_run)
+        first_release = is_first_release(self.workflow_id)
         if first_release:
             # When first release, set start date to the start of the DAG
+            # Can we get away with using data_interval_start instead?
             start_date = pendulum.instance(kwargs["dag"].default_args["start_date"]).start_of("day")
         else:
-            # When not first release, set start date to be the end date of the previous DAG run
-            prev_dag_run: DagRun = dag_run.get_previous_dagrun()
-            _, prev_end_date = get_data_interval(prev_dag_run.execution_date, self.schedule_interval)
-            start_date = prev_end_date.start_of("day")
+            datasets = get_datasets(telescope_id=self.workflow_id)
+            releases = get_dataset_releases(dataset_id=datasets[0].id)
+            latest_release = get_latest_dataset_release(releases=releases)
+            start_date = pendulum.instance(latest_release.end_date).start_of("day")
 
-        # Set end date to end of time period, subtract 1 day, because next execution date is the date
-        # the DAG will actually run
-        end_date = kwargs["next_execution_date"].subtract(days=1).start_of("day")
+        end_date = pendulum.instance(kwargs["data_interval_end"])
         logging.info(f"Start date: {start_date}, end date: {end_date}, first release: {first_release}")
 
         return start_date, end_date, first_release
@@ -256,9 +250,8 @@ class StreamTelescope(Workflow):
         :return: None.
         """
         if release.first_release:
-            # The main table is the same as the partition, so no need to upload the partition as well. Especially
-            # because a first release can be relatively big in size.
-            raise AirflowSkipException("Skipped, because first release")
+            logging.info("Skipped, because first release")
+            return
 
         bq_load_info = self.get_bq_load_info(release)
         for transform_blob, main_table_id, partition_table_id in bq_load_info:
@@ -286,8 +279,8 @@ class StreamTelescope(Workflow):
         :return: None.
         """
         if release.first_release:
-            # Nothing to delete, because first release
-            raise AirflowSkipException("Skipped, because first release")
+            logging.info("Skipped, because first release")
+            return
 
         logging.info(f"Deleting old data from main table using partition with ingestion date of {release.end_date}")
         bytes_budget = kwargs.get("bytes_budget", None)
