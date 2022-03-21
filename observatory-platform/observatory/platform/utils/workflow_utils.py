@@ -313,7 +313,7 @@ def bq_load_shard(
     :param dataset_description: description of the BigQuery dataset.
     :return: None.
     """
-    _, bucket_name, data_location, schema_file_path = prepare_bq_load(
+    project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
         schema_folder, dataset_id, table_id, release_date, prefix, schema_version, dataset_description
     )
 
@@ -325,7 +325,7 @@ def bq_load_shard(
     logging.info(f"URI: {uri}")
 
     success = load_bigquery_table(
-        uri, dataset_id, data_location, table_id, schema_file_path, source_format, **load_bigquery_table_kwargs
+        uri, dataset_id, data_location, table_id, schema_file_path, source_format, project_id=project_id, **load_bigquery_table_kwargs
     )
     if not success:
         raise AirflowException()

@@ -166,6 +166,10 @@ class MockStreamTelescope(StreamTelescope):
 
 
 class TestTemplateUtils(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.project_id = "project_id"
+
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_workflow_path(self, mock_variable_get):
         runner = CliRunner()
@@ -441,6 +445,7 @@ class TestTemplateUtils(unittest.TestCase):
                     "schema.json",
                     telescope.source_format,
                     table_description=table_description,
+                    project_id=None,
                 )
 
                 mock_load_bigquery_table.return_value = False
@@ -585,6 +590,7 @@ class TestTemplateUtils(unittest.TestCase):
                     partition=True,
                     partition_type=bigquery.table.TimePartitioningType.DAY,
                     table_description=table_description,
+                    project_id=None,
                 )
 
                 mock_load_bigquery_table.return_value = False
@@ -824,6 +830,7 @@ class TestTemplateUtils(unittest.TestCase):
                     telescope.source_format,
                     write_disposition="WRITE_APPEND",
                     table_description=table_description,
+                    project_id=self.project_id
                 )
 
                 mock_load_bigquery_table.return_value = False
