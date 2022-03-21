@@ -87,7 +87,6 @@ class StreamTelescope(Workflow):
         dataset_id: str,
         merge_partition_field: str,
         schema_folder: str,
-        catchup: bool = False,
         queue: str = "default",
         max_retries: int = 3,
         max_active_runs: int = 1,
@@ -110,7 +109,6 @@ class StreamTelescope(Workflow):
         :param dataset_id: the dataset id.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param schema_folder: the path to the SQL schema folder.
-        :param catchup: whether to catchup the DAG or not.
         :param queue: the Airflow queue name.
         :param max_retries: the number of times to retry each task.
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
@@ -135,7 +133,7 @@ class StreamTelescope(Workflow):
             dag_id,
             start_date,
             schedule_interval,
-            catchup=catchup,
+            catchup=False,
             queue=queue,
             max_retries=max_retries,
             max_active_runs=max_active_runs,
