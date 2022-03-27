@@ -13,6 +13,7 @@ and [OAeBU Workflows](https://github.com/The-Academic-Observatory/oaebu-workflow
 ![Python package](https://github.com/The-Academic-Observatory/observatory-platform/workflows/Unit%20Tests/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/observatory-platform/badge/?version=latest)](https://observatory-platform.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/The-Academic-Observatory/observatory-platform/branch/develop/graph/badge.svg)](https://codecov.io/gh/The-Academic-Observatory/observatory-platform)
+[![DOI](https://zenodo.org/badge/227744539.svg)](https://zenodo.org/badge/latestdoi/227744539)
 
 ## Documentation
 For more detailed documentation about the Observatory Platform see the Read the Docs website [https://observatory-platform.readthedocs.io](https://observatory-platform.readthedocs.io)
