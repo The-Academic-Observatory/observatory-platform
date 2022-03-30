@@ -1,0 +1,37 @@
+{
+  "license": {
+    "id": "Apache-2.0"
+  },
+  "creators": [
+    {
+      "orcid": "0000-0002-5094-3571",
+      "affiliation": "Centre for Culture and Technology, Curtin University",
+      "name": "James P. Diprose"
+    },
+    {
+      "orcid": "0000-0001-8288-5241",
+      "affiliation": "Centre for Culture and Technology, Curtin University",
+      "name": "Richard Hosking"
+    },
+    {
+      "orcid": "0000-0003-0485-3388",
+      "affiliation": "Curtin Institute for Computation, Curtin University",
+      "name": "Aniek Roelofs"
+    },
+    {
+      "orcid": "0000-0002-6237-7423",
+      "affiliation": "Centre for Culture and Technology, Curtin University",
+      "name": "Tuan-Yow Chien"
+    },
+    {
+      "orcid": "0000-0001-6551-8140",
+      "affiliation": "Centre for Culture and Technology, Curtin University",
+      "name": "Lucy Montgomery"
+    },
+    {
+      "orcid": "0000-0002-0068-716X",
+      "affiliation": "Centre for Culture and Technology, Curtin University",
+      "name": "Cameron Neylon"
+    }
+  ]
+}
