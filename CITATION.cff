@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
 - family-names: "Diprose"
-  given-names: "James P."
+  given-names: "James P"
 - family-names: "Hosking"
   given-names: "Richard"
 - family-names: "Roelofs"
