@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Diprose"
+  given-names: "James P."
+- family-names: "Hosking"
+  given-names: "Richard"
+- family-names: "Roelofs"
+  given-names: "Aniek"
+- family-names: "Chien"
+  given-names: "Tuan-Yow"
+- family-names: "Montgomery"
+  given-names: "Lucy"
+- family-names: "Neylon"
+  given-names: "Cameron"
+title: "The-Academic-Observatory/observatory-platform"
+doi: 10.5281/zenodo.6366700
+url: "https://github.com/The-Academic-Observatory/observatory-platform"
