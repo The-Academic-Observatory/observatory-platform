@@ -131,17 +131,17 @@ class Organisation(Base):
 
     id: int
     name: str
-    gcp_project_id: str
-    gcp_download_bucket: str
-    gcp_transform_bucket: str
+    project_id: str
+    download_bucket: str
+    transform_bucket: str
     created: pendulum.DateTime
     modified: pendulum.DateTime
 
     id = Column(Integer, primary_key=True)
     name = Column(String(250))
-    gcp_project_id = Column(String(30))
-    gcp_download_bucket = Column(String(222))
-    gcp_transform_bucket = Column(String(222))
+    project_id = Column(String(30))
+    download_bucket = Column(String(222))
+    transform_bucket = Column(String(222))
     created = Column(DateTime())
     modified = Column(DateTime())
     telescopes = relationship("Telescope", backref="organisation")
@@ -150,16 +150,16 @@ class Organisation(Base):
         self,
         id: int = None,
         name: str = None,
-        gcp_project_id: str = None,
-        gcp_download_bucket: str = None,
-        gcp_transform_bucket: str = None,
+        project_id: str = None,
+        download_bucket: str = None,
+        transform_bucket: str = None,
         created: pendulum.DateTime = None,
         modified: pendulum.DateTime = None,
     ):
         """Construct an Organisation object, which contains information about what Google Cloud project an
         organisation uses, what are it's download and transform buckets and what telescopes does it have.
 
-        The maximum lengths of the gcp_project_id, gcp_download_bucket and gcp_transform_bucket come from the following
+        The maximum lengths of the project_id, download_bucket and transform_bucket come from the following
         documentation:
         * https://cloud.google.com/resource-manager/docs/creating-managing-projects
         * https://cloud.google.com/storage/docs/naming-buckets
@@ -167,36 +167,36 @@ class Organisation(Base):
 
         :param id: unique id.
         :param name: the name.
-        :param gcp_project_id: the Google Cloud project id.
-        :param gcp_download_bucket: the Google Cloud Storage download bucket name for the above project.
-        :param gcp_transform_bucket: the Google Cloud Storage transform bucket name for the above project.
+        :param project_id: the Google Cloud project id.
+        :param download_bucket: the Google Cloud Storage download bucket name for the above project.
+        :param transform_bucket: the Google Cloud Storage transform bucket name for the above project.
         :param created: datetime created in UTC.
         :param modified: datetime modified in UTC.
         """
 
         self.id = id
         self.name = name
-        self.gcp_project_id = gcp_project_id
-        self.gcp_download_bucket = gcp_download_bucket
-        self.gcp_transform_bucket = gcp_transform_bucket
+        self.project_id = project_id
+        self.download_bucket = download_bucket
+        self.transform_bucket = transform_bucket
         self.created = to_datetime_utc(created)
         self.modified = to_datetime_utc(modified)
 
     def update(
         self,
         name: str = None,
-        gcp_project_id: str = None,
-        gcp_download_bucket: str = None,
-        gcp_transform_bucket: str = None,
+        project_id: str = None,
+        download_bucket: str = None,
+        transform_bucket: str = None,
         modified: pendulum.DateTime = None,
     ):
         """Update the properties of an existing Organisation object. This method is handy when you want to update
         the Organisation from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
 
         :param name: the name.
-        :param gcp_project_id: the Google Cloud project id.
-        :param gcp_download_bucket: the Google Cloud Storage download bucket name for the above project.
-        :param gcp_transform_bucket: the Google Cloud Storage transform bucket name for the above project.
+        :param project_id: the Google Cloud project id.
+        :param download_bucket: the Google Cloud Storage download bucket name for the above project.
+        :param transform_bucket: the Google Cloud Storage transform bucket name for the above project.
         :param modified: datetime modified in UTC.
         :return: None.
         """
@@ -204,14 +204,14 @@ class Organisation(Base):
         if name is not None:
             self.name = name
 
-        if gcp_project_id is not None:
-            self.gcp_project_id = gcp_project_id
+        if project_id is not None:
+            self.project_id = project_id
 
-        if gcp_download_bucket is not None:
-            self.gcp_download_bucket = gcp_download_bucket
+        if download_bucket is not None:
+            self.download_bucket = download_bucket
 
-        if gcp_transform_bucket is not None:
-            self.gcp_transform_bucket = gcp_transform_bucket
+        if transform_bucket is not None:
+            self.transform_bucket = transform_bucket
 
         if modified is not None:
             self.modified = to_datetime_utc(modified)
@@ -463,7 +463,6 @@ class DatasetType(Base):
 
     table_type_id = Column(Integer, ForeignKey(f"{TableType.__tablename__}.id"), nullable=False)
     datasets = relationship("Dataset", backref=__tablename__)
-
 
     def __init__(
         self,

@@ -37,9 +37,9 @@ class TestDataset(unittest.TestCase):
         organisation = Organisation(
             id=1,
             name="Curtin",
-            gcp_project_id="my-gcp-project",
-            gcp_download_bucket="my-download-bucket",
-            gcp_transform_bucket="my-transform-bucket",
+            project_id="my-gcp-project",
+            download_bucket="my-download-bucket",
+            transform_bucket="my-transform-bucket",
         )
 
         connection = Telescope(

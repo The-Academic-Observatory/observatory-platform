@@ -225,17 +225,17 @@ class TestObservatoryApi(unittest.TestCase):
 
             # Add TelescopeType
             name = "Curtin University"
-            gcp_project_id = "my-project-id"
-            gcp_download_bucket = "my-download-bucket"
-            gcp_transform_bucket = "my-transform-bucket"
+            project_id = "my-project-id"
+            download_bucket = "my-download-bucket"
+            transform_bucket = "my-transform-bucket"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
             self.env.session.add(
                 orm.Organisation(
                     name=name,
-                    gcp_project_id=gcp_project_id,
-                    gcp_download_bucket=gcp_download_bucket,
-                    gcp_transform_bucket=gcp_transform_bucket,
+                    project_id=project_id,
+                    download_bucket=download_bucket,
+                    transform_bucket=transform_bucket,
                     created=dt,
                     modified=dt,
                 )
@@ -247,9 +247,9 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertIsInstance(obj, Organisation)
             self.assertEqual(expected_id, obj.id)
             self.assertEqual(name, obj.name)
-            self.assertEqual(gcp_project_id, obj.gcp_project_id)
-            self.assertEqual(gcp_download_bucket, obj.gcp_download_bucket)
-            self.assertEqual(gcp_transform_bucket, obj.gcp_transform_bucket)
+            self.assertEqual(project_id, obj.project_id)
+            self.assertEqual(download_bucket, obj.download_bucket)
+            self.assertEqual(transform_bucket, obj.transform_bucket)
             self.assertEqual(dt_utc, obj.created)
             self.assertEqual(dt_utc, obj.modified)
 

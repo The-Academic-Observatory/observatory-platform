@@ -217,9 +217,9 @@ class TestOrm(unittest.TestCase):
 
         organisation = Organisation(
             name="My Organisation",
-            gcp_project_id="project-id",
-            gcp_download_bucket="download-bucket",
-            gcp_transform_bucket="transform-bucket",
+            project_id="project-id",
+            download_bucket="download-bucket",
+            transform_bucket="transform-bucket",
             created=dt,
             modified=dt,
         )
@@ -268,9 +268,9 @@ class TestOrm(unittest.TestCase):
         dt = pendulum.now("UTC")
         organisation = Organisation(
             name="My Organisation",
-            gcp_project_id="project-id",
-            gcp_download_bucket="download-bucket",
-            gcp_transform_bucket="transform-bucket",
+            project_id="project-id",
+            download_bucket="download-bucket",
+            transform_bucket="transform-bucket",
             created=dt,
             modified=dt,
         )
@@ -308,9 +308,9 @@ class TestOrm(unittest.TestCase):
         expected_id = 2
         organisation2 = Organisation(
             name="My Organisation 2",
-            gcp_project_id="project-id",
-            gcp_download_bucket="download-bucket",
-            gcp_transform_bucket="transform-bucket",
+            project_id="project-id",
+            download_bucket="download-bucket",
+            transform_bucket="transform-bucket",
             created=dt,
             modified=dt,
         )
@@ -337,9 +337,9 @@ class TestOrm(unittest.TestCase):
         created = pendulum.now("UTC")
         organisation = Organisation(
             name="My Organisation",
-            gcp_project_id="project-id",
-            gcp_download_bucket="download-bucket",
-            gcp_transform_bucket="transform-bucket",
+            project_id="project-id",
+            download_bucket="download-bucket",
+            transform_bucket="transform-bucket",
             created=created,
         )
         self.session.add(organisation)
@@ -373,9 +373,9 @@ class TestOrm(unittest.TestCase):
         dt = pendulum.now("UTC")
         dict_ = {
             "name": "My Organisation",
-            "gcp_project_id": "project-id",
-            "gcp_download_bucket": "download-bucket",
-            "gcp_transform_bucket": "transform-bucket",
+            "project_id": "project-id",
+            "download_bucket": "download-bucket",
+            "transform_bucket": "transform-bucket",
             "created": dt,
             "modified": dt,
         }
@@ -389,9 +389,9 @@ class TestOrm(unittest.TestCase):
         obj.update(**{})
         self.session.commit()
         self.assertEqual(dict_["name"], obj.name)
-        self.assertEqual(dict_["gcp_project_id"], obj.gcp_project_id)
-        self.assertEqual(dict_["gcp_download_bucket"], obj.gcp_download_bucket)
-        self.assertEqual(dict_["gcp_transform_bucket"], obj.gcp_transform_bucket)
+        self.assertEqual(dict_["project_id"], obj.project_id)
+        self.assertEqual(dict_["download_bucket"], obj.download_bucket)
+        self.assertEqual(dict_["transform_bucket"], obj.transform_bucket)
         self.assertEqual(dt, pendulum.instance(obj.created))
         self.assertEqual(dt, pendulum.instance(obj.modified))
 
@@ -399,17 +399,17 @@ class TestOrm(unittest.TestCase):
         dt = pendulum.now("UTC")
         dict_ = {
             "name": "My Organisation 2",
-            "gcp_project_id": "project-id-2",
-            "gcp_download_bucket": "download-bucket-2",
-            "gcp_transform_bucket": "transform-bucket-2",
+            "project_id": "project-id-2",
+            "download_bucket": "download-bucket-2",
+            "transform_bucket": "transform-bucket-2",
             "modified": dt,
         }
         obj.update(**dict_)
         self.session.commit()
         self.assertEqual(dict_["name"], obj.name)
-        self.assertEqual(dict_["gcp_project_id"], obj.gcp_project_id)
-        self.assertEqual(dict_["gcp_download_bucket"], obj.gcp_download_bucket)
-        self.assertEqual(dict_["gcp_transform_bucket"], obj.gcp_transform_bucket)
+        self.assertEqual(dict_["project_id"], obj.project_id)
+        self.assertEqual(dict_["download_bucket"], obj.download_bucket)
+        self.assertEqual(dict_["transform_bucket"], obj.transform_bucket)
         self.assertEqual(dt, pendulum.instance(obj.modified))
 
     def test_table_type(self):
@@ -583,9 +583,9 @@ class TestOrm(unittest.TestCase):
 
         organisation = Organisation(
             name="My Organisation",
-            gcp_project_id="project-id",
-            gcp_download_bucket="download-bucket",
-            gcp_transform_bucket="transform-bucket",
+            project_id="project-id",
+            download_bucket="download-bucket",
+            transform_bucket="transform-bucket",
             created=dt,
             modified=dt,
         )
@@ -656,12 +656,12 @@ class TestOrm(unittest.TestCase):
 
         # Update DatasetRelease
         release = self.session.query(DatasetRelease).filter(DatasetRelease.id == expected_id).one()
-        release.end_date = pendulum.datetime(1900,1,1)
+        release.end_date = pendulum.datetime(1900, 1, 1)
         self.session.commit()
 
         # Assert update
         release = self.session.query(DatasetRelease).filter(DatasetRelease.id == expected_id).one()
-        self.assertEqual(pendulum.instance(release.end_date), pendulum.datetime(1900,1,1))
+        self.assertEqual(pendulum.instance(release.end_date), pendulum.datetime(1900, 1, 1))
 
         # Delete items
         self.session.query(DatasetRelease).filter(DatasetRelease.id == expected_id).delete()
@@ -676,9 +676,9 @@ class TestOrm(unittest.TestCase):
 
         organisation = Organisation(
             name="My Organisation",
-            gcp_project_id="project-id",
-            gcp_download_bucket="download-bucket",
-            gcp_transform_bucket="transform-bucket",
+            project_id="project-id",
+            download_bucket="download-bucket",
+            transform_bucket="transform-bucket",
             created=dt,
             modified=dt,
         )
@@ -776,9 +776,9 @@ class TestOrm(unittest.TestCase):
 
         organisation = Organisation(
             name="My Organisation",
-            gcp_project_id="project-id",
-            gcp_download_bucket="download-bucket",
-            gcp_transform_bucket="transform-bucket",
+            project_id="project-id",
+            download_bucket="download-bucket",
+            transform_bucket="transform-bucket",
             created=dt,
             modified=dt,
         )
@@ -860,9 +860,9 @@ class TestOrm(unittest.TestCase):
 
         organisation = Organisation(
             name="My Organisation",
-            gcp_project_id="project-id",
-            gcp_download_bucket="download-bucket",
-            gcp_transform_bucket="transform-bucket",
+            project_id="project-id",
+            download_bucket="download-bucket",
+            transform_bucket="transform-bucket",
             created=dt,
             modified=dt,
         )
