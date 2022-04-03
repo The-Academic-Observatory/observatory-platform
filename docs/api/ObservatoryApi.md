@@ -3144,9 +3144,9 @@ with observatory.api.client.ApiClient(configuration) as api_client:
             organisation=Organisation(
                 id=1,
                 name="Curtin University",
-                gcp_project_id="curtin-dev",
-                gcp_download_bucket="curtin-dev-download",
-                gcp_transform_bucket="curtin-dev-transform",
+                project_id="curtin-dev",
+                download_bucket="curtin-dev-download",
+                transform_bucket="curtin-dev-transform",
             ),
             telescope_type=TelescopeType(
                 id=1,
@@ -3303,9 +3303,9 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                 organisation=Organisation(
                     id=1,
                     name="Curtin University",
-                    gcp_project_id="curtin-dev",
-                    gcp_download_bucket="curtin-dev-download",
-                    gcp_transform_bucket="curtin-dev-transform",
+                    project_id="curtin-dev",
+                    download_bucket="curtin-dev-download",
+                    transform_bucket="curtin-dev-transform",
                 ),
                 telescope_type=TelescopeType(
                     id=1,
@@ -3579,9 +3579,9 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     body = Organisation(
         id=1,
         name="Curtin University",
-        gcp_project_id="curtin-dev",
-        gcp_download_bucket="curtin-dev-download",
-        gcp_transform_bucket="curtin-dev-transform",
+        project_id="curtin-dev",
+        download_bucket="curtin-dev-download",
+        transform_bucket="curtin-dev-transform",
     ) # Organisation | Organisation to create
 
     # example passing only required values which don't have defaults set
@@ -3830,9 +3830,9 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         organisation=Organisation(
             id=1,
             name="Curtin University",
-            gcp_project_id="curtin-dev",
-            gcp_download_bucket="curtin-dev-download",
-            gcp_transform_bucket="curtin-dev-transform",
+            project_id="curtin-dev",
+            download_bucket="curtin-dev-download",
+            transform_bucket="curtin-dev-transform",
         ),
         telescope_type=TelescopeType(
             id=1,
@@ -4110,9 +4110,9 @@ with observatory.api.client.ApiClient(configuration) as api_client:
             organisation=Organisation(
                 id=1,
                 name="Curtin University",
-                gcp_project_id="curtin-dev",
-                gcp_download_bucket="curtin-dev-download",
-                gcp_transform_bucket="curtin-dev-transform",
+                project_id="curtin-dev",
+                download_bucket="curtin-dev-download",
+                transform_bucket="curtin-dev-transform",
             ),
             telescope_type=TelescopeType(
                 id=1,
@@ -4274,9 +4274,9 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                 organisation=Organisation(
                     id=1,
                     name="Curtin University",
-                    gcp_project_id="curtin-dev",
-                    gcp_download_bucket="curtin-dev-download",
-                    gcp_transform_bucket="curtin-dev-transform",
+                    project_id="curtin-dev",
+                    download_bucket="curtin-dev-download",
+                    transform_bucket="curtin-dev-transform",
                 ),
                 telescope_type=TelescopeType(
                     id=1,
@@ -4560,9 +4560,9 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     body = Organisation(
         id=1,
         name="Curtin University",
-        gcp_project_id="curtin-dev",
-        gcp_download_bucket="curtin-dev-download",
-        gcp_transform_bucket="curtin-dev-transform",
+        project_id="curtin-dev",
+        download_bucket="curtin-dev-download",
+        transform_bucket="curtin-dev-transform",
     ) # Organisation | Organisation to create or update
 
     # example passing only required values which don't have defaults set
@@ -4821,9 +4821,9 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         organisation=Organisation(
             id=1,
             name="Curtin University",
-            gcp_project_id="curtin-dev",
-            gcp_download_bucket="curtin-dev-download",
-            gcp_transform_bucket="curtin-dev-transform",
+            project_id="curtin-dev",
+            download_bucket="curtin-dev-download",
+            transform_bucket="curtin-dev-transform",
         ),
         telescope_type=TelescopeType(
             id=1,

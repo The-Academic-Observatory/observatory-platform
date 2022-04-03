@@ -30,19 +30,19 @@
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>gcp_project_id</strong></td>
+    <td><strong>project_id</strong></td>
     <td><strong>str, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>gcp_download_bucket</strong></td>
+    <td><strong>download_bucket</strong></td>
     <td><strong>str, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>gcp_transform_bucket</strong></td>
+    <td><strong>transform_bucket</strong></td>
     <td><strong>str, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
