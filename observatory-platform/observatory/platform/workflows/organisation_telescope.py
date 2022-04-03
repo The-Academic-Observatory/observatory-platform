@@ -61,7 +61,7 @@ class OrganisationRelease(Release):
 
         :return: the download bucket name.
         """
-        return self.organisation.gcp_download_bucket
+        return self.organisation.download_bucket
 
     @property
     def transform_bucket(self):
@@ -69,7 +69,7 @@ class OrganisationRelease(Release):
 
         :return: the transform bucket name.
         """
-        return self.organisation.gcp_transform_bucket
+        return self.organisation.transform_bucket
 
 
 class OrganisationTelescope(Workflow):
@@ -135,7 +135,7 @@ class OrganisationTelescope(Workflow):
             workflow_id=workflow_id,
         )
         self.organisation = organisation
-        self.project_id = organisation.gcp_project_id
+        self.project_id = organisation.project_id
         self.dataset_id = dataset_id
         self.dataset_location = "us"  # TODO: add to API
         self.source_format = source_format
