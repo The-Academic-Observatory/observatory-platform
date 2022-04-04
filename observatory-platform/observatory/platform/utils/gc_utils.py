@@ -506,7 +506,7 @@ def create_bigquery_table_from_query(
     if query_parameters is None:
         query_parameters = []
 
-    func_name = create_bigquery_dataset.__name__
+    func_name = create_bigquery_table_from_query.__name__
     msg = (
         f"project_id={project_id}, dataset_id={dataset_id}, location={location}, table={table_id}, "
         f"schema_file_path(optional)={schema_file_path}"
