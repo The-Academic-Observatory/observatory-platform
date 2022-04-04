@@ -38,7 +38,7 @@ from observatory.api.server.orm import (
     DatasetRelease,
     Organisation,
     Telescope,
-    TelescopeType,
+    WorkflowType,
     TableType,
     DatasetType,
 )
@@ -158,11 +158,11 @@ def get_items(cls: ClassVar, limit: int) -> Response:
     return jsonify(items)
 
 
-def get_telescope_type(id: int = None, type_id: str = None) -> Response:
-    """Get a TelescopeType.
+def get_workflow_type(id: int = None, type_id: str = None) -> Response:
+    """Get a WorkflowType.
 
-    :param id: the TelescopeType id.
-    :param type_id: the TelescopeType type_id.
+    :param id: the WorkflowType id.
+    :param type_id: the WorkflowType type_id.
     :return: a Response object.
     """
 
@@ -171,56 +171,56 @@ def get_telescope_type(id: int = None, type_id: str = None) -> Response:
         logging.error(body)
         return body, 400
     elif id is not None:
-        return get_item(TelescopeType, id)
+        return get_item(WorkflowType, id)
     else:
-        item = session_.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
+        item = session_.query(WorkflowType).filter(WorkflowType.type_id == type_id).one_or_none()
         if item is not None:
-            logging.info(f"Found: TelescopeType with type_id {type_id}")
+            logging.info(f"Found: WorkflowType with type_id {type_id}")
             return jsonify(item)
 
-        body = f"Not found: TelescopeType with type_id {type_id}"
+        body = f"Not found: WorkflowType with type_id {type_id}"
         logging.info(body)
         return body, 404
 
 
-def post_telescope_type(body: Dict) -> Response:
-    """Create a TelescopeType.
+def post_workflow_type(body: Dict) -> Response:
+    """Create a WorkflowType.
 
-    :param body: the TelescopeType in the form of a dictionary.
+    :param body: the WorkflowType in the form of a dictionary.
     :return: a Response object.
     """
 
-    return post_item(TelescopeType, body)
+    return post_item(WorkflowType, body)
 
 
-def put_telescope_type(body: Dict) -> Response:
-    """Create or update a TelescopeType.
+def put_workflow_type(body: Dict) -> Response:
+    """Create or update a WorkflowType.
 
-    :param body: the TelescopeType in the form of a dictionary.
+    :param body: the WorkflowType in the form of a dictionary.
     :return: a Response object.
     """
 
-    return put_item(TelescopeType, body)
+    return put_item(WorkflowType, body)
 
 
-def delete_telescope_type(id: int) -> Response:
-    """Delete a TelescopeType.
+def delete_workflow_type(id: int) -> Response:
+    """Delete a WorkflowType.
 
-    :param id: the TelescopeType id.
+    :param id: the WorkflowType id.
     :return: a Response object.
     """
 
-    return delete_item(TelescopeType, id)
+    return delete_item(WorkflowType, id)
 
 
-def get_telescope_types(limit: int) -> Response:
-    """Get a list of TelescopeType objects.
+def get_workflow_types(limit: int) -> Response:
+    """Get a list of WorkflowType objects.
 
-    :param limit: the maximum number of TelescopeType objects to return.
+    :param limit: the maximum number of WorkflowType objects to return.
     :return: a Response object.
     """
 
-    return get_items(TelescopeType, limit)
+    return get_items(WorkflowType, limit)
 
 
 def get_telescope(id: int) -> Response:
@@ -263,11 +263,11 @@ def delete_telescope(id: int) -> Response:
     return delete_item(Telescope, id)
 
 
-def get_telescopes(limit: int, telescope_type_id=None, organisation_id: int = None) -> Response:
+def get_telescopes(limit: int, workflow_type_id=None, organisation_id: int = None) -> Response:
     """Get a list of Telescope objects.
 
     :param organisation_id: the Organisation id to filter by.
-    :param telescope_type_id: the TelescopeType id to filter by.
+    :param workflow_type_id: the WorkflowType id to filter by.
     :param limit: the maximum number of Telescope objects to return.
     :return: a Response object.
     """
@@ -276,8 +276,8 @@ def get_telescopes(limit: int, telescope_type_id=None, organisation_id: int = No
 
     # Create filters based on parameters
     filters = []
-    if telescope_type_id is not None:
-        filters.append(Telescope.telescope_type_id == telescope_type_id)
+    if workflow_type_id is not None:
+        filters.append(Telescope.workflow_type_id == workflow_type_id)
     if organisation_id is not None:
         filters.append(Telescope.organisation_id == organisation_id)
     if len(filters):

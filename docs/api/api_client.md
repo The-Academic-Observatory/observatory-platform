@@ -40,7 +40,7 @@ from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.query_response import QueryResponse
 from observatory.api.client.model.table_type import TableType
 from observatory.api.client.model.telescope import Telescope
-from observatory.api.client.model.telescope_type import TelescopeType
+from observatory.api.client.model.workflow_type import WorkflowType
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
 configuration = observatory.api.client.Configuration(
@@ -139,9 +139,9 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#delete_telescope_type"><strong>delete_telescope_type</strong></a></td>
-<td><strong>DELETE</strong> /v1/telescope_type</td>
-<td>delete a TelescopeType</td>
+<td><a href="ObservatoryApi.html#delete_workflow_type"><strong>delete_workflow_type</strong></a></td>
+<td><strong>DELETE</strong> /v1/workflow_type</td>
+<td>delete a WorkflowType</td>
 </tr>
 
 <tr>
@@ -230,23 +230,23 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_telescope_type"><strong>get_telescope_type</strong></a></td>
-<td><strong>GET</strong> /v1/telescope_type</td>
-<td>get a TelescopeType</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_telescope_types"><strong>get_telescope_types</strong></a></td>
-<td><strong>GET</strong> /v1/telescope_types</td>
-<td>Get a list of TelescopeType objects</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
 <td><a href="ObservatoryApi.html#get_telescopes"><strong>get_telescopes</strong></a></td>
 <td><strong>GET</strong> /v1/telescopes</td>
 <td>Get a list of Telescope objects</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_workflow_type"><strong>get_workflow_type</strong></a></td>
+<td><strong>GET</strong> /v1/workflow_type</td>
+<td>get a WorkflowType</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_workflow_types"><strong>get_workflow_types</strong></a></td>
+<td><strong>GET</strong> /v1/workflow_types</td>
+<td>Get a list of WorkflowType objects</td>
 </tr>
 
 <tr>
@@ -300,9 +300,9 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#post_telescope_type"><strong>post_telescope_type</strong></a></td>
-<td><strong>POST</strong> /v1/telescope_type</td>
-<td>create a TelescopeType</td>
+<td><a href="ObservatoryApi.html#post_workflow_type"><strong>post_workflow_type</strong></a></td>
+<td><strong>POST</strong> /v1/workflow_type</td>
+<td>create a WorkflowType</td>
 </tr>
 
 <tr>
@@ -349,9 +349,9 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#put_telescope_type"><strong>put_telescope_type</strong></a></td>
-<td><strong>PUT</strong> /v1/telescope_type</td>
-<td>create or update a TelescopeType</td>
+<td><a href="ObservatoryApi.html#put_workflow_type"><strong>put_workflow_type</strong></a></td>
+<td><strong>PUT</strong> /v1/workflow_type</td>
+<td>create or update a WorkflowType</td>
 </tr>
 
 <tr>
@@ -378,7 +378,7 @@ All URIs are relative to *https://api.observatory.academy*
     QueryResponse
     TableType
     Telescope
-    TelescopeType
+    WorkflowType
     
 ```
 

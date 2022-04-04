@@ -48,8 +48,8 @@
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>telescope_type</strong></td>
-    <td><a href="TelescopeType.html"><strong>TelescopeType</strong></a></td>
+    <td><strong>workflow_type</strong></td>
+    <td><a href="WorkflowType.html"><strong>WorkflowType</strong></a></td>
     <td></td>
     <td>[optional] </td>
 </tr>

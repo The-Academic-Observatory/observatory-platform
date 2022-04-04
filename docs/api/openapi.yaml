@@ -317,32 +317,32 @@ paths:
       produces:
         - application/json
 
-  /v1/telescope_type:
+  /v1/workflow_type:
     get:
       tags:
       - Observatory
-      summary: get a TelescopeType
-      operationId: get_telescope_type
+      summary: get a WorkflowType
+      operationId: get_workflow_type
       description: |
-        Get the details of a TelescopeType by passing it's id or type_id.
+        Get the details of a WorkflowType by passing it's id or type_id.
       produces:
       - application/json
       parameters:
       - in: query
         name: id
-        description: TelescopeType id
+        description: WorkflowType id
         required: false
         type: integer
       - in: query
         name: type_id
-        description: TelescopeType type_id
+        description: WorkflowType type_id
         required: false
         type: string
       responses:
         200:
-          description: the fetched TelescopeType
+          description: the fetched WorkflowType
           schema:
-            $ref: '#/definitions/TelescopeType'
+            $ref: '#/definitions/WorkflowType'
         400:
           description: bad input parameter
         401:
@@ -351,10 +351,10 @@ paths:
     post:
       tags:
       - Observatory
-      summary: create a TelescopeType
-      operationId: post_telescope_type
+      summary: create a WorkflowType
+      operationId: post_workflow_type
       description: |
-        Create a TelescopeType by passing a TelescopeType object, without an id.
+        Create a WorkflowType by passing a WorkflowType object, without an id.
       consumes:
       - application/json
       produces:
@@ -362,26 +362,26 @@ paths:
       parameters:
       - in: body
         name: body
-        description: TelescopeType to create
+        description: WorkflowType to create
         required: true
         schema:
-          $ref: '#/definitions/TelescopeType'
+          $ref: '#/definitions/WorkflowType'
       responses:
         201:
-          description: TelescopeType created, returning the created object with an id
+          description: WorkflowType created, returning the created object with an id
           schema:
-            $ref: '#/definitions/TelescopeType'
+            $ref: '#/definitions/WorkflowType'
         401:
           description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
       - Observatory
-      summary: create or update a TelescopeType
-      operationId: put_telescope_type
+      summary: create or update a WorkflowType
+      operationId: put_workflow_type
       description: |
-        Create a TelescopeType by passing a TelescopeType object, without an id. Update an existing TelescopeType by
-        passing a TelescopeType object with an id.
+        Create a WorkflowType by passing a WorkflowType object, without an id. Update an existing WorkflowType by
+        passing a WorkflowType object with an id.
       consumes:
       - application/json
       produces:
@@ -389,29 +389,29 @@ paths:
       parameters:
       - in: body
         name: body
-        description: TelescopeType to create or update
+        description: WorkflowType to create or update
         required: true
         schema:
-          $ref: '#/definitions/TelescopeType'
+          $ref: '#/definitions/WorkflowType'
       responses:
         200:
-          description: TelescopeType updated
+          description: WorkflowType updated
           schema:
-            $ref: '#/definitions/TelescopeType'
+            $ref: '#/definitions/WorkflowType'
         201:
-          description: TelescopeType created, returning the created object with an id
+          description: WorkflowType created, returning the created object with an id
           schema:
-            $ref: '#/definitions/TelescopeType'
+            $ref: '#/definitions/WorkflowType'
         401:
           description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
       - Observatory
-      summary: delete a TelescopeType
-      operationId: delete_telescope_type
+      summary: delete a WorkflowType
+      operationId: delete_workflow_type
       description: |
-        Delete a TelescopeType by passing it's id.
+        Delete a WorkflowType by passing it's id.
       consumes:
       - application/json
       produces:
@@ -419,24 +419,24 @@ paths:
       parameters:
       - in: query
         name: id
-        description: TelescopeType id
+        description: WorkflowType id
         required: true
         type: integer
       responses:
         200:
-          description: TelescopeType deleted
+          description: WorkflowType deleted
         401:
           description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
-  /v1/telescope_types:
+  /v1/workflow_types:
     get:
       tags:
       - Observatory
-      summary: Get a list of TelescopeType objects
-      operationId: get_telescope_types
+      summary: Get a list of WorkflowType objects
+      operationId: get_workflow_types
       description: |
-        Get a list of TelescopeType objects
+        Get a list of WorkflowType objects
       produces:
       - application/json
       parameters:
@@ -447,11 +447,11 @@ paths:
         type: integer
       responses:
         200:
-          description: a list of TelescopeType objects
+          description: a list of WorkflowType objects
           schema:
             type: array
             items:
-              $ref: '#/definitions/TelescopeType'
+              $ref: '#/definitions/WorkflowType'
         400:
           description: bad input parameter
         401:
@@ -577,8 +577,8 @@ paths:
       - application/json
       parameters:
       - in: query
-        name: telescope_type_id
-        description: filter telescopes by a TelescopeType id
+        name: workflow_type_id
+        description: filter telescopes by a WorkflowType id
         required: false
         type: integer
       - in: query
@@ -1404,7 +1404,7 @@ definitions:
         items:
           type: object
 
-  TelescopeType:
+  WorkflowType:
     type: object
     properties:
       id:
@@ -1457,8 +1457,8 @@ definitions:
         x-nullable: true
       organisation:
         $ref: '#/definitions/Organisation'
-      telescope_type:
-        $ref: '#/definitions/TelescopeType'
+      workflow_type:
+        $ref: '#/definitions/WorkflowType'
       datasets:
         type: array
         items:

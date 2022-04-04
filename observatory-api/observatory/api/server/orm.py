@@ -218,8 +218,8 @@ class Organisation(Base):
 
 
 @dataclass
-class TelescopeType(Base):
-    __tablename__ = "telescope_type"
+class WorkflowType(Base):
+    __tablename__ = "workflow_type"
 
     id: int
     type_id: str
@@ -232,7 +232,7 @@ class TelescopeType(Base):
     name = Column(String(250))
     created = Column(DateTime())
     modified = Column(DateTime())
-    telescopes = relationship("Telescope", backref="telescope_type")
+    telescopes = relationship("Telescope", backref="workflow_type")
 
     def __init__(
         self,
@@ -242,7 +242,7 @@ class TelescopeType(Base):
         created: pendulum.DateTime = None,
         modified: pendulum.DateTime = None,
     ):
-        """Construct a TelescopeType object.
+        """Construct a WorkflowType object.
 
         :param id: unique id.
         :param type_id: a unique string id for the telescope type.
@@ -258,10 +258,10 @@ class TelescopeType(Base):
         self.modified = to_datetime_utc(modified)
 
     def update(self, type_id: str = None, name: str = None, modified: pendulum.DateTime = None):
-        """Update the properties of an existing TelescopeType object. This method is handy when you want to update
-        the TelescopeType from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
+        """Update the properties of an existing WorkflowType object. This method is handy when you want to update
+        the WorkflowType from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
 
-        :param name: the name of the TelescopeType.
+        :param name: the name of the WorkflowType.
         :param type_id: a unique string id for the telescope type.
         :param modified: datetime modified in UTC.
         :return: None.
@@ -288,7 +288,7 @@ class Telescope(Base):
     tags: str
     created: pendulum.DateTime
     modified: pendulum.DateTime
-    telescope_type: TelescopeType = None
+    workflow_type: WorkflowType = None
     organisation: Organisation = None
 
     id = Column(Integer, primary_key=True)
@@ -298,7 +298,7 @@ class Telescope(Base):
     created = Column(DateTime())
     modified = Column(DateTime())
     organisation_id = Column(Integer, ForeignKey(f"{Organisation.__tablename__}.id"), nullable=False)
-    telescope_type_id = Column(Integer, ForeignKey(f"{TelescopeType.__tablename__}.id"), nullable=False)
+    workflow_type_id = Column(Integer, ForeignKey(f"{WorkflowType.__tablename__}.id"), nullable=False)
     datasets = relationship("Dataset", backref=__tablename__)
 
     def __init__(
@@ -310,7 +310,7 @@ class Telescope(Base):
         created: pendulum.DateTime = None,
         modified: pendulum.DateTime = None,
         organisation: Union[Organisation, Dict] = None,
-        telescope_type: Union[TelescopeType, Dict] = None,
+        workflow_type: Union[WorkflowType, Dict] = None,
     ):
         """Construct a Telescope object.
 
@@ -321,7 +321,7 @@ class Telescope(Base):
         :param created: datetime created in UTC.
         :param modified: datetime modified in UTC.
         :param organisation: the organisation associated with this telescope.
-        :param telescope_type: the telescope type associated with this telescope.
+        :param workflow_type: the telescope type associated with this telescope.
         """
 
         self.id = id
@@ -333,7 +333,7 @@ class Telescope(Base):
 
         # Fetch organisation and connection type from database if it exists
         self.organisation = fetch_db_object(Organisation, organisation)
-        self.telescope_type = fetch_db_object(TelescopeType, telescope_type)
+        self.workflow_type = fetch_db_object(WorkflowType, workflow_type)
 
     def update(
         self,
@@ -342,7 +342,7 @@ class Telescope(Base):
         tags: str = None,
         modified: pendulum.DateTime = None,
         organisation: Union[Organisation, Dict] = None,
-        telescope_type: Union[TelescopeType, Dict] = None,
+        workflow_type: Union[WorkflowType, Dict] = None,
     ):
         """Update the properties of an existing Telescope object. This method is handy when you want to update
         the Telescope from a dictionary, e.g. obj.update(**{'modified': datetime.utcnow()}).
@@ -352,7 +352,7 @@ class Telescope(Base):
         :param tags: list of tags, stored as JSON list string.
         :param modified: datetime modified in UTC.
         :param organisation: the organisation associated with this telescope.
-        :param telescope_type: the telescope type associated with this telescope.
+        :param workflow_type: the telescope type associated with this telescope.
         :return: None.
         """
 
@@ -368,8 +368,8 @@ class Telescope(Base):
         if organisation is not None:
             self.organisation = fetch_db_object(Organisation, organisation)
 
-        if telescope_type is not None:
-            self.telescope_type = fetch_db_object(TelescopeType, telescope_type)
+        if workflow_type is not None:
+            self.workflow_type = fetch_db_object(WorkflowType, workflow_type)
 
         if modified is not None:
             self.modified = to_datetime_utc(modified)
