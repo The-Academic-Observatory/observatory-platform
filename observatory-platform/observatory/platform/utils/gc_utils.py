@@ -215,7 +215,7 @@ def bigquery_sharded_table_id(table_name, datetime: pendulum.Date) -> str:
     return f"{table_name}{datetime.strftime('%Y%m%d')}"
 
 
-def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, description: str = "") -> None:
+def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, description: str = "") -> bigquery.Dataset:
     """Create a BigQuery dataset.
 
     :param project_id: the Google Cloud project id.
@@ -245,17 +245,49 @@ def create_bigquery_dataset(project_id: str, dataset_id: str, location: str, des
         dataset = client.create_dataset(dataset)
     except Conflict as e:
         logging.warning(f"{func_name}: dataset already exists dataset_ref={dataset_ref}, exception={e}")
+    return dataset
 
 
-def delete_bigquery_dataset(project_id: str, dataset_id: str):
-    """Delete a bigquery dataset and all its tables.
-    :param project_id: GCP Project ID.
-    :param dataset_id: GCP Dataset ID.
+def create_empty_bigquery_table(
+    dataset_id: str,
+    location: str,
+    table_id: str,
+    schema_file_path: str = None,
+    project_id: str = None,
+    clustering_fields: List = None,
+):
+    """Creates an empty BigQuery table. If a path to a schema file is given the table will be created using this
+    schema.
+
+    :param dataset_id: BigQuery dataset id.
+    :param location: location of the BigQuery dataset.
+    :param table_id: BigQuery table name.
+    :param schema_file_path: path on local file system to BigQuery table schema.
+    :param project_id: Google Cloud project id.
+    :param clustering_fields: what fields to cluster on.
+    :return: The table instance if the request was successfull.
     """
+    func_name = create_empty_bigquery_table.__name__
+    msg = f"dataset_id={dataset_id}, location={location}, table={table_id}, " f"schema_file_path={schema_file_path}"
+    logging.info(f"{func_name}: creating empty bigquery table {msg}")
 
     client = bigquery.Client()
-    dataset_ref = f"{project_id}.{dataset_id}"
-    client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+    if project_id is None:
+        project_id = client.project
+
+    dataset = create_bigquery_dataset(project_id, dataset_id, location)
+
+    if schema_file_path:
+        schema = client.schema_from_json(schema_file_path)
+        table = bigquery.Table(dataset.table(table_id), schema=schema)
+    else:
+        table = bigquery.Table(dataset.table(table_id))
+
+    if clustering_fields:
+        table.clustering_fields = clustering_fields
+
+    table = client.create_table(table)
+    return table
 
 
 def load_bigquery_table(
@@ -443,18 +475,15 @@ def create_bigquery_table_from_query(
     dataset_id: str,
     table_id: str,
     location: str,
-    description: str = "",
     labels=None,
     query_parameters=None,
-    partition: bool = False,
-    partition_field: Union[None, str] = None,
-    partition_type: str = bigquery.TimePartitioningType.DAY,
-    require_partition_filter=True,
-    cluster: bool = False,
     clustering_fields=None,
     bytes_budget: Optional[int] = 549755813888,
+    schema_file_path: str = None,
 ) -> bool:
     """Create a BigQuery dataset from a provided query. Defaults to 0.5 TiB query budget.
+    If a schema file path is given and the table does not exist yet, then an empty table will be created with this
+    schema
 
     :param sql: the sql query to be executed
     :param labels: labels to place on the new table
@@ -464,14 +493,9 @@ def create_bigquery_table_from_query(
     :param location: the location where the dataset will be stored:
     https://cloud.google.com/compute/docs/regions-zones/#locations
     :param query_parameters: parameters for a parametrised query.
-    :param description: a description for the dataset
-    :param partition: whether to partition the table.
-    :param partition_field: the name of the partition field.
-    :param partition_type: the type of partitioning.
-    :param require_partition_filter: whether the partition filter is required or not when querying the table.
-    :param cluster: whether to cluster the table or not.
     :param clustering_fields: what fields to cluster on.
     :param bytes_budget: Maximum bytes allowed to be processed by query.
+    :param schema_file_path: path on local file system to BigQuery table schema.
     :return:
     """
 
@@ -480,41 +504,49 @@ def create_bigquery_table_from_query(
         labels = {}
     if query_parameters is None:
         query_parameters = []
-    if clustering_fields is None:
-        clustering_fields = []
 
     func_name = create_bigquery_dataset.__name__
-    msg = f"project_id={project_id}, dataset_id={dataset_id}, location={location}, table={table_id}"
+    msg = (
+        f"project_id={project_id}, dataset_id={dataset_id}, location={location}, table={table_id}, "
+        f"schema_file_path(optional)={schema_file_path}"
+    )
     logging.info(f"{func_name}: create bigquery table from query, {msg}")
 
-    # Make the dataset reference
-    dataset_ref = f"{project_id}.{dataset_id}"
-
-    # Make dataset handle
+    # Make bigquery client handle
     client = bigquery.Client()
-    dataset = bigquery.Dataset(dataset_ref)
 
-    # Set properties
+    dataset = bigquery.DatasetReference(project_id, dataset_id)
     dataset.location = location
-    dataset.description = description
+    table = bigquery.Table(dataset.table(table_id))
+
+    write_disposition = bigquery.WriteDisposition.WRITE_TRUNCATE
+
+    # Create empty table with schema if given and table does not exist yet, change write disposition to empty so schema
+    # is not overwritten
+    if schema_file_path:
+        try:
+            client.get_table(table)
+        except NotFound:
+            table = create_empty_bigquery_table(
+                dataset_id,
+                location,
+                table_id,
+                schema_file_path,
+                project_id=project_id,
+                clustering_fields=clustering_fields,
+            )
+            write_disposition = bigquery.WriteDisposition.WRITE_EMPTY
 
     job_config = bigquery.QueryJobConfig(
         allow_large_results=True,
-        destination=dataset.table(table_id),
-        description=description,
+        destination=table,
         labels=labels,
         use_legacy_sql=False,
         query_parameters=query_parameters,
-        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+        write_disposition=write_disposition,
     )
 
-    # Set partitioning settings
-    if partition:
-        job_config.time_partitioning = bigquery.TimePartitioning(
-            type_=partition_type, field=partition_field, require_partition_filter=require_partition_filter
-        )
-
-    if cluster:
+    if clustering_fields:
         job_config.clustering_fields = clustering_fields
 
     bytes_estimate = bq_query_bytes_estimate(sql, job_config=job_config)
@@ -826,7 +858,7 @@ def upload_file_to_cloud_storage(
     connection_sem: BoundedSemaphore = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     project_id: str = None,
-    check_blob_hash: bool = True
+    check_blob_hash: bool = True,
 ) -> Tuple[bool, bool]:
     """Upload a file to Google Cloud Storage.
 

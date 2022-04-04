@@ -18,7 +18,7 @@ import os
 import unittest
 from datetime import timedelta
 from typing import Optional
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import boto3
 import pendulum
@@ -50,6 +50,7 @@ from observatory.platform.utils.gc_utils import (
     create_bigquery_table_from_query,
     create_bigquery_view,
     create_cloud_storage_bucket,
+    create_empty_bigquery_table,
     delete_bigquery_dataset,
     delete_bucket_dir,
     download_blob_from_cloud_storage,
@@ -181,6 +182,50 @@ class TestGoogleCloudUtils(unittest.TestCase):
             self.assertEqual(dataset.dataset_id, dataset_name)
         finally:
             client.delete_dataset(dataset_name, not_found_ok=True)
+
+    def test_create_empty_bigquery_table(self):
+        dataset_id = random_id()
+        client = bigquery.Client()
+        test_data_path = test_fixtures_path("utils")
+        schema_file_path = os.path.join(test_data_path, "people_schema.json")
+
+        try:
+            # Create table with all parameters set
+            table = create_empty_bigquery_table(
+                dataset_id,
+                "EU",
+                "with_schema",
+                schema_file_path=schema_file_path,
+                project_id=self.gc_project_id,
+                clustering_fields=["dob"],
+            )
+            self.assertIsInstance(table, bigquery.Table)
+            self.assertEqual(["dob"], table.clustering_fields)
+            self.assertEqual("EU", table.location)
+            self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, "with_schema"))
+
+            # Create table with minimal parameters set
+            table = create_empty_bigquery_table(dataset_id, "EU", "without_schema")
+            self.assertIsInstance(table, bigquery.Table)
+            self.assertEqual("EU", table.location)
+            self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, "without_schema"))
+
+        finally:
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+
+        # Test project id parameter while mocking bigquery methods
+        with patch("observatory.platform.utils.gc_utils.bigquery.Client", new_callable=MagicMock) as mock_client:
+            mock_client().project = "foo_bar"
+
+            # Test when project id is given that this is used for the dataset
+            with patch("observatory.platform.utils.gc_utils.create_bigquery_dataset") as mock_create_dataset:
+                create_empty_bigquery_table(dataset_id, "EU", "table_id", schema_file_path, self.gc_project_id)
+                mock_create_dataset.assert_called_once_with(self.gc_project_id, dataset_id, "EU")
+
+            # Test when project id is not given that the client project id is used
+            with patch("observatory.platform.utils.gc_utils.create_bigquery_dataset") as mock_create_dataset:
+                create_empty_bigquery_table(dataset_id, "EU", "table_id", schema_file_path)
+                mock_create_dataset.assert_called_once_with("foo_bar", dataset_id, "EU")
 
     def test_load_bigquery_table(self):
         schema_file_name = "people_schema.json"
@@ -372,11 +417,10 @@ class TestGoogleCloudUtils(unittest.TestCase):
         finally:
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
-    def test_create_bigquery_table_from_query(self):
+    def test_create_bigquery_table_from_query_without_schema(self):
         dataset_id = random_id()
         client = bigquery.Client()
 
-        table_name = "presidents"
         data_location = self.gc_bucket_location
         query = """
         WITH presidents AS
@@ -391,19 +435,85 @@ class TestGoogleCloudUtils(unittest.TestCase):
         try:
             with patch("observatory.platform.utils.gc_utils.bq_query_bytes_daily_limit_check"):
                 create_bigquery_dataset(self.gc_project_id, dataset_id, data_location)
+                # Test with clustering fields
                 success = create_bigquery_table_from_query(
                     query,
                     self.gc_project_id,
                     dataset_id,
-                    table_name,
+                    "clustered",
                     data_location,
-                    partition=True,
-                    partition_field="date",
-                    cluster=True,
                     clustering_fields=["date"],
                 )
-            self.assertTrue(success)
-            self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, table_name))
+                self.assertTrue(success)
+                self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, "clustered"))
+
+                # Test without clustering fields
+                success = create_bigquery_table_from_query(
+                    query,
+                    self.gc_project_id,
+                    dataset_id,
+                    "not_clustered",
+                    data_location,
+                )
+                self.assertTrue(success)
+                self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, "not_clustered"))
+        finally:
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+
+    def test_create_bigquery_table_from_query_with_schema(self):
+        dataset_id = random_id()
+        client = bigquery.Client()
+
+        data_location = self.gc_bucket_location
+        query = """
+        WITH presidents AS
+        (SELECT 'Washington' as name, DATE('1789-04-30') as date UNION ALL
+        SELECT 'Adams', DATE('1797-03-04') UNION ALL
+        SELECT 'Jefferson', DATE('1801-03-04') UNION ALL
+        SELECT 'Madison', DATE('1809-03-04') UNION ALL
+        SELECT 'Monroe', DATE('1817-03-04'))
+        SELECT * FROM presidents
+        """
+
+        try:
+            with CliRunner().isolated_filesystem():
+                # Create schema
+                import json
+
+                schema = [
+                    {"mode": "NULLABLE", "name": "name", "type": "STRING", "description": "Foo Bar"},
+                    {"mode": "NULLABLE", "name": "date", "type": "DATE", "description": "Foo Bar"},
+                ]
+                schema_file_path = "schema.json"
+                with open(schema_file_path, "w") as f:
+                    json.dump(schema, f)
+
+                with patch("observatory.platform.utils.gc_utils.bq_query_bytes_daily_limit_check"):
+                    create_bigquery_dataset(self.gc_project_id, dataset_id, data_location)
+                    # Test with clustering fields
+                    success = create_bigquery_table_from_query(
+                        query,
+                        self.gc_project_id,
+                        dataset_id,
+                        "clustered",
+                        data_location,
+                        clustering_fields=["date"],
+                        schema_file_path=schema_file_path,
+                    )
+                    self.assertTrue(success)
+                    self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, "clustered"))
+
+                    # Test without clustering fields
+                    success = create_bigquery_table_from_query(
+                        query,
+                        self.gc_project_id,
+                        dataset_id,
+                        "not_clustered",
+                        data_location,
+                        schema_file_path=schema_file_path,
+                    )
+                    self.assertTrue(success)
+                    self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, "not_clustered"))
         finally:
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
@@ -431,9 +541,6 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 dataset_id,
                 table_name,
                 data_location,
-                partition=True,
-                partition_field="date",
-                cluster=True,
                 clustering_fields=["date"],
                 bytes_budget=0,
             )
@@ -467,9 +574,6 @@ class TestGoogleCloudUtils(unittest.TestCase):
             dataset_id,
             table_name,
             data_location,
-            partition=True,
-            partition_field="date",
-            cluster=True,
             clustering_fields=["date"],
             bytes_budget=-1,
         )
@@ -729,23 +833,6 @@ class TestGoogleCloudUtils(unittest.TestCase):
             if aws_blob is not None:
                 aws_blob.delete()
 
-    def test_delete_bigquery_dataset(self):
-        def dataset_exists(project_id, dataset_id):
-            client = bigquery.Client(project=project_id)
-            try:
-                client.get_dataset(dataset_id)
-                return True
-            except:
-                return False
-
-        project_id = self.gc_project_id
-        dataset_id = random_id()
-        create_bigquery_dataset(project_id=project_id, dataset_id=dataset_id, location=self.gc_bucket_location)
-
-        self.assertTrue(dataset_exists(project_id, dataset_id))
-        delete_bigquery_dataset(project_id, dataset_id)
-        self.assertFalse(dataset_exists(project_id, dataset_id))
-
     def test_delete_bucket_dir(self):
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -876,10 +963,7 @@ class TestBigQueryByteLimits(ObservatoryTestCase):
     def test_get_bytes_processed_existing(self):
         project = "project"
         with self.env.create():
-            obj = BigQueryBytesProcessed(
-                project=project,
-                total=10
-            )
+            obj = BigQueryBytesProcessed(project=project, total=10)
             self.api.post_bigquery_bytes_processed(obj)
 
             total = get_bytes_processed(api=self.api, project=project)
