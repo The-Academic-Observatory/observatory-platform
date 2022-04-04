@@ -44,7 +44,7 @@ from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.table_type import TableType
 from observatory.api.client.model.dataset_type import DatasetType
 from observatory.api.client.model.telescope import Telescope
-from observatory.api.client.model.telescope_type import TelescopeType
+from observatory.api.client.model.workflow_type import WorkflowType
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
 from observatory.platform.utils.release_utils import get_dataset_releases, get_latest_dataset_release
@@ -205,11 +205,11 @@ class TestStreamTelescope(ObservatoryTestCase):
         result = self.api.put_organisation(org)
         self.assertIsInstance(result, Organisation)
 
-        tele_type = TelescopeType(type_id="tele_type", name="My Telescope")
-        result = self.api.put_telescope_type(tele_type)
-        self.assertIsInstance(result, TelescopeType)
+        tele_type = WorkflowType(type_id="tele_type", name="My Telescope")
+        result = self.api.put_workflow_type(tele_type)
+        self.assertIsInstance(result, WorkflowType)
 
-        telescope = Telescope(organisation=Organisation(id=1), telescope_type=TelescopeType(id=1))
+        telescope = Telescope(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
         result = self.api.put_telescope(telescope)
         self.assertIsInstance(result, Telescope)
 
@@ -723,11 +723,11 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
         result = self.api.put_organisation(org)
         self.assertIsInstance(result, Organisation)
 
-        tele_type = TelescopeType(type_id="tele_type", name="My Telescope")
-        result = self.api.put_telescope_type(tele_type)
-        self.assertIsInstance(result, TelescopeType)
+        tele_type = WorkflowType(type_id="tele_type", name="My Telescope")
+        result = self.api.put_workflow_type(tele_type)
+        self.assertIsInstance(result, WorkflowType)
 
-        telescope = Telescope(organisation=Organisation(id=1), telescope_type=TelescopeType(id=1))
+        telescope = Telescope(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
         result = self.api.put_telescope(telescope)
         self.assertIsInstance(result, Telescope)
 

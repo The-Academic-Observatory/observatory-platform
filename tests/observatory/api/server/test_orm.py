@@ -24,7 +24,7 @@ from observatory.api.server.orm import (
     DatasetRelease,
     Organisation,
     Telescope,
-    TelescopeType,
+    WorkflowType,
     TableType,
     DatasetType,
     create_session,
@@ -37,19 +37,19 @@ from sqlalchemy.pool import StaticPool
 from typing import List
 
 
-def create_telescope_types(session: scoped_session, telescope_types: List, created: datetime):
-    """Create a list of TelescopeType objects.
+def create_workflow_types(session: scoped_session, workflow_types: List, created: datetime):
+    """Create a list of WorkflowType objects.
 
     :param session: the SQLAlchemy session.
-    :param telescope_types: a list of tuples of telescope type id and names.
+    :param workflow_types: a list of tuples of telescope type id and names.
     :param created:the created datetime in UTC.
-    :return: a list of TelescopeType objects.
+    :return: a list of WorkflowType objects.
     """
 
     items = []
 
-    for type_id, name in telescope_types:
-        item = TelescopeType(name=name, type_id=type_id, created=created, modified=created)
+    for type_id, name in workflow_types:
+        item = WorkflowType(name=name, type_id=type_id, created=created, modified=created)
         items.append(item)
         session.add(item)
         session.commit()
@@ -74,7 +74,7 @@ class TestOrm(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestOrm, self).__init__(*args, **kwargs)
         self.uri = "sqlite://"
-        self.telescope_types = [("onix", "ONIX Telescope"), ("scopus", "Scopus Telescope"), ("wos", "WoS Telescope")]
+        self.workflow_types = [("onix", "ONIX Telescope"), ("scopus", "Scopus Telescope"), ("wos", "WoS Telescope")]
 
     def setUp(self) -> None:
         """Create the SQLAlchemy Session"""
@@ -86,31 +86,31 @@ class TestOrm(unittest.TestCase):
         """Test fetch_db_object"""
 
         # Body is None
-        self.assertEqual(None, fetch_db_object(TelescopeType, None))
+        self.assertEqual(None, fetch_db_object(WorkflowType, None))
 
         # Body is instance of cls
         dt = pendulum.now("UTC")
         dict_ = {"name": "My Telescope Type", "type_id": "onix", "created": dt, "modified": dt}
-        obj = TelescopeType(**dict_)
-        self.assertEqual(obj, fetch_db_object(TelescopeType, obj))
+        obj = WorkflowType(**dict_)
+        self.assertEqual(obj, fetch_db_object(WorkflowType, obj))
 
         # Body is Dict and no id
         with self.assertRaises(AttributeError):
-            fetch_db_object(TelescopeType, {"name": "My Telescope Type"})
+            fetch_db_object(WorkflowType, {"name": "My Telescope Type"})
 
         # Body is Dict, has id and is not found
         with self.assertRaises(ValueError):
-            fetch_db_object(TelescopeType, {"id": 1})
+            fetch_db_object(WorkflowType, {"id": 1})
 
         # Body is Dict, has id and is found
         self.session.add(obj)
         self.session.commit()
-        obj_fetched = fetch_db_object(TelescopeType, {"id": 1})
+        obj_fetched = fetch_db_object(WorkflowType, {"id": 1})
         self.assertEqual(obj, obj_fetched)
 
         # Body is wrong type
         with self.assertRaises(ValueError):
-            fetch_db_object(TelescopeType, "hello")
+            fetch_db_object(WorkflowType, "hello")
 
     def test_to_datetime_utc(self):
         """Test to_datetime"""
@@ -140,53 +140,53 @@ class TestOrm(unittest.TestCase):
         # connect_args=None
         create_session(uri=self.uri, connect_args=None, poolclass=StaticPool)
 
-    def test_telescope_type(self):
-        """Test that TelescopeType can be created, fetched, updated and deleted"""
+    def test_workflow_type(self):
+        """Test that WorkflowType can be created, fetched, updated and deleted"""
 
         created = pendulum.now("UTC")
 
         # Create and assert created
-        telescope_types_a = create_telescope_types(self.session, self.telescope_types, created)
-        for i, conn_type in enumerate(telescope_types_a):
+        workflow_types_a = create_workflow_types(self.session, self.workflow_types, created)
+        for i, conn_type in enumerate(workflow_types_a):
             self.assertIsNotNone(conn_type.id)
             expected_id = i + 1
             self.assertEqual(conn_type.id, expected_id)
 
         # Fetch items
-        telescope_types_b = self.session.query(TelescopeType).order_by(TelescopeType.id).all()
-        self.assertEqual(len(telescope_types_b), len(self.telescope_types))
-        for a, b in zip(telescope_types_a, telescope_types_b):
+        workflow_types_b = self.session.query(WorkflowType).order_by(WorkflowType.id).all()
+        self.assertEqual(len(workflow_types_b), len(self.workflow_types))
+        for a, b in zip(workflow_types_a, workflow_types_b):
             self.assertEqual(a, b)
 
         # Update items
         names_b = ["Hello", "World", "Scopus"]
-        for name, conn_type in zip(names_b, telescope_types_b):
+        for name, conn_type in zip(names_b, workflow_types_b):
             conn_type.name = name
             self.session.commit()
 
         # Check that items updated
-        telescope_types_c = self.session.query(TelescopeType).order_by(TelescopeType.id).all()
-        for name, conn_type in zip(names_b, telescope_types_c):
+        workflow_types_c = self.session.query(WorkflowType).order_by(WorkflowType.id).all()
+        for name, conn_type in zip(names_b, workflow_types_c):
             self.assertEqual(name, conn_type.name)
 
         # Delete items
-        for conn_type in telescope_types_c:
-            self.session.query(TelescopeType).filter(TelescopeType.id == conn_type.id).delete()
+        for conn_type in workflow_types_c:
+            self.session.query(WorkflowType).filter(WorkflowType.id == conn_type.id).delete()
             self.session.commit()
 
         # Check that items deleted
-        conn_types_d = self.session.query(TelescopeType).order_by(TelescopeType.id).all()
+        conn_types_d = self.session.query(WorkflowType).order_by(WorkflowType.id).all()
         self.assertEqual(len(conn_types_d), 0)
 
-    def test_telescope_type_from_dict(self):
-        """Test that TelescopeType can be created and updated from a dictionary"""
+    def test_workflow_type_from_dict(self):
+        """Test that WorkflowType can be created and updated from a dictionary"""
 
         # Create
         expected_id = 1
         dt = pendulum.now("UTC")
         dict_ = {"name": "My Telescope Type", "type_id": "onix", "created": dt, "modified": dt}
 
-        obj = TelescopeType(**dict_)
+        obj = WorkflowType(**dict_)
         self.session.add(obj)
         self.session.commit()
 
@@ -204,16 +204,16 @@ class TestOrm(unittest.TestCase):
         # Update
         dt = pendulum.now("UTC")
         dict_ = {"name": "My Telescope Type 2", "modified": dt}
-        connection_type = self.session.query(TelescopeType).filter(TelescopeType.id == expected_id).one()
+        connection_type = self.session.query(WorkflowType).filter(WorkflowType.id == expected_id).one()
         connection_type.update(**dict_)
         self.session.commit()
 
     def test_telescope(self):
         """Test that Telescope can be created, fetched, updated and deleted"""
 
-        # Create TelescopeType instances
+        # Create WorkflowType instances
         dt = pendulum.now("UTC")
-        create_telescope_types(self.session, self.telescope_types, dt)
+        create_workflow_types(self.session, self.workflow_types, dt)
 
         organisation = Organisation(
             name="My Organisation",
@@ -226,11 +226,11 @@ class TestOrm(unittest.TestCase):
         self.session.add(organisation)
         self.session.commit()
 
-        telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
+        workflow_type = self.session.query(WorkflowType).filter(WorkflowType.id == 1).one()
         telescope = Telescope(
             name="Curtin ONIX Telescope",
             extra={"view_id": 123456},
-            telescope_type=telescope_type,
+            workflow_type=workflow_type,
             organisation=organisation,
             modified=dt,
             created=dt,
@@ -243,18 +243,18 @@ class TestOrm(unittest.TestCase):
         self.assertEqual(telescope.id, 1)
 
         # Update Telescope
-        new_telescope_type_id = 2
+        new_workflow_type_id = 2
 
         def get_telescope():
             return self.session.query(Telescope).filter(Telescope.id == 1).one()
 
         telescope = get_telescope()
-        telescope.telescope_type_id = new_telescope_type_id
+        telescope.workflow_type_id = new_workflow_type_id
         self.session.commit()
 
         # Assert update
         telescope = get_telescope()
-        self.assertEqual(telescope.telescope_type_id, new_telescope_type_id)
+        self.assertEqual(telescope.workflow_type_id, new_workflow_type_id)
 
         # Delete items
         self.session.query(Telescope).filter(Telescope.id == 1).delete()
@@ -277,16 +277,16 @@ class TestOrm(unittest.TestCase):
         self.session.add(organisation)
         self.session.commit()
 
-        # Create TelescopeType instances
+        # Create WorkflowType instances
         created = pendulum.now("UTC")
-        create_telescope_types(self.session, self.telescope_types, created)
+        create_workflow_types(self.session, self.workflow_types, created)
 
         # Create Telescope
         expected_id = 1
         dt = pendulum.now("UTC")
         dict_ = {
             "organisation": {"id": organisation.id},
-            "telescope_type": {"id": expected_id},
+            "workflow_type": {"id": expected_id},
             "created": dt,
             "modified": dt,
         }
@@ -299,7 +299,7 @@ class TestOrm(unittest.TestCase):
         # Update with no new values
         obj.update(**{})
         self.session.commit()
-        self.assertEqual(expected_id, obj.telescope_type.id)
+        self.assertEqual(expected_id, obj.workflow_type.id)
         self.assertEqual(expected_id, obj.organisation.id)
         self.assertEqual(dt, pendulum.instance(obj.created))
         self.assertEqual(dt, pendulum.instance(obj.modified))
@@ -321,11 +321,11 @@ class TestOrm(unittest.TestCase):
             "name": "Curtin ONIX Telescope",
             "extra": {"view_id": 123456},
             "organisation": {"id": expected_id},
-            "telescope_type": {"id": expected_id},
+            "workflow_type": {"id": expected_id},
         }
         obj.update(**dict_)
         self.session.commit()
-        self.assertEqual(expected_id, obj.telescope_type.id)
+        self.assertEqual(expected_id, obj.workflow_type.id)
         self.assertEqual(expected_id, obj.organisation.id)
         self.assertEqual(dt, pendulum.instance(obj.created))
         self.assertEqual(dt, pendulum.instance(obj.modified))
@@ -579,7 +579,7 @@ class TestOrm(unittest.TestCase):
         """Test that DatasetRelease can be created, fetched, updates and deleted"""
 
         dt = pendulum.now("UTC")
-        create_telescope_types(self.session, self.telescope_types, dt)
+        create_workflow_types(self.session, self.workflow_types, dt)
 
         organisation = Organisation(
             name="My Organisation",
@@ -592,11 +592,11 @@ class TestOrm(unittest.TestCase):
         self.session.add(organisation)
         self.session.commit()
 
-        telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
+        workflow_type = self.session.query(WorkflowType).filter(WorkflowType.id == 1).one()
         telescope = Telescope(
             name="Curtin ONIX Telescope",
             extra={"view_id": 123456},
-            telescope_type=telescope_type,
+            workflow_type=workflow_type,
             organisation=organisation,
             modified=dt,
             created=dt,
@@ -672,7 +672,7 @@ class TestOrm(unittest.TestCase):
         """Test that DatasetRelease can be created from a dictionary"""
 
         dt = pendulum.now("UTC")
-        create_telescope_types(self.session, self.telescope_types, dt)
+        create_workflow_types(self.session, self.workflow_types, dt)
 
         organisation = Organisation(
             name="My Organisation",
@@ -685,11 +685,11 @@ class TestOrm(unittest.TestCase):
         self.session.add(organisation)
         self.session.commit()
 
-        telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
+        workflow_type = self.session.query(WorkflowType).filter(WorkflowType.id == 1).one()
         telescope = Telescope(
             name="Curtin ONIX Telescope",
             extra={"view_id": 123456},
-            telescope_type=telescope_type,
+            workflow_type=workflow_type,
             organisation=organisation,
             modified=dt,
             created=dt,
@@ -772,7 +772,7 @@ class TestOrm(unittest.TestCase):
         """Test that Dataset can be created, fetched, updated and deleted"""
 
         dt = pendulum.now("UTC")
-        create_telescope_types(self.session, self.telescope_types, dt)
+        create_workflow_types(self.session, self.workflow_types, dt)
 
         organisation = Organisation(
             name="My Organisation",
@@ -785,10 +785,10 @@ class TestOrm(unittest.TestCase):
         self.session.add(organisation)
         self.session.commit()
 
-        telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
+        workflow_type = self.session.query(WorkflowType).filter(WorkflowType.id == 1).one()
         telescope = Telescope(
             name="Curtin ONIX Telescope",
-            telescope_type=telescope_type,
+            workflow_type=workflow_type,
             organisation=organisation,
             modified=dt,
             created=dt,
@@ -856,7 +856,7 @@ class TestOrm(unittest.TestCase):
         """Test that Dataset can be created and updated from a dictionary"""
 
         dt = pendulum.now("UTC")
-        create_telescope_types(self.session, self.telescope_types, dt)
+        create_workflow_types(self.session, self.workflow_types, dt)
 
         organisation = Organisation(
             name="My Organisation",
@@ -869,10 +869,10 @@ class TestOrm(unittest.TestCase):
         self.session.add(organisation)
         self.session.commit()
 
-        telescope_type = self.session.query(TelescopeType).filter(TelescopeType.id == 1).one()
+        workflow_type = self.session.query(WorkflowType).filter(WorkflowType.id == 1).one()
         telescope = Telescope(
             name="Curtin ONIX Telescope",
-            telescope_type=telescope_type,
+            workflow_type=workflow_type,
             organisation=organisation,
             modified=dt,
             created=dt,
@@ -931,7 +931,7 @@ class TestOrm(unittest.TestCase):
         telescope = Telescope(
             name="Curtin ONIX Telescope",
             tags='["oaebu"]',
-            telescope_type=telescope_type,
+            workflow_type=workflow_type,
             organisation=organisation,
             modified=dt,
             created=dt,

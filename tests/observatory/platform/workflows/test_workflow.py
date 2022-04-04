@@ -42,7 +42,7 @@ from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.table_type import TableType
-from observatory.api.client.model.telescope_type import TelescopeType
+from observatory.api.client.model.workflow_type import WorkflowType
 
 
 class MockWorkflow(Workflow):
@@ -113,11 +113,11 @@ class TestWorkflow(ObservatoryTestCase):
         result = self.api.put_organisation(org)
         self.assertIsInstance(result, Organisation)
 
-        tele_type = TelescopeType(type_id="tele_type", name="My Telescope")
-        result = self.api.put_telescope_type(tele_type)
-        self.assertIsInstance(result, TelescopeType)
+        tele_type = WorkflowType(type_id="tele_type", name="My Telescope")
+        result = self.api.put_workflow_type(tele_type)
+        self.assertIsInstance(result, WorkflowType)
 
-        telescope = Telescope(organisation=Organisation(id=1), telescope_type=TelescopeType(id=1))
+        telescope = Telescope(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
         result = self.api.put_telescope(telescope)
         self.assertIsInstance(result, Telescope)
 

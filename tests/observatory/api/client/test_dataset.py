@@ -20,7 +20,7 @@ import datetime
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.telescope import Telescope
-from observatory.api.client.model.telescope_type import TelescopeType
+from observatory.api.client.model.workflow_type import WorkflowType
 
 
 class TestDataset(unittest.TestCase):
@@ -46,7 +46,7 @@ class TestDataset(unittest.TestCase):
             id=1,
             name="Curtin ONIX Telescope",
             organisation=organisation,
-            telescope_type=TelescopeType(id=1, name="ONIX Telescope"),
+            workflow_type=WorkflowType(id=1, name="ONIX Telescope"),
             extra={"view_id": 123456},
             tags='["oaebu"]',
         )
