@@ -283,6 +283,7 @@ def create_empty_bigquery_table(
     else:
         table = bigquery.Table(dataset.table(table_id))
 
+    # Note that clustering fields can only be set if a schema is specified
     if clustering_fields:
         table.clustering_fields = clustering_fields
 
