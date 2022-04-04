@@ -51,7 +51,6 @@ from observatory.platform.utils.gc_utils import (
     create_bigquery_view,
     create_cloud_storage_bucket,
     create_empty_bigquery_table,
-    delete_bigquery_dataset,
     delete_bucket_dir,
     download_blob_from_cloud_storage,
     download_blobs_from_cloud_storage,
