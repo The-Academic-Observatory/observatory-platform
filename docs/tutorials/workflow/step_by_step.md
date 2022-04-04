@@ -548,9 +548,9 @@ The `ObservatoryEnvironment` has a method called `add_dataset` that can be used 
 ### Observatory Platform API
 Some workflows make use of the Observatory Platform API in order to fetch necessary metadata. 
 When writing unit tests for workflows that use the platform API, it is necessary to use an isolated API environment
- where the relevant TelescopeType, Organisations and Telescope exist. 
+ where the relevant WorkflowType, Organisations and Telescope exist. 
 The ObservatoryEnvironment that is mentioned above can be used to achieve this. 
-An API session is started when creating the ObservatoryEnvironment and the TelescopeType, Organisations and Telescope
+An API session is started when creating the ObservatoryEnvironment and the WorkflowType, Organisations and Telescope
  can all be added to this session.  
  
 Example:
@@ -558,7 +558,7 @@ Example:
 import pendulum
 from airflow.models.connection import Connection
 
-from my_dags.utils.identifiers import TelescopeTypes
+from my_dags.utils.identifiers import WorkflowTypes
 from observatory.api.server import orm
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.test_utils import ObservatoryEnvironment
@@ -574,8 +574,8 @@ env.add_connection(conn)
 
 
 # Create telescope type with API
-telescope_type = orm.TelescopeType(name="ONIX Telescope", type_id=TelescopeTypes.onix, created=dt, modified=dt)
-env.api_session.add(telescope_type)
+workflow_type = orm.WorkflowType(name="ONIX Telescope", type_id=WorkflowTypes.onix, created=dt, modified=dt)
+env.api_session.add(workflow_type)
 
 # Create organisation with API
 organisation = orm.Organisation(name="Curtin Press", created=dt, modified=dt)
@@ -584,7 +584,7 @@ env.api_session.add(organisation)
 # Create workflow with API
 workflow = orm.Telescope(
     name="Curtin Press ONIX Telescope",
-    telescope_type=telescope_type,
+    workflow_type=workflow_type,
     organisation=organisation,
     modified=dt,
     created=dt,
