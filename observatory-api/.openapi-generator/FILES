@@ -12,7 +12,7 @@ observatory/api/client/docs/ObservatoryApi.md
 observatory/api/client/docs/Organisation.md
 observatory/api/client/docs/QueryResponse.md
 observatory/api/client/docs/TableType.md
-observatory/api/client/docs/Telescope.md
+observatory/api/client/docs/Workflow.md
 observatory/api/client/docs/WorkflowType.md
 observatory/api/client/exceptions.py
 observatory/api/client/model/__init__.py
@@ -23,7 +23,7 @@ observatory/api/client/model/dataset_type.py
 observatory/api/client/model/organisation.py
 observatory/api/client/model/query_response.py
 observatory/api/client/model/table_type.py
-observatory/api/client/model/telescope.py
+observatory/api/client/model/workflow.py
 observatory/api/client/model/workflow_type.py
 observatory/api/client/model_utils.py
 observatory/api/client/rest.py
@@ -36,6 +36,6 @@ observatory/api/client/test/test_observatory_api.py
 observatory/api/client/test/test_organisation.py
 observatory/api/client/test/test_query_response.py
 observatory/api/client/test/test_table_type.py
-observatory/api/client/test/test_telescope.py
+observatory/api/client/test/test_workflow.py
 observatory/api/client/test/test_workflow_type.py
 observatory/api/client_README.md

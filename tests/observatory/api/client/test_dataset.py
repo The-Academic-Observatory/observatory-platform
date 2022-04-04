@@ -19,7 +19,7 @@ import datetime
 
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.telescope import Telescope
+from observatory.api.client.model.workflow import Workflow
 from observatory.api.client.model.workflow_type import WorkflowType
 
 
@@ -42,11 +42,11 @@ class TestDataset(unittest.TestCase):
             transform_bucket="my-transform-bucket",
         )
 
-        connection = Telescope(
+        connection = Workflow(
             id=1,
-            name="Curtin ONIX Telescope",
+            name="Curtin ONIX Workflow",
             organisation=organisation,
-            workflow_type=WorkflowType(id=1, name="ONIX Telescope"),
+            workflow_type=WorkflowType(id=1, name="ONIX Workflow"),
             extra={"view_id": 123456},
             tags='["oaebu"]',
         )

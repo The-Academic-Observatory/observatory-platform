@@ -144,7 +144,7 @@ class Organisation(Base):
     transform_bucket = Column(String(222))
     created = Column(DateTime())
     modified = Column(DateTime())
-    telescopes = relationship("Telescope", backref="organisation")
+    workflows = relationship("Workflow", backref="organisation")
 
     def __init__(
         self,
@@ -157,7 +157,7 @@ class Organisation(Base):
         modified: pendulum.DateTime = None,
     ):
         """Construct an Organisation object, which contains information about what Google Cloud project an
-        organisation uses, what are it's download and transform buckets and what telescopes does it have.
+        organisation uses, what are it's download and transform buckets and what workflows does it have.
 
         The maximum lengths of the project_id, download_bucket and transform_bucket come from the following
         documentation:
@@ -232,7 +232,7 @@ class WorkflowType(Base):
     name = Column(String(250))
     created = Column(DateTime())
     modified = Column(DateTime())
-    telescopes = relationship("Telescope", backref="workflow_type")
+    workflows = relationship("Workflow", backref="workflow_type")
 
     def __init__(
         self,
@@ -245,7 +245,7 @@ class WorkflowType(Base):
         """Construct a WorkflowType object.
 
         :param id: unique id.
-        :param type_id: a unique string id for the telescope type.
+        :param type_id: a unique string id for the workflow type.
         :param name: the name.
         :param created: datetime created in UTC.
         :param modified: datetime modified in UTC.
@@ -262,7 +262,7 @@ class WorkflowType(Base):
         the WorkflowType from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
 
         :param name: the name of the WorkflowType.
-        :param type_id: a unique string id for the telescope type.
+        :param type_id: a unique string id for the workflow type.
         :param modified: datetime modified in UTC.
         :return: None.
         """
@@ -278,7 +278,7 @@ class WorkflowType(Base):
 
 
 @dataclass
-class Telescope(Base):
+class Workflow(Base):
     __tablename__ = "connection"
 
     # Only include should be serialized to JSON as dataclass attributes
@@ -312,16 +312,16 @@ class Telescope(Base):
         organisation: Union[Organisation, Dict] = None,
         workflow_type: Union[WorkflowType, Dict] = None,
     ):
-        """Construct a Telescope object.
+        """Construct a Workflow object.
 
         :param id: unique id.
-        :param name: the telescope name.
-        :param extra: additional metadata for a telescope, stored as JSON.
+        :param name: the workflow name.
+        :param extra: additional metadata for a workflow, stored as JSON.
         :param tags: List of tags, stored as JSON list string.
         :param created: datetime created in UTC.
         :param modified: datetime modified in UTC.
-        :param organisation: the organisation associated with this telescope.
-        :param workflow_type: the telescope type associated with this telescope.
+        :param organisation: the organisation associated with this workflow.
+        :param workflow_type: the workflow type associated with this workflow.
         """
 
         self.id = id
@@ -344,15 +344,15 @@ class Telescope(Base):
         organisation: Union[Organisation, Dict] = None,
         workflow_type: Union[WorkflowType, Dict] = None,
     ):
-        """Update the properties of an existing Telescope object. This method is handy when you want to update
-        the Telescope from a dictionary, e.g. obj.update(**{'modified': datetime.utcnow()}).
+        """Update the properties of an existing Workflow object. This method is handy when you want to update
+        the Workflow from a dictionary, e.g. obj.update(**{'modified': datetime.utcnow()}).
 
-        :param name: the telescope name.
-        :param extra: additional metadata for a telescope, stored as JSON.
+        :param name: the workflow name.
+        :param extra: additional metadata for a workflow, stored as JSON.
         :param tags: list of tags, stored as JSON list string.
         :param modified: datetime modified in UTC.
-        :param organisation: the organisation associated with this telescope.
-        :param workflow_type: the telescope type associated with this telescope.
+        :param organisation: the organisation associated with this workflow.
+        :param workflow_type: the workflow type associated with this workflow.
         :return: None.
         """
 
@@ -477,12 +477,12 @@ class DatasetType(Base):
         """Construct a Dataset object.
 
         :param id: unique id.
-        :param type_id: a unique string id for the telescope type.
+        :param type_id: a unique string id for the workflow type.
         :param name: the dataset name.
         :param extra: additional metadata for a dataset, stored as JSON.
         :param created: datetime created in UTC.
         :param modified: datetime modified in UTC.
-        :param table_type: the Telescope associated with this dataset.
+        :param table_type: the Workflow associated with this dataset.
         """
 
         self.id = id
@@ -504,11 +504,11 @@ class DatasetType(Base):
         """Update the properties of an existing Dataset object. This method is handy when you want to update
         the Dataset from a dictionary, e.g. obj.update(**{'modified': datetime.utcnow()}).
 
-        :param type_id: a unique string id for the telescope type.
+        :param type_id: a unique string id for the workflow type.
         :param name: the dataset name.
         :param extra: additional metadata for a dataset, stored as JSON.
         :param modified: datetime modified in UTC.
-        :param connection: the Telescope associated with this dataset.
+        :param connection: the Workflow associated with this dataset.
         :return: None.
         """
 
@@ -539,7 +539,7 @@ class Dataset(Base):
     address: str
     created: pendulum.DateTime
     modified: pendulum.DateTime
-    connection: Telescope = None
+    connection: Workflow = None
     dataset_type: DatasetType = None
 
     id = Column(Integer, primary_key=True)
@@ -549,7 +549,7 @@ class Dataset(Base):
     created = Column(DateTime())
     modified = Column(DateTime())
 
-    connection_id = Column(Integer, ForeignKey(f"{Telescope.__tablename__}.id"), nullable=False)
+    connection_id = Column(Integer, ForeignKey(f"{Workflow.__tablename__}.id"), nullable=False)
     dataset_type_id = Column(Integer, ForeignKey(f"{DatasetType.__tablename__}.id"), nullable=False)
     releases = relationship("DatasetRelease", backref=__tablename__)
 
@@ -559,7 +559,7 @@ class Dataset(Base):
         name: str = None,
         service: str = None,
         address: str = None,
-        connection: Union[Telescope, dict] = None,
+        connection: Union[Workflow, dict] = None,
         dataset_type: Union[DatasetType, dict] = None,
         created: pendulum.DateTime = None,
         modified: pendulum.DateTime = None,
@@ -572,7 +572,7 @@ class Dataset(Base):
         :param address: storage resource address.
         :param created: datetime created in UTC.
         :param modified: datetime modified in UTC.
-        :param connection: the Telescope associated with this dataset.
+        :param connection: the Workflow associated with this dataset.
         :param dataset_type: the DatasetType associated with this dataset.
         """
 
@@ -584,7 +584,7 @@ class Dataset(Base):
         self.modified = to_datetime_utc(modified)
 
         # Fetch associated table info
-        self.connection = fetch_db_object(Telescope, connection)
+        self.connection = fetch_db_object(Workflow, connection)
         self.dataset_type = fetch_db_object(DatasetType, dataset_type)
 
     def update(
@@ -592,7 +592,7 @@ class Dataset(Base):
         name: str = None,
         service: str = None,
         address: str = None,
-        connection: Union[Telescope, dict] = None,
+        connection: Union[Workflow, dict] = None,
         dataset_type: Union[DatasetType, dict] = None,
         modified: pendulum.DateTime = None,
     ):
@@ -603,7 +603,7 @@ class Dataset(Base):
         :param service: The storage service name, e.g., google.
         :param address: Storage resource address, e.g., project.dataset.tablename
         :param modified: datetime modified in UTC.
-        :param connection: the Telescope associated with this dataset.
+        :param connection: the Workflow associated with this dataset.
         :param dataset_type: the DatasetType associated with this dataset.
         :return: None.
         """
@@ -618,7 +618,7 @@ class Dataset(Base):
             self.address = address
 
         if connection is not None:
-            self.connection = fetch_db_object(Telescope, connection)
+            self.connection = fetch_db_object(Workflow, connection)
 
         if dataset_type is not None:
             self.dataset_type = fetch_db_object(DatasetType, dataset_type)

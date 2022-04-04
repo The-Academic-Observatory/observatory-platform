@@ -1,4 +1,4 @@
-# Organisation
+# Workflow
 
 ## Properties
 <div class="wy-table-responsive"><table border="1" class="docutils">
@@ -25,33 +25,39 @@
 </tr>
 <tr>
     <td><strong>name</strong></td>
-    <td><strong>str</strong></td>
-    <td></td>
-    <td>[optional] </td>
-</tr>
-<tr>
-    <td><strong>project_id</strong></td>
     <td><strong>str, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>download_bucket</strong></td>
+    <td><strong>extra</strong></td>
+    <td><strong>bool, date, datetime, dict, float, int, list, str, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>tags</strong></td>
     <td><strong>str, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>transform_bucket</strong></td>
-    <td><strong>str, none_type</strong></td>
+    <td><strong>organisation</strong></td>
+    <td><a href="Organisation.html"><strong>Organisation</strong></a></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>workflows</strong></td>
-    <td><a href="Workflow.html"><strong>[Workflow]</strong></a></td>
+    <td><strong>workflow_type</strong></td>
+    <td><a href="WorkflowType.html"><strong>WorkflowType</strong></a></td>
     <td></td>
-    <td>[optional] [readonly] </td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>datasets</strong></td>
+    <td><a href="Dataset.html"><strong>[Dataset]</strong></a></td>
+    <td></td>
+    <td>[optional] </td>
 </tr>
 <tr>
     <td><strong>created</strong></td>

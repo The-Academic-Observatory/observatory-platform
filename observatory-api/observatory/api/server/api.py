@@ -37,7 +37,7 @@ from observatory.api.server.orm import (
     Dataset,
     DatasetRelease,
     Organisation,
-    Telescope,
+    Workflow,
     WorkflowType,
     TableType,
     DatasetType,
@@ -223,63 +223,63 @@ def get_workflow_types(limit: int) -> Response:
     return get_items(WorkflowType, limit)
 
 
-def get_telescope(id: int) -> Response:
-    """Get a Telescope.
+def get_workflow(id: int) -> Response:
+    """Get a Workflow.
 
-    :param id: the Telescope id.
+    :param id: the Workflow id.
     :return: a Response object.
     """
 
-    return get_item(Telescope, id)
+    return get_item(Workflow, id)
 
 
-def post_telescope(body: Dict) -> Response:
-    """Create a Telescope.
+def post_workflow(body: Dict) -> Response:
+    """Create a Workflow.
 
     :param body: the Connection in the form of a dictionary.
     :return: a Response object.
     """
 
-    return post_item(Telescope, body)
+    return post_item(Workflow, body)
 
 
-def put_telescope(body: Dict) -> Response:
-    """Create or update a Telescope.
+def put_workflow(body: Dict) -> Response:
+    """Create or update a Workflow.
 
-    :param body: the Telescope in the form of a dictionary.
+    :param body: the Workflow in the form of a dictionary.
     :return: a Response object.
     """
 
-    return put_item(Telescope, body)
+    return put_item(Workflow, body)
 
 
-def delete_telescope(id: int) -> Response:
-    """Delete a Telescope.
+def delete_workflow(id: int) -> Response:
+    """Delete a Workflow.
 
-    :param id: the Telescope id.
+    :param id: the Workflow id.
     :return: a Response object.
     """
 
-    return delete_item(Telescope, id)
+    return delete_item(Workflow, id)
 
 
-def get_telescopes(limit: int, workflow_type_id=None, organisation_id: int = None) -> Response:
-    """Get a list of Telescope objects.
+def get_workflows(limit: int, workflow_type_id=None, organisation_id: int = None) -> Response:
+    """Get a list of Workflow objects.
 
     :param organisation_id: the Organisation id to filter by.
     :param workflow_type_id: the WorkflowType id to filter by.
-    :param limit: the maximum number of Telescope objects to return.
+    :param limit: the maximum number of Workflow objects to return.
     :return: a Response object.
     """
 
-    q = session_.query(Telescope)
+    q = session_.query(Workflow)
 
     # Create filters based on parameters
     filters = []
     if workflow_type_id is not None:
-        filters.append(Telescope.workflow_type_id == workflow_type_id)
+        filters.append(Workflow.workflow_type_id == workflow_type_id)
     if organisation_id is not None:
-        filters.append(Telescope.organisation_id == organisation_id)
+        filters.append(Workflow.organisation_id == organisation_id)
     if len(filters):
         q = q.filter(and_(*filters))
 
@@ -568,19 +568,19 @@ def delete_dataset(id: int) -> Response:
     return delete_item(Dataset, id)
 
 
-def get_datasets(limit: int, telescope_id: int = None) -> Response:
+def get_datasets(limit: int, workflow_id: int = None) -> Response:
     """Get a list of Dataset objects.
 
     :param limit: the maximum number of Dataset objects to return.
-    :param telescope_id: Telescope id to filter by.
+    :param workflow_id: Workflow id to filter by.
     :return: a Response object.
     """
 
     q = session_.query(Dataset)
     filters = []
 
-    if telescope_id is not None:
-        filters.append(Dataset.connection_id == telescope_id)
+    if workflow_id is not None:
+        filters.append(Dataset.connection_id == workflow_id)
     if len(filters):
         q = q.filter(and_(*filters))
 

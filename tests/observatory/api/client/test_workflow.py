@@ -13,15 +13,15 @@ import unittest
 
 from observatory.api.client.exceptions import ApiAttributeError, ApiTypeError
 from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.telescope import Telescope
+from observatory.api.client.model.workflow import Workflow
 from observatory.api.client.model.workflow_type import WorkflowType
 
 
-class TestTelescope(unittest.TestCase):
-    """Telescope unit test stubs"""
+class TestWorkflow(unittest.TestCase):
+    """Workflow unit test stubs"""
 
-    def testTelescope(self):
-        """Test Telescope"""
+    def testWorkflow(self):
+        """Test Workflow"""
 
         # Create valid object
         dt = datetime.datetime.utcnow()
@@ -33,11 +33,11 @@ class TestTelescope(unittest.TestCase):
             transform_bucket="my-transform-bucket",
         )
 
-        Telescope(
+        Workflow(
             id=1,
-            name="Curtin ONIX Telescope",
+            name="Curtin ONIX Workflow",
             organisation=organisation,
-            workflow_type=WorkflowType(id=1, name="ONIX Telescope"),
+            workflow_type=WorkflowType(id=1, name="ONIX Workflow"),
             extra={"view_id": 123456},
         )
 
@@ -48,11 +48,11 @@ class TestTelescope(unittest.TestCase):
 
         self.assertRaises(
             ApiAttributeError,
-            Telescope,
+            Workflow,
             id=1,
-            name="Curtin ONIX Telescope",
+            name="Curtin ONIX Workflow",
             organisation=organisation,
-            workflow_type=WorkflowType(id=1, name="ONIX Telescope"),
+            workflow_type=WorkflowType(id=1, name="ONIX Workflow"),
             extra={"view_id": 123456},
             _configuration=Configuration(),
             unknown="var",
@@ -62,15 +62,15 @@ class TestTelescope(unittest.TestCase):
 
         # Invalid argument
         with self.assertRaises(ApiTypeError):
-            Telescope("hello")
+            Workflow("hello")
 
         # Invalid keyword argument
         with self.assertRaises(ApiAttributeError):
-            Telescope(hello="world")
+            Workflow(hello="world")
 
-        self.assertRaises(ApiTypeError, Telescope._from_openapi_data, "hello")
+        self.assertRaises(ApiTypeError, Workflow._from_openapi_data, "hello")
 
-        Telescope._from_openapi_data(hello="world", _configuration=Configuration())
+        Workflow._from_openapi_data(hello="world", _configuration=Configuration())
 
 
 if __name__ == "__main__":

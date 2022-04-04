@@ -29,7 +29,7 @@ from observatory.api.client.model.dataset_type import DatasetType
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.query_response import QueryResponse
 from observatory.api.client.model.table_type import TableType
-from observatory.api.client.model.telescope import Telescope
+from observatory.api.client.model.workflow import Workflow
 from observatory.api.client.model.workflow_type import WorkflowType
 
 
@@ -289,14 +289,14 @@ class ObservatoryApi(object):
             },
             api_client=api_client
         )
-        self.delete_telescope_endpoint = _Endpoint(
+        self.delete_workflow_endpoint = _Endpoint(
             settings={
                 'response_type': None,
                 'auth': [
                     'api_key'
                 ],
-                'endpoint_path': '/v1/telescope',
-                'operation_id': 'delete_telescope',
+                'endpoint_path': '/v1/workflow',
+                'operation_id': 'delete_workflow',
                 'http_method': 'DELETE',
                 'servers': None,
             },
@@ -715,7 +715,7 @@ class ObservatoryApi(object):
             params_map={
                 'all': [
                     'limit',
-                    'telescope_id',
+                    'workflow_id',
                 ],
                 'required': [
                     'limit',
@@ -735,16 +735,16 @@ class ObservatoryApi(object):
                 'openapi_types': {
                     'limit':
                         (int,),
-                    'telescope_id':
+                    'workflow_id':
                         (int,),
                 },
                 'attribute_map': {
                     'limit': 'limit',
-                    'telescope_id': 'telescope_id',
+                    'workflow_id': 'workflow_id',
                 },
                 'location_map': {
                     'limit': 'query',
-                    'telescope_id': 'query',
+                    'workflow_id': 'query',
                 },
                 'collection_format_map': {
                 }
@@ -964,14 +964,14 @@ class ObservatoryApi(object):
             },
             api_client=api_client
         )
-        self.get_telescope_endpoint = _Endpoint(
+        self.get_workflow_endpoint = _Endpoint(
             settings={
-                'response_type': (Telescope,),
+                'response_type': (Workflow,),
                 'auth': [
                     'api_key'
                 ],
-                'endpoint_path': '/v1/telescope',
-                'operation_id': 'get_telescope',
+                'endpoint_path': '/v1/workflow',
+                'operation_id': 'get_workflow',
                 'http_method': 'GET',
                 'servers': None,
             },
@@ -1003,67 +1003,6 @@ class ObservatoryApi(object):
                 },
                 'location_map': {
                     'id': 'query',
-                },
-                'collection_format_map': {
-                }
-            },
-            headers_map={
-                'accept': [
-                    'application/json'
-                ],
-                'content_type': [],
-            },
-            api_client=api_client
-        )
-        self.get_telescopes_endpoint = _Endpoint(
-            settings={
-                'response_type': ([Telescope],),
-                'auth': [
-                    'api_key'
-                ],
-                'endpoint_path': '/v1/telescopes',
-                'operation_id': 'get_telescopes',
-                'http_method': 'GET',
-                'servers': None,
-            },
-            params_map={
-                'all': [
-                    'limit',
-                    'workflow_type_id',
-                    'organisation_id',
-                ],
-                'required': [
-                    'limit',
-                ],
-                'nullable': [
-                ],
-                'enum': [
-                ],
-                'validation': [
-                ]
-            },
-            root_map={
-                'validations': {
-                },
-                'allowed_values': {
-                },
-                'openapi_types': {
-                    'limit':
-                        (int,),
-                    'workflow_type_id':
-                        (int,),
-                    'organisation_id':
-                        (int,),
-                },
-                'attribute_map': {
-                    'limit': 'limit',
-                    'workflow_type_id': 'workflow_type_id',
-                    'organisation_id': 'organisation_id',
-                },
-                'location_map': {
-                    'limit': 'query',
-                    'workflow_type_id': 'query',
-                    'organisation_id': 'query',
                 },
                 'collection_format_map': {
                 }
@@ -1169,6 +1108,67 @@ class ObservatoryApi(object):
                 },
                 'location_map': {
                     'limit': 'query',
+                },
+                'collection_format_map': {
+                }
+            },
+            headers_map={
+                'accept': [
+                    'application/json'
+                ],
+                'content_type': [],
+            },
+            api_client=api_client
+        )
+        self.get_workflows_endpoint = _Endpoint(
+            settings={
+                'response_type': ([Workflow],),
+                'auth': [
+                    'api_key'
+                ],
+                'endpoint_path': '/v1/workflows',
+                'operation_id': 'get_workflows',
+                'http_method': 'GET',
+                'servers': None,
+            },
+            params_map={
+                'all': [
+                    'limit',
+                    'workflow_type_id',
+                    'organisation_id',
+                ],
+                'required': [
+                    'limit',
+                ],
+                'nullable': [
+                ],
+                'enum': [
+                ],
+                'validation': [
+                ]
+            },
+            root_map={
+                'validations': {
+                },
+                'allowed_values': {
+                },
+                'openapi_types': {
+                    'limit':
+                        (int,),
+                    'workflow_type_id':
+                        (int,),
+                    'organisation_id':
+                        (int,),
+                },
+                'attribute_map': {
+                    'limit': 'limit',
+                    'workflow_type_id': 'workflow_type_id',
+                    'organisation_id': 'organisation_id',
+                },
+                'location_map': {
+                    'limit': 'query',
+                    'workflow_type_id': 'query',
+                    'organisation_id': 'query',
                 },
                 'collection_format_map': {
                 }
@@ -1493,14 +1493,14 @@ class ObservatoryApi(object):
             },
             api_client=api_client
         )
-        self.post_telescope_endpoint = _Endpoint(
+        self.post_workflow_endpoint = _Endpoint(
             settings={
-                'response_type': (Telescope,),
+                'response_type': (Workflow,),
                 'auth': [
                     'api_key'
                 ],
-                'endpoint_path': '/v1/telescope',
-                'operation_id': 'post_telescope',
+                'endpoint_path': '/v1/workflow',
+                'operation_id': 'post_workflow',
                 'http_method': 'POST',
                 'servers': None,
             },
@@ -1525,7 +1525,7 @@ class ObservatoryApi(object):
                 },
                 'openapi_types': {
                     'body':
-                        (Telescope,),
+                        (Workflow,),
                 },
                 'attribute_map': {
                 },
@@ -1857,14 +1857,14 @@ class ObservatoryApi(object):
             },
             api_client=api_client
         )
-        self.put_telescope_endpoint = _Endpoint(
+        self.put_workflow_endpoint = _Endpoint(
             settings={
-                'response_type': (Telescope,),
+                'response_type': (Workflow,),
                 'auth': [
                     'api_key'
                 ],
-                'endpoint_path': '/v1/telescope',
-                'operation_id': 'put_telescope',
+                'endpoint_path': '/v1/workflow',
+                'operation_id': 'put_workflow',
                 'http_method': 'PUT',
                 'servers': None,
             },
@@ -1889,7 +1889,7 @@ class ObservatoryApi(object):
                 },
                 'openapi_types': {
                     'body':
-                        (Telescope,),
+                        (Workflow,),
                 },
                 'attribute_map': {
                 },
@@ -2591,22 +2591,22 @@ class ObservatoryApi(object):
             id
         return self.delete_table_type_endpoint.call_with_http_info(**kwargs)
 
-    def delete_telescope(
+    def delete_workflow(
         self,
         id,
         **kwargs
     ):
-        """delete a Telescope  # noqa: E501
+        """delete a Workflow  # noqa: E501
 
-        Delete a Telescope by passing it's id.   # noqa: E501
+        Delete a Workflow by passing it's id.   # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
 
-        >>> thread = api.delete_telescope(id, async_req=True)
+        >>> thread = api.delete_workflow(id, async_req=True)
         >>> result = thread.get()
 
         Args:
-            id (int): Telescope id
+            id (int): Workflow id
 
         Keyword Args:
             _return_http_data_only (bool): response data without head status
@@ -2655,7 +2655,7 @@ class ObservatoryApi(object):
         kwargs['_host_index'] = kwargs.get('_host_index')
         kwargs['id'] = \
             id
-        return self.delete_telescope_endpoint.call_with_http_info(**kwargs)
+        return self.delete_workflow_endpoint.call_with_http_info(**kwargs)
 
     def delete_workflow_type(
         self,
@@ -3135,7 +3135,7 @@ class ObservatoryApi(object):
             limit (int): the maximum number of results to return
 
         Keyword Args:
-            telescope_id (int): Telescope id to filter for. [optional]
+            workflow_id (int): Workflow id to filter for. [optional]
             _return_http_data_only (bool): response data without head status
                 code and headers. Default is True.
             _preload_content (bool): if False, the urllib3.HTTPResponse object
@@ -3445,22 +3445,22 @@ class ObservatoryApi(object):
             limit
         return self.get_table_types_endpoint.call_with_http_info(**kwargs)
 
-    def get_telescope(
+    def get_workflow(
         self,
         id,
         **kwargs
     ):
-        """get a Telescope  # noqa: E501
+        """get a Workflow  # noqa: E501
 
-        Get the details of a Telescope by passing it's id.   # noqa: E501
+        Get the details of a Workflow by passing it's id.   # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
 
-        >>> thread = api.get_telescope(id, async_req=True)
+        >>> thread = api.get_workflow(id, async_req=True)
         >>> result = thread.get()
 
         Args:
-            id (int): Telescope id
+            id (int): Workflow id
 
         Keyword Args:
             _return_http_data_only (bool): response data without head status
@@ -3484,7 +3484,7 @@ class ObservatoryApi(object):
             async_req (bool): execute request asynchronously
 
         Returns:
-            Telescope
+            Workflow
                 If the method is called asynchronously, returns the request
                 thread.
         """
@@ -3509,75 +3509,7 @@ class ObservatoryApi(object):
         kwargs['_host_index'] = kwargs.get('_host_index')
         kwargs['id'] = \
             id
-        return self.get_telescope_endpoint.call_with_http_info(**kwargs)
-
-    def get_telescopes(
-        self,
-        limit,
-        **kwargs
-    ):
-        """Get a list of Telescope objects  # noqa: E501
-
-        Get a list of Telescope objects and optionally filter via a Telescope id and or an Organisation id.   # noqa: E501
-        This method makes a synchronous HTTP request by default. To make an
-        asynchronous HTTP request, please pass async_req=True
-
-        >>> thread = api.get_telescopes(limit, async_req=True)
-        >>> result = thread.get()
-
-        Args:
-            limit (int): the maximum number of results to return
-
-        Keyword Args:
-            workflow_type_id (int): filter telescopes by a WorkflowType id. [optional]
-            organisation_id (int): filter telescopes by an Organisation id. [optional]
-            _return_http_data_only (bool): response data without head status
-                code and headers. Default is True.
-            _preload_content (bool): if False, the urllib3.HTTPResponse object
-                will be returned without reading/decoding response data.
-                Default is True.
-            _request_timeout (int/float/tuple): timeout setting for this request. If
-                one number provided, it will be total request timeout. It can also
-                be a pair (tuple) of (connection, read) timeouts.
-                Default is None.
-            _check_input_type (bool): specifies if type checking
-                should be done one the data sent to the server.
-                Default is True.
-            _check_return_type (bool): specifies if type checking
-                should be done one the data received from the server.
-                Default is True.
-            _host_index (int/None): specifies the index of the server
-                that we want to use.
-                Default is read from the configuration.
-            async_req (bool): execute request asynchronously
-
-        Returns:
-            [Telescope]
-                If the method is called asynchronously, returns the request
-                thread.
-        """
-        kwargs['async_req'] = kwargs.get(
-            'async_req', False
-        )
-        kwargs['_return_http_data_only'] = kwargs.get(
-            '_return_http_data_only', True
-        )
-        kwargs['_preload_content'] = kwargs.get(
-            '_preload_content', True
-        )
-        kwargs['_request_timeout'] = kwargs.get(
-            '_request_timeout', None
-        )
-        kwargs['_check_input_type'] = kwargs.get(
-            '_check_input_type', True
-        )
-        kwargs['_check_return_type'] = kwargs.get(
-            '_check_return_type', True
-        )
-        kwargs['_host_index'] = kwargs.get('_host_index')
-        kwargs['limit'] = \
-            limit
-        return self.get_telescopes_endpoint.call_with_http_info(**kwargs)
+        return self.get_workflow_endpoint.call_with_http_info(**kwargs)
 
     def get_workflow_type(
         self,
@@ -3707,6 +3639,74 @@ class ObservatoryApi(object):
         kwargs['limit'] = \
             limit
         return self.get_workflow_types_endpoint.call_with_http_info(**kwargs)
+
+    def get_workflows(
+        self,
+        limit,
+        **kwargs
+    ):
+        """Get a list of Workflow objects  # noqa: E501
+
+        Get a list of Workflow objects and optionally filter via a Workflow id and or an Organisation id.   # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+
+        >>> thread = api.get_workflows(limit, async_req=True)
+        >>> result = thread.get()
+
+        Args:
+            limit (int): the maximum number of results to return
+
+        Keyword Args:
+            workflow_type_id (int): filter workflows by a WorkflowType id. [optional]
+            organisation_id (int): filter workflows by an Organisation id. [optional]
+            _return_http_data_only (bool): response data without head status
+                code and headers. Default is True.
+            _preload_content (bool): if False, the urllib3.HTTPResponse object
+                will be returned without reading/decoding response data.
+                Default is True.
+            _request_timeout (int/float/tuple): timeout setting for this request. If
+                one number provided, it will be total request timeout. It can also
+                be a pair (tuple) of (connection, read) timeouts.
+                Default is None.
+            _check_input_type (bool): specifies if type checking
+                should be done one the data sent to the server.
+                Default is True.
+            _check_return_type (bool): specifies if type checking
+                should be done one the data received from the server.
+                Default is True.
+            _host_index (int/None): specifies the index of the server
+                that we want to use.
+                Default is read from the configuration.
+            async_req (bool): execute request asynchronously
+
+        Returns:
+            [Workflow]
+                If the method is called asynchronously, returns the request
+                thread.
+        """
+        kwargs['async_req'] = kwargs.get(
+            'async_req', False
+        )
+        kwargs['_return_http_data_only'] = kwargs.get(
+            '_return_http_data_only', True
+        )
+        kwargs['_preload_content'] = kwargs.get(
+            '_preload_content', True
+        )
+        kwargs['_request_timeout'] = kwargs.get(
+            '_request_timeout', None
+        )
+        kwargs['_check_input_type'] = kwargs.get(
+            '_check_input_type', True
+        )
+        kwargs['_check_return_type'] = kwargs.get(
+            '_check_return_type', True
+        )
+        kwargs['_host_index'] = kwargs.get('_host_index')
+        kwargs['limit'] = \
+            limit
+        return self.get_workflows_endpoint.call_with_http_info(**kwargs)
 
     def post_bigquery_bytes_processed(
         self,
@@ -4104,22 +4104,22 @@ class ObservatoryApi(object):
             body
         return self.post_table_type_endpoint.call_with_http_info(**kwargs)
 
-    def post_telescope(
+    def post_workflow(
         self,
         body,
         **kwargs
     ):
-        """create a Telescope  # noqa: E501
+        """create a Workflow  # noqa: E501
 
-        Create a Telescope by passing a Telescope object, without an id.   # noqa: E501
+        Create a Workflow by passing a Workflow object, without an id.   # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
 
-        >>> thread = api.post_telescope(body, async_req=True)
+        >>> thread = api.post_workflow(body, async_req=True)
         >>> result = thread.get()
 
         Args:
-            body (Telescope): Telescope to create
+            body (Workflow): Workflow to create
 
         Keyword Args:
             _return_http_data_only (bool): response data without head status
@@ -4143,7 +4143,7 @@ class ObservatoryApi(object):
             async_req (bool): execute request asynchronously
 
         Returns:
-            Telescope
+            Workflow
                 If the method is called asynchronously, returns the request
                 thread.
         """
@@ -4168,7 +4168,7 @@ class ObservatoryApi(object):
         kwargs['_host_index'] = kwargs.get('_host_index')
         kwargs['body'] = \
             body
-        return self.post_telescope_endpoint.call_with_http_info(**kwargs)
+        return self.post_workflow_endpoint.call_with_http_info(**kwargs)
 
     def post_workflow_type(
         self,
@@ -4566,22 +4566,22 @@ class ObservatoryApi(object):
             body
         return self.put_table_type_endpoint.call_with_http_info(**kwargs)
 
-    def put_telescope(
+    def put_workflow(
         self,
         body,
         **kwargs
     ):
-        """create or update a Telescope  # noqa: E501
+        """create or update a Workflow  # noqa: E501
 
-        Create a Telescope by passing a Telescope object, without an id. Update an existing Telescope by passing a Telescope object with an id.   # noqa: E501
+        Create a Workflow by passing a Workflow object, without an id. Update an existing Workflow by passing a Workflow object with an id.   # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
 
-        >>> thread = api.put_telescope(body, async_req=True)
+        >>> thread = api.put_workflow(body, async_req=True)
         >>> result = thread.get()
 
         Args:
-            body (Telescope): Telescope to create or update
+            body (Workflow): Workflow to create or update
 
         Keyword Args:
             _return_http_data_only (bool): response data without head status
@@ -4605,7 +4605,7 @@ class ObservatoryApi(object):
             async_req (bool): execute request asynchronously
 
         Returns:
-            Telescope
+            Workflow
                 If the method is called asynchronously, returns the request
                 thread.
         """
@@ -4630,7 +4630,7 @@ class ObservatoryApi(object):
         kwargs['_host_index'] = kwargs.get('_host_index')
         kwargs['body'] = \
             body
-        return self.put_telescope_endpoint.call_with_http_info(**kwargs)
+        return self.put_workflow_endpoint.call_with_http_info(**kwargs)
 
     def put_workflow_type(
         self,

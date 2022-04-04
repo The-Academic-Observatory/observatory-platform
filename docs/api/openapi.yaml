@@ -458,27 +458,27 @@ paths:
           description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
-  /v1/telescope:
+  /v1/workflow:
     get:
       tags:
       - Observatory
-      summary: get a Telescope
-      operationId: get_telescope
+      summary: get a Workflow
+      operationId: get_workflow
       description: |
-        Get the details of a Telescope by passing it's id.
+        Get the details of a Workflow by passing it's id.
       produces:
       - application/json
       parameters:
       - in: query
         name: id
-        description: Telescope id
+        description: Workflow id
         required: true
         type: integer
       responses:
         200:
-          description: the fetched Telescope
+          description: the fetched Workflow
           schema:
-            $ref: '#/definitions/Telescope'
+            $ref: '#/definitions/Workflow'
         400:
           description: bad input parameter
         401:
@@ -487,10 +487,10 @@ paths:
     post:
       tags:
       - Observatory
-      summary: create a Telescope
-      operationId: post_telescope
+      summary: create a Workflow
+      operationId: post_workflow
       description: |
-        Create a Telescope by passing a Telescope object, without an id.
+        Create a Workflow by passing a Workflow object, without an id.
       consumes:
       - application/json
       produces:
@@ -498,26 +498,26 @@ paths:
       parameters:
       - in: body
         name: body
-        description: Telescope to create
+        description: Workflow to create
         required: true
         schema:
-          $ref: '#/definitions/Telescope'
+          $ref: '#/definitions/Workflow'
       responses:
         201:
-          description: Telescope created, returning the created object with an id
+          description: Workflow created, returning the created object with an id
           schema:
-            $ref: '#/definitions/Telescope'
+            $ref: '#/definitions/Workflow'
         401:
           description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     put:
       tags:
       - Observatory
-      summary: create or update a Telescope
-      operationId: put_telescope
+      summary: create or update a Workflow
+      operationId: put_workflow
       description: |
-        Create a Telescope by passing a Telescope object, without an id. Update an existing Telescope by
-        passing a Telescope object with an id.
+        Create a Workflow by passing a Workflow object, without an id. Update an existing Workflow by
+        passing a Workflow object with an id.
       consumes:
       - application/json
       produces:
@@ -525,29 +525,29 @@ paths:
       parameters:
       - in: body
         name: body
-        description: Telescope to create or update
+        description: Workflow to create or update
         required: true
         schema:
-          $ref: '#/definitions/Telescope'
+          $ref: '#/definitions/Workflow'
       responses:
         200:
-          description: Telescope updated
+          description: Workflow updated
           schema:
-            $ref: '#/definitions/Telescope'
+            $ref: '#/definitions/Workflow'
         201:
-          description: Telescope created, returning the created object with an id
+          description: Workflow created, returning the created object with an id
           schema:
-            $ref: '#/definitions/Telescope'
+            $ref: '#/definitions/Workflow'
         401:
           description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
       - Observatory
-      summary: delete a Telescope
-      operationId: delete_telescope
+      summary: delete a Workflow
+      operationId: delete_workflow
       description: |
-        Delete a Telescope by passing it's id.
+        Delete a Workflow by passing it's id.
       consumes:
       - application/json
       produces:
@@ -555,35 +555,35 @@ paths:
       parameters:
       - in: query
         name: id
-        description: Telescope id
+        description: Workflow id
         required: true
         type: integer
       responses:
         200:
-          description: Telescope deleted
+          description: Workflow deleted
         401:
           description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
 
-  /v1/telescopes:
+  /v1/workflows:
     get:
       tags:
       - Observatory
-      summary: Get a list of Telescope objects
-      operationId: get_telescopes
+      summary: Get a list of Workflow objects
+      operationId: get_workflows
       description: |
-        Get a list of Telescope objects and optionally filter via a Telescope id and or an Organisation id.
+        Get a list of Workflow objects and optionally filter via a Workflow id and or an Organisation id.
       produces:
       - application/json
       parameters:
       - in: query
         name: workflow_type_id
-        description: filter telescopes by a WorkflowType id
+        description: filter workflows by a WorkflowType id
         required: false
         type: integer
       - in: query
         name: organisation_id
-        description: filter telescopes by an Organisation id
+        description: filter workflows by an Organisation id
         required: false
         type: integer
       - in: query
@@ -593,11 +593,11 @@ paths:
         type: integer
       responses:
         200:
-          description: a list of Telescope objects
+          description: a list of Workflow objects
           schema:
             type: array
             items:
-              $ref: '#/definitions/Telescope'
+              $ref: '#/definitions/Workflow'
         400:
           description: bad input parameter
         401:
@@ -1287,8 +1287,8 @@ paths:
         required: true
         type: integer
       - in: query
-        name: telescope_id
-        description: Telescope id to filter for
+        name: workflow_id
+        description: Workflow id to filter for
         required: false
         type: integer
       responses:
@@ -1431,7 +1431,7 @@ definitions:
         example: 2020-01-02T20:01:05Z
         readOnly: true
 
-  Telescope:
+  Workflow:
     type: object
     properties:
       id:
@@ -1439,7 +1439,7 @@ definitions:
         example: 1
       name:
         type: string
-        example: Curtin University ONIX Telescope
+        example: Curtin University ONIX Workflow
         minLength: 1
         maxLength: 250
         x-nullable: true
@@ -1503,11 +1503,11 @@ definitions:
         minLength: 3
         maxLength: 222
         x-nullable: true
-      telescopes:
+      workflows:
         type: array
         readOnly: true
         items:
-          $ref: '#/definitions/Telescope'
+          $ref: '#/definitions/Workflow'
       created:
         type: string
         format: date-time
@@ -1621,7 +1621,7 @@ definitions:
         minLength: 1
         maxLength: 250
       connection:
-        $ref: '#/definitions/Telescope'
+        $ref: '#/definitions/Workflow'
       service:
         type: string
         example: google

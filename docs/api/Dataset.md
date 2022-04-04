@@ -31,7 +31,7 @@
 </tr>
 <tr>
     <td><strong>connection</strong></td>
-    <td><a href="Telescope.html"><strong>Telescope</strong></a></td>
+    <td><a href="Workflow.html"><strong>Workflow</strong></a></td>
     <td></td>
     <td>[optional] </td>
 </tr>

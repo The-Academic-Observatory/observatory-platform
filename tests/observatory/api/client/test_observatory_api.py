@@ -43,7 +43,7 @@ from observatory.api.client.model.big_query_bytes_processed import (
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
 from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.telescope import Telescope
+from observatory.api.client.model.workflow import Workflow
 from observatory.api.client.model.workflow_type import WorkflowType
 from observatory.api.client.model.table_type import TableType
 from observatory.api.client.model.dataset_type import DatasetType
@@ -89,9 +89,9 @@ RES_EXAMPLE = {
 def make_workflow_types(env: ObservatoryApiEnvironment, dt):
     # Add WorkflowType objects
     workflow_types = [
-        ("onix", "ONIX Telescope"),
-        ("jstor", "JSTOR Telescope"),
-        ("google_analytics", "Google Analytics Telescope"),
+        ("onix", "ONIX Workflow"),
+        ("jstor", "JSTOR Workflow"),
+        ("google_analytics", "Google Analytics Workflow"),
     ]
 
     for type_id, name in workflow_types:
@@ -124,7 +124,7 @@ class TestObservatoryApi(unittest.TestCase):
         """
 
         with self.env.create():
-            # Post telescope
+            # Post workflow
             expected_id = 1
 
             dt = pendulum.now(self.timezone)
@@ -138,35 +138,35 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(404, e.exception.status)
             self.assertEqual(f'"Not found: Organisation with id {expected_id}"\n', e.exception.body)
 
-    def test_delete_telescope(self):
-        """Test case for delete_telescope
+    def test_delete_workflow(self):
+        """Test case for delete_workflow
 
-        delete a Telescope  # noqa: E501
+        delete a Workflow  # noqa: E501
         """
 
         with self.env.create():
-            # Post telescope
+            # Post workflow
             expected_id = 1
 
-            workflow_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
+                orm.Workflow(
                     organisation={"id": expected_id}, workflow_type={"id": expected_id}, created=dt, modified=dt
                 )
             )
             self.env.session.commit()
 
-            result = self.api.delete_telescope(expected_id)
+            result = self.api.delete_workflow(expected_id)
 
             with self.assertRaises(NotFoundException) as e:
-                self.api.delete_telescope(expected_id)
+                self.api.delete_workflow(expected_id)
             self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Telescope with id {expected_id}"\n', e.exception.body)
+            self.assertEqual(f'"Not found: Workflow with id {expected_id}"\n', e.exception.body)
 
     def test_delete_workflow_type(self):
         """Test case for delete_workflow_type
@@ -175,11 +175,11 @@ class TestObservatoryApi(unittest.TestCase):
         """
 
         with self.env.create():
-            # Post telescope
+            # Post workflow
             expected_id = 1
 
             dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.WorkflowType(type_id="onix", name="ONIX Telescope", created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name="ONIX Workflow", created=dt, modified=dt))
             self.env.session.commit()
 
             result = self.api.delete_workflow_type(expected_id)
@@ -196,7 +196,7 @@ class TestObservatoryApi(unittest.TestCase):
         """
 
         with self.env.create():
-            # Post telescope
+            # Post workflow
             expected_id = 1
 
             dt = pendulum.now(self.timezone)
@@ -279,23 +279,23 @@ class TestObservatoryApi(unittest.TestCase):
                 self.assertEqual(dt_utc, obj.created)
                 self.assertEqual(dt_utc, obj.modified)
 
-    def test_get_telescope(self):
-        """Test case for get_telescope
+    def test_get_workflow(self):
+        """Test case for get_workflow
 
-        get a Telescope  # noqa: E501
+        get a Workflow  # noqa: E501
         """
 
         with self.env.create():
             expected_id = 1
 
-            # Assert that Telescope with given id does not exist
+            # Assert that Workflow with given id does not exist
             with self.assertRaises(NotFoundException) as e:
-                self.api.get_telescope(expected_id)
+                self.api.get_workflow(expected_id)
             self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Telescope with id {expected_id}"\n', e.exception.body)
+            self.assertEqual(f'"Not found: Workflow with id {expected_id}"\n', e.exception.body)
 
-            # Add Telescope
-            workflow_type_name = "ONIX Telescope"
+            # Add Workflow
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
@@ -303,8 +303,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
                     tags=None,
                     organisation={"id": expected_id},
@@ -315,9 +315,9 @@ class TestObservatoryApi(unittest.TestCase):
             )
             self.env.session.commit()
 
-            # Assert that Telescope with given id exists
-            obj = self.api.get_telescope(expected_id)
-            self.assertIsInstance(obj, Telescope)
+            # Assert that Workflow with given id exists
+            obj = self.api.get_workflow(expected_id)
+            self.assertIsInstance(obj, Workflow)
             self.assertEqual(expected_id, obj.id)
             self.assertEqual(expected_id, obj.organisation.id)
             self.assertEqual(org_name, obj.organisation.name)
@@ -362,7 +362,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(expected_body, e.exception.body)
 
             # Add WorkflowType
-            name = "ONIX Telescope"
+            name = "ONIX Workflow"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
             self.env.session.add(orm.WorkflowType(type_id=type_id, name=name, created=dt, modified=dt))
@@ -408,10 +408,10 @@ class TestObservatoryApi(unittest.TestCase):
                 self.assertEqual(dt_utc, obj.created)
                 self.assertEqual(dt_utc, obj.modified)
 
-    def test_get_telescopes(self):
-        """Test case for get_telescopes
+    def test_get_workflows(self):
+        """Test case for get_workflows
 
-        Get a list of Telescope objects  # noqa: E501
+        Get a list of Workflow objects  # noqa: E501
         """
 
         with self.env.create():
@@ -425,42 +425,38 @@ class TestObservatoryApi(unittest.TestCase):
                 self.env.session.add(orm.Organisation(name=name, created=dt, modified=dt))
             self.env.session.commit()
 
-            # Add Telescopes
+            # Add Workflows
             dt = pendulum.now(self.timezone)
             self.env.session.add(
-                orm.Telescope(
+                orm.Workflow(
                     organisation={"id": 1},
                     workflow_type={"id": 1},
                     created=dt,
                     modified=dt,
                 )
             )
-            self.env.session.add(
-                orm.Telescope(organisation={"id": 1}, workflow_type={"id": 2}, created=dt, modified=dt)
-            )
-            self.env.session.add(
-                orm.Telescope(organisation={"id": 2}, workflow_type={"id": 1}, created=dt, modified=dt)
-            )
+            self.env.session.add(orm.Workflow(organisation={"id": 1}, workflow_type={"id": 2}, created=dt, modified=dt))
+            self.env.session.add(orm.Workflow(organisation={"id": 2}, workflow_type={"id": 1}, created=dt, modified=dt))
             self.env.session.commit()
 
-            # Assert that all Telescope objects returned
-            objects = self.api.get_telescopes(limit=10)
+            # Assert that all Workflow objects returned
+            objects = self.api.get_workflows(limit=10)
             self.assertEqual(3, len(objects))
 
-            # Assert that Organisation 1 Telescope objects returned
-            objects = self.api.get_telescopes(organisation_id=1, limit=10)
+            # Assert that Organisation 1 Workflow objects returned
+            objects = self.api.get_workflows(organisation_id=1, limit=10)
             self.assertEqual(2, len(objects))
 
-            # Assert that Organisation 2 Telescope objects returned
-            objects = self.api.get_telescopes(organisation_id=2, limit=10)
+            # Assert that Organisation 2 Workflow objects returned
+            objects = self.api.get_workflows(organisation_id=2, limit=10)
             self.assertEqual(1, len(objects))
 
-            # Assert that WorkflowType 1 Telescope objects returned
-            objects = self.api.get_telescopes(workflow_type_id=1, limit=10)
+            # Assert that WorkflowType 1 Workflow objects returned
+            objects = self.api.get_workflows(workflow_type_id=1, limit=10)
             self.assertEqual(2, len(objects))
 
-            # Assert that WorkflowType 2 Telescope objects returned
-            objects = self.api.get_telescopes(workflow_type_id=2, limit=10)
+            # Assert that WorkflowType 2 Workflow objects returned
+            objects = self.api.get_workflows(workflow_type_id=2, limit=10)
             self.assertEqual(1, len(objects))
 
     def test_get_table_type(self):
@@ -553,37 +549,37 @@ class TestObservatoryApi(unittest.TestCase):
         """
 
         with self.env.create():
-            # Post telescope
+            # Post workflow
             expected_id = 1
             obj = Organisation(name="Curtin University")
             result = self.api.post_organisation(obj)
             self.assertIsInstance(result, Organisation)
             self.assertEqual(expected_id, result.id)
 
-    def test_post_telescope(self):
-        """Test case for post_telescope
+    def test_post_workflow(self):
+        """Test case for post_workflow
 
-        create a Telescope  # noqa: E501
+        create a Workflow  # noqa: E501
         """
 
         with self.env.create():
             # Add WorkflowType and Organisation
             dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.WorkflowType(type_id="onix", name="ONIX Telescope", created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name="ONIX Workflow", created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name="Curtin University", created=dt, modified=dt))
             self.env.session.commit()
 
-            # Post telescope
+            # Post workflow
             expected_id = 1
-            obj = Telescope(
-                name="Curtin University ONIX Telescope",
+            obj = Workflow(
+                name="Curtin University ONIX Workflow",
                 extra={"view_id": 123456},
                 tags='["oaebu"]',
                 organisation=Organisation(id=expected_id),
                 workflow_type=WorkflowType(id=expected_id),
             )
-            result = self.api.post_telescope(obj)
-            self.assertIsInstance(result, Telescope)
+            result = self.api.post_workflow(obj)
+            self.assertIsInstance(result, Workflow)
             self.assertEqual(expected_id, result.id)
 
     def test_post_workflow_type(self):
@@ -594,7 +590,7 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            obj = WorkflowType(type_id="onix", name="ONIX Telescope")
+            obj = WorkflowType(type_id="onix", name="ONIX Workflow")
             result = self.api.post_workflow_type(obj)
 
             self.assertIsInstance(result, WorkflowType)
@@ -645,16 +641,16 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(404, e.exception.status)
             self.assertEqual(f'"Not found: Organisation with id {expected_id}"\n', e.exception.body)
 
-    def test_put_telescope(self):
-        """Test case for put_telescope
+    def test_put_workflow(self):
+        """Test case for put_workflow
 
-        create or update a Telescope  # noqa: E501
+        create or update a Workflow  # noqa: E501
         """
 
         with self.env.create():
             expected_id = 1
             dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.WorkflowType(type_id="onix", name="ONIX Telescope", created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name="ONIX Workflow", created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name="Curtin University", created=dt, modified=dt))
             self.env.session.add(
                 orm.Organisation(name="Massachusetts Institute of Technology", created=dt, modified=dt)
@@ -662,16 +658,16 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.commit()
 
             # Put create
-            obj = Telescope(organisation=Organisation(id=expected_id), workflow_type=WorkflowType(id=expected_id))
-            result = self.api.put_telescope(obj)
-            self.assertIsInstance(result, Telescope)
+            obj = Workflow(organisation=Organisation(id=expected_id), workflow_type=WorkflowType(id=expected_id))
+            result = self.api.put_workflow(obj)
+            self.assertIsInstance(result, Workflow)
             self.assertEqual(expected_id, result.id)
 
             # Put update
-            name = "Curtin ONIX Telescope"
+            name = "Curtin ONIX Workflow"
             extra = {"view_id": 123456}
             tags = '["oaebu"]'
-            obj = Telescope(
+            obj = Workflow(
                 id=expected_id,
                 name=name,
                 extra=extra,
@@ -679,8 +675,8 @@ class TestObservatoryApi(unittest.TestCase):
                 organisation=Organisation(id=2),
                 workflow_type=WorkflowType(id=expected_id),
             )
-            result = self.api.put_telescope(obj)
-            self.assertIsInstance(result, Telescope)
+            result = self.api.put_workflow(obj)
+            self.assertIsInstance(result, Workflow)
             self.assertEqual(expected_id, result.id)
             self.assertEqual(name, result.name)
             self.assertDictEqual(extra, result.extra)
@@ -689,15 +685,15 @@ class TestObservatoryApi(unittest.TestCase):
             # Put not found
             expected_id = 2
             with self.assertRaises(NotFoundException) as e:
-                self.api.put_telescope(
-                    Telescope(
+                self.api.put_workflow(
+                    Workflow(
                         id=expected_id,
                         organisation=Organisation(id=expected_id),
                         workflow_type=WorkflowType(id=expected_id),
                     )
                 )
             self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Telescope with id {expected_id}"\n', e.exception.body)
+            self.assertEqual(f'"Not found: Workflow with id {expected_id}"\n', e.exception.body)
 
     def test_put_workflow_type(self):
         """Test case for put_workflow_type
@@ -708,7 +704,7 @@ class TestObservatoryApi(unittest.TestCase):
         with self.env.create():
             # Put create
             expected_id = 1
-            name = "ONIX Telescope"
+            name = "ONIX Workflow"
             obj = WorkflowType(type_id="onix", name=name)
             result = self.api.put_workflow_type(obj)
             self.assertIsInstance(result, WorkflowType)
@@ -716,7 +712,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(name, result.name)
 
             # Put update
-            new_name = "Google Analytics Telescope"
+            new_name = "Google Analytics Workflow"
             obj = WorkflowType(type_id="google_analytics", id=expected_id, name=new_name)
             result = self.api.put_workflow_type(obj)
             self.assertIsInstance(result, WorkflowType)
@@ -1061,7 +1057,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(f'"Not found: Dataset with id {expected_id}"\n', e.exception.body)
 
             # Add Dataset
-            workflow_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
@@ -1069,8 +1065,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
                     tags='["oaebu"]',
                     organisation={"id": expected_id},
@@ -1122,7 +1118,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(expected_id, obj.id)
             self.assertEqual("dataset", obj.name)
             self.assertEqual(expected_id, obj.connection.id)
-            self.assertEqual("Curtin ONIX Telescope", obj.connection.name)
+            self.assertEqual("Curtin ONIX Workflow", obj.connection.name)
             self.assertEqual(dt_utc, obj.created)
             self.assertEqual(dt_utc, obj.modified)
 
@@ -1131,7 +1127,7 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            workflow_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
@@ -1139,8 +1135,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
                     tags='["oaebu"]',
                     organisation={"id": expected_id},
@@ -1178,7 +1174,7 @@ class TestObservatoryApi(unittest.TestCase):
                 name="My dataset",
                 service="bigquery",
                 address="project.dataset.table",
-                connection=Telescope(id=expected_id),
+                connection=Workflow(id=expected_id),
                 dataset_type=DatasetType(id=1),
             )
             result = self.api.post_dataset(obj)
@@ -1190,7 +1186,7 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            workflow_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
@@ -1198,8 +1194,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
                     tags='["oaebu"]',
                     organisation={"id": expected_id},
@@ -1237,7 +1233,7 @@ class TestObservatoryApi(unittest.TestCase):
                 name="My dataset",
                 service="bigquery",
                 address="project.dataset.table",
-                connection=Telescope(id=expected_id),
+                connection=Workflow(id=expected_id),
                 dataset_type=DatasetType(id=1),
             )
             result = self.api.put_dataset(obj)
@@ -1251,13 +1247,13 @@ class TestObservatoryApi(unittest.TestCase):
                 name=name,
                 service="bigquery",
                 address="project.dataset.table",
-                connection=Telescope(id=expected_id),
+                connection=Workflow(id=expected_id),
             )
             result = self.api.put_dataset(obj)
             self.assertIsInstance(result, Dataset)
             self.assertEqual(expected_id, result.id)
             self.assertEqual(name, result.name)
-            self.assertEqual("Curtin ONIX Telescope", result.connection.name)
+            self.assertEqual("Curtin ONIX Workflow", result.connection.name)
 
             # Put not found
             expected_id = 2
@@ -1267,7 +1263,7 @@ class TestObservatoryApi(unittest.TestCase):
                         id=expected_id,
                         service="bigquery",
                         address="project.dataset.table",
-                        connection=Telescope(id=expected_id),
+                        connection=Workflow(id=expected_id),
                     )
                 )
             self.assertEqual(404, e.exception.status)
@@ -1278,7 +1274,7 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            workflow_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
@@ -1286,8 +1282,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
                     tags='["oaebu"]',
                     organisation={"id": expected_id},
@@ -1297,8 +1293,8 @@ class TestObservatoryApi(unittest.TestCase):
                 )
             )
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
                     tags='["oaebu"]',
                     organisation={"id": expected_id},
@@ -1357,15 +1353,15 @@ class TestObservatoryApi(unittest.TestCase):
             )
             self.env.session.commit()
 
-            # Assert that all Telescope objects returned
+            # Assert that all Workflow objects returned
             objects = self.api.get_datasets(limit=10)
             self.assertEqual(2, len(objects))
 
-            # Search datasets by telescope_id
-            objects = self.api.get_datasets(telescope_id=1, limit=10)
+            # Search datasets by workflow_id
+            objects = self.api.get_datasets(workflow_id=1, limit=10)
             self.assertEqual(1, len(objects))
 
-            objects = self.api.get_datasets(telescope_id=2, limit=10)
+            objects = self.api.get_datasets(workflow_id=2, limit=10)
             self.assertEqual(1, len(objects))
 
     def test_get_dataset_release(self):
@@ -1379,7 +1375,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
 
             expected_id = 1
-            workflow_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
@@ -1387,8 +1383,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
                     tags='["oaebu"]',
                     organisation={"id": expected_id},
@@ -1468,7 +1464,7 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            workflow_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
@@ -1476,8 +1472,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
                     tags='["oaebu"]',
                     organisation={"id": expected_id},
@@ -1547,7 +1543,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
 
             expected_id = 1
-            workflow_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
@@ -1555,8 +1551,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
                     tags='["oaebu"]',
                     organisation={"id": expected_id},
@@ -1649,7 +1645,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
 
             expected_id = 1
-            workflow_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
@@ -1657,8 +1653,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
                     tags='["oaebu"]',
                     organisation={"id": expected_id},
@@ -1750,7 +1746,7 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            workflow_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
@@ -1758,8 +1754,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
                     tags='["oaebu"]',
                     organisation={"id": expected_id},
@@ -1797,7 +1793,7 @@ class TestObservatoryApi(unittest.TestCase):
                 name="My dataset",
                 service="bigquery",
                 address="project.dataset.table",
-                connection=Telescope(id=expected_id),
+                connection=Workflow(id=expected_id),
                 dataset_type=DatasetType(id=1),
             )
             self.api.post_dataset(obj)
@@ -1813,7 +1809,7 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            workflow_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
@@ -1821,8 +1817,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
                     tags='["oaebu"]',
                     organisation={"id": expected_id},
