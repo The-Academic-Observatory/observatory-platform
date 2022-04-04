@@ -1,0 +1,45 @@
+{
+  "title": "Observatory Platform",
+  "description": "<p>The Observatory Platform is an environment for fetching, processing and analysing data to understand how well universities operate as Open Knowledge Institutions.</p>\n\n<p>The Observatory Platform is built with Apache Airflow. The workflows for the project can be seen in the&nbsp;<a href=\"https://github.com/The-Academic-Observatory/academic-observatory-workflows\">Academic Observatory Workflows</a>&nbsp;and&nbsp;<a href=\"https://github.com/The-Academic-Observatory/oaebu-workflows\">OAeBU Workflows</a>&nbsp;projects.</p>\n\n<p><strong>Contributors</strong><br>\nConceptualization: James P. Diprose, Richard Hosking, Aniek Roelofs, Lucy Montgomery, and Cameron Neylon.<br>\nFunding acquisition: Lucy Montgomery and Cameron Neylon.<br>\nInvestigation: James P. Diprose, Richard Hosking, Aniek Roelofs, and Tuan-Yow Chien.<br>\nMethodology: James P. Diprose, Richard Hosking, Aniek Roelofs, and Tuan-Yow Chien.<br>\nProject administration: Richard Hosking, Lucy Montgomery, and Cameron Neylon.<br>\nResources: James P. Diprose, Richard Hosking, and Aniek Roelofs.<br>\nSoftware: James P. Diprose, Richard Hosking, Aniek Roelofs, and Tuan-Yow Chien.<br>\nSupervision: James P. Diprose, Richard Hosking, Lucy Montgomery, and Cameron Neylon.<br>\nValidation: James P. Diprose, Richard Hosking, Aniek Roelofs, and Tuan-Yow Chien.<br>\nWriting - original draft: James P. Diprose, Richard Hosking, and Aniek Roelofs.<br>\nWriting - review &amp; editing: James P. Diprose, Richard Hosking, and Aniek Roelofs.</p>",
+  "notes": "The Curtin Open Knowledge Initiative (COKI) is a strategic initiative of the Research Office at Curtin, the Faculty of Humanities, School of Media, Creative Arts and Social Inquiry and the Curtin Institute for Computation, with additional support from the Andrew W. Mellon Foundation and the Arcadia Fund, a charitable fund of Lisbet Rausing and Peter Baldwin.",
+  "communities": [
+    {
+      "identifier": "coki"
+    }
+  ],
+  "license": {
+    "id": "Apache-2.0"
+  },
+  "creators": [
+    {
+      "orcid": "0000-0002-5094-3571",
+      "affiliation": "Centre for Culture and Technology, Curtin University",
+      "name": "James P. Diprose"
+    },
+    {
+      "orcid": "0000-0001-8288-5241",
+      "affiliation": "Centre for Culture and Technology, Curtin University",
+      "name": "Richard Hosking"
+    },
+    {
+      "orcid": "0000-0003-0485-3388",
+      "affiliation": "Curtin Institute for Computation, Curtin University",
+      "name": "Aniek Roelofs"
+    },
+    {
+      "orcid": "0000-0002-6237-7423",
+      "affiliation": "Centre for Culture and Technology, Curtin University",
+      "name": "Tuan-Yow Chien"
+    },
+    {
+      "orcid": "0000-0001-6551-8140",
+      "affiliation": "Centre for Culture and Technology, Curtin University",
+      "name": "Lucy Montgomery"
+    },
+    {
+      "orcid": "0000-0002-0068-716X",
+      "affiliation": "Centre for Culture and Technology, Curtin University",
+      "name": "Cameron Neylon"
+    }
+  ]
+}
