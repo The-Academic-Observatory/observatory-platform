@@ -28,7 +28,7 @@ from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.table_type import TableType
 from observatory.api.client.model.dataset_type import DatasetType
-from observatory.api.client.model.telescope import Telescope
+from observatory.api.client.model.workflow import Workflow
 from observatory.api.client.model.workflow_type import WorkflowType
 from observatory.api.client.model.dataset import Dataset
 
@@ -63,13 +63,13 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
         result = self.api.put_organisation(org)
         self.assertIsInstance(result, Organisation)
 
-        tele_type = WorkflowType(type_id="tele_type", name="My Telescope")
+        tele_type = WorkflowType(type_id="tele_type", name="My Workflow")
         result = self.api.put_workflow_type(tele_type)
         self.assertIsInstance(result, WorkflowType)
 
-        telescope = Telescope(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
-        result = self.api.put_telescope(telescope)
-        self.assertIsInstance(result, Telescope)
+        workflow = Workflow(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
+        result = self.api.put_workflow(workflow)
+        self.assertIsInstance(result, Workflow)
 
         table_type = TableType(
                 type_id="partitioned",
@@ -85,7 +85,7 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
         
         self.api.put_dataset_type(dataset_type)
 
-        dataset = Dataset(name="My dataset", service="bigquery", address="project.dataset.table", connection=Telescope(id=1), dataset_type=DatasetType(id=1))
+        dataset = Dataset(name="My dataset", service="bigquery", address="project.dataset.table", connection=Workflow(id=1), dataset_type=DatasetType(id=1))
         result = self.api.put_dataset(dataset)
         self.assertIsInstance(result, Dataset)
 

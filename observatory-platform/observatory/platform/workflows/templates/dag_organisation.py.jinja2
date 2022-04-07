@@ -19,13 +19,13 @@ from {{ package_name }}.identifiers import WorkflowTypes
 from {{ package_name }}.workflows.{{ workflow_module }} import {{ workflow_class }}
 from observatory.platform.utils.api import make_observatory_api
 
-# Fetch all telescopes
+# Fetch all workflows
 api = make_observatory_api()
 workflow_type = api.get_workflow_type(type_id=WorkflowTypes.{{ workflow_module }})
-telescopes = api.get_telescopes(workflow_type_id=workflow_type.id, limit=1000)
+workflows = api.get_workflows(workflow_type_id=workflow_type.id, limit=1000)
 
-# Make all telescopes
-for telescope in telescopes:
-    key1 = telescope.extra.get("key1")
-    telescope = {{ workflow_class }}(telescope.organisation, key1)
-    globals()[telescope.dag_id] = telescope.make_dag()
+# Make all workflows
+for workflow in workflows:
+    key1 = workflow.extra.get("key1")
+    workflow = {{ workflow_class }}(workflow.organisation, key1)
+    globals()[workflow.dag_id] = workflow.make_dag()

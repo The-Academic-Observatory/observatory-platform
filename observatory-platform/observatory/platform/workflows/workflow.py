@@ -421,7 +421,7 @@ class Workflow(AbstractWorkflow):
         for release in releases:
             start_date, end_date = get_start_end_date(release)
 
-            datasets = get_datasets(telescope_id=self.workflow_id)
+            datasets = get_datasets(workflow_id=self.workflow_id)
             for dataset in datasets:
                 add_dataset_release(
                     start_date=start_date,

@@ -29,7 +29,7 @@ from observatory.platform.utils.test_utils import (
 
 
 class Test{{ workflow_class }}(ObservatoryTestCase):
-    """ Tests for the {{ workflow_class }} telescope """
+    """ Tests for the {{ workflow_class }} workflow """
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -73,7 +73,7 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
             env.api_session.add(workflow_type)
             organisation = orm.Organisation(name="Organisation", created=dt, modified=dt)
             env.api_session.add(organisation)
-            workflow = orm.Telescope(
+            workflow = orm.Workflow(
                 name="Organisation {{ workflow_class }} Workflow",
                 workflow_type=workflow_type,
                 organisation=organisation,

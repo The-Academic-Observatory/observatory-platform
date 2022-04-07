@@ -20,7 +20,7 @@ from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.table_type import TableType
 from observatory.api.client.model.dataset_type import DatasetType
-from observatory.api.client.model.telescope import Telescope
+from observatory.api.client.model.workflow import Workflow
 from observatory.api.client.model.workflow_type import WorkflowType
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
@@ -57,20 +57,20 @@ class TestReleaseUtils(ObservatoryTestCase):
         self.api = ObservatoryApi(api_client=api_client)  # noqa: E501
         self.env = ObservatoryApiEnvironment(host=self.host, port=self.port)
         self.org_name = "Curtin University"
-        self.telescope_id = 1
+        self.workflow_id = 1
 
     def setup_api_entries(self):
         org = Organisation(name=self.org_name)
         result = self.api.put_organisation(org)
         self.assertIsInstance(result, Organisation)
 
-        tele_type = WorkflowType(type_id="tele_type", name="My Telescope")
+        tele_type = WorkflowType(type_id="tele_type", name="My Workflow")
         result = self.api.put_workflow_type(tele_type)
         self.assertIsInstance(result, WorkflowType)
 
-        telescope = Telescope(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
-        result = self.api.put_telescope(telescope)
-        self.assertIsInstance(result, Telescope)
+        workflow = Workflow(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
+        result = self.api.put_workflow(workflow)
+        self.assertIsInstance(result, Workflow)
 
         table_type = TableType(
             type_id="partitioned",
@@ -90,7 +90,7 @@ class TestReleaseUtils(ObservatoryTestCase):
             name="My dataset",
             service="bigquery",
             address="project.dataset.table",
-            connection=Telescope(id=1),
+            connection=Workflow(id=1),
             dataset_type=DatasetType(id=1),
         )
         result = self.api.put_dataset(dataset)
@@ -102,7 +102,7 @@ class TestReleaseUtils(ObservatoryTestCase):
 
         with self.env.create():
             self.setup_api_entries()
-            datasets = get_datasets(telescope_id=self.telescope_id)
+            datasets = get_datasets(workflow_id=self.workflow_id)
             self.assertEqual(len(datasets), 1)
             self.assertEqual(datasets[0].name, "My dataset")
 

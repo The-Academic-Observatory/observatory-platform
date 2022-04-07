@@ -34,17 +34,17 @@ def address_to_gcp_fields(address: str) -> Tuple[str, str, str]:
     return tuple(address.split("."))
 
 
-def get_datasets(*, telescope_id: str) -> List["Dataset"]:  # noqa: F821
-    """Get a list of datasets for a telescope.
-    Only returns the first 1000 datasets for that telescope.
+def get_datasets(*, workflow_id: str) -> List["Dataset"]:  # noqa: F821
+    """Get a list of datasets for a workflow.
+    Only returns the first 1000 datasets for that workflow.
 
-    :param telescope_id: Telescope type ID.
+    :param workflow_id: Workflow type ID.
     :return: List of Dataset objects.
     """
 
     limit = 1000
     api = make_observatory_api()
-    datasets = api.get_datasets(telescope_id=telescope_id, limit=limit)
+    datasets = api.get_datasets(workflow_id=workflow_id, limit=limit)
     return datasets
 
 
@@ -60,19 +60,21 @@ def get_dataset_releases(*, dataset_id: int) -> List[DatasetRelease]:
     dataset_releases = api.get_dataset_releases(dataset_id=dataset_id, limit=limit)
     return dataset_releases
 
+
 def get_latest_dataset_release(releases: List[DatasetRelease]) -> DatasetRelease:
     """Get the dataset release from the list with the most recent end date.
-    
+
     :param releases: List of releases.
     :return: Latest release (by end_date)
     """
-    
+
     latest = releases[0]
     for release in releases:
         if release.end_date > latest.end_date:
             latest = release
 
     return latest
+
 
 def get_start_end_date(
     release: "AbstractRelease",  # noqa: F821
@@ -150,7 +152,7 @@ def is_first_release(workflow_id: int) -> bool:
     :return: Whether this is the first release.
     """
 
-    datasets = get_datasets(telescope_id=workflow_id)
+    datasets = get_datasets(workflow_id=workflow_id)
     releases = get_dataset_releases(dataset_id=datasets[0].id)
     return len(releases) == 0
 

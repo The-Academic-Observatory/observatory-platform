@@ -36,7 +36,7 @@ from observatory.platform.utils.test_utils import (
 from observatory.platform.workflows.workflow import Release, Workflow, make_task_id
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_type import DatasetType
-from observatory.api.client.model.telescope import Telescope
+from observatory.api.client.model.workflow import Workflow as apiWorkflow
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
@@ -106,7 +106,7 @@ class TestWorkflow(ObservatoryTestCase):
         self.api = ObservatoryApi(api_client=api_client)  # noqa: E501
         self.env = ObservatoryApiEnvironment(host=self.host, port=self.port)
         self.org_name = "Curtin University"
-        self.telescope_id = 1
+        self.workflow_id = 1
 
     def setup_api(self):
         org = Organisation(name=self.org_name)
@@ -117,9 +117,9 @@ class TestWorkflow(ObservatoryTestCase):
         result = self.api.put_workflow_type(tele_type)
         self.assertIsInstance(result, WorkflowType)
 
-        telescope = Telescope(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
-        result = self.api.put_telescope(telescope)
-        self.assertIsInstance(result, Telescope)
+        telescope = apiWorkflow(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
+        result = self.api.put_workflow(telescope)
+        self.assertIsInstance(result, apiWorkflow)
 
         table_type = TableType(
             type_id="partitioned",
@@ -139,7 +139,7 @@ class TestWorkflow(ObservatoryTestCase):
             name="My dataset",
             service="bigquery",
             address="project.dataset.table",
-            connection=Telescope(id=1),
+            connection=apiWorkflow(id=1),
             dataset_type=DatasetType(id=1),
         )
         result = self.api.put_dataset(dataset)
@@ -262,7 +262,7 @@ class TestWorkflow(ObservatoryTestCase):
                 name="My dataset",
                 service="bigquery",
                 address="project.dataset.table",
-                connection=Telescope(id=1),
+                connection=apiWorkflow(id=1),
                 dataset_type=DatasetType(id=1),
             )
             m_get_datasets.return_value = [dataset]

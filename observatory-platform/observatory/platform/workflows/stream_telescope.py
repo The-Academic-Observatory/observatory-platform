@@ -162,7 +162,7 @@ class StreamTelescope(Workflow):
             # Can we get away with using data_interval_start instead?
             start_date = pendulum.instance(kwargs["dag"].default_args["start_date"]).start_of("day")
         else:
-            datasets = get_datasets(telescope_id=self.workflow_id)
+            datasets = get_datasets(workflow_id=self.workflow_id)
             releases = get_dataset_releases(dataset_id=datasets[0].id)
             latest_release = get_latest_dataset_release(releases=releases)
             start_date = pendulum.instance(latest_release.end_date).start_of("day")
