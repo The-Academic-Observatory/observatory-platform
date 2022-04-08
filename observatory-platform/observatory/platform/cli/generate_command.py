@@ -1014,11 +1014,8 @@ class InteractiveConfigBuilder:
         text = "Image tag, based on the github release tag, pull request id or 'local'"
         image_tag = click.prompt(text=text, type=str)
 
-        text = "Auth0 client id"
-        auth0_client_id = click.prompt(text=text, type=str)
-
-        text = "Auth0 client secret"
-        auth0_client_secret = click.prompt(text=text, type=str)
+        text = "API key"
+        api_key = click.prompt(text=text, type=str)
 
         text = "Enter a secret key to secure the Flask session (leave blank to autogenerate)"
         default = os.urandom(24).hex()
@@ -1030,8 +1027,7 @@ class InteractiveConfigBuilder:
             domain_name=domain_name,
             subdomain=subdomain,
             image_tag=image_tag,
-            auth0_client_id=auth0_client_id,
-            auth0_client_secret=auth0_client_secret,
+            api_key=api_key,
             session_secret_key=session_secret_key,
         )
 

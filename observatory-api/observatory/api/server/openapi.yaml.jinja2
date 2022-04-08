@@ -17,15 +17,13 @@ schemes:
 produces:
   - application/json
 securityDefinitions:
-  auth0_jwt:
-    authorizationUrl: "https://dev-canowprn.us.auth0.com/authorize"
-    flow: "implicit"
-    type: "oauth2"
-    x-google-issuer: "https://dev-canowprn.us.auth0.com/"
-    x-google-jwks_uri: "https://dev-canowprn.us.auth0.com/.well-known/jwks.json"
-    x-google-audiences: "https://ao.api.observatory.academy"
+  # This section configures basic authentication with an API key.
+  api_key:
+    type: "apiKey"
+    name: "key"
+    in: "query"
 security:
-  - auth0_jwt_test
+  - api_key: []
 {%- endif %}
 
 {# Host settings #}

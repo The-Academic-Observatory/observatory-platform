@@ -904,8 +904,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             api.domain_name,
             api.subdomain,
             api.image_tag,
-            api.auth0_client_id,
-            api.auth0_client_secret,
+            api.api_key,
             api.session_secret_key,
         ]
 

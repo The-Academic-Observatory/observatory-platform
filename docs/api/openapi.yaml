@@ -24,7 +24,6 @@ securityDefinitions:
 security:
   - api_key: []
 
-
 host: api.observatory.academy
 
 
@@ -1141,7 +1140,7 @@ definitions:
         type: string
         format: date-time
         example: 2020-01-01T20:01:05Z
-        readOnly: true  
+        readOnly: true
       modified:
         type: string
         format: date-time

@@ -804,8 +804,7 @@ class Api(ConfigSection):
     domain_name: str = "api.observatory.academy"
     subdomain: str = "project_id"
     image_tag: str = "2021.09.01"
-    auth0_client_id: str = "auth0 application client id"
-    auth0_client_secret: str = "auth0 application client secret"
+    api_key: str = "api key"
     session_secret_key: str = os.urandom(24).hex()
 
     def to_hcl(self):
@@ -816,8 +815,7 @@ class Api(ConfigSection):
                 "domain_name": self.domain_name,
                 "subdomain": self.subdomain,
                 "image_tag": self.image_tag,
-                "auth0_client_id": self.auth0_client_id,
-                "auth0_client_secret": self.auth0_client_secret,
+                "api_key": self.api_key,
                 "session_secret_key": self.session_secret_key,
             }
         )
@@ -847,13 +845,10 @@ class Api(ConfigSection):
         domain_name = dict_.get("domain_name")
         subdomain = dict_.get("subdomain")
         image_tag = dict_.get("image_tag", "")
-        auth0_client_id = dict_.get("auth0_client_id")
-        auth0_client_secret = dict_.get("auth0_client_secret")
+        api_key = dict_.get("api_key")
         session_secret_key = dict_.get("session_secret_key")
 
-        return Api(
-            name, package, domain_name, subdomain, image_tag, auth0_client_id, auth0_client_secret, session_secret_key
-        )
+        return Api(name, package, domain_name, subdomain, image_tag, api_key, session_secret_key)
 
 
 @dataclass
@@ -1744,8 +1739,7 @@ def make_schema(backend_type: BackendType) -> Dict:
                 "domain_name": {"required": True, "type": "string"},
                 "subdomain": {"required": True, "type": "string", "allowed": ["project_id", "environment"]},
                 "image_tag": {"required": True, "type": "string"},
-                "auth0_client_id": {"required": True, "type": "string"},
-                "auth0_client_secret": {"required": True, "type": "string"},
+                "api_key": {"required": True, "type": "string"},
                 "session_secret_key": {"required": True, "type": "string"},
             },
         }
