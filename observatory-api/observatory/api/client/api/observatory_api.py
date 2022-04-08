@@ -1408,6 +1408,7 @@ class ObservatoryApi(object):
                     'body',
                 ],
                 'nullable': [
+                    'body',
                 ],
                 'enum': [
                 ],
@@ -1772,6 +1773,7 @@ class ObservatoryApi(object):
                     'body',
                 ],
                 'nullable': [
+                    'body',
                 ],
                 'enum': [
                 ],

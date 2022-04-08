@@ -695,6 +695,11 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(404, e.exception.status)
             self.assertEqual(f'"Not found: Workflow with id {expected_id}"\n', e.exception.body)
 
+            # Put with no organisation set
+            obj = Workflow(workflow_type=WorkflowType(id=1))
+            result = self.api.put_workflow(obj)
+            self.assertEqual(None, result.organisation)
+
     def test_put_workflow_type(self):
         """Test case for put_workflow_type
 

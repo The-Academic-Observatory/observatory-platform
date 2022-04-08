@@ -297,7 +297,7 @@ class Workflow(Base):
     tags = Column(String(250), nullable=True)
     created = Column(DateTime())
     modified = Column(DateTime())
-    organisation_id = Column(Integer, ForeignKey(f"{Organisation.__tablename__}.id"), nullable=False)
+    organisation_id = Column(Integer, ForeignKey(f"{Organisation.__tablename__}.id"), nullable=True)
     workflow_type_id = Column(Integer, ForeignKey(f"{WorkflowType.__tablename__}.id"), nullable=False)
     datasets = relationship("Dataset", backref=__tablename__)
 
