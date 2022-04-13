@@ -139,7 +139,7 @@ class TestWorkflow(ObservatoryTestCase):
             name="My dataset",
             service="bigquery",
             address="project.dataset.table",
-            connection=apiWorkflow(id=1),
+            workflow=apiWorkflow(id=1),
             dataset_type=DatasetType(id=1),
         )
         result = self.api.put_dataset(dataset)
@@ -262,7 +262,7 @@ class TestWorkflow(ObservatoryTestCase):
                 name="My dataset",
                 service="bigquery",
                 address="project.dataset.table",
-                connection=apiWorkflow(id=1),
+                workflow=apiWorkflow(id=1),
                 dataset_type=DatasetType(id=1),
             )
             m_get_datasets.return_value = [dataset]

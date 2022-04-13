@@ -204,8 +204,8 @@ class TestOrm(unittest.TestCase):
         # Update
         dt = pendulum.now("UTC")
         dict_ = {"name": "My Workflow Type 2", "modified": dt}
-        connection_type = self.session.query(WorkflowType).filter(WorkflowType.id == expected_id).one()
-        connection_type.update(**dict_)
+        workflow_type = self.session.query(WorkflowType).filter(WorkflowType.id == expected_id).one()
+        workflow_type.update(**dict_)
         self.session.commit()
 
     def test_workflow(self):
@@ -472,8 +472,8 @@ class TestOrm(unittest.TestCase):
         # Update
         dt = pendulum.now("UTC")
         dict_ = {"name": "My Table Type 2", "modified": dt}
-        connection_type = self.session.query(TableType).filter(TableType.id == expected_id).one()
-        connection_type.update(**dict_)
+        workflow_type = self.session.query(TableType).filter(TableType.id == expected_id).one()
+        workflow_type.update(**dict_)
         self.session.commit()
 
     def test_dataset_type(self):
@@ -628,7 +628,7 @@ class TestOrm(unittest.TestCase):
             name="dataset",
             service="service",
             address="project.dataset.table",
-            connection=workflow,
+            workflow=workflow,
             dataset_type=dataset_type,
             created=dt,
             modified=dt,
@@ -721,7 +721,7 @@ class TestOrm(unittest.TestCase):
             name="dataset",
             service="service",
             address="project.dataset.table",
-            connection=workflow,
+            workflow=workflow,
             dataset_type=dataset_type,
             created=dt,
             modified=dt,
@@ -820,7 +820,7 @@ class TestOrm(unittest.TestCase):
             name="dataset",
             service="bigquery",
             address="project.dataset.table",
-            connection=workflow,
+            workflow=workflow,
             dataset_type=dataset_type,
             created=dt,
             modified=dt,
@@ -904,7 +904,7 @@ class TestOrm(unittest.TestCase):
         expected_id = 1
         dt = pendulum.now("UTC")
         dict_ = {
-            "connection": {"id": workflow.id},
+            "workflow": {"id": workflow.id},
             "dataset_type": {"id": dataset_type.id},
             "name": "name",
             "service": "bigquery",
@@ -922,7 +922,7 @@ class TestOrm(unittest.TestCase):
         # Update with no new values
         obj.update(**{})
         self.session.commit()
-        self.assertEqual(expected_id, obj.connection.id)
+        self.assertEqual(expected_id, obj.workflow.id)
         self.assertEqual(dt, pendulum.instance(obj.created))
         self.assertEqual(dt, pendulum.instance(obj.modified))
 
@@ -940,7 +940,7 @@ class TestOrm(unittest.TestCase):
         self.session.commit()
 
         dict_ = {
-            "connection": {"id": expected_id},
+            "workflow": {"id": expected_id},
             "dataset_type": {"id": 1},
             "name": "name",
             "service": "bigquery",
@@ -949,7 +949,7 @@ class TestOrm(unittest.TestCase):
         }
         obj.update(**dict_)
         self.session.commit()
-        self.assertEqual(expected_id, obj.connection.id)
+        self.assertEqual(expected_id, obj.workflow.id)
         self.assertEqual("project.dataset.table2", obj.address)
         self.assertEqual(dt, pendulum.instance(obj.created))
         self.assertEqual(dt, pendulum.instance(obj.modified))

@@ -51,7 +51,7 @@ def create_session(uri: str = os.environ.get("OBSERVATORY_DB_URI"), connect_args
     if uri is None:
         raise ValueError(
             "observatory.api.orm.create_session: please set the create_session `uri` parameter "
-            "or the environment variable OBSERVATORY_DB_URI with a valid PostgreSQL connection string"
+            "or the environment variable OBSERVATORY_DB_URI with a valid PostgreSQL workflow string"
         )
 
     if connect_args is None:
@@ -279,7 +279,7 @@ class WorkflowType(Base):
 
 @dataclass
 class Workflow(Base):
-    __tablename__ = "connection"
+    __tablename__ = "workflow"
 
     # Only include should be serialized to JSON as dataclass attributes
     id: int
@@ -331,7 +331,7 @@ class Workflow(Base):
         self.created = to_datetime_utc(created)
         self.modified = to_datetime_utc(modified)
 
-        # Fetch organisation and connection type from database if it exists
+        # Fetch organisation and workflow type from database if it exists
         self.organisation = fetch_db_object(Organisation, organisation)
         self.workflow_type = fetch_db_object(WorkflowType, workflow_type)
 
@@ -508,7 +508,7 @@ class DatasetType(Base):
         :param name: the dataset name.
         :param extra: additional metadata for a dataset, stored as JSON.
         :param modified: datetime modified in UTC.
-        :param connection: the Workflow associated with this dataset.
+        :param workflow: the Workflow associated with this dataset.
         :return: None.
         """
 
@@ -539,7 +539,7 @@ class Dataset(Base):
     address: str
     created: pendulum.DateTime
     modified: pendulum.DateTime
-    connection: Workflow = None
+    workflow: Workflow = None
     dataset_type: DatasetType = None
 
     id = Column(Integer, primary_key=True)
@@ -549,7 +549,7 @@ class Dataset(Base):
     created = Column(DateTime())
     modified = Column(DateTime())
 
-    connection_id = Column(Integer, ForeignKey(f"{Workflow.__tablename__}.id"), nullable=False)
+    workflow_id = Column(Integer, ForeignKey(f"{Workflow.__tablename__}.id"), nullable=False)
     dataset_type_id = Column(Integer, ForeignKey(f"{DatasetType.__tablename__}.id"), nullable=False)
     releases = relationship("DatasetRelease", backref=__tablename__)
 
@@ -559,7 +559,7 @@ class Dataset(Base):
         name: str = None,
         service: str = None,
         address: str = None,
-        connection: Union[Workflow, dict] = None,
+        workflow: Union[Workflow, dict] = None,
         dataset_type: Union[DatasetType, dict] = None,
         created: pendulum.DateTime = None,
         modified: pendulum.DateTime = None,
@@ -572,7 +572,7 @@ class Dataset(Base):
         :param address: storage resource address.
         :param created: datetime created in UTC.
         :param modified: datetime modified in UTC.
-        :param connection: the Workflow associated with this dataset.
+        :param workflow: the Workflow associated with this dataset.
         :param dataset_type: the DatasetType associated with this dataset.
         """
 
@@ -584,7 +584,7 @@ class Dataset(Base):
         self.modified = to_datetime_utc(modified)
 
         # Fetch associated table info
-        self.connection = fetch_db_object(Workflow, connection)
+        self.workflow = fetch_db_object(Workflow, workflow)
         self.dataset_type = fetch_db_object(DatasetType, dataset_type)
 
     def update(
@@ -592,7 +592,7 @@ class Dataset(Base):
         name: str = None,
         service: str = None,
         address: str = None,
-        connection: Union[Workflow, dict] = None,
+        workflow: Union[Workflow, dict] = None,
         dataset_type: Union[DatasetType, dict] = None,
         modified: pendulum.DateTime = None,
     ):
@@ -603,7 +603,7 @@ class Dataset(Base):
         :param service: The storage service name, e.g., google.
         :param address: Storage resource address, e.g., project.dataset.tablename
         :param modified: datetime modified in UTC.
-        :param connection: the Workflow associated with this dataset.
+        :param workflow: the Workflow associated with this dataset.
         :param dataset_type: the DatasetType associated with this dataset.
         :return: None.
         """
@@ -617,8 +617,8 @@ class Dataset(Base):
         if address is not None:
             self.address = address
 
-        if connection is not None:
-            self.connection = fetch_db_object(Workflow, connection)
+        if workflow is not None:
+            self.workflow = fetch_db_object(Workflow, workflow)
 
         if dataset_type is not None:
             self.dataset_type = fetch_db_object(DatasetType, dataset_type)

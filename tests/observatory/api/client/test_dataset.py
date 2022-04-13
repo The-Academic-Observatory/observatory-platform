@@ -42,7 +42,7 @@ class TestDataset(unittest.TestCase):
             transform_bucket="my-transform-bucket",
         )
 
-        connection = Workflow(
+        workflow = Workflow(
             id=1,
             name="Curtin ONIX Workflow",
             organisation=organisation,
@@ -57,7 +57,7 @@ class TestDataset(unittest.TestCase):
             name="name",
             service="bigquery",
             address="project.dataset.table",
-            connection=connection,
+            workflow=workflow,
             _configuration=Configuration(),
             unknown="var",
         )
@@ -69,7 +69,7 @@ class TestDataset(unittest.TestCase):
             name="name",
             service="bigquery",
             address="project.dataset.table",
-            connection=connection,
+            workflow=workflow,
             _configuration=Configuration(),
             unknown="var",
             created=dt,

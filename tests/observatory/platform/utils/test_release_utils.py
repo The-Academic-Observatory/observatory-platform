@@ -90,7 +90,7 @@ class TestReleaseUtils(ObservatoryTestCase):
             name="My dataset",
             service="bigquery",
             address="project.dataset.table",
-            connection=Workflow(id=1),
+            workflow=Workflow(id=1),
             dataset_type=DatasetType(id=1),
         )
         result = self.api.put_dataset(dataset)

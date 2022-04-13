@@ -580,7 +580,7 @@ def get_datasets(limit: int, workflow_id: int = None) -> Response:
     filters = []
 
     if workflow_id is not None:
-        filters.append(Dataset.connection_id == workflow_id)
+        filters.append(Dataset.workflow_id == workflow_id)
     if len(filters):
         q = q.filter(and_(*filters))
 

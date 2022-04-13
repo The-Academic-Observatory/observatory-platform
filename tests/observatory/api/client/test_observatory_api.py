@@ -1109,7 +1109,7 @@ class TestObservatoryApi(unittest.TestCase):
                     name="dataset",
                     service="bigquery",
                     address="project.dataset.table",
-                    connection={"id": expected_id},
+                    workflow={"id": expected_id},
                     dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
@@ -1122,8 +1122,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertIsInstance(obj, Dataset)
             self.assertEqual(expected_id, obj.id)
             self.assertEqual("dataset", obj.name)
-            self.assertEqual(expected_id, obj.connection.id)
-            self.assertEqual("Curtin ONIX Workflow", obj.connection.name)
+            self.assertEqual(expected_id, obj.workflow.id)
+            self.assertEqual("Curtin ONIX Workflow", obj.workflow.name)
             self.assertEqual(dt_utc, obj.created)
             self.assertEqual(dt_utc, obj.modified)
 
@@ -1179,7 +1179,7 @@ class TestObservatoryApi(unittest.TestCase):
                 name="My dataset",
                 service="bigquery",
                 address="project.dataset.table",
-                connection=Workflow(id=expected_id),
+                workflow=Workflow(id=expected_id),
                 dataset_type=DatasetType(id=1),
             )
             result = self.api.post_dataset(obj)
@@ -1238,7 +1238,7 @@ class TestObservatoryApi(unittest.TestCase):
                 name="My dataset",
                 service="bigquery",
                 address="project.dataset.table",
-                connection=Workflow(id=expected_id),
+                workflow=Workflow(id=expected_id),
                 dataset_type=DatasetType(id=1),
             )
             result = self.api.put_dataset(obj)
@@ -1252,13 +1252,13 @@ class TestObservatoryApi(unittest.TestCase):
                 name=name,
                 service="bigquery",
                 address="project.dataset.table",
-                connection=Workflow(id=expected_id),
+                workflow=Workflow(id=expected_id),
             )
             result = self.api.put_dataset(obj)
             self.assertIsInstance(result, Dataset)
             self.assertEqual(expected_id, result.id)
             self.assertEqual(name, result.name)
-            self.assertEqual("Curtin ONIX Workflow", result.connection.name)
+            self.assertEqual("Curtin ONIX Workflow", result.workflow.name)
 
             # Put not found
             expected_id = 2
@@ -1268,7 +1268,7 @@ class TestObservatoryApi(unittest.TestCase):
                         id=expected_id,
                         service="bigquery",
                         address="project.dataset.table",
-                        connection=Workflow(id=expected_id),
+                        workflow=Workflow(id=expected_id),
                     )
                 )
             self.assertEqual(404, e.exception.status)
@@ -1339,7 +1339,7 @@ class TestObservatoryApi(unittest.TestCase):
                     name="dataset",
                     service="bigquery",
                     address="project.dataset.table",
-                    connection={"id": 1},
+                    workflow={"id": 1},
                     dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
@@ -1348,7 +1348,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(
                 orm.Dataset(
                     name="dataset",
-                    connection={"id": 2},
+                    workflow={"id": 2},
                     dataset_type={"id": 1},
                     service="bigquery",
                     address="project.dataset.table",
@@ -1428,7 +1428,7 @@ class TestObservatoryApi(unittest.TestCase):
                     name="dataset",
                     service="bigquery",
                     address="project.dataset.table",
-                    connection={"id": 1},
+                    workflow={"id": 1},
                     dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
@@ -1515,7 +1515,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(
                 orm.Dataset(
                     name="dataset",
-                    connection={"id": 1},
+                    workflow={"id": 1},
                     dataset_type={"id": 1},
                     service="bigquery",
                     address="project.dataset.table",
@@ -1596,7 +1596,7 @@ class TestObservatoryApi(unittest.TestCase):
                     name="dataset",
                     service="bigquery",
                     address="project.dataset.table",
-                    connection={"id": 1},
+                    workflow={"id": 1},
                     dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
@@ -1698,7 +1698,7 @@ class TestObservatoryApi(unittest.TestCase):
                     name="dataset1",
                     service="bigquery",
                     address="project.dataset.table",
-                    connection={"id": 1},
+                    workflow={"id": 1},
                     dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
@@ -1709,7 +1709,7 @@ class TestObservatoryApi(unittest.TestCase):
                     name="dataset2",
                     service="bigquery",
                     address="project.dataset.table",
-                    connection={"id": 1},
+                    workflow={"id": 1},
                     dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
@@ -1798,7 +1798,7 @@ class TestObservatoryApi(unittest.TestCase):
                 name="My dataset",
                 service="bigquery",
                 address="project.dataset.table",
-                connection=Workflow(id=expected_id),
+                workflow=Workflow(id=expected_id),
                 dataset_type=DatasetType(id=1),
             )
             self.api.post_dataset(obj)
@@ -1862,7 +1862,7 @@ class TestObservatoryApi(unittest.TestCase):
                     name="dataset",
                     service="bigquery",
                     address="project.dataset.table",
-                    connection={"id": 1},
+                    workflow={"id": 1},
                     dataset_type={"id": 1},
                     created=dt,
                     modified=dt,

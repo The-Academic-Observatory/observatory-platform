@@ -97,7 +97,7 @@ class Dataset(ModelNormal):
         return {
             'id': (int,),  # noqa: E501, F821
             'name': (str,),  # noqa: E501, F821
-            'connection': (Workflow,),  # noqa: E501, F821
+            'workflow': (Workflow,),  # noqa: E501, F821
             'service': (str,),  # noqa: E501, F821
             'address': (str,),  # noqa: E501, F821
             'created': (datetime,),  # noqa: E501, F821
@@ -113,7 +113,7 @@ class Dataset(ModelNormal):
     attribute_map = {
         'id': 'id',  # noqa: E501
         'name': 'name',  # noqa: E501
-        'connection': 'connection',  # noqa: E501
+        'workflow': 'workflow',  # noqa: E501
         'service': 'service',  # noqa: E501
         'address': 'address',  # noqa: E501
         'created': 'created',  # noqa: E501
@@ -166,7 +166,7 @@ class Dataset(ModelNormal):
                                 _visited_composed_classes = (Animal,)
             id (int): [optional]  # noqa: E501
             name (str): [optional]  # noqa: E501
-            connection (Workflow): [optional]  # noqa: E501
+            workflow (Workflow): [optional]  # noqa: E501
             service (str): [optional]  # noqa: E501
             address (str): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
@@ -255,7 +255,7 @@ class Dataset(ModelNormal):
                                 _visited_composed_classes = (Animal,)
             id (int): [optional]  # noqa: E501
             name (str): [optional]  # noqa: E501
-            connection (Workflow): [optional]  # noqa: E501
+            workflow (Workflow): [optional]  # noqa: E501
             service (str): [optional]  # noqa: E501
             address (str): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501

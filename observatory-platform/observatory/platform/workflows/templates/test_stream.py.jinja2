@@ -85,7 +85,7 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
         
         self.api.put_dataset_type(dataset_type)
 
-        dataset = Dataset(name="My dataset", service="bigquery", address="project.dataset.table", connection=Workflow(id=1), dataset_type=DatasetType(id=1))
+        dataset = Dataset(name="My dataset", service="bigquery", address="project.dataset.table", workflow=Workflow(id=1), dataset_type=DatasetType(id=1))
         result = self.api.put_dataset(dataset)
         self.assertIsInstance(result, Dataset)
 
