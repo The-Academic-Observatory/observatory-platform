@@ -3136,7 +3136,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     body = Dataset(
         id=1,
         name="RoR",
-        connection=Workflow(
+        workflow=Workflow(
             id=1,
             name="Curtin University ONIX Workflow",
             extra={},
@@ -3295,7 +3295,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         dataset=Dataset(
             id=1,
             name="RoR",
-            connection=Workflow(
+            workflow=Workflow(
                 id=1,
                 name="Curtin University ONIX Workflow",
                 extra={},
@@ -3843,7 +3843,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
             Dataset(
                 id=1,
                 name="RoR",
-                connection=Workflow(),
+                workflow=Workflow(),
                 service="google",
                 address="curtin_gcp_project_id.my_dataset_id.my_table",
                 dataset_type=DatasetType(
@@ -4102,7 +4102,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     body = Dataset(
         id=1,
         name="RoR",
-        connection=Workflow(
+        workflow=Workflow(
             id=1,
             name="Curtin University ONIX Workflow",
             extra={},
@@ -4266,7 +4266,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
         dataset=Dataset(
             id=1,
             name="RoR",
-            connection=Workflow(
+            workflow=Workflow(
                 id=1,
                 name="Curtin University ONIX Workflow",
                 extra={},
@@ -4834,7 +4834,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
             Dataset(
                 id=1,
                 name="RoR",
-                connection=Workflow(),
+                workflow=Workflow(),
                 service="google",
                 address="curtin_gcp_project_id.my_dataset_id.my_table",
                 dataset_type=DatasetType(

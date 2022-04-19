@@ -30,7 +30,7 @@
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>connection</strong></td>
+    <td><strong>workflow</strong></td>
     <td><a href="Workflow.html"><strong>Workflow</strong></a></td>
     <td></td>
     <td>[optional] </td>
