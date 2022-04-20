@@ -187,7 +187,7 @@ download_releases(missing_releases)
 Tightly coupling release information with dag run execution dates limits the precision of dataset release information that can be recorded. The API provides another mechanism to record precise release information when you ingest more than one release during a single dag run.  One example of this is the previous use case of replacing the catchup mechanism.
 
 ## Calculating table names from TableType
-BigQuery table names are different depending on the type of table used.  For example, sharded tables have a date suffix on the end, e.g., `mytable20210102`, whereas partitioned tables reference partitions using a `$` prefix, e.g., `mytable$202101`.  The TableType record gives you information on the type of table used, and can be used by workflows to construct the correct table_id for a specific dataset.
+BigQuery table names are different depending on the type of table used.  For example, sharded tables have a date suffix on the end, e.g., `mytable20210102`, whereas partitioned tables reference partitions using a \$ prefix, e.g., `mytable$202101`.  The TableType record gives you information on the type of table used, and can be used by workflows to construct the correct table_id for a specific dataset.
 
 ```python
 dataset = api.get_dataset(id=dataset_id)
