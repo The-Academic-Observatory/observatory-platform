@@ -5,6 +5,9 @@
   "communities": [
     {
       "identifier": "coki"
+    },
+    {
+      "identifier": "2020to2022-developing-pilot-data-trust-for-oa-book-usage"
     }
   ],
   "license": {
