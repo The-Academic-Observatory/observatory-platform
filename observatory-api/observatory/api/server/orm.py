@@ -386,7 +386,7 @@ class TableType(Base):
     modified: pendulum.DateTime
 
     id = Column(Integer, primary_key=True)
-    type_id = Column(String(250))
+    type_id = Column(String(250), unique=True, nullable=False)
     name = Column(String(250))
     created = Column(DateTime())
     modified = Column(DateTime())
