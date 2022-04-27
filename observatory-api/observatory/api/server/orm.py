@@ -635,9 +635,9 @@ class DatasetRelease(Base):
 
     start_date: pendulum.DateTime
     end_date: pendulum.DateTime
-    dataset: Dataset = None
     created: pendulum.DateTime
     modified: pendulum.DateTime
+    dataset: Dataset = None
 
     id = Column(Integer, primary_key=True)
     start_date = Column(DateTime())
