@@ -104,4 +104,7 @@ COPY entrypoint-airflow.sh /entrypoint-airflow.sh
 RUN chmod +x /entrypoint-root.sh
 RUN chmod +x /entrypoint-airflow.sh
 
+COPY entrypoint-api.sh /entrypoint-api.sh
+RUN chmod +x /entrypoint-api.sh
+
 ENTRYPOINT ["/entrypoint-root.sh"]

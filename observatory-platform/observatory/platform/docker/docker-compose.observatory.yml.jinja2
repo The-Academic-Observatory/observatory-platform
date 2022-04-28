@@ -31,7 +31,8 @@ version: '3.8'
 {%- set google_application_credentials="${HOST_GOOGLE_APPLICATION_CREDENTIALS}" -%}
 {%- set postgres_hostname="postgres" -%}
 {%- set redis_hostname="redis" -%}
-
+{%- set api_server_db="observatory" -%}
+{%- set api_server_port="5001" -%}
 {%- else -%}
 
 {%- set host_data_path="/opt/observatory/data" -%}
@@ -79,6 +80,13 @@ x-environment: &environment
   {%- for conn in config.airflow_connections %}
   {{ conn.conn_name }}: {{ '${' + conn.conn_name + '}' }}
   {%- endfor %}
+
+  # API server
+  API_SERVER_DB: "{{api_server_db}}"
+  BASE_DB_URI: "postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/postgres"
+  OBSERVATORY_DB_URI: "postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/{{api_server_db}}"
+  OBSERVATORY_DB_PORT: "{{api_server_port}}"
+
   {%- endif %}
 
   # Variables
@@ -293,6 +301,18 @@ services:
       test: ["CMD", "pg_isready", "-U", "{{ postgres_user }}", "-d", "{{ airflow_db_name }}"]
       interval: 5s
       retries: 5
+
+  apiserver:
+    build: *build
+    environment: *environment
+    volumes: *volumes
+    restart: always
+    <<: *networks
+    depends_on:
+      - postgres
+    entrypoint: /entrypoint-api.sh
+    ports:
+      - {{api_server_port}}:{{api_server_port}}
   {%- endif %}
 
 {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
