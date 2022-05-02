@@ -1,4 +1,4 @@
-# TelescopeType
+# TableType
 
 ## Properties
 <div class="wy-table-responsive"><table border="1" class="docutils">

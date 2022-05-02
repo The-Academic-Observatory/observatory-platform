@@ -1,4 +1,4 @@
-# DatasetStorage
+# DatasetType
 
 ## Properties
 <div class="wy-table-responsive"><table border="1" class="docutils">
@@ -24,13 +24,13 @@
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>service</strong></td>
+    <td><strong>type_id</strong></td>
     <td><strong>str</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>address</strong></td>
+    <td><strong>name</strong></td>
     <td><strong>str</strong></td>
     <td></td>
     <td>[optional] </td>
@@ -42,8 +42,8 @@
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>dataset</strong></td>
-    <td><a href="Dataset.html"><strong>Dataset</strong></a></td>
+    <td><strong>table_type</strong></td>
+    <td><a href="TableType.html"><strong>TableType</strong></a></td>
     <td></td>
     <td>[optional] </td>
 </tr>

@@ -119,6 +119,7 @@ from observatory.platform.utils.gc_utils import (
 from observatory.platform.utils.workflow_utils import find_schema
 from pendulum import DateTime
 from sftpserver.stub_sftp import StubServer, StubSFTPServer
+import freezegun
 
 
 def random_id():
@@ -381,6 +382,9 @@ class ObservatoryEnvironment:
             )
         else:
             start_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(pendulum.DateTime)
+
+        # Disable freezegun for the observatory api client. OpenAPI client generated code does not like FakeDateTime
+        freezegun.configure(extend_ignore_list=["observatory.api.client"])
         frozen_time = freeze_time(start_date, tick=True)
 
         run_id = "manual__{0}".format(execution_date.isoformat())
@@ -893,6 +897,7 @@ def bq_load_tables(
     bucket_name: str,
     release_date: DateTime,
     data_location: str,
+    project_id: str = None,
 ):
     """Load the fake Observatory Dataset in BigQuery.
 
@@ -900,6 +905,7 @@ def bq_load_tables(
     :param bucket_name: the Google Cloud Storage bucket name.
     :param release_date: the release date for the observatory dataset.
     :param data_location: the location of the BigQuery dataset.
+    :param project_id: GCP project id.
     :return: None.
     """
 
@@ -945,6 +951,7 @@ def bq_load_tables(
                 table_id,
                 schema_file_path,
                 SourceFormat.NEWLINE_DELIMITED_JSON,
+                project_id=project_id,
             )
             if not success:
                 raise AirflowException("bq_load task: data failed to load data into BigQuery")

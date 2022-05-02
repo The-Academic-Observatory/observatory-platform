@@ -212,14 +212,14 @@ DAG file:
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-from my_dags.utils.identifiers import TelescopeTypes
+from my_dags.utils.identifiers import WorkflowTypes
 from my_dags.workflows.my_organisation import MyOrganisation
 from observatory.platform.utils.workflow_utils import make_observatory_api
 
 # Fetch all telescopes
 api = make_observatory_api()
-telescope_type = api.get_telescope_type(type_id=TelescopeTypes.my_organisation)
-telescopes = api.get_telescopes(telescope_type_id=telescope_type.id, limit=1000)
+workflow_type = api.get_workflow_type(type_id=WorkflowTypes.my_organisation)
+telescopes = api.get_telescopes(workflow_type_id=workflow_type.id, limit=1000)
 
 # Make all telescopes
 for telescope in telescopes:

@@ -166,6 +166,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
         create_bigquery_dataset(self.project_id, dataset_id, self.data_location)
 
         # Check that dataset exists: should not raise NotFound exception
+        dataset_id = f"{self.project_id}.{dataset_id}"
         env.bigquery_client.get_dataset(dataset_id)
 
         # Delete dataset
@@ -484,12 +485,13 @@ class TestObservatoryTestCase(unittest.TestCase):
                 table_name,
                 schema_file_path=schema_path,
                 source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+                project_id=self.project_id,
             )
             self.assertTrue(result)
 
             # Check BigQuery table exists and has expected rows
             test_case = ObservatoryTestCase()
-            table_id = f"{dataset_id}.{table_name}"
+            table_id = f"{self.project_id}.{dataset_id}.{table_name}"
             expected_rows = 5
             test_case.assert_table_integrity(table_id, expected_rows)
 
@@ -532,12 +534,13 @@ class TestObservatoryTestCase(unittest.TestCase):
                 table_name,
                 schema_file_path=schema_path,
                 source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+                project_id=self.project_id,
             )
             self.assertTrue(result)
 
             # Check BigQuery table exists and has expected rows
             test_case = ObservatoryTestCase()
-            table_id = f"{dataset_id}.{table_name}"
+            table_id = f"{self.project_id}.{dataset_id}.{table_name}"
             expected_content = [
                 {"first_name": "Gisella", "last_name": "Derya", "dob": datetime(1997, 7, 1).date()},
                 {"first_name": "Adelaida", "last_name": "Melis", "dob": datetime(1980, 9, 3).date()},
@@ -548,12 +551,12 @@ class TestObservatoryTestCase(unittest.TestCase):
             test_case.assert_table_content(table_id, expected_content)
 
             # Check that BigQuery table is not empty
-            table_id = f"{dataset_id}.{table_name}"
+            table_id = f"{self.project_id}.{dataset_id}.{table_name}"
             test_case.assert_table_content(table_id)
 
             # Check that BigQuery table doesn't exist
             with self.assertRaises(AssertionError):
-                table_id = f"{dataset_id}.{random_id()}"
+                table_id = f"{self.project_id}.{dataset_id}.{random_id()}"
                 test_case.assert_table_content(table_id, expected_content)
 
             # Check that BigQuery table has extra rows
@@ -569,7 +572,7 @@ class TestObservatoryTestCase(unittest.TestCase):
 
             # Check that BigQuery table has missing rows
             with self.assertRaises(AssertionError):
-                table_id = f"{dataset_id}.{table_name}"
+                table_id = f"{self.project_id}.{dataset_id}.{table_name}"
                 expected_content = [
                     {"first_name": "Gisella", "last_name": "Derya", "dob": datetime(1997, 7, 1).date()},
                     {"first_name": "Adelaida", "last_name": "Melis", "dob": datetime(1980, 9, 3).date()},

@@ -235,18 +235,16 @@ class TestGenerateCommand(ObservatoryTestCase):
                     self.assertTrue(os.path.exists(identifiers_dst_file))
 
                 # Check whether the template files do not contain any errors by running the created test files
-                proc = subprocess.Popen(
+                proc = subprocess.run(
                     [sys.executable, "-m", "unittest", test_dst_file],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
                     env=dict(os.environ, PYTHONPATH=project_path),
+                    capture_output=True,
                 )
-                out, err = stream_process(proc, debug=True)
-                self.assertEqual("OK", err.splitlines()[-1])
+                self.assertEqual("OK", proc.stderr.decode().splitlines()[-1])
 
             # Test that identifiers file is only created if it does not exist
             cmd.generate_workflow(project_path, package_name, "OrganisationTelescope", "MyOrganisation2")
-            self.assert_file_integrity(identifiers_dst_file, "7f1de3572c0fb605e4d24e7a2e1c4e30", "md5")
+            self.assert_file_integrity(identifiers_dst_file, "cb7dbb7978aeaf77dfdcad451a065680", "md5")
 
             # Test invalid workflow type
             with self.assertRaises(Exception):

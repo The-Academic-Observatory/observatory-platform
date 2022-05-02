@@ -1,5 +1,156 @@
 # Python API Tutorial
 
+# TableType
+
+### Get a TableType object
+
+A specific TableType object can be retrieved using `get_table_type`. A TableType `id` or `type_id` is required.
+
+```python
+from observatory.api.client.api.observatory_api import ObservatoryApi
+from observatory.api.client import ApiClient, Configuration
+
+configuration = Configuration(host=f"http://host:port")
+api = ObservatoryApi(api_client=ApiClient(configuration))
+
+id_ = 1
+table_type = api.get_table_type(id=id_)
+
+type_id = "some unique type id"
+table_type = api.get_table_type(type_id=type_id)
+```
+
+A list of TableType objects can be retrieved using `get_table_types`. A liimit on the number of results returned must be specified.
+```python
+telescope_id = 1
+limit = 100
+all_table_types = api.get_table_types(limit)
+```
+
+### Create a TableType object
+
+New TableType objects can be created using `put` and `post` methods. The TableType id is omitted.
+
+#### Put call
+
+```python
+from observatory.api.client.model.table_type import TableType
+
+obj = TableType(
+    name="My table type",
+    type_id="partitioned",
+)
+api.put_table_type(obj)
+```
+
+#### Post call
+
+```python
+obj = TableType(
+    name="My table type",
+    type_id="partitioned",
+)
+api.post_table_type(obj)
+```
+
+### Modify an existing TableType object
+
+An existing TableType object can be modified through a `put` call by also specifying its TableType id.
+
+```python
+id_ = 1
+obj = TableType(
+    id=id_,
+    name="My new type",
+    type_id="new_type",
+)
+api.put_table_type(obj)
+```
+
+### Deleting TableType objects
+
+A TableType object can be deleted by specifying its TableType id.
+
+```python
+object_id_to_delete=123
+api.delete_table_type(object_id_to_delete)
+```
+
+# DatasetType
+
+### Get a DatasetType object
+
+A specific Dataset object can be retrieved using `get_dataset_type`. A DatasetType id is required.
+
+```python
+from observatory.api.client.api.observatory_api import ObservatoryApi
+from observatory.api.client import ApiClient, Configuration
+
+configuration = Configuration(host=f"http://host:port")
+api = ObservatoryApi(api_client=ApiClient(configuration))
+
+dataset_type_id = 1
+dataset_type = api.get_dataset_type(dataset_type_id)
+```
+
+A list of DatasetType objects can be retrieved using `get_dataset_types`. A limit on the number of results returned must be specified.
+
+```python
+telescope_id = 1
+limit = 100
+all_dataset_types = api.get_dataset_types(limit)
+```
+
+### Create a DatasetType object
+
+New DatasetType objects can be created using `put` and `post` methods. The DatasetType id is omitted from the API call. A TableType id must be specified.
+
+#### Put call
+
+```python
+from observatory.api.client.model.dataset_type import DatasetType
+
+obj = DatasetType(
+    name="My dataset type",
+    type_id="type_id",
+    table_type=TableType(id=1),  # Assuming TableType with id=1 exists
+)
+api.put_dataset_type(obj)
+```
+
+#### Post call
+
+```python
+obj = DatasetType(
+    name="My dataset type",
+    type_id="type_id",
+    table_type=TableType(id=1),  # Assuming TableType with id=1 exists
+)
+api.post_dataset_type(obj)
+```
+
+### Modify an existing DatasetType object
+
+An existing DatasetType object can be modified through a `put` call by also specifying its DatasetType id.
+
+```python
+id_ = 1
+obj = DatasetType(
+    id=id_,
+    name="New dataset type name",
+)
+api.put_dataset_type(obj)
+```
+
+### Deleting DatasetType objects
+
+A DatasetType object can be deleted by specifying its DatasetType id.
+
+```python
+object_id_to_delete=123
+api.delete_dataset_type(object_id_to_delete)
+```
+
 ## Dataset
 
 ### Get a Dataset object
@@ -17,7 +168,7 @@ dataset_id = 1
 dataset = api.get_dataset(dataset_id)
 ```
 
-A list of Dataset objects can be retrieved using `get_datasets`. A limit on the number of results returned must be specified. The telescope ID can optionally be specified to limit results to a given Telescope ID.
+A list of Dataset objects can be retrieved using `get_datasets`. A limit on the number of results returned must be specified. The telescope ID can optionally be specified to limit results to a given Workflow ID.
 
 ```python
 telescope_id = 1
@@ -28,19 +179,23 @@ filtered_datasets = api.get_datasets(limit, telescope_id)
 
 ### Create a Dataset object
 
-New Dataset objects can be created using `put` and `post` methods. The dataset_id is omitted from the API call. The Dataset must be linked to a Telescope object with an ID set.
+New Dataset objects can be created using `put` and `post` methods. The dataset id is omitted from the API call. The Dataset must be linked to a Workflow object with a Workflow id set.
+
+The `service` field is the name of the service used to store the dataset, e.g., "bigquery".
+The `address` field is a standardised URI for the service. For example, the BigQuery service uses the format `project_id.dataset_id.table_name`.
 
 #### Put call
 
 ```python
 from observatory.api.client.model.dataset import Dataset
-from observatory.api.client.model.telescope import Telescope
+from observatory.api.client.model.workflow import Workflow
 
-related_telescope = Telescope(id=123)
+related_workflow = Workflow(id=123)
 obj = Dataset(
     name="My dataset",
-    extra="{}",
-    connection=related_telescope,
+    workflow=related_workflow,
+    service="bigquery",
+    address="project.dataset.table",
 )
 api.put_dataset(obj)
 ```
@@ -48,11 +203,11 @@ api.put_dataset(obj)
 #### Post call
 
 ```python
-related_telescope = Telescope(id=123)
+related_workflow = Workflow(id=123)
 obj = Dataset(
     name="My dataset",
     extra="{}",
-    connection=related_telescope,
+    workflow=related_workflow,
 )
 api.post_dataset_release(obj)
 ```
@@ -62,12 +217,12 @@ api.post_dataset_release(obj)
 An existing Dataset object can be modified through a `put` call by also specifying its Dataset ID.
 
 ```python
-related_telescope = Telescope(id=123)
+related_workflow = Workflow(id=123)
 dataset_id = 1
 obj = DatasetRelease(
     id=dataset_id,
     extra='{"type": "snapshot"}',
-    connection=related_telescope,
+    workflow=related_workflow,
 )
 api.put_dataset(obj)
 ```
@@ -173,88 +328,4 @@ A DatasetStorage object can be deleted by specifying its DatasetRelease ID.
 ```python
 object_id_to_delete=123
 api.delete_dataset_release(object_id_to_delete)
-```
-
-## DatasetStorage
-
-### Get a DatasetStorage object
-
-A DatasetStorage object can be retrieved using `get_dataset_storage`. A DatasetStorage ID is required.
-
-```python
-from observatory.api.client.api.observatory_api import ObservatoryApi
-from observatory.api.client import ApiClient, Configuration
-
-configuration = Configuration(host=f"http://{self.host}:{self.port}")
-api = ObservatoryApi(api_client=ApiClient(configuration))
-
-dataset_storage_id = 1
-dataset_storage = api.get_dataset_storage(dataset_storage_id)
-```
-
-A list of DatasetStorage objects can be retrieved using `get_dataset_storages`. A limit on the number of results returned must be specified. The dataset ID can optionally be specified to limit results to a given Dataset ID.
-
-```python
-dataset_id = 1
-limit = 100
-all_dataset_storages = api.get_dataset_storages(limit)
-filtered_dataset_storage = api.get_dataset_storages(limit, dataset_id)
-```
-
-### Create a DatasetStorage object
-
-New DatasetStorage objects can be created using `put` and `post` methods. The dataset_storage_id is omitted from the API call. DatasetStorage must be linked to a Dataset object with an ID set.
-
-#### Put call
-```python
-from observatory.api.client.model.dataset import Dataset
-from observatory.api.client.model.dataset_storage import DatasetStorage
-
-related_dataset = Dataset(id=123)
-obj = DatasetStorage(
-    dataset=related_dataset,
-    service="bigquery",
-    address="myproject.datasetname.tablename",
-    extra="{}",
-)
-api.put_dataset_storage(obj)
-```
-
-#### Post call
-
-```python
-related_dataset = Dataset(id=123)
-obj = DatasetStorage(
-    dataset=related_dataset,
-    service="bigquery",
-    address="myproject.datasetname.tablename",
-    extra="{}",
-)
-api.post_dataset_storage(obj)
-```
-
-### Modify an existing DatasetStorage object
-
-An existing DatasetStorage object can be modified through a `put` call by also specifying its DatasetStorage ID.
-
-```python
-related_dataset = Dataset(id=123)
-dataset_storage_id = 1
-obj = DatasetStorage(
-    id=dataset_storage_id,
-    dataset=related_dataset,
-    service="bigquery",
-    address="myproject.datasetname.newtable",
-    extra="{}",
-)
-api.put_dataset_storage(obj)
-```
-
-### Deleting DatasetStorage objects
-
-A DatasetStorage object can be deleted by specifying its DatasetStorage ID.
-
-```python
-object_id_to_delete=123
-api.delete_dataset_storage(object_id_to_delete)
 ```

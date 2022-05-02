@@ -166,6 +166,10 @@ class MockStreamTelescope(StreamTelescope):
 
 
 class TestTemplateUtils(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.project_id = "project_id"
+
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_workflow_path(self, mock_variable_get):
         runner = CliRunner()
@@ -441,6 +445,7 @@ class TestTemplateUtils(unittest.TestCase):
                     "schema.json",
                     telescope.source_format,
                     table_description=table_description,
+                    project_id=None,
                 )
 
                 mock_load_bigquery_table.return_value = False
@@ -585,6 +590,7 @@ class TestTemplateUtils(unittest.TestCase):
                     partition=True,
                     partition_type=bigquery.table.TimePartitioningType.DAY,
                     table_description=table_description,
+                    project_id=None,
                 )
 
                 mock_load_bigquery_table.return_value = False
@@ -694,6 +700,7 @@ class TestTemplateUtils(unittest.TestCase):
 
             telescope, release = setup(MockStreamTelescope)
             ingestion_date_str = release.end_date.strftime("%Y-%m-%d")
+            project_id = "project_id"
 
             for transform_path in release.transform_files:
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
@@ -703,13 +710,14 @@ class TestTemplateUtils(unittest.TestCase):
                     main_table_id,
                     partition_table_id,
                     telescope.merge_partition_field,
+                    project_id=project_id,
                 )
 
                 expected_query = (
                     "MERGE\n"
-                    "  `{dataset}.{main_table}` M\n"
+                    "  `{project_id}.{dataset}.{main_table}` M\n"
                     "USING\n"
-                    "  (SELECT {merge_condition_field} AS id FROM `{dataset}.{partitioned_table}` WHERE _PARTITIONDATE = '{ingestion_date}') P\n"
+                    "  (SELECT {merge_condition_field} AS id FROM `{project_id}.{dataset}.{partitioned_table}` WHERE _PARTITIONDATE = '{ingestion_date}') P\n"
                     "ON\n"
                     "  M.{merge_condition_field} = P.id\n"
                     "WHEN MATCHED THEN\n"
@@ -719,6 +727,7 @@ class TestTemplateUtils(unittest.TestCase):
                         partitioned_table=partition_table_id,
                         merge_condition_field=telescope.merge_partition_field,
                         ingestion_date=ingestion_date_str,
+                        project_id=project_id,
                     )
                 )
                 mock_run_bigquery_query.assert_called_once_with(expected_query, bytes_budget=None)
@@ -730,6 +739,7 @@ class TestTemplateUtils(unittest.TestCase):
                     partition_table_id,
                     telescope.merge_partition_field,
                     bytes_budget=10,
+                    project_id=project_id,
                 )
                 mock_run_bigquery_query.assert_called_with(expected_query, bytes_budget=10)
 
@@ -820,6 +830,7 @@ class TestTemplateUtils(unittest.TestCase):
                     telescope.source_format,
                     write_disposition="WRITE_APPEND",
                     table_description=table_description,
+                    project_id=self.project_id
                 )
 
                 mock_load_bigquery_table.return_value = False

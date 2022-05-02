@@ -72,6 +72,7 @@ class SnapshotTelescope(Workflow):
         table_descriptions: Dict[str, str] = None,
         airflow_vars: list = None,
         airflow_conns: list = None,
+        workflow_id: int = None,
     ):
         """Construct a SnapshotTelescope instance.
 
@@ -92,6 +93,7 @@ class SnapshotTelescope(Workflow):
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
+        :param workflow_id: api workflow id.
         """
 
         # Set transform_bucket_name as required airflow variable
@@ -108,6 +110,7 @@ class SnapshotTelescope(Workflow):
             max_active_runs,
             airflow_vars,
             airflow_conns,
+            workflow_id=workflow_id,
         )
         self.dataset_id = dataset_id
         self.schema_folder = schema_folder

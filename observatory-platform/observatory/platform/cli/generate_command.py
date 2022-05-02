@@ -277,7 +277,7 @@ class GenerateCommand:
         if workflow_type == "OrganisationTelescope":
             if not os.path.isfile(identifiers_dst_file):
                 with open(identifiers_dst_file, "w") as f:
-                    f.write("class TelescopeTypes:\n")
+                    f.write("class WorkflowTypes:\n")
             with open(identifiers_dst_file, "a") as f:
                 f.write(f'    {workflow_module} = "{workflow_module}"\n')
             print(f"- Updated the identifiers file: {identifiers_dst_file}")

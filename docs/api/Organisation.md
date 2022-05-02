@@ -30,26 +30,26 @@
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>gcp_project_id</strong></td>
+    <td><strong>project_id</strong></td>
     <td><strong>str, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>gcp_download_bucket</strong></td>
+    <td><strong>download_bucket</strong></td>
     <td><strong>str, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>gcp_transform_bucket</strong></td>
+    <td><strong>transform_bucket</strong></td>
     <td><strong>str, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>telescopes</strong></td>
-    <td><a href="Telescope.html"><strong>[Telescope]</strong></a></td>
+    <td><strong>workflows</strong></td>
+    <td><a href="Workflow.html"><strong>[Workflow]</strong></a></td>
     <td></td>
     <td>[optional] [readonly] </td>
 </tr>

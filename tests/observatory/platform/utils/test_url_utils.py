@@ -36,6 +36,7 @@ from observatory.platform.utils.url_utils import (
     strip_query_params,
     unique_id,
     wait_for_url,
+    get_filename_from_http_header,
 )
 from tests.observatory.platform.cli.test_platform_command import MockUrlOpen
 
@@ -246,3 +247,14 @@ class TestUrlUtils(unittest.TestCase):
                 self.assertEqual(response["note"]["from"], "COKI")
                 self.assertEqual(response["note"]["heading"], "Test heading")
                 self.assertEqual(response["note"]["body"], "Test text")
+
+    @patch("observatory.platform.utils.url_utils.requests.head")
+    def test_get_filename_from_http_header(self, m_head):
+        class MockResponse:
+            def __init__(self):
+                self.headers = {"Content-Disposition": "filename"}
+
+        m_head.return_value = MockResponse()
+
+        filename = get_filename_from_http_header("someurl")
+        self.assertEqual(filename, "filename")

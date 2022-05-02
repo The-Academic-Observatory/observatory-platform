@@ -1,4 +1,4 @@
-# Telescope
+# Workflow
 
 ## Properties
 <div class="wy-table-responsive"><table border="1" class="docutils">
@@ -36,14 +36,20 @@
     <td>[optional] </td>
 </tr>
 <tr>
+    <td><strong>tags</strong></td>
+    <td><strong>str, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
     <td><strong>organisation</strong></td>
     <td><a href="Organisation.html"><strong>Organisation</strong></a></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>telescope_type</strong></td>
-    <td><a href="TelescopeType.html"><strong>TelescopeType</strong></a></td>
+    <td><strong>workflow_type</strong></td>
+    <td><a href="WorkflowType.html"><strong>WorkflowType</strong></a></td>
     <td></td>
     <td>[optional] </td>
 </tr>
