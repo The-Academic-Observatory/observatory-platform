@@ -35,11 +35,12 @@ from observatory.api.client.api import observatory_api
 from observatory.api.client.model.big_query_bytes_processed import BigQueryBytesProcessed
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
-from observatory.api.client.model.dataset_storage import DatasetStorage
+from observatory.api.client.model.dataset_type import DatasetType
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.query_response import QueryResponse
-from observatory.api.client.model.telescope import Telescope
-from observatory.api.client.model.telescope_type import TelescopeType
+from observatory.api.client.model.table_type import TableType
+from observatory.api.client.model.workflow import Workflow
+from observatory.api.client.model.workflow_type import WorkflowType
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
 configuration = observatory.api.client.Configuration(
@@ -110,9 +111,9 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#delete_dataset_storage"><strong>delete_dataset_storage</strong></a></td>
-<td><strong>DELETE</strong> /v1/dataset_storage</td>
-<td>delete a DatasetStorage</td>
+<td><a href="ObservatoryApi.html#delete_dataset_type"><strong>delete_dataset_type</strong></a></td>
+<td><strong>DELETE</strong> /v1/dataset_type</td>
+<td>delete a DatasetType</td>
 </tr>
 
 <tr>
@@ -124,16 +125,23 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#delete_telescope"><strong>delete_telescope</strong></a></td>
-<td><strong>DELETE</strong> /v1/telescope</td>
-<td>delete a Telescope</td>
+<td><a href="ObservatoryApi.html#delete_table_type"><strong>delete_table_type</strong></a></td>
+<td><strong>DELETE</strong> /v1/table_type</td>
+<td>delete a TableType</td>
 </tr>
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#delete_telescope_type"><strong>delete_telescope_type</strong></a></td>
-<td><strong>DELETE</strong> /v1/telescope_type</td>
-<td>delete a TelescopeType</td>
+<td><a href="ObservatoryApi.html#delete_workflow"><strong>delete_workflow</strong></a></td>
+<td><strong>DELETE</strong> /v1/workflow</td>
+<td>delete a Workflow</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#delete_workflow_type"><strong>delete_workflow_type</strong></a></td>
+<td><strong>DELETE</strong> /v1/workflow_type</td>
+<td>delete a WorkflowType</td>
 </tr>
 
 <tr>
@@ -166,16 +174,16 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_dataset_storage"><strong>get_dataset_storage</strong></a></td>
-<td><strong>GET</strong> /v1/dataset_storage</td>
-<td>get a DatasetStorage</td>
+<td><a href="ObservatoryApi.html#get_dataset_type"><strong>get_dataset_type</strong></a></td>
+<td><strong>GET</strong> /v1/dataset_type</td>
+<td>get a DatasetType</td>
 </tr>
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_dataset_storages"><strong>get_dataset_storages</strong></a></td>
-<td><strong>GET</strong> /v1/dataset_storages</td>
-<td>Get a list of DatasetStorage objects</td>
+<td><a href="ObservatoryApi.html#get_dataset_types"><strong>get_dataset_types</strong></a></td>
+<td><strong>GET</strong> /v1/dataset_types</td>
+<td>Get a list of DatasetType objects</td>
 </tr>
 
 <tr>
@@ -201,30 +209,44 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_telescope"><strong>get_telescope</strong></a></td>
-<td><strong>GET</strong> /v1/telescope</td>
-<td>get a Telescope</td>
+<td><a href="ObservatoryApi.html#get_table_type"><strong>get_table_type</strong></a></td>
+<td><strong>GET</strong> /v1/table_type</td>
+<td>get a TableType</td>
 </tr>
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_telescope_type"><strong>get_telescope_type</strong></a></td>
-<td><strong>GET</strong> /v1/telescope_type</td>
-<td>get a TelescopeType</td>
+<td><a href="ObservatoryApi.html#get_table_types"><strong>get_table_types</strong></a></td>
+<td><strong>GET</strong> /v1/table_types</td>
+<td>Get a list of TableType objects</td>
 </tr>
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_telescope_types"><strong>get_telescope_types</strong></a></td>
-<td><strong>GET</strong> /v1/telescope_types</td>
-<td>Get a list of TelescopeType objects</td>
+<td><a href="ObservatoryApi.html#get_workflow"><strong>get_workflow</strong></a></td>
+<td><strong>GET</strong> /v1/workflow</td>
+<td>get a Workflow</td>
 </tr>
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_telescopes"><strong>get_telescopes</strong></a></td>
-<td><strong>GET</strong> /v1/telescopes</td>
-<td>Get a list of Telescope objects</td>
+<td><a href="ObservatoryApi.html#get_workflow_type"><strong>get_workflow_type</strong></a></td>
+<td><strong>GET</strong> /v1/workflow_type</td>
+<td>get a WorkflowType</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_workflow_types"><strong>get_workflow_types</strong></a></td>
+<td><strong>GET</strong> /v1/workflow_types</td>
+<td>Get a list of WorkflowType objects</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#get_workflows"><strong>get_workflows</strong></a></td>
+<td><strong>GET</strong> /v1/workflows</td>
+<td>Get a list of Workflow objects</td>
 </tr>
 
 <tr>
@@ -250,9 +272,9 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#post_dataset_storage"><strong>post_dataset_storage</strong></a></td>
-<td><strong>POST</strong> /v1/dataset_storage</td>
-<td>create a DatasetStorage</td>
+<td><a href="ObservatoryApi.html#post_dataset_type"><strong>post_dataset_type</strong></a></td>
+<td><strong>POST</strong> /v1/dataset_type</td>
+<td>create a DatasetType</td>
 </tr>
 
 <tr>
@@ -264,16 +286,23 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#post_telescope"><strong>post_telescope</strong></a></td>
-<td><strong>POST</strong> /v1/telescope</td>
-<td>create a Telescope</td>
+<td><a href="ObservatoryApi.html#post_table_type"><strong>post_table_type</strong></a></td>
+<td><strong>POST</strong> /v1/table_type</td>
+<td>create a TableType</td>
 </tr>
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#post_telescope_type"><strong>post_telescope_type</strong></a></td>
-<td><strong>POST</strong> /v1/telescope_type</td>
-<td>create a TelescopeType</td>
+<td><a href="ObservatoryApi.html#post_workflow"><strong>post_workflow</strong></a></td>
+<td><strong>POST</strong> /v1/workflow</td>
+<td>create a Workflow</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#post_workflow_type"><strong>post_workflow_type</strong></a></td>
+<td><strong>POST</strong> /v1/workflow_type</td>
+<td>create a WorkflowType</td>
 </tr>
 
 <tr>
@@ -292,9 +321,9 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#put_dataset_storage"><strong>put_dataset_storage</strong></a></td>
-<td><strong>PUT</strong> /v1/dataset_storage</td>
-<td>create or update a DatasetStorage</td>
+<td><a href="ObservatoryApi.html#put_dataset_type"><strong>put_dataset_type</strong></a></td>
+<td><strong>PUT</strong> /v1/dataset_type</td>
+<td>create or update a DatasetType</td>
 </tr>
 
 <tr>
@@ -306,16 +335,23 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#put_telescope"><strong>put_telescope</strong></a></td>
-<td><strong>PUT</strong> /v1/telescope</td>
-<td>create or update a Telescope</td>
+<td><a href="ObservatoryApi.html#put_table_type"><strong>put_table_type</strong></a></td>
+<td><strong>PUT</strong> /v1/table_type</td>
+<td>create or update a TableType</td>
 </tr>
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#put_telescope_type"><strong>put_telescope_type</strong></a></td>
-<td><strong>PUT</strong> /v1/telescope_type</td>
-<td>create or update a TelescopeType</td>
+<td><a href="ObservatoryApi.html#put_workflow"><strong>put_workflow</strong></a></td>
+<td><strong>PUT</strong> /v1/workflow</td>
+<td>create or update a Workflow</td>
+</tr>
+
+<tr>
+<td><em>ObservatoryApi</em></td>
+<td><a href="ObservatoryApi.html#put_workflow_type"><strong>put_workflow_type</strong></a></td>
+<td><strong>PUT</strong> /v1/workflow_type</td>
+<td>create or update a WorkflowType</td>
 </tr>
 
 <tr>
@@ -337,11 +373,12 @@ All URIs are relative to *https://api.observatory.academy*
     BigQueryBytesProcessed
     Dataset
     DatasetRelease
-    DatasetStorage
+    DatasetType
     Organisation
     QueryResponse
-    Telescope
-    TelescopeType
+    TableType
+    Workflow
+    WorkflowType
     
 ```
 

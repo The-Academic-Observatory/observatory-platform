@@ -63,14 +63,6 @@ class DatasetRelease(ModelNormal):
     }
 
     validations = {
-        ('schema_version',): {
-            'max_length': 250,
-            'min_length': 1,
-        },
-        ('schema_version_alt',): {
-            'max_length': 250,
-            'min_length': 1,
-        },
     }
 
     additional_properties_type = None
@@ -90,12 +82,8 @@ class DatasetRelease(ModelNormal):
         lazy_import()
         return {
             'id': (int,),  # noqa: E501, F821
-            'schema_version': (str,),  # noqa: E501, F821
-            'schema_version_alt': (str, none_type,),  # noqa: E501, F821
             'start_date': (datetime,),  # noqa: E501, F821
             'end_date': (datetime, none_type,),  # noqa: E501, F821
-            'ingestion_start': (datetime, none_type,),  # noqa: E501, F821
-            'ingestion_end': (datetime, none_type,),  # noqa: E501, F821
             'dataset': (Dataset,),  # noqa: E501, F821
             'created': (datetime,),  # noqa: E501, F821
             'modified': (datetime,),  # noqa: E501, F821
@@ -108,12 +96,8 @@ class DatasetRelease(ModelNormal):
 
     attribute_map = {
         'id': 'id',  # noqa: E501
-        'schema_version': 'schema_version',  # noqa: E501
-        'schema_version_alt': 'schema_version_alt',  # noqa: E501
         'start_date': 'start_date',  # noqa: E501
         'end_date': 'end_date',  # noqa: E501
-        'ingestion_start': 'ingestion_start',  # noqa: E501
-        'ingestion_end': 'ingestion_end',  # noqa: E501
         'dataset': 'dataset',  # noqa: E501
         'created': 'created',  # noqa: E501
         'modified': 'modified',  # noqa: E501
@@ -163,12 +147,8 @@ class DatasetRelease(ModelNormal):
                                 through its discriminator because we passed in
                                 _visited_composed_classes = (Animal,)
             id (int): [optional]  # noqa: E501
-            schema_version (str): [optional]  # noqa: E501
-            schema_version_alt (str, none_type): [optional]  # noqa: E501
             start_date (datetime): [optional]  # noqa: E501
             end_date (datetime, none_type): [optional]  # noqa: E501
-            ingestion_start (datetime, none_type): [optional]  # noqa: E501
-            ingestion_end (datetime, none_type): [optional]  # noqa: E501
             dataset (Dataset): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
             modified (datetime): [optional]  # noqa: E501
@@ -254,12 +234,8 @@ class DatasetRelease(ModelNormal):
                                 through its discriminator because we passed in
                                 _visited_composed_classes = (Animal,)
             id (int): [optional]  # noqa: E501
-            schema_version (str): [optional]  # noqa: E501
-            schema_version_alt (str, none_type): [optional]  # noqa: E501
             start_date (datetime): [optional]  # noqa: E501
             end_date (datetime, none_type): [optional]  # noqa: E501
-            ingestion_start (datetime, none_type): [optional]  # noqa: E501
-            ingestion_end (datetime, none_type): [optional]  # noqa: E501
             dataset (Dataset): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
             modified (datetime): [optional]  # noqa: E501

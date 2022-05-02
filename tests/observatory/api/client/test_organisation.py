@@ -30,9 +30,9 @@ class TestOrganisation(unittest.TestCase):
         Organisation(
             id=1,
             name="Curtin",
-            gcp_project_id="my-gcp-project",
-            gcp_download_bucket="my-download-bucket",
-            gcp_transform_bucket="my-transform-bucket",
+            project_id="my-gcp-project",
+            download_bucket="my-download-bucket",
+            transform_bucket="my-transform-bucket",
             _configuration=Configuration(),
             unknown="var",
         )
@@ -42,9 +42,9 @@ class TestOrganisation(unittest.TestCase):
             Organisation,
             id=1,
             name="Curtin",
-            gcp_project_id="my-gcp-project",
-            gcp_download_bucket="my-download-bucket",
-            gcp_transform_bucket="my-transform-bucket",
+            project_id="my-gcp-project",
+            download_bucket="my-download-bucket",
+            transform_bucket="my-transform-bucket",
             created=dt,
             modified=dt,
         )

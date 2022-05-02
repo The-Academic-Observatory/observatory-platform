@@ -41,6 +41,7 @@ from observatory.platform.utils.airflow_utils import (
 )
 from observatory.platform.utils.file_utils import list_files
 from observatory.platform.utils.workflow_utils import SubFolder, on_failure_callback, workflow_path
+from observatory.platform.utils.release_utils import get_start_end_date, get_datasets, add_dataset_release
 
 
 class ReleaseFunction(Protocol):
@@ -204,6 +205,7 @@ class Workflow(AbstractWorkflow):
         max_active_runs: int = 1,
         airflow_vars: list = None,
         airflow_conns: list = None,
+        workflow_id: int = None,
     ):
         """Construct a Workflow instance.
 
@@ -216,6 +218,7 @@ class Workflow(AbstractWorkflow):
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
+        :param workflow_id: api workflow id.
         """
 
         self.dag_id = dag_id
@@ -228,6 +231,7 @@ class Workflow(AbstractWorkflow):
         self.airflow_vars = airflow_vars
         self.airflow_conns = airflow_conns
         self._parallel_tasks = False
+        self.workflow_id = workflow_id
 
         self.operators = []
         self.default_args = {
@@ -400,6 +404,30 @@ class Workflow(AbstractWorkflow):
             raise AirflowException("Required variables or connections are missing")
 
         return True
+
+    def add_new_dataset_releases(self, releases, **kwargs):
+        """Task to add a new DatasetRelease record in the API after the workflow is done.
+
+        :param releases: Release(s) passed to workflow tasks.
+        :param kwargs: kwargs passed to PythonOperator functions.
+        """
+
+        if self.workflow_id is None:
+            raise Exception("workflow_id must be set")
+
+        if not isinstance(releases, list):
+            releases = [releases]
+
+        for release in releases:
+            start_date, end_date = get_start_end_date(release)
+
+            datasets = get_datasets(workflow_id=self.workflow_id)
+            for dataset in datasets:
+                add_dataset_release(
+                    start_date=start_date,
+                    end_date=end_date,
+                    dataset_id=dataset.id,
+                )
 
 
 class AbstractRelease(ABC):

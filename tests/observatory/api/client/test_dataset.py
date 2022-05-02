@@ -13,16 +13,14 @@ import unittest
 
 from observatory.api.client.exceptions import ApiAttributeError, ApiTypeError
 from observatory.api.client.model.dataset_release import DatasetRelease
-from observatory.api.client.model.dataset_storage import DatasetStorage
 
 globals()["DatasetRelease"] = DatasetRelease
-globals()["DatasetStorage"] = DatasetStorage
 import datetime
 
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.telescope import Telescope
-from observatory.api.client.model.telescope_type import TelescopeType
+from observatory.api.client.model.workflow import Workflow
+from observatory.api.client.model.workflow_type import WorkflowType
 
 
 class TestDataset(unittest.TestCase):
@@ -39,25 +37,27 @@ class TestDataset(unittest.TestCase):
         organisation = Organisation(
             id=1,
             name="Curtin",
-            gcp_project_id="my-gcp-project",
-            gcp_download_bucket="my-download-bucket",
-            gcp_transform_bucket="my-transform-bucket",
+            project_id="my-gcp-project",
+            download_bucket="my-download-bucket",
+            transform_bucket="my-transform-bucket",
         )
 
-        connection = Telescope(
+        workflow = Workflow(
             id=1,
-            name="Curtin ONIX Telescope",
+            name="Curtin ONIX Workflow",
             organisation=organisation,
-            telescope_type=TelescopeType(id=1, name="ONIX Telescope"),
+            workflow_type=WorkflowType(id=1, name="ONIX Workflow"),
             extra={"view_id": 123456},
+            tags='["oaebu"]',
         )
 
         dt = datetime.datetime.utcnow()
         Dataset(
             id=1,
             name="name",
-            connection=connection,
-            extra={},
+            service="bigquery",
+            address="project.dataset.table",
+            workflow=workflow,
             _configuration=Configuration(),
             unknown="var",
         )
@@ -67,8 +67,9 @@ class TestDataset(unittest.TestCase):
             Dataset,
             id=1,
             name="name",
-            connection=connection,
-            extra={},
+            service="bigquery",
+            address="project.dataset.table",
+            workflow=workflow,
             _configuration=Configuration(),
             unknown="var",
             created=dt,

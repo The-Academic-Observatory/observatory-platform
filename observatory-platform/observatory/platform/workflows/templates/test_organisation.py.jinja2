@@ -18,7 +18,7 @@ from airflow.models.connection import Connection
 
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.server import orm
-from {{ package_name }}.identifiers import TelescopeTypes
+from {{ package_name }}.identifiers import WorkflowTypes
 from {{ package_name }}.workflows.{{ workflow_module }} import {{ workflow_class }}
 from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.config_utils import module_file_path
@@ -29,7 +29,7 @@ from observatory.platform.utils.test_utils import (
 
 
 class Test{{ workflow_class }}(ObservatoryTestCase):
-    """ Tests for the {{ workflow_class }} telescope """
+    """ Tests for the {{ workflow_class }} workflow """
 
     def __init__(self, *args, **kwargs):
         """Constructor which sets up variables used by tests.
@@ -67,15 +67,15 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
 
             # Add a workflow
             dt = pendulum.now("UTC")
-            telescope_type = orm.TelescopeType(
-                name="{{ workflow_class}} Workflow", type_id=TelescopeTypes.{{ workflow_module }}, created=dt, modified=dt
+            workflow_type = orm.WorkflowType(
+                name="{{ workflow_class}} Workflow", type_id=WorkflowTypes.{{ workflow_module }}, created=dt, modified=dt
             )
-            env.api_session.add(telescope_type)
+            env.api_session.add(workflow_type)
             organisation = orm.Organisation(name="Organisation", created=dt, modified=dt)
             env.api_session.add(organisation)
-            workflow = orm.Telescope(
+            workflow = orm.Workflow(
                 name="Organisation {{ workflow_class }} Workflow",
-                telescope_type=telescope_type,
+                workflow_type=workflow_type,
                 organisation=organisation,
                 modified=dt,
                 created=dt,
@@ -104,9 +104,9 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
         # Setup Workflow
         organisation = Organisation(
             name=self.organisation_name,
-            gcp_project_id=self.project_id,
-            gcp_download_bucket=env.download_bucket,
-            gcp_transform_bucket=env.transform_bucket,
+            project_id=self.project_id,
+            download_bucket=env.download_bucket,
+            transform_bucket=env.transform_bucket,
         )
         workflow = {{ workflow_class }}(organisation=organisation, extra1=self.extra1, dataset_id=dataset_id)
         dag = workflow.make_dag()

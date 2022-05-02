@@ -256,7 +256,11 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         ]
 
         bq_load_tables(
-            tables=tables, bucket_name=bucket_name, release_date=release_date, data_location=self.data_location
+            tables=tables,
+            bucket_name=bucket_name,
+            release_date=release_date,
+            data_location=self.data_location,
+            project_id=self.project_id,
         )
 
     @patch("observatory.platform.workflows.elastic_import_workflow.Kibana")

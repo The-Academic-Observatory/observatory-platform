@@ -34,6 +34,15 @@ from observatory.platform.utils.test_utils import (
     ObservatoryTestCase,
 )
 from observatory.platform.workflows.workflow import Release, Workflow, make_task_id
+from observatory.api.client.model.dataset import Dataset
+from observatory.api.client.model.dataset_type import DatasetType
+from observatory.api.client.model.workflow import Workflow as apiWorkflow
+from observatory.api.testing import ObservatoryApiEnvironment
+from observatory.api.client import ApiClient, Configuration
+from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
+from observatory.api.client.model.organisation import Organisation
+from observatory.api.client.model.table_type import TableType
+from observatory.api.client.model.workflow_type import WorkflowType
 
 
 class MockWorkflow(Workflow):
@@ -44,7 +53,7 @@ class MockWorkflow(Workflow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.dag_id = "dag_id"
-        self.release_id = "release_id"
+        self.release_id = "20210101"
 
     def make_release(self, **kwargs) -> Release:
         return Release(self.dag_id, self.release_id)
@@ -89,6 +98,52 @@ class TestWorkflow(ObservatoryTestCase):
         self.schedule_interval = "@weekly"
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
+
+        self.host = "localhost"
+        self.port = 5001
+        configuration = Configuration(host=f"http://{self.host}:{self.port}")
+        api_client = ApiClient(configuration)
+        self.api = ObservatoryApi(api_client=api_client)  # noqa: E501
+        self.env = ObservatoryApiEnvironment(host=self.host, port=self.port)
+        self.org_name = "Curtin University"
+        self.workflow_id = 1
+
+    def setup_api(self):
+        org = Organisation(name=self.org_name)
+        result = self.api.put_organisation(org)
+        self.assertIsInstance(result, Organisation)
+
+        tele_type = WorkflowType(type_id="tele_type", name="My Telescope")
+        result = self.api.put_workflow_type(tele_type)
+        self.assertIsInstance(result, WorkflowType)
+
+        telescope = apiWorkflow(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
+        result = self.api.put_workflow(telescope)
+        self.assertIsInstance(result, apiWorkflow)
+
+        table_type = TableType(
+            type_id="partitioned",
+            name="partitioned bq table",
+        )
+        self.api.put_table_type(table_type)
+
+        dataset_type = DatasetType(
+            name="My dataset type",
+            type_id="type id",
+            table_type=TableType(id=1),
+        )
+
+        self.api.put_dataset_type(dataset_type)
+
+        dataset = Dataset(
+            name="My dataset",
+            service="bigquery",
+            address="project.dataset.table",
+            workflow=apiWorkflow(id=1),
+            dataset_type=DatasetType(id=1),
+        )
+        result = self.api.put_dataset(dataset)
+        self.assertIsInstance(result, Dataset)
 
     def test_make_task_id(self):
         """Test make_task_id"""
@@ -195,24 +250,63 @@ class TestWorkflow(ObservatoryTestCase):
             self.assertTrue(telescope._parallel_tasks)
         self.assertFalse(telescope._parallel_tasks)
 
-    def test_telescope(self):
+    @patch("observatory.platform.utils.release_utils.make_observatory_api")
+    @patch("observatory.platform.workflows.workflow.get_datasets")
+    def test_add_new_dataset_releases(self, m_get_datasets, m_makeapi):
+        m_makeapi.return_value = self.api
+
+        with self.env.create():
+            self.setup_api()
+            dataset = Dataset(
+                id=1,
+                name="My dataset",
+                service="bigquery",
+                address="project.dataset.table",
+                workflow=apiWorkflow(id=1),
+                dataset_type=DatasetType(id=1),
+            )
+            m_get_datasets.return_value = [dataset]
+
+            telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval)
+            self.assertRaises(Exception, telescope.add_new_dataset_releases, None)
+
+            telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval, workflow_id=1)
+
+            # No releases
+            telescope.add_new_dataset_releases([])
+
+            # Single 'release'
+            release = Release(dag_id="dag_id", release_id="20220101")
+            telescope.add_new_dataset_releases(release)
+
+            # Single 'releases'
+            release = [Release(dag_id="dag_id", release_id="20220101")]
+            telescope.add_new_dataset_releases(release)
+
+    @patch("observatory.platform.utils.release_utils.make_observatory_api")
+    def test_telescope(self, m_makeapi):
         """Basic test to make sure that the Workflow class can execute in an Airflow environment.
         :return: None.
         """
 
+        m_makeapi.return_value = self.api
+
         # Setup Observatory environment
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        env = ObservatoryEnvironment(self.project_id, self.data_location, api_host=self.host, api_port=self.port)
 
         # Create the Observatory environment and run tests
         with env.create(task_logging=True):
+            self.setup_api()
+
             task1 = "task1"
             task2 = "task2"
             expected_date = "success"
 
-            telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval)
+            telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval, workflow_id=1)
             telescope.add_setup_task(telescope.setup_task)
             telescope.add_task(telescope.task, task_id=task1)
             telescope.add_operator(BashOperator(task_id=task2, bash_command="echo 'hello'"))
+            telescope.add_task(telescope.add_new_dataset_releases)
 
             dag = telescope.make_dag()
             with env.create_dag_run(dag, self.start_date):
@@ -224,6 +318,12 @@ class TestWorkflow(ObservatoryTestCase):
 
                 ti = env.run_task(task2)
                 self.assertEqual(expected_date, ti.state)
+
+                ti = env.run_task(telescope.add_new_dataset_releases.__name__)
+                self.assertEqual(expected_date, ti.state)
+                releases = self.api.get_dataset_releases(limit=1000)
+                self.assertEqual(len(releases), 1)
+                self.assertEqual(pendulum.instance(releases[0].start_date), pendulum.datetime(2021, 1, 1))
 
     @patch("observatory.platform.utils.workflow_utils.send_slack_msg")
     def test_callback(self, mock_send_slack_msg):

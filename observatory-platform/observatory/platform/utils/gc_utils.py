@@ -168,7 +168,7 @@ def table_name_from_blob(blob_name: str, file_extension: str):
 
     assert "." in file_extension, "file_extension must contain a ."
     file_name = os.path.basename(blob_name)
-    match = re.match(fr".+?(?={file_extension})", file_name)
+    match = re.match(rf".+?(?={file_extension})", file_name)
     if match is None:
         raise ValueError(f"Could not find table name from blob_name={blob_name}")
     return match.group(0)
@@ -343,7 +343,7 @@ def load_bigquery_table(
 
     func_name = load_bigquery_table.__name__
     msg = (
-        f"uri={uri}, dataset_id={dataset_id}, location={location}, table={table}, "
+        f"uri={uri}, project_id={project_id}, dataset_id={dataset_id}, location={location}, table={table}, "
         f"schema_file_path={schema_file_path}, source_format={source_format}"
     )
     logging.info(f"{func_name}: load bigquery table {msg}")

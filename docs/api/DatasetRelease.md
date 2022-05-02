@@ -24,18 +24,6 @@
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>schema_version</strong></td>
-    <td><strong>str</strong></td>
-    <td></td>
-    <td>[optional] </td>
-</tr>
-<tr>
-    <td><strong>schema_version_alt</strong></td>
-    <td><strong>str, none_type</strong></td>
-    <td></td>
-    <td>[optional] </td>
-</tr>
-<tr>
     <td><strong>start_date</strong></td>
     <td><strong>datetime</strong></td>
     <td></td>
@@ -43,18 +31,6 @@
 </tr>
 <tr>
     <td><strong>end_date</strong></td>
-    <td><strong>datetime, none_type</strong></td>
-    <td></td>
-    <td>[optional] </td>
-</tr>
-<tr>
-    <td><strong>ingestion_start</strong></td>
-    <td><strong>datetime, none_type</strong></td>
-    <td></td>
-    <td>[optional] </td>
-</tr>
-<tr>
-    <td><strong>ingestion_end</strong></td>
     <td><strong>datetime, none_type</strong></td>
     <td></td>
     <td>[optional] </td>

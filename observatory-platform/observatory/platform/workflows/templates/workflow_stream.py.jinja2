@@ -53,6 +53,7 @@ class {{ workflow_class }}(StreamTelescope):
         schema_folder: str = default_schema_folder(),
         airflow_vars: List = None,
         airflow_conns: List = None,
+        workflow_id: int = None,
     ):
         """Construct a {{ workflow_class }} telescope instance.
 
@@ -67,6 +68,7 @@ class {{ workflow_class }}(StreamTelescope):
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
+        :param workflow_id: api workflow id.
         """
 
         if table_descriptions is None:
@@ -97,6 +99,7 @@ class {{ workflow_class }}(StreamTelescope):
             table_descriptions=table_descriptions,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
+            workflow_id=workflow_id,
         )
 
         # Add sensor tasks

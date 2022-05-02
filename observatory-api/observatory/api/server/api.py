@@ -36,10 +36,11 @@ from observatory.api.server.orm import (
     BigQueryBytesProcessed,
     Dataset,
     DatasetRelease,
-    DatasetStorage,
     Organisation,
-    Telescope,
-    TelescopeType,
+    Workflow,
+    WorkflowType,
+    TableType,
+    DatasetType,
 )
 from sqlalchemy import and_
 from sqlalchemy import func
@@ -157,11 +158,11 @@ def get_items(cls: ClassVar, limit: int) -> Response:
     return jsonify(items)
 
 
-def get_telescope_type(id: int = None, type_id: str = None) -> Response:
-    """Get a TelescopeType.
+def get_workflow_type(id: int = None, type_id: str = None) -> Response:
+    """Get a WorkflowType.
 
-    :param id: the TelescopeType id.
-    :param type_id: the TelescopeType type_id.
+    :param id: the WorkflowType id.
+    :param type_id: the WorkflowType type_id.
     :return: a Response object.
     """
 
@@ -170,115 +171,115 @@ def get_telescope_type(id: int = None, type_id: str = None) -> Response:
         logging.error(body)
         return body, 400
     elif id is not None:
-        return get_item(TelescopeType, id)
+        return get_item(WorkflowType, id)
     else:
-        item = session_.query(TelescopeType).filter(TelescopeType.type_id == type_id).one_or_none()
+        item = session_.query(WorkflowType).filter(WorkflowType.type_id == type_id).one_or_none()
         if item is not None:
-            logging.info(f"Found: TelescopeType with type_id {type_id}")
+            logging.info(f"Found: WorkflowType with type_id {type_id}")
             return jsonify(item)
 
-        body = f"Not found: TelescopeType with type_id {type_id}"
+        body = f"Not found: WorkflowType with type_id {type_id}"
         logging.info(body)
         return body, 404
 
 
-def post_telescope_type(body: Dict) -> Response:
-    """Create a TelescopeType.
+def post_workflow_type(body: Dict) -> Response:
+    """Create a WorkflowType.
 
-    :param body: the TelescopeType in the form of a dictionary.
+    :param body: the WorkflowType in the form of a dictionary.
     :return: a Response object.
     """
 
-    return post_item(TelescopeType, body)
+    return post_item(WorkflowType, body)
 
 
-def put_telescope_type(body: Dict) -> Response:
-    """Create or update a TelescopeType.
+def put_workflow_type(body: Dict) -> Response:
+    """Create or update a WorkflowType.
 
-    :param body: the TelescopeType in the form of a dictionary.
+    :param body: the WorkflowType in the form of a dictionary.
     :return: a Response object.
     """
 
-    return put_item(TelescopeType, body)
+    return put_item(WorkflowType, body)
 
 
-def delete_telescope_type(id: int) -> Response:
-    """Delete a TelescopeType.
+def delete_workflow_type(id: int) -> Response:
+    """Delete a WorkflowType.
 
-    :param id: the TelescopeType id.
+    :param id: the WorkflowType id.
     :return: a Response object.
     """
 
-    return delete_item(TelescopeType, id)
+    return delete_item(WorkflowType, id)
 
 
-def get_telescope_types(limit: int) -> Response:
-    """Get a list of TelescopeType objects.
+def get_workflow_types(limit: int) -> Response:
+    """Get a list of WorkflowType objects.
 
-    :param limit: the maximum number of TelescopeType objects to return.
+    :param limit: the maximum number of WorkflowType objects to return.
     :return: a Response object.
     """
 
-    return get_items(TelescopeType, limit)
+    return get_items(WorkflowType, limit)
 
 
-def get_telescope(id: int) -> Response:
-    """Get a Telescope.
+def get_workflow(id: int) -> Response:
+    """Get a Workflow.
 
-    :param id: the Telescope id.
+    :param id: the Workflow id.
     :return: a Response object.
     """
 
-    return get_item(Telescope, id)
+    return get_item(Workflow, id)
 
 
-def post_telescope(body: Dict) -> Response:
-    """Create a Telescope.
+def post_workflow(body: Dict) -> Response:
+    """Create a Workflow.
 
     :param body: the Connection in the form of a dictionary.
     :return: a Response object.
     """
 
-    return post_item(Telescope, body)
+    return post_item(Workflow, body)
 
 
-def put_telescope(body: Dict) -> Response:
-    """Create or update a Telescope.
+def put_workflow(body: Dict) -> Response:
+    """Create or update a Workflow.
 
-    :param body: the Telescope in the form of a dictionary.
+    :param body: the Workflow in the form of a dictionary.
     :return: a Response object.
     """
 
-    return put_item(Telescope, body)
+    return put_item(Workflow, body)
 
 
-def delete_telescope(id: int) -> Response:
-    """Delete a Telescope.
+def delete_workflow(id: int) -> Response:
+    """Delete a Workflow.
 
-    :param id: the Telescope id.
+    :param id: the Workflow id.
     :return: a Response object.
     """
 
-    return delete_item(Telescope, id)
+    return delete_item(Workflow, id)
 
 
-def get_telescopes(limit: int, telescope_type_id=None, organisation_id: int = None) -> Response:
-    """Get a list of Telescope objects.
+def get_workflows(limit: int, workflow_type_id=None, organisation_id: int = None) -> Response:
+    """Get a list of Workflow objects.
 
     :param organisation_id: the Organisation id to filter by.
-    :param telescope_type_id: the TelescopeType id to filter by.
-    :param limit: the maximum number of Telescope objects to return.
+    :param workflow_type_id: the WorkflowType id to filter by.
+    :param limit: the maximum number of Workflow objects to return.
     :return: a Response object.
     """
 
-    q = session_.query(Telescope)
+    q = session_.query(Workflow)
 
     # Create filters based on parameters
     filters = []
-    if telescope_type_id is not None:
-        filters.append(Telescope.telescope_type_id == telescope_type_id)
+    if workflow_type_id is not None:
+        filters.append(Workflow.workflow_type_id == workflow_type_id)
     if organisation_id is not None:
-        filters.append(Telescope.organisation_id == organisation_id)
+        filters.append(Workflow.organisation_id == organisation_id)
     if len(filters):
         q = q.filter(and_(*filters))
 
@@ -336,65 +337,134 @@ def get_organisations(limit: int) -> Response:
     return get_items(Organisation, limit)
 
 
-def get_dataset_storage(id: int) -> Response:
-    """Get a DatasetStorage.
+def get_table_type(id: int = None, type_id: str = None) -> Response:
+    """Get a TableType.
 
-    :param id: the DatasetStorage id.
+    :param id: the TableType id.
+    :param type_id: the TableType type_id.
     :return: a Response object.
     """
 
-    return get_item(DatasetStorage, id)
+    if (id is not None and type_id is not None) or (id is None and type_id is None):
+        body = "At least one and only one of id or type_id must be specified"
+        logging.error(body)
+        return body, 400
+    elif id is not None:
+        return get_item(TableType, id)
+    else:
+        item = session_.query(TableType).filter(TableType.type_id == type_id).one_or_none()
+        if item is not None:
+            logging.info(f"Found: TableType with type_id {type_id}")
+            return jsonify(item)
+
+        body = f"Not found: TableType with type_id {type_id}"
+        logging.info(body)
+        return body, 404
 
 
-def post_dataset_storage(body: Dict) -> Response:
-    """Create a DatasetStorage.
+def post_table_type(body: Dict) -> Response:
+    """Create a TableType.
 
-    :param body: the DatasetStorage in the form of a dictionary.
+    :param body: the TableType in the form of a dictionary.
     :return: a Response object.
     """
 
-    return post_item(DatasetStorage, body)
+    return post_item(TableType, body)
 
 
-def put_dataset_storage(body: Dict) -> Response:
-    """Create or update a DatasetStorage.
+def put_table_type(body: Dict) -> Response:
+    """Create or update a TableType.
 
-    :param body: the DatasetStorage in the form of a dictionary.
+    :param body: the TableType in the form of a dictionary.
     :return: a Response object.
     """
 
-    return put_item(DatasetStorage, body)
+    return put_item(TableType, body)
 
 
-def delete_dataset_storage(id: int) -> Response:
-    """Delete a DatasetStorage.
+def delete_table_type(id: int) -> Response:
+    """Delete a TableType.
 
-    :param id: the DatasetStorage id.
+    :param id: the TableType id.
     :return: a Response object.
     """
 
-    return delete_item(DatasetStorage, id)
+    return delete_item(TableType, id)
 
 
-def get_dataset_storages(limit: int, dataset_id: int = None) -> Response:
-    """Get a list of DatasetStorage objects.
+def get_table_types(limit: int) -> Response:
+    """Get a list of TableType objects.
 
-    :param limit: the maximum number of DatasetStorage objects to return.
-    :param dataset_id: the dataset id to filter for.
+    :param limit: the maximum number of TableType objects to return.
     :return: a Response object.
     """
 
-    q = session_.query(DatasetStorage)
+    return get_items(TableType, limit)
 
-    # Create filters based on parameters
-    filters = []
-    if dataset_id is not None:
-        filters.append(DatasetStorage.dataset_id == dataset_id)
-    if len(filters):
-        q = q.filter(and_(*filters))
 
-    # Return items that match with a limit
-    return q.limit(limit).all()
+def get_dataset_type(id: int = None, type_id: str = None) -> Response:
+    """Get a DatasetType.
+
+    :param id: the DatasetType id.
+    :param type_id: the DatasetType type_id.
+    :return: a Response object.
+    """
+
+    if (id is not None and type_id is not None) or (id is None and type_id is None):
+        body = "At least one and only one of id or type_id must be specified"
+        logging.error(body)
+        return body, 400
+    elif id is not None:
+        return get_item(DatasetType, id)
+    else:
+        item = session_.query(DatasetType).filter(DatasetType.type_id == type_id).one_or_none()
+        if item is not None:
+            logging.info(f"Found: DatasetType with type_id {type_id}")
+            return jsonify(item)
+
+        body = f"Not found: DatasetType with type_id {type_id}"
+        logging.info(body)
+        return body, 404
+
+
+def post_dataset_type(body: Dict) -> Response:
+    """Create a DatasetType.
+
+    :param body: the DatasetType in the form of a dictionary.
+    :return: a Response object.
+    """
+
+    return post_item(DatasetType, body)
+
+
+def put_dataset_type(body: Dict) -> Response:
+    """Create or update a DatasetType.
+
+    :param body: the DatasetType in the form of a dictionary.
+    :return: a Response object.
+    """
+
+    return put_item(DatasetType, body)
+
+
+def delete_dataset_type(id: int) -> Response:
+    """Delete a DatasetType.
+
+    :param id: the DatasetType id.
+    :return: a Response object.
+    """
+
+    return delete_item(DatasetType, id)
+
+
+def get_dataset_types(limit: int) -> Response:
+    """Get a list of DatasetType objects.
+
+    :param limit: the maximum number of DatasetType objects to return.
+    :return: a Response object.
+    """
+
+    return get_items(DatasetType, limit)
 
 
 def get_dataset_release(id: int) -> Response:
@@ -498,19 +568,19 @@ def delete_dataset(id: int) -> Response:
     return delete_item(Dataset, id)
 
 
-def get_datasets(limit: int, telescope_id: int = None) -> Response:
+def get_datasets(limit: int, workflow_id: int = None) -> Response:
     """Get a list of Dataset objects.
 
     :param limit: the maximum number of Dataset objects to return.
-    :param telescope_id: Telescope id to filter by.
+    :param workflow_id: Workflow id to filter by.
     :return: a Response object.
     """
 
     q = session_.query(Dataset)
     filters = []
 
-    if telescope_id is not None:
-        filters.append(Dataset.connection_id == telescope_id)
+    if workflow_id is not None:
+        filters.append(Dataset.workflow_id == workflow_id)
     if len(filters):
         q = q.filter(and_(*filters))
 

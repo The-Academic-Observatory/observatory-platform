@@ -313,7 +313,7 @@ def bq_load_shard(
     :param dataset_description: description of the BigQuery dataset.
     :return: None.
     """
-    _, bucket_name, data_location, schema_file_path = prepare_bq_load(
+    project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
         schema_folder, dataset_id, table_id, release_date, prefix, schema_version, dataset_description
     )
 
@@ -325,7 +325,7 @@ def bq_load_shard(
     logging.info(f"URI: {uri}")
 
     success = load_bigquery_table(
-        uri, dataset_id, data_location, table_id, schema_file_path, source_format, **load_bigquery_table_kwargs
+        uri, dataset_id, data_location, table_id, schema_file_path, source_format, project_id=project_id, **load_bigquery_table_kwargs
     )
     if not success:
         raise AirflowException()
@@ -426,7 +426,7 @@ def bq_load_ingestion_partition(
     :param partition_type: The partitioning type (hour, day, month or year)
     :return: None.
     """
-    _, bucket_name, data_location, schema_file_path = prepare_bq_load(
+    project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
         schema_folder, dataset_id, main_table_id, end_date, prefix, schema_version, dataset_description
     )
 
@@ -443,6 +443,7 @@ def bq_load_ingestion_partition(
         source_format,
         partition=True,
         partition_type=partition_type,
+        project_id=project_id,
         **load_bigquery_table_kwargs,
     )
     if not success:
@@ -525,6 +526,7 @@ def bq_delete_old(
     partition_table_id: str,
     merge_partition_field: str,
     bytes_budget: Optional[int] = None,
+    project_id: str = None,
 ):
     """Will run a BigQuery query that deletes rows from the main table that are matched with rows from
     a specific partition of the partition table.
@@ -536,6 +538,7 @@ def bq_delete_old(
     :param partition_table_id: Partition table id.
     :param merge_partition_field: Merge partition field.
     :param bytes_budget: Maximum bytes allowed to be processed.
+    :param project_id: GCP project id.
     :return: None.
     """
     ingestion_date = ingestion_date.strftime("%Y-%m-%d")
@@ -553,6 +556,7 @@ def bq_delete_old(
         partitioned_table=partitioned_table,
         merge_condition_field=merge_condition_field,
         ingestion_date=ingestion_date,
+        project_id=project_id,
     )
     run_bigquery_query(query, bytes_budget=bytes_budget)
 
@@ -626,6 +630,7 @@ def bq_append_from_file(
         schema_file_path,
         source_format,
         write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+        project_id=project_id,
         **load_bigquery_table_kwargs,
     )
     if not success:

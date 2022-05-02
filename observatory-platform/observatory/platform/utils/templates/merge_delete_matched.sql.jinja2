@@ -13,9 +13,9 @@
 # limitations under the License.
 # Author: Aniek Roelofs -#}
 MERGE
-  `{{ dataset }}.{{ main_table }}` M
+  `{{ project_id }}.{{ dataset }}.{{ main_table }}` M
 USING
-  (SELECT {{ merge_condition_field }} AS id FROM `{{ dataset }}.{{ partitioned_table }}` WHERE _PARTITIONDATE = '{{ ingestion_date }}') P
+  (SELECT {{ merge_condition_field }} AS id FROM `{{ project_id }}.{{ dataset }}.{{ partitioned_table }}` WHERE _PARTITIONDATE = '{{ ingestion_date }}') P
 ON
   M.{{ merge_condition_field }} = P.id
 WHEN MATCHED THEN

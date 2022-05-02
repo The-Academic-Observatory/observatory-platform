@@ -212,3 +212,15 @@ def get_filename_from_url(url: str) -> str:
     dst_file = dst_file[:tail]
 
     return dst_file
+
+
+def get_filename_from_http_header(url: str) -> str:
+    """Get a download filename from the Content-Disposition header.
+
+    :param url: Download url.
+    :return: Filename.
+    """
+
+    response = requests.head(url)
+    cd = response.headers["Content-Disposition"]
+    return cd

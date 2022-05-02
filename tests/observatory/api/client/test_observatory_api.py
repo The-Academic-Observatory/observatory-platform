@@ -42,10 +42,11 @@ from observatory.api.client.model.big_query_bytes_processed import (
 )
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
-from observatory.api.client.model.dataset_storage import DatasetStorage
 from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.telescope import Telescope
-from observatory.api.client.model.telescope_type import TelescopeType
+from observatory.api.client.model.workflow import Workflow
+from observatory.api.client.model.workflow_type import WorkflowType
+from observatory.api.client.model.table_type import TableType
+from observatory.api.client.model.dataset_type import DatasetType
 from observatory.api.testing import ObservatoryApiEnvironment
 from unittest.mock import patch
 
@@ -85,19 +86,19 @@ RES_EXAMPLE = {
 }
 
 
-def make_telescope_types(env: ObservatoryApiEnvironment, dt):
-    # Add TelescopeType objects
-    telescope_types = [
-        ("onix", "ONIX Telescope"),
-        ("jstor", "JSTOR Telescope"),
-        ("google_analytics", "Google Analytics Telescope"),
+def make_workflow_types(env: ObservatoryApiEnvironment, dt):
+    # Add WorkflowType objects
+    workflow_types = [
+        ("onix", "ONIX Workflow"),
+        ("jstor", "JSTOR Workflow"),
+        ("google_analytics", "Google Analytics Workflow"),
     ]
 
-    for type_id, name in telescope_types:
-        env.session.add(orm.TelescopeType(type_id=type_id, name=name, created=dt, modified=dt))
+    for type_id, name in workflow_types:
+        env.session.add(orm.WorkflowType(type_id=type_id, name=name, created=dt, modified=dt))
     env.session.commit()
 
-    return telescope_types
+    return workflow_types
 
 
 class TestObservatoryApi(unittest.TestCase):
@@ -123,7 +124,7 @@ class TestObservatoryApi(unittest.TestCase):
         """
 
         with self.env.create():
-            # Post telescope
+            # Post workflow
             expected_id = 1
 
             dt = pendulum.now(self.timezone)
@@ -137,56 +138,77 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(404, e.exception.status)
             self.assertEqual(f'"Not found: Organisation with id {expected_id}"\n', e.exception.body)
 
-    def test_delete_telescope(self):
-        """Test case for delete_telescope
+    def test_delete_workflow(self):
+        """Test case for delete_workflow
 
-        delete a Telescope  # noqa: E501
+        delete a Workflow  # noqa: E501
         """
 
         with self.env.create():
-            # Post telescope
+            # Post workflow
             expected_id = 1
 
-            telescope_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    organisation={"id": expected_id}, telescope_type={"id": expected_id}, created=dt, modified=dt
+                orm.Workflow(
+                    organisation={"id": expected_id}, workflow_type={"id": expected_id}, created=dt, modified=dt
                 )
             )
             self.env.session.commit()
 
-            result = self.api.delete_telescope(expected_id)
+            result = self.api.delete_workflow(expected_id)
 
             with self.assertRaises(NotFoundException) as e:
-                self.api.delete_telescope(expected_id)
+                self.api.delete_workflow(expected_id)
             self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Telescope with id {expected_id}"\n', e.exception.body)
+            self.assertEqual(f'"Not found: Workflow with id {expected_id}"\n', e.exception.body)
 
-    def test_delete_telescope_type(self):
-        """Test case for delete_telescope_type
+    def test_delete_workflow_type(self):
+        """Test case for delete_workflow_type
 
-        delete a TelescopeType  # noqa: E501
+        delete a WorkflowType  # noqa: E501
         """
 
         with self.env.create():
-            # Post telescope
+            # Post workflow
             expected_id = 1
 
             dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.TelescopeType(type_id="onix", name="ONIX Telescope", created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name="ONIX Workflow", created=dt, modified=dt))
             self.env.session.commit()
 
-            result = self.api.delete_telescope_type(expected_id)
+            result = self.api.delete_workflow_type(expected_id)
 
             with self.assertRaises(NotFoundException) as e:
-                self.api.delete_telescope_type(expected_id)
+                self.api.delete_workflow_type(expected_id)
             self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: TelescopeType with id {expected_id}"\n', e.exception.body)
+            self.assertEqual(f'"Not found: WorkflowType with id {expected_id}"\n', e.exception.body)
+
+    def test_delete_table_type(self):
+        """Test case for delete_table_type
+
+        delete a TableType  # noqa: E501
+        """
+
+        with self.env.create():
+            # Post workflow
+            expected_id = 1
+
+            dt = pendulum.now(self.timezone)
+            self.env.session.add(orm.TableType(type_id="typeid", name="My type id", created=dt, modified=dt))
+            self.env.session.commit()
+
+            result = self.api.delete_table_type(expected_id)
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.delete_table_type(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: TableType with id {expected_id}"\n', e.exception.body)
 
     def test_get_organisation(self):
         """Test case for get_organisation
@@ -197,37 +219,37 @@ class TestObservatoryApi(unittest.TestCase):
         with self.env.create():
             expected_id = 1
 
-            # Assert that TelescopeType with given id does not exist
+            # Assert that WorkflowType with given id does not exist
             with self.assertRaises(NotFoundException) as e:
-                self.api.get_telescope_type(id=expected_id)
+                self.api.get_workflow_type(id=expected_id)
 
-            # Add TelescopeType
+            # Add WorkflowType
             name = "Curtin University"
-            gcp_project_id = "my-project-id"
-            gcp_download_bucket = "my-download-bucket"
-            gcp_transform_bucket = "my-transform-bucket"
+            project_id = "my-project-id"
+            download_bucket = "my-download-bucket"
+            transform_bucket = "my-transform-bucket"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
             self.env.session.add(
                 orm.Organisation(
                     name=name,
-                    gcp_project_id=gcp_project_id,
-                    gcp_download_bucket=gcp_download_bucket,
-                    gcp_transform_bucket=gcp_transform_bucket,
+                    project_id=project_id,
+                    download_bucket=download_bucket,
+                    transform_bucket=transform_bucket,
                     created=dt,
                     modified=dt,
                 )
             )
             self.env.session.commit()
 
-            # Assert that TelescopeType with given id exists
+            # Assert that WorkflowType with given id exists
             obj = self.api.get_organisation(expected_id)
             self.assertIsInstance(obj, Organisation)
             self.assertEqual(expected_id, obj.id)
             self.assertEqual(name, obj.name)
-            self.assertEqual(gcp_project_id, obj.gcp_project_id)
-            self.assertEqual(gcp_download_bucket, obj.gcp_download_bucket)
-            self.assertEqual(gcp_transform_bucket, obj.gcp_transform_bucket)
+            self.assertEqual(project_id, obj.project_id)
+            self.assertEqual(download_bucket, obj.download_bucket)
+            self.assertEqual(transform_bucket, obj.transform_bucket)
             self.assertEqual(dt_utc, obj.created)
             self.assertEqual(dt_utc, obj.modified)
 
@@ -257,144 +279,145 @@ class TestObservatoryApi(unittest.TestCase):
                 self.assertEqual(dt_utc, obj.created)
                 self.assertEqual(dt_utc, obj.modified)
 
-    def test_get_telescope(self):
-        """Test case for get_telescope
+    def test_get_workflow(self):
+        """Test case for get_workflow
 
-        get a Telescope  # noqa: E501
+        get a Workflow  # noqa: E501
         """
 
         with self.env.create():
             expected_id = 1
 
-            # Assert that Telescope with given id does not exist
+            # Assert that Workflow with given id does not exist
             with self.assertRaises(NotFoundException) as e:
-                self.api.get_telescope(expected_id)
+                self.api.get_workflow(expected_id)
             self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Telescope with id {expected_id}"\n', e.exception.body)
+            self.assertEqual(f'"Not found: Workflow with id {expected_id}"\n', e.exception.body)
 
-            # Add Telescope
-            telescope_type_name = "ONIX Telescope"
+            # Add Workflow
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
+                    tags=None,
                     organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
+                    workflow_type={"id": expected_id},
                     created=dt,
                     modified=dt,
                 )
             )
             self.env.session.commit()
 
-            # Assert that Telescope with given id exists
-            obj = self.api.get_telescope(expected_id)
-            self.assertIsInstance(obj, Telescope)
+            # Assert that Workflow with given id exists
+            obj = self.api.get_workflow(expected_id)
+            self.assertIsInstance(obj, Workflow)
             self.assertEqual(expected_id, obj.id)
             self.assertEqual(expected_id, obj.organisation.id)
             self.assertEqual(org_name, obj.organisation.name)
-            self.assertEqual(expected_id, obj.telescope_type.id)
-            self.assertEqual(telescope_type_name, obj.telescope_type.name)
+            self.assertEqual(expected_id, obj.workflow_type.id)
+            self.assertEqual(workflow_type_name, obj.workflow_type.name)
             self.assertEqual(dt_utc, obj.created)
             self.assertEqual(dt_utc, obj.modified)
 
-    def test_get_telescope_type(self):
-        """Test case for get_telescope_type
+    def test_get_workflow_type(self):
+        """Test case for get_workflow_type
 
-        get a TelescopeType  # noqa: E501
+        get a WorkflowType  # noqa: E501
         """
 
         with self.env.create():
             expected_id = 1
             type_id = "onix"
 
-            # Assert that TelescopeType with given id does not exist
+            # Assert that WorkflowType with given id does not exist
             with self.assertRaises(NotFoundException) as e:
-                self.api.get_telescope_type(id=expected_id)
+                self.api.get_workflow_type(id=expected_id)
             self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: TelescopeType with id {expected_id}"\n', e.exception.body)
+            self.assertEqual(f'"Not found: WorkflowType with id {expected_id}"\n', e.exception.body)
 
-            # Assert that TelescopeType with given type_id does not exist
+            # Assert that WorkflowType with given type_id does not exist
             with self.assertRaises(NotFoundException) as e:
-                self.api.get_telescope_type(type_id=type_id)
+                self.api.get_workflow_type(type_id=type_id)
             self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: TelescopeType with type_id {type_id}"\n', e.exception.body)
+            self.assertEqual(f'"Not found: WorkflowType with type_id {type_id}"\n', e.exception.body)
 
             # Assert that 400 error raised: both missing
             expected_body = '"At least one and only one of id or type_id must be specified"\n'
             with self.assertRaises(ApiException) as e:
-                self.api.get_telescope_type()
+                self.api.get_workflow_type()
             self.assertEqual(400, e.exception.status)
             self.assertEqual(expected_body, e.exception.body)
 
             # Assert that 400 error raised: both present
             with self.assertRaises(ApiException) as e:
-                self.api.get_telescope_type(id=expected_id, type_id=type_id)
+                self.api.get_workflow_type(id=expected_id, type_id=type_id)
             self.assertEqual(400, e.exception.status)
             self.assertEqual(expected_body, e.exception.body)
 
-            # Add TelescopeType
-            name = "ONIX Telescope"
+            # Add WorkflowType
+            name = "ONIX Workflow"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id=type_id, name=name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id=type_id, name=name, created=dt, modified=dt))
             self.env.session.commit()
 
-            # Assert that TelescopeType with given id exists
-            obj = self.api.get_telescope_type(id=expected_id)
-            self.assertIsInstance(obj, TelescopeType)
+            # Assert that WorkflowType with given id exists
+            obj = self.api.get_workflow_type(id=expected_id)
+            self.assertIsInstance(obj, WorkflowType)
             self.assertEqual(expected_id, obj.id)
             self.assertEqual(name, obj.name)
             self.assertEqual(dt_utc, obj.created)
             self.assertEqual(dt_utc, obj.modified)
 
-            # Assert that TelescopeType can be fetched with type_id
-            obj = self.api.get_telescope_type(type_id=type_id)
-            self.assertIsInstance(obj, TelescopeType)
+            # Assert that WorkflowType can be fetched with type_id
+            obj = self.api.get_workflow_type(type_id=type_id)
+            self.assertIsInstance(obj, WorkflowType)
             self.assertEqual(expected_id, obj.id)
             self.assertEqual(name, obj.name)
             self.assertEqual(dt_utc, obj.created)
             self.assertEqual(dt_utc, obj.modified)
 
-    def test_get_telescope_types(self):
-        """Test case for get_telescope_types
+    def test_get_workflow_types(self):
+        """Test case for get_workflow_types
 
-        Get a list of TelescopeType objects  # noqa: E501
+        Get a list of WorkflowType objects  # noqa: E501
         """
 
         with self.env.create():
-            # Add TelescopeType objects
+            # Add WorkflowType objects
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            telescope_types = make_telescope_types(self.env, dt)
+            workflow_types = make_workflow_types(self.env, dt)
 
-            # Assert that TelescopeType objects returned
-            objects = self.api.get_telescope_types(limit=10)
-            self.assertEqual(len(telescope_types), len(objects))
-            for i, (obj, (type_id, name)) in enumerate(zip(objects, telescope_types)):
+            # Assert that WorkflowType objects returned
+            objects = self.api.get_workflow_types(limit=10)
+            self.assertEqual(len(workflow_types), len(objects))
+            for i, (obj, (type_id, name)) in enumerate(zip(objects, workflow_types)):
                 expected_id = i + 1
-                self.assertIsInstance(obj, TelescopeType)
+                self.assertIsInstance(obj, WorkflowType)
                 self.assertEqual(expected_id, obj.id)
                 self.assertEqual(type_id, obj.type_id)
                 self.assertEqual(name, obj.name)
                 self.assertEqual(dt_utc, obj.created)
                 self.assertEqual(dt_utc, obj.modified)
 
-    def test_get_telescopes(self):
-        """Test case for get_telescopes
+    def test_get_workflows(self):
+        """Test case for get_workflows
 
-        Get a list of Telescope objects  # noqa: E501
+        Get a list of Workflow objects  # noqa: E501
         """
 
         with self.env.create():
-            # Add TelescopeType objects
+            # Add WorkflowType objects
             dt = pendulum.now(self.timezone)
-            make_telescope_types(self.env, dt)
+            make_workflow_types(self.env, dt)
 
             # Add Organisations
             names = ["Curtin University", "Massachusetts Institute of Technology"]
@@ -402,43 +425,122 @@ class TestObservatoryApi(unittest.TestCase):
                 self.env.session.add(orm.Organisation(name=name, created=dt, modified=dt))
             self.env.session.commit()
 
-            # Add Telescopes
+            # Add Workflows
             dt = pendulum.now(self.timezone)
             self.env.session.add(
-                orm.Telescope(
+                orm.Workflow(
                     organisation={"id": 1},
-                    telescope_type={"id": 1},
+                    workflow_type={"id": 1},
                     created=dt,
                     modified=dt,
                 )
             )
-            self.env.session.add(
-                orm.Telescope(organisation={"id": 1}, telescope_type={"id": 2}, created=dt, modified=dt)
-            )
-            self.env.session.add(
-                orm.Telescope(organisation={"id": 2}, telescope_type={"id": 1}, created=dt, modified=dt)
-            )
+            self.env.session.add(orm.Workflow(organisation={"id": 1}, workflow_type={"id": 2}, created=dt, modified=dt))
+            self.env.session.add(orm.Workflow(organisation={"id": 2}, workflow_type={"id": 1}, created=dt, modified=dt))
             self.env.session.commit()
 
-            # Assert that all Telescope objects returned
-            objects = self.api.get_telescopes(limit=10)
+            # Assert that all Workflow objects returned
+            objects = self.api.get_workflows(limit=10)
             self.assertEqual(3, len(objects))
 
-            # Assert that Organisation 1 Telescope objects returned
-            objects = self.api.get_telescopes(organisation_id=1, limit=10)
+            # Assert that Organisation 1 Workflow objects returned
+            objects = self.api.get_workflows(organisation_id=1, limit=10)
             self.assertEqual(2, len(objects))
 
-            # Assert that Organisation 2 Telescope objects returned
-            objects = self.api.get_telescopes(organisation_id=2, limit=10)
+            # Assert that Organisation 2 Workflow objects returned
+            objects = self.api.get_workflows(organisation_id=2, limit=10)
             self.assertEqual(1, len(objects))
 
-            # Assert that TelescopeType 1 Telescope objects returned
-            objects = self.api.get_telescopes(telescope_type_id=1, limit=10)
+            # Assert that WorkflowType 1 Workflow objects returned
+            objects = self.api.get_workflows(workflow_type_id=1, limit=10)
             self.assertEqual(2, len(objects))
 
-            # Assert that TelescopeType 2 Telescope objects returned
-            objects = self.api.get_telescopes(telescope_type_id=2, limit=10)
+            # Assert that WorkflowType 2 Workflow objects returned
+            objects = self.api.get_workflows(workflow_type_id=2, limit=10)
             self.assertEqual(1, len(objects))
+
+    def test_get_table_type(self):
+        """Test case for get_table_type
+
+        get a TableType  # noqa: E501
+        """
+
+        with self.env.create():
+            expected_id = 1
+            type_id = "table type id"
+
+            # Assert that TableType with given id does not exist
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_table_type(id=expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: TableType with id {expected_id}"\n', e.exception.body)
+
+            # Assert that TableType with given type_id does not exist
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_table_type(type_id=type_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: TableType with type_id {type_id}"\n', e.exception.body)
+
+            # Assert that 400 error raised: both missing
+            expected_body = '"At least one and only one of id or type_id must be specified"\n'
+            with self.assertRaises(ApiException) as e:
+                self.api.get_table_type()
+            self.assertEqual(400, e.exception.status)
+            self.assertEqual(expected_body, e.exception.body)
+
+            # Assert that 400 error raised: both present
+            with self.assertRaises(ApiException) as e:
+                self.api.get_workflow_type(id=expected_id, type_id=type_id)
+            self.assertEqual(400, e.exception.status)
+            self.assertEqual(expected_body, e.exception.body)
+
+            # Add TableType
+            name = "My table type"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TableType(type_id=type_id, name=name, created=dt, modified=dt))
+            self.env.session.commit()
+
+            # Assert that TableType with given id exists
+            obj = self.api.get_table_type(id=expected_id)
+            self.assertIsInstance(obj, TableType)
+            self.assertEqual(expected_id, obj.id)
+            self.assertEqual(name, obj.name)
+            self.assertEqual(dt_utc, obj.created)
+            self.assertEqual(dt_utc, obj.modified)
+
+            # Assert that TableType can be fetched with type_id
+            obj = self.api.get_table_type(type_id=type_id)
+            self.assertIsInstance(obj, TableType)
+            self.assertEqual(expected_id, obj.id)
+            self.assertEqual(name, obj.name)
+            self.assertEqual(dt_utc, obj.created)
+            self.assertEqual(dt_utc, obj.modified)
+
+    def test_get_table_types(self):
+        """Test case for get_table_types
+
+        Get a list of TableType objects  # noqa: E501
+        """
+
+        with self.env.create():
+            # Add TableType objects
+            name = "My table type"
+            type_id = "table type id"
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TableType(type_id=type_id, name=name, created=dt, modified=dt))
+            self.env.session.commit()
+
+            # Assert that TableType objects returned
+            objects = self.api.get_table_types(limit=10)
+            self.assertEqual(1, len(objects))
+            self.assertIsInstance(objects[0], TableType)
+            self.assertEqual(1, objects[0].id)
+            self.assertEqual(type_id, objects[0].type_id)
+            self.assertEqual(name, objects[0].name)
+            self.assertEqual(dt_utc, objects[0].created)
+            self.assertEqual(dt_utc, objects[0].modified)
 
     def test_post_organisation(self):
         """Test case for post_organisation
@@ -447,50 +549,65 @@ class TestObservatoryApi(unittest.TestCase):
         """
 
         with self.env.create():
-            # Post telescope
+            # Post workflow
             expected_id = 1
             obj = Organisation(name="Curtin University")
             result = self.api.post_organisation(obj)
             self.assertIsInstance(result, Organisation)
             self.assertEqual(expected_id, result.id)
 
-    def test_post_telescope(self):
-        """Test case for post_telescope
+    def test_post_workflow(self):
+        """Test case for post_workflow
 
-        create a Telescope  # noqa: E501
+        create a Workflow  # noqa: E501
         """
 
         with self.env.create():
-            # Add TelescopeType and Organisation
+            # Add WorkflowType and Organisation
             dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.TelescopeType(type_id="onix", name="ONIX Telescope", created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name="ONIX Workflow", created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name="Curtin University", created=dt, modified=dt))
             self.env.session.commit()
 
-            # Post telescope
+            # Post workflow
             expected_id = 1
-            obj = Telescope(
-                name="Curtin University ONIX Telescope",
+            obj = Workflow(
+                name="Curtin University ONIX Workflow",
                 extra={"view_id": 123456},
+                tags='["oaebu"]',
                 organisation=Organisation(id=expected_id),
-                telescope_type=TelescopeType(id=expected_id),
+                workflow_type=WorkflowType(id=expected_id),
             )
-            result = self.api.post_telescope(obj)
-            self.assertIsInstance(result, Telescope)
+            result = self.api.post_workflow(obj)
+            self.assertIsInstance(result, Workflow)
             self.assertEqual(expected_id, result.id)
 
-    def test_post_telescope_type(self):
-        """Test case for post_telescope_type
+    def test_post_workflow_type(self):
+        """Test case for post_workflow_type
 
-        create a TelescopeType  # noqa: E501
+        create a WorkflowType  # noqa: E501
         """
 
         with self.env.create():
             expected_id = 1
-            obj = TelescopeType(type_id="onix", name="ONIX Telescope")
-            result = self.api.post_telescope_type(obj)
+            obj = WorkflowType(type_id="onix", name="ONIX Workflow")
+            result = self.api.post_workflow_type(obj)
 
-            self.assertIsInstance(result, TelescopeType)
+            self.assertIsInstance(result, WorkflowType)
+            self.assertEqual(expected_id, result.id)
+
+    def test_post_table_type(self):
+        """Test case for post_table_type
+
+        create a TableType  # noqa: E501
+        """
+
+        with self.env.create():
+            expected_id = 1
+            obj = TableType(type_id="table type", name="My table type")
+            result = self.api.post_table_type(obj)
+
+            self.assertIsInstance(result, TableType)
             self.assertEqual(expected_id, result.id)
 
     def test_put_organisation(self):
@@ -524,16 +641,16 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(404, e.exception.status)
             self.assertEqual(f'"Not found: Organisation with id {expected_id}"\n', e.exception.body)
 
-    def test_put_telescope(self):
-        """Test case for put_telescope
+    def test_put_workflow(self):
+        """Test case for put_workflow
 
-        create or update a Telescope  # noqa: E501
+        create or update a Workflow  # noqa: E501
         """
 
         with self.env.create():
             expected_id = 1
             dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.TelescopeType(type_id="onix", name="ONIX Telescope", created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name="ONIX Workflow", created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name="Curtin University", created=dt, modified=dt))
             self.env.session.add(
                 orm.Organisation(name="Massachusetts Institute of Technology", created=dt, modified=dt)
@@ -541,23 +658,25 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.commit()
 
             # Put create
-            obj = Telescope(organisation=Organisation(id=expected_id), telescope_type=TelescopeType(id=expected_id))
-            result = self.api.put_telescope(obj)
-            self.assertIsInstance(result, Telescope)
+            obj = Workflow(organisation=Organisation(id=expected_id), workflow_type=WorkflowType(id=expected_id))
+            result = self.api.put_workflow(obj)
+            self.assertIsInstance(result, Workflow)
             self.assertEqual(expected_id, result.id)
 
             # Put update
-            name = "Curtin ONIX Telescope"
+            name = "Curtin ONIX Workflow"
             extra = {"view_id": 123456}
-            obj = Telescope(
+            tags = '["oaebu"]'
+            obj = Workflow(
                 id=expected_id,
                 name=name,
                 extra=extra,
+                tags=tags,
                 organisation=Organisation(id=2),
-                telescope_type=TelescopeType(id=expected_id),
+                workflow_type=WorkflowType(id=expected_id),
             )
-            result = self.api.put_telescope(obj)
-            self.assertIsInstance(result, Telescope)
+            result = self.api.put_workflow(obj)
+            self.assertIsInstance(result, Workflow)
             self.assertEqual(expected_id, result.id)
             self.assertEqual(name, result.name)
             self.assertDictEqual(extra, result.extra)
@@ -566,46 +685,84 @@ class TestObservatoryApi(unittest.TestCase):
             # Put not found
             expected_id = 2
             with self.assertRaises(NotFoundException) as e:
-                self.api.put_telescope(
-                    Telescope(
+                self.api.put_workflow(
+                    Workflow(
                         id=expected_id,
                         organisation=Organisation(id=expected_id),
-                        telescope_type=TelescopeType(id=expected_id),
+                        workflow_type=WorkflowType(id=expected_id),
                     )
                 )
             self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Telescope with id {expected_id}"\n', e.exception.body)
+            self.assertEqual(f'"Not found: Workflow with id {expected_id}"\n', e.exception.body)
 
-    def test_put_telescope_type(self):
-        """Test case for put_telescope_type
+            # Put with no organisation set
+            obj = Workflow(workflow_type=WorkflowType(id=1))
+            result = self.api.put_workflow(obj)
+            self.assertEqual(None, result.organisation)
 
-        create or update a TelescopeType  # noqa: E501
+    def test_put_workflow_type(self):
+        """Test case for put_workflow_type
+
+        create or update a WorkflowType  # noqa: E501
         """
 
         with self.env.create():
             # Put create
             expected_id = 1
-            name = "ONIX Telescope"
-            obj = TelescopeType(type_id="onix", name=name)
-            result = self.api.put_telescope_type(obj)
-            self.assertIsInstance(result, TelescopeType)
+            name = "ONIX Workflow"
+            obj = WorkflowType(type_id="onix", name=name)
+            result = self.api.put_workflow_type(obj)
+            self.assertIsInstance(result, WorkflowType)
             self.assertEqual(expected_id, result.id)
             self.assertEqual(name, result.name)
 
             # Put update
-            new_name = "Google Analytics Telescope"
-            obj = TelescopeType(type_id="google_analytics", id=expected_id, name=new_name)
-            result = self.api.put_telescope_type(obj)
-            self.assertIsInstance(result, TelescopeType)
+            new_name = "Google Analytics Workflow"
+            obj = WorkflowType(type_id="google_analytics", id=expected_id, name=new_name)
+            result = self.api.put_workflow_type(obj)
+            self.assertIsInstance(result, WorkflowType)
             self.assertEqual(expected_id, result.id)
             self.assertEqual(new_name, result.name)
 
             # Put not found
             expected_id = 2
             with self.assertRaises(NotFoundException) as e:
-                self.api.put_telescope_type(TelescopeType(id=expected_id, name=new_name))
+                self.api.put_workflow_type(WorkflowType(id=expected_id, name=new_name))
             self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: TelescopeType with id {expected_id}"\n', e.exception.body)
+            self.assertEqual(f'"Not found: WorkflowType with id {expected_id}"\n', e.exception.body)
+
+    def test_put_table_type(self):
+        """Test case for put_table_type
+
+        create or update a TableType  # noqa: E501
+        """
+
+        with self.env.create():
+            # Put create
+            expected_id = 1
+            name = "My table id"
+            type_id = "table id"
+            obj = TableType(type_id=type_id, name=name)
+            result = self.api.put_table_type(obj)
+            self.assertIsInstance(result, TableType)
+            self.assertEqual(expected_id, result.id)
+            self.assertEqual(name, result.name)
+
+            # Put update
+            new_name = "New name"
+            type_id = "new type id"
+            obj = TableType(type_id=type_id, id=expected_id, name=new_name)
+            result = self.api.put_table_type(obj)
+            self.assertIsInstance(result, TableType)
+            self.assertEqual(expected_id, result.id)
+            self.assertEqual(new_name, result.name)
+
+            # Put not found
+            expected_id = 2
+            with self.assertRaises(NotFoundException) as e:
+                self.api.put_table_type(TableType(id=expected_id, name=new_name))
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: TableType with id {expected_id}"\n', e.exception.body)
 
     @patch("observatory.api.server.elastic.Elasticsearch.scroll")
     @patch("observatory.api.server.elastic.Elasticsearch.search")
@@ -722,6 +879,176 @@ class TestObservatoryApi(unittest.TestCase):
                         e.exception.body,
                     )
 
+    def test_get_dataset_type(self):
+        """Test case for get_dataset_type"""
+
+        with self.env.create():
+            expected_id = 1
+
+            # No arguments specified
+            with self.assertRaises(ApiException):
+                self.api.get_dataset_type()
+
+            # Assert that DatasetType with given id does not exist
+            with self.assertRaises(NotFoundException) as e:
+                self.api.get_dataset_type(id=expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetType with id {expected_id}"\n', e.exception.body)
+
+            # Add DatasetType
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
+            self.env.session.add(orm.TableType(type_id="table type", name="table type name", created=dt, modified=dt))
+            self.env.session.commit()
+            self.env.session.add(
+                orm.DatasetType(
+                    type_id="type id",
+                    name="Dataset type name",
+                    extra={"view_id": 123456},
+                    table_type={"id": expected_id},
+                    created=dt,
+                    modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            # Assert that Dataset with given id exists
+            obj = self.api.get_dataset_type(id=expected_id)
+            self.assertIsInstance(obj, DatasetType)
+            self.assertEqual(expected_id, obj.id)
+            self.assertEqual("Dataset type name", obj.name)
+            self.assertEqual(dt_utc, obj.created)
+            self.assertEqual(dt_utc, obj.modified)
+
+            dataset_type = self.api.get_dataset_type(type_id="type id")
+            self.assertEqual(dataset_type.name, "Dataset type name")
+
+            # Type id not found
+            with self.assertRaises(NotFoundException):
+                dataset_type = self.api.get_dataset_type(type_id="unknown")
+
+    def test_post_dataset_type(self):
+        """Test case for post_dataset"""
+
+        with self.env.create():
+            expected_id = 1
+            dt = pendulum.now(self.timezone)
+            self.env.session.add(orm.TableType(type_id="table type", name="table type name", created=dt, modified=dt))
+            self.env.session.commit()
+
+            # Post DatasetType
+            obj = DatasetType(
+                name="My dataset type",
+                type_id="type id",
+                table_type=TableType(id=expected_id),
+            )
+            result = self.api.post_dataset_type(obj)
+            self.assertIsInstance(result, DatasetType)
+            self.assertEqual(expected_id, result.id)
+
+    def test_put_dataset_type(self):
+        """Test case for put_dataset_type"""
+
+        with self.env.create():
+            expected_id = 1
+            dt = pendulum.now(self.timezone)
+            self.env.session.add(orm.TableType(type_id="table type", name="table type name", created=dt, modified=dt))
+            self.env.session.commit()
+
+            # Put create
+            name = "new type name"
+            obj = DatasetType(
+                name=name,
+                type_id="type id",
+                table_type=TableType(id=expected_id),
+            )
+            result = self.api.put_dataset_type(obj)
+            self.assertIsInstance(result, DatasetType)
+            self.assertEqual(expected_id, result.id)
+            self.assertEqual(name, result.name)
+
+            # Put update
+            name = "new type name"
+            extra = {}
+            obj = DatasetType(
+                id=expected_id,
+                name=name,
+                type_id="type id",
+                table_type=TableType(id=expected_id),
+            )
+            result = self.api.put_dataset_type(obj)
+            self.assertIsInstance(result, DatasetType)
+            self.assertEqual(expected_id, result.id)
+            self.assertEqual(name, result.name)
+
+            # Put not found
+            expected_id = 2
+            with self.assertRaises(NotFoundException) as e:
+                self.api.put_dataset_type(
+                    DatasetType(
+                        id=expected_id,
+                        name=name,
+                        type_id="type id",
+                        table_type=TableType(id=expected_id),
+                    )
+                )
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetType with id {expected_id}"\n', e.exception.body)
+
+    def test_delete_dataset_type(self):
+        """Test case for delete_dataset_type"""
+
+        with self.env.create():
+            expected_id = 1
+            dt = pendulum.now(self.timezone)
+            self.env.session.add(orm.TableType(type_id="table type", name="table type name", created=dt, modified=dt))
+            self.env.session.commit()
+
+            # Put create
+            name = "new type name"
+            obj = DatasetType(
+                name=name,
+                type_id="type id",
+                table_type=TableType(id=expected_id),
+            )
+            result = self.api.put_dataset_type(obj)
+            self.assertIsInstance(result, DatasetType)
+            self.assertEqual(expected_id, result.id)
+            self.assertEqual(name, result.name)
+
+            # Delete
+            self.api.delete_dataset_type(expected_id)
+
+            with self.assertRaises(NotFoundException) as e:
+                self.api.delete_dataset_type(expected_id)
+            self.assertEqual(404, e.exception.status)
+            self.assertEqual(f'"Not found: DatasetType with id {expected_id}"\n', e.exception.body)
+
+    def test_get_dataset_types(self):
+        """Test case for get_dataset_types"""
+
+        with self.env.create():
+            expected_id = 1
+            dt = pendulum.now(self.timezone)
+            self.env.session.add(orm.TableType(type_id="table type", name="table type name", created=dt, modified=dt))
+            self.env.session.commit()
+
+            # Put create
+            name = "new type name"
+            obj = DatasetType(
+                name=name,
+                type_id="type id",
+                table_type=TableType(id=expected_id),
+            )
+            result = self.api.put_dataset_type(obj)
+            self.assertIsInstance(result, DatasetType)
+            self.assertEqual(expected_id, result.id)
+            self.assertEqual(name, result.name)
+
+            # Search dataset types
+            objects = self.api.get_dataset_types(limit=100)
+            self.assertEqual(1, len(objects))
+
     def test_get_dataset(self):
         """Test case for get_dataset"""
 
@@ -735,19 +1062,20 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(f'"Not found: Dataset with id {expected_id}"\n', e.exception.body)
 
             # Add Dataset
-            telescope_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
+                    tags='["oaebu"]',
                     organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
+                    workflow_type={"id": expected_id},
                     created=dt,
                     modified=dt,
                 )
@@ -755,10 +1083,34 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.commit()
 
             self.env.session.add(
+                orm.TableType(
+                    type_id="partitioned",
+                    name="partitioned bq table",
+                    modified=dt,
+                    created=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.DatasetType(
+                    type_id="dataset_type_id",
+                    name="ds type",
+                    extra={},
+                    table_type={"id": 1},
+                    modified=dt,
+                    created=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
                 orm.Dataset(
                     name="dataset",
-                    extra={},
-                    connection={"id": expected_id},
+                    service="bigquery",
+                    address="project.dataset.table",
+                    workflow={"id": expected_id},
+                    dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
                 )
@@ -770,8 +1122,8 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertIsInstance(obj, Dataset)
             self.assertEqual(expected_id, obj.id)
             self.assertEqual("dataset", obj.name)
-            self.assertEqual(expected_id, obj.connection.id)
-            self.assertEqual("Curtin ONIX Telescope", obj.connection.name)
+            self.assertEqual(expected_id, obj.workflow.id)
+            self.assertEqual("Curtin ONIX Workflow", obj.workflow.name)
             self.assertEqual(dt_utc, obj.created)
             self.assertEqual(dt_utc, obj.modified)
 
@@ -780,21 +1132,44 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            telescope_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
+                    tags='["oaebu"]',
                     organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
+                    workflow_type={"id": expected_id},
                     created=dt,
                     modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.TableType(
+                    type_id="partitioned",
+                    name="partitioned bq table",
+                    modified=dt,
+                    created=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.DatasetType(
+                    type_id="dataset_type_id",
+                    name="ds type",
+                    extra={},
+                    table_type={"id": 1},
+                    modified=dt,
+                    created=dt,
                 )
             )
             self.env.session.commit()
@@ -802,7 +1177,10 @@ class TestObservatoryApi(unittest.TestCase):
             # Post Dataset
             obj = Dataset(
                 name="My dataset",
-                connection=Telescope(id=expected_id),
+                service="bigquery",
+                address="project.dataset.table",
+                workflow=Workflow(id=expected_id),
+                dataset_type=DatasetType(id=1),
             )
             result = self.api.post_dataset(obj)
             self.assertIsInstance(result, Dataset)
@@ -813,41 +1191,74 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            telescope_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
+                    tags='["oaebu"]',
                     organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
+                    workflow_type={"id": expected_id},
                     created=dt,
                     modified=dt,
                 )
             )
             self.env.session.commit()
 
+            self.env.session.add(
+                orm.TableType(
+                    type_id="partitioned",
+                    name="partitioned bq table",
+                    modified=dt,
+                    created=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.DatasetType(
+                    type_id="dataset_type_id",
+                    name="ds type",
+                    extra={},
+                    table_type={"id": 1},
+                    modified=dt,
+                    created=dt,
+                )
+            )
+            self.env.session.commit()
+
             # Put create
-            obj = Dataset(name="My dataset", connection=Telescope(id=expected_id))
+            obj = Dataset(
+                name="My dataset",
+                service="bigquery",
+                address="project.dataset.table",
+                workflow=Workflow(id=expected_id),
+                dataset_type=DatasetType(id=1),
+            )
             result = self.api.put_dataset(obj)
             self.assertIsInstance(result, Dataset)
             self.assertEqual(expected_id, result.id)
 
             # Put update
             name = "Dataset"
-            extra = {}
-            obj = Dataset(id=expected_id, name=name, extra=extra, connection=Telescope(id=expected_id))
+            obj = Dataset(
+                id=expected_id,
+                name=name,
+                service="bigquery",
+                address="project.dataset.table",
+                workflow=Workflow(id=expected_id),
+            )
             result = self.api.put_dataset(obj)
             self.assertIsInstance(result, Dataset)
             self.assertEqual(expected_id, result.id)
             self.assertEqual(name, result.name)
-            self.assertDictEqual(extra, result.extra)
-            self.assertEqual("Curtin ONIX Telescope", result.connection.name)
+            self.assertEqual("Curtin ONIX Workflow", result.workflow.name)
 
             # Put not found
             expected_id = 2
@@ -855,7 +1266,9 @@ class TestObservatoryApi(unittest.TestCase):
                 self.api.put_dataset(
                     Dataset(
                         id=expected_id,
-                        connection=Telescope(id=expected_id),
+                        service="bigquery",
+                        address="project.dataset.table",
+                        workflow=Workflow(id=expected_id),
                     )
                 )
             self.assertEqual(404, e.exception.status)
@@ -866,31 +1279,55 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            telescope_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
+                    tags='["oaebu"]',
                     organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
+                    workflow_type={"id": expected_id},
                     created=dt,
                     modified=dt,
                 )
             )
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
+                    tags='["oaebu"]',
                     organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
+                    workflow_type={"id": expected_id},
                     created=dt,
                     modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.TableType(
+                    type_id="partitioned",
+                    name="partitioned bq table",
+                    modified=dt,
+                    created=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.DatasetType(
+                    type_id="dataset_type_id",
+                    name="ds type",
+                    extra={},
+                    table_type={"id": 1},
+                    modified=dt,
+                    created=dt,
                 )
             )
             self.env.session.commit()
@@ -900,8 +1337,10 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(
                 orm.Dataset(
                     name="dataset",
-                    extra={},
-                    connection={"id": 1},
+                    service="bigquery",
+                    address="project.dataset.table",
+                    workflow={"id": 1},
+                    dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
                 )
@@ -909,307 +1348,26 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(
                 orm.Dataset(
                     name="dataset",
-                    extra={},
-                    connection={"id": 2},
+                    workflow={"id": 2},
+                    dataset_type={"id": 1},
+                    service="bigquery",
+                    address="project.dataset.table",
                     created=dt,
                     modified=dt,
                 )
             )
             self.env.session.commit()
 
-            # Assert that all Telescope objects returned
+            # Assert that all Workflow objects returned
             objects = self.api.get_datasets(limit=10)
             self.assertEqual(2, len(objects))
 
-            # Search datasets by telescope_id
-            objects = self.api.get_datasets(telescope_id=1, limit=10)
+            # Search datasets by workflow_id
+            objects = self.api.get_datasets(workflow_id=1, limit=10)
             self.assertEqual(1, len(objects))
 
-            objects = self.api.get_datasets(telescope_id=2, limit=10)
+            objects = self.api.get_datasets(workflow_id=2, limit=10)
             self.assertEqual(1, len(objects))
-
-    def test_get_dataset_storage(self):
-        """Test case for get_dataset_storage"""
-
-        with self.env.create():
-            expected_id = 1
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_dataset_storage(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
-
-            expected_id = 1
-            telescope_type_name = "ONIX Telescope"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
-                    extra={"view_id": 123456},
-                    organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Add Datasets
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset",
-                    extra={},
-                    connection={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.DatasetStorage(
-                    service="bigquery",
-                    address="project.dataset.table",
-                    extra={},
-                    dataset={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Assert that DatasetStorage with given id exists
-            obj = self.api.get_dataset_storage(expected_id)
-            self.assertIsInstance(obj, DatasetStorage)
-            self.assertEqual(expected_id, obj.id)
-            self.assertEqual(expected_id, obj.dataset.id)
-            self.assertEqual("dataset", obj.dataset.name)
-            self.assertEqual(dt_utc, obj.created)
-            self.assertEqual(dt_utc, obj.modified)
-
-    def test_post_dataset_storage(self):
-        """Test case for post_dataset_storage"""
-
-        with self.env.create():
-            expected_id = 1
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_dataset_storage(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
-
-            expected_id = 1
-            telescope_type_name = "ONIX Telescope"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
-                    extra={"view_id": 123456},
-                    organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Add Datasets
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset",
-                    extra={},
-                    connection={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Post DatasetStorage
-            expected_id = 1
-            obj = DatasetStorage(
-                extra={},
-                service="bigquery",
-                address="project.dataset.table",
-                dataset=Dataset(id=expected_id),
-            )
-            result = self.api.post_dataset_storage(obj)
-            self.assertIsInstance(result, DatasetStorage)
-            self.assertEqual(expected_id, result.id)
-
-    def test_put_dataset_storage(self):
-        """Test case for put_dataset_storage"""
-
-        with self.env.create():
-            expected_id = 1
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_dataset_storage(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
-
-            expected_id = 1
-            telescope_type_name = "ONIX Telescope"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
-                    extra={"view_id": 123456},
-                    organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Add Datasets
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset",
-                    extra={},
-                    connection={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Put create
-            obj = DatasetStorage(
-                dataset=Dataset(id=expected_id),
-                service="bigquery",
-                address="project.dataset.table",
-                extra={},
-            )
-            result = self.api.put_dataset_storage(obj)
-            self.assertIsInstance(result, DatasetStorage)
-            self.assertEqual(expected_id, result.id)
-
-            # Put update
-            obj = DatasetStorage(
-                id=expected_id,
-                dataset=Dataset(id=expected_id),
-                service="bigquery",
-                address="project2.dataset.table",
-                extra={},
-            )
-            result = self.api.put_dataset_storage(obj)
-            self.assertIsInstance(result, DatasetStorage)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual("project2.dataset.table", result.address)
-            self.assertEqual("bigquery", result.service)
-
-            # Put not found
-            expected_id = 2
-            with self.assertRaises(NotFoundException) as e:
-                self.api.put_dataset_storage(
-                    DatasetStorage(
-                        id=expected_id,
-                        dataset=Dataset(id=expected_id),
-                        service="bigquery",
-                        address="project2.dataset.table",
-                        extra={},
-                    )
-                )
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
-
-    def test_get_dataset_storages(self):
-        """Test case for get_dataset_storages"""
-
-        with self.env.create():
-            expected_id = 1
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_dataset_storage(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
-
-            expected_id = 1
-            telescope_type_name = "ONIX Telescope"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
-                    extra={"view_id": 123456},
-                    organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Add Datasets
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset1",
-                    extra={},
-                    connection={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset2",
-                    extra={},
-                    connection={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Post DatasetStorage
-            expected_id = 1
-            obj = DatasetStorage(
-                extra={},
-                service="google1",
-                address="project.dataset.table",
-                dataset=Dataset(id=1),
-            )
-            self.api.post_dataset_storage(obj)
-            obj = DatasetStorage(
-                extra={},
-                service="google2",
-                address="project.dataset.table",
-                dataset=Dataset(id=2),
-            )
-            self.api.post_dataset_storage(obj)
-
-            objects = self.api.get_dataset_storages(limit=10)
-            self.assertEqual(2, len(objects))
-
-            self.assertEqual(objects[0].id, 1)
-            self.assertEqual(objects[1].id, 2)
-            self.assertEqual(objects[0].service, "google1")
-            self.assertEqual(objects[1].service, "google2")
-
-            objects = self.api.get_dataset_storages(dataset_id=1, limit=10)
-            self.assertEqual(1, len(objects))
-            self.assertEqual(objects[0].dataset.name, "dataset1")
 
     def test_get_dataset_release(self):
         """Test case for get_dataset_release"""
@@ -1222,21 +1380,44 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
 
             expected_id = 1
-            telescope_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
+                    tags='["oaebu"]',
                     organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
+                    workflow_type={"id": expected_id},
                     created=dt,
                     modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.TableType(
+                    type_id="partitioned",
+                    name="partitioned bq table",
+                    modified=dt,
+                    created=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.DatasetType(
+                    type_id="dataset_type_id",
+                    name="ds type",
+                    extra={},
+                    table_type={"id": 1},
+                    modified=dt,
+                    created=dt,
                 )
             )
             self.env.session.commit()
@@ -1245,8 +1426,10 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(
                 orm.Dataset(
                     name="dataset",
-                    extra={},
-                    connection={"id": 1},
+                    service="bigquery",
+                    address="project.dataset.table",
+                    workflow={"id": 1},
+                    dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
                 )
@@ -1255,12 +1438,8 @@ class TestObservatoryApi(unittest.TestCase):
 
             self.env.session.add(
                 orm.DatasetRelease(
-                    schema_version="schema",
-                    schema_version_alt="altschema",
                     start_date=dt,
                     end_date=dt,
-                    ingestion_start=dt,
-                    ingestion_end=dt,
                     dataset={"id": expected_id},
                     created=dt,
                     modified=dt,
@@ -1280,7 +1459,6 @@ class TestObservatoryApi(unittest.TestCase):
             # Search by dataset_id
             obj = self.api.get_dataset_release(expected_id)
             self.assertIsInstance(obj, DatasetRelease)
-            self.assertEqual(obj.schema_version, "schema")
 
             # DatasetRelease not found
             dataset_id = 2
@@ -1291,28 +1469,44 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_dataset_storage(id=expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
-
-            expected_id = 1
-            telescope_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
+                    tags='["oaebu"]',
                     organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
+                    workflow_type={"id": expected_id},
                     created=dt,
                     modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.TableType(
+                    type_id="partitioned",
+                    name="partitioned bq table",
+                    modified=dt,
+                    created=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.DatasetType(
+                    type_id="dataset_type_id",
+                    name="ds type",
+                    extra={},
+                    table_type={"id": 1},
+                    modified=dt,
+                    created=dt,
                 )
             )
             self.env.session.commit()
@@ -1321,8 +1515,10 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(
                 orm.Dataset(
                     name="dataset",
-                    extra={},
-                    connection={"id": 1},
+                    workflow={"id": 1},
+                    dataset_type={"id": 1},
+                    service="bigquery",
+                    address="project.dataset.table",
                     created=dt,
                     modified=dt,
                 )
@@ -1332,12 +1528,8 @@ class TestObservatoryApi(unittest.TestCase):
             # Post DatasetRelease
             expected_id = 1
             obj = DatasetRelease(
-                schema_version="schema",
-                schema_version_alt="schemaalt",
                 start_date=dt,
                 end_date=dt,
-                ingestion_start=dt,
-                ingestion_end=dt,
                 dataset=Dataset(id=expected_id),
             )
             result = self.api.post_dataset_release(obj)
@@ -1356,21 +1548,44 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
 
             expected_id = 1
-            telescope_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
+                    tags='["oaebu"]',
                     organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
+                    workflow_type={"id": expected_id},
                     created=dt,
                     modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.TableType(
+                    type_id="partitioned",
+                    name="partitioned bq table",
+                    modified=dt,
+                    created=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.DatasetType(
+                    type_id="dataset_type_id",
+                    name="ds type",
+                    extra={},
+                    table_type={"id": 1},
+                    modified=dt,
+                    created=dt,
                 )
             )
             self.env.session.commit()
@@ -1379,8 +1594,10 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(
                 orm.Dataset(
                     name="dataset",
-                    extra={},
-                    connection={"id": 1},
+                    service="bigquery",
+                    address="project.dataset.table",
+                    workflow={"id": 1},
+                    dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
                 )
@@ -1390,12 +1607,8 @@ class TestObservatoryApi(unittest.TestCase):
             # Put create
             obj = DatasetRelease(
                 dataset=Dataset(id=expected_id),
-                schema_version="schema",
-                schema_version_alt="schemaalt",
                 start_date=dt,
                 end_date=dt,
-                ingestion_start=dt,
-                ingestion_end=dt,
             )
             result = self.api.put_dataset_release(obj)
             self.assertIsInstance(result, DatasetRelease)
@@ -1404,18 +1617,12 @@ class TestObservatoryApi(unittest.TestCase):
             # Put update
             obj = DatasetRelease(
                 id=expected_id,
-                schema_version="schema2",
-                schema_version_alt="schemaalt2",
                 start_date=dt,
                 end_date=dt,
-                ingestion_start=dt,
-                ingestion_end=dt,
             )
             result = self.api.put_dataset_release(obj)
             self.assertIsInstance(result, DatasetRelease)
             self.assertEqual(expected_id, result.id)
-            self.assertEqual("schema2", result.schema_version)
-            self.assertEqual("schemaalt2", result.schema_version_alt)
 
             # Put not found
             expected_id = 2
@@ -1424,12 +1631,8 @@ class TestObservatoryApi(unittest.TestCase):
                     DatasetRelease(
                         id=expected_id,
                         dataset=Dataset(id=expected_id),
-                        schema_version="schema2",
-                        schema_version_alt="schemaalt2",
                         start_date=dt,
                         end_date=dt,
-                        ingestion_start=dt,
-                        ingestion_end=dt,
                     )
                 )
             self.assertEqual(404, e.exception.status)
@@ -1447,21 +1650,44 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
 
             expected_id = 1
-            telescope_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
+                    tags='["oaebu"]',
                     organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
+                    workflow_type={"id": expected_id},
                     created=dt,
                     modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.TableType(
+                    type_id="partitioned",
+                    name="partitioned bq table",
+                    modified=dt,
+                    created=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.DatasetType(
+                    type_id="dataset_type_id",
+                    name="ds type",
+                    extra={},
+                    table_type={"id": 1},
+                    modified=dt,
+                    created=dt,
                 )
             )
             self.env.session.commit()
@@ -1470,8 +1696,10 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(
                 orm.Dataset(
                     name="dataset1",
-                    extra={},
-                    connection={"id": 1},
+                    service="bigquery",
+                    address="project.dataset.table",
+                    workflow={"id": 1},
+                    dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
                 )
@@ -1479,8 +1707,10 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(
                 orm.Dataset(
                     name="dataset2",
-                    extra={},
-                    connection={"id": 1},
+                    service="bigquery",
+                    address="project.dataset.table",
+                    workflow={"id": 1},
+                    dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
                 )
@@ -1491,22 +1721,14 @@ class TestObservatoryApi(unittest.TestCase):
             expected_id = 1
             obj = DatasetRelease(
                 dataset=Dataset(id=1),
-                schema_version="schema1",
-                schema_version_alt="schemaalt1",
                 start_date=dt,
                 end_date=dt,
-                ingestion_start=dt,
-                ingestion_end=dt,
             )
             self.api.post_dataset_release(obj)
             obj = DatasetRelease(
                 dataset=Dataset(id=2),
-                schema_version="schema2",
-                schema_version_alt="schemaalt2",
                 start_date=dt,
                 end_date=dt,
-                ingestion_start=dt,
-                ingestion_end=dt,
             )
             self.api.post_dataset_release(obj)
 
@@ -1518,8 +1740,6 @@ class TestObservatoryApi(unittest.TestCase):
 
             self.assertEqual(objects[0].id, 1)
             self.assertEqual(objects[1].id, 2)
-            self.assertEqual(objects[0].schema_version, "schema1")
-            self.assertEqual(objects[1].schema_version, "schema2")
 
             objects = self.api.get_dataset_releases(dataset_id=1, limit=10)
             self.assertEqual(1, len(objects))
@@ -1531,21 +1751,44 @@ class TestObservatoryApi(unittest.TestCase):
 
         with self.env.create():
             expected_id = 1
-            telescope_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
+                    tags='["oaebu"]',
                     organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
+                    workflow_type={"id": expected_id},
                     created=dt,
                     modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.TableType(
+                    type_id="partitioned",
+                    name="partitioned bq table",
+                    modified=dt,
+                    created=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.DatasetType(
+                    type_id="dataset_type_id",
+                    name="ds type",
+                    extra={},
+                    table_type={"id": 1},
+                    modified=dt,
+                    created=dt,
                 )
             )
             self.env.session.commit()
@@ -1553,7 +1796,10 @@ class TestObservatoryApi(unittest.TestCase):
             # Post Dataset
             obj = Dataset(
                 name="My dataset",
-                connection=Telescope(id=expected_id),
+                service="bigquery",
+                address="project.dataset.table",
+                workflow=Workflow(id=expected_id),
+                dataset_type=DatasetType(id=1),
             )
             self.api.post_dataset(obj)
             self.api.delete_dataset(expected_id)
@@ -1563,92 +1809,49 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(404, e.exception.status)
             self.assertEqual(f'"Not found: Dataset with id {expected_id}"\n', e.exception.body)
 
-    def test_delete_dataset_storage(self):
-        """Test case for delete_dataset_storage"""
-
-        with self.env.create():
-            expected_id = 1
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_dataset_storage(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
-
-            expected_id = 1
-            telescope_type_name = "ONIX Telescope"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
-                    extra={"view_id": 123456},
-                    organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Add Datasets
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset",
-                    extra={},
-                    connection={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Post DatasetStorage
-            expected_id = 1
-            obj = DatasetStorage(
-                extra={},
-                service="bigquery",
-                address="project.dataset.table",
-                dataset=Dataset(id=expected_id),
-            )
-            self.api.post_dataset_storage(obj)
-            self.api.delete_dataset_storage(expected_id)
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.delete_dataset_storage(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
-
     def test_delete_dataset_release(self):
         """Test case for delete_dataset_release"""
 
         with self.env.create():
             expected_id = 1
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_dataset_storage(id=expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetStorage with id {expected_id}"\n', e.exception.body)
-
-            expected_id = 1
-            telescope_type_name = "ONIX Telescope"
+            workflow_type_name = "ONIX Workflow"
             org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TelescopeType(type_id="onix", name=telescope_type_name, created=dt, modified=dt))
+            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
             self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
             self.env.session.commit()
             self.env.session.add(
-                orm.Telescope(
-                    name="Curtin ONIX Telescope",
+                orm.Workflow(
+                    name="Curtin ONIX Workflow",
                     extra={"view_id": 123456},
+                    tags='["oaebu"]',
                     organisation={"id": expected_id},
-                    telescope_type={"id": expected_id},
+                    workflow_type={"id": expected_id},
                     created=dt,
                     modified=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.TableType(
+                    type_id="partitioned",
+                    name="partitioned bq table",
+                    modified=dt,
+                    created=dt,
+                )
+            )
+            self.env.session.commit()
+
+            self.env.session.add(
+                orm.DatasetType(
+                    type_id="dataset_type_id",
+                    name="ds type",
+                    extra={},
+                    table_type={"id": 1},
+                    modified=dt,
+                    created=dt,
                 )
             )
             self.env.session.commit()
@@ -1657,8 +1860,10 @@ class TestObservatoryApi(unittest.TestCase):
             self.env.session.add(
                 orm.Dataset(
                     name="dataset",
-                    extra={},
-                    connection={"id": 1},
+                    service="bigquery",
+                    address="project.dataset.table",
+                    workflow={"id": 1},
+                    dataset_type={"id": 1},
                     created=dt,
                     modified=dt,
                 )
@@ -1668,12 +1873,8 @@ class TestObservatoryApi(unittest.TestCase):
             # Post DatasetRelease
             expected_id = 1
             obj = DatasetRelease(
-                schema_version="schema",
-                schema_version_alt="schemaalt",
                 start_date=dt,
                 end_date=dt,
-                ingestion_start=dt,
-                ingestion_end=dt,
                 dataset=Dataset(id=expected_id),
             )
             self.api.post_dataset_release(obj)

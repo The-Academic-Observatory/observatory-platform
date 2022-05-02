@@ -26,9 +26,9 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#delete_dataset_storage"><strong>delete_dataset_storage</strong></a></td>
-  <td><strong>DELETE</strong> /v1/dataset_storage</td>
-  <td>delete a DatasetStorage</td>
+  <td><a href="ObservatoryApi.html#delete_dataset_type"><strong>delete_dataset_type</strong></a></td>
+  <td><strong>DELETE</strong> /v1/dataset_type</td>
+  <td>delete a DatasetType</td>
 </tr>
 
 <tr>
@@ -38,15 +38,21 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#delete_telescope"><strong>delete_telescope</strong></a></td>
-  <td><strong>DELETE</strong> /v1/telescope</td>
-  <td>delete a Telescope</td>
+  <td><a href="ObservatoryApi.html#delete_table_type"><strong>delete_table_type</strong></a></td>
+  <td><strong>DELETE</strong> /v1/table_type</td>
+  <td>delete a TableType</td>
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#delete_telescope_type"><strong>delete_telescope_type</strong></a></td>
-  <td><strong>DELETE</strong> /v1/telescope_type</td>
-  <td>delete a TelescopeType</td>
+  <td><a href="ObservatoryApi.html#delete_workflow"><strong>delete_workflow</strong></a></td>
+  <td><strong>DELETE</strong> /v1/workflow</td>
+  <td>delete a Workflow</td>
+</tr>
+
+<tr>
+  <td><a href="ObservatoryApi.html#delete_workflow_type"><strong>delete_workflow_type</strong></a></td>
+  <td><strong>DELETE</strong> /v1/workflow_type</td>
+  <td>delete a WorkflowType</td>
 </tr>
 
 <tr>
@@ -74,15 +80,15 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#get_dataset_storage"><strong>get_dataset_storage</strong></a></td>
-  <td><strong>GET</strong> /v1/dataset_storage</td>
-  <td>get a DatasetStorage</td>
+  <td><a href="ObservatoryApi.html#get_dataset_type"><strong>get_dataset_type</strong></a></td>
+  <td><strong>GET</strong> /v1/dataset_type</td>
+  <td>get a DatasetType</td>
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#get_dataset_storages"><strong>get_dataset_storages</strong></a></td>
-  <td><strong>GET</strong> /v1/dataset_storages</td>
-  <td>Get a list of DatasetStorage objects</td>
+  <td><a href="ObservatoryApi.html#get_dataset_types"><strong>get_dataset_types</strong></a></td>
+  <td><strong>GET</strong> /v1/dataset_types</td>
+  <td>Get a list of DatasetType objects</td>
 </tr>
 
 <tr>
@@ -104,27 +110,39 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#get_telescope"><strong>get_telescope</strong></a></td>
-  <td><strong>GET</strong> /v1/telescope</td>
-  <td>get a Telescope</td>
+  <td><a href="ObservatoryApi.html#get_table_type"><strong>get_table_type</strong></a></td>
+  <td><strong>GET</strong> /v1/table_type</td>
+  <td>get a TableType</td>
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#get_telescope_type"><strong>get_telescope_type</strong></a></td>
-  <td><strong>GET</strong> /v1/telescope_type</td>
-  <td>get a TelescopeType</td>
+  <td><a href="ObservatoryApi.html#get_table_types"><strong>get_table_types</strong></a></td>
+  <td><strong>GET</strong> /v1/table_types</td>
+  <td>Get a list of TableType objects</td>
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#get_telescope_types"><strong>get_telescope_types</strong></a></td>
-  <td><strong>GET</strong> /v1/telescope_types</td>
-  <td>Get a list of TelescopeType objects</td>
+  <td><a href="ObservatoryApi.html#get_workflow"><strong>get_workflow</strong></a></td>
+  <td><strong>GET</strong> /v1/workflow</td>
+  <td>get a Workflow</td>
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#get_telescopes"><strong>get_telescopes</strong></a></td>
-  <td><strong>GET</strong> /v1/telescopes</td>
-  <td>Get a list of Telescope objects</td>
+  <td><a href="ObservatoryApi.html#get_workflow_type"><strong>get_workflow_type</strong></a></td>
+  <td><strong>GET</strong> /v1/workflow_type</td>
+  <td>get a WorkflowType</td>
+</tr>
+
+<tr>
+  <td><a href="ObservatoryApi.html#get_workflow_types"><strong>get_workflow_types</strong></a></td>
+  <td><strong>GET</strong> /v1/workflow_types</td>
+  <td>Get a list of WorkflowType objects</td>
+</tr>
+
+<tr>
+  <td><a href="ObservatoryApi.html#get_workflows"><strong>get_workflows</strong></a></td>
+  <td><strong>GET</strong> /v1/workflows</td>
+  <td>Get a list of Workflow objects</td>
 </tr>
 
 <tr>
@@ -146,9 +164,9 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#post_dataset_storage"><strong>post_dataset_storage</strong></a></td>
-  <td><strong>POST</strong> /v1/dataset_storage</td>
-  <td>create a DatasetStorage</td>
+  <td><a href="ObservatoryApi.html#post_dataset_type"><strong>post_dataset_type</strong></a></td>
+  <td><strong>POST</strong> /v1/dataset_type</td>
+  <td>create a DatasetType</td>
 </tr>
 
 <tr>
@@ -158,15 +176,21 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#post_telescope"><strong>post_telescope</strong></a></td>
-  <td><strong>POST</strong> /v1/telescope</td>
-  <td>create a Telescope</td>
+  <td><a href="ObservatoryApi.html#post_table_type"><strong>post_table_type</strong></a></td>
+  <td><strong>POST</strong> /v1/table_type</td>
+  <td>create a TableType</td>
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#post_telescope_type"><strong>post_telescope_type</strong></a></td>
-  <td><strong>POST</strong> /v1/telescope_type</td>
-  <td>create a TelescopeType</td>
+  <td><a href="ObservatoryApi.html#post_workflow"><strong>post_workflow</strong></a></td>
+  <td><strong>POST</strong> /v1/workflow</td>
+  <td>create a Workflow</td>
+</tr>
+
+<tr>
+  <td><a href="ObservatoryApi.html#post_workflow_type"><strong>post_workflow_type</strong></a></td>
+  <td><strong>POST</strong> /v1/workflow_type</td>
+  <td>create a WorkflowType</td>
 </tr>
 
 <tr>
@@ -182,9 +206,9 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#put_dataset_storage"><strong>put_dataset_storage</strong></a></td>
-  <td><strong>PUT</strong> /v1/dataset_storage</td>
-  <td>create or update a DatasetStorage</td>
+  <td><a href="ObservatoryApi.html#put_dataset_type"><strong>put_dataset_type</strong></a></td>
+  <td><strong>PUT</strong> /v1/dataset_type</td>
+  <td>create or update a DatasetType</td>
 </tr>
 
 <tr>
@@ -194,15 +218,21 @@ All URIs are relative to *https://api.observatory.academy*
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#put_telescope"><strong>put_telescope</strong></a></td>
-  <td><strong>PUT</strong> /v1/telescope</td>
-  <td>create or update a Telescope</td>
+  <td><a href="ObservatoryApi.html#put_table_type"><strong>put_table_type</strong></a></td>
+  <td><strong>PUT</strong> /v1/table_type</td>
+  <td>create or update a TableType</td>
 </tr>
 
 <tr>
-  <td><a href="ObservatoryApi.html#put_telescope_type"><strong>put_telescope_type</strong></a></td>
-  <td><strong>PUT</strong> /v1/telescope_type</td>
-  <td>create or update a TelescopeType</td>
+  <td><a href="ObservatoryApi.html#put_workflow"><strong>put_workflow</strong></a></td>
+  <td><strong>PUT</strong> /v1/workflow</td>
+  <td>create or update a Workflow</td>
+</tr>
+
+<tr>
+  <td><a href="ObservatoryApi.html#put_workflow_type"><strong>put_workflow_type</strong></a></td>
+  <td><strong>PUT</strong> /v1/workflow_type</td>
+  <td>create or update a WorkflowType</td>
 </tr>
 
 <tr>
@@ -447,12 +477,12 @@ void (empty response body)
 </tbody>
 </table></div>
 
-## **delete_dataset_storage**
-> delete_dataset_storage(id)
+## **delete_dataset_type**
+> delete_dataset_type(id)
 
-delete a DatasetStorage
+delete a DatasetType
 
-Delete a DatasetStorage by passing it's id. 
+Delete a DatasetType by passing it's id. 
 
 ### Example
 
@@ -483,14 +513,14 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | DatasetStorage id
+    id = 1 # int | DatasetType id
 
     # example passing only required values which don't have defaults set
     try:
-        # delete a DatasetStorage
-        api_instance.delete_dataset_storage(id)
+        # delete a DatasetType
+        api_instance.delete_dataset_type(id)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->delete_dataset_storage: %s\n" % e)
+        print("Exception when calling ObservatoryApi->delete_dataset_type: %s\n" % e)
 ```
 
 
@@ -513,7 +543,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 <tr>
 <td><strong>id</strong></td>
 <td><strong>int</strong></td>
-<td>DatasetStorage id</td>
+<td>DatasetType id</td>
 <td></td>
 </tr>
 
@@ -551,7 +581,7 @@ void (empty response body)
 
 <tr>
     <td><strong>200</strong></td>
-    <td>DatasetStorage deleted</td>
+    <td>DatasetType deleted</td>
     <td> - </td>
 </tr>
 <tr>
@@ -679,12 +709,12 @@ void (empty response body)
 </tbody>
 </table></div>
 
-## **delete_telescope**
-> delete_telescope(id)
+## **delete_table_type**
+> delete_table_type(id)
 
-delete a Telescope
+delete a TableType
 
-Delete a Telescope by passing it's id. 
+Delete a TableType by passing it's id. 
 
 ### Example
 
@@ -715,14 +745,14 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | Telescope id
+    id = 1 # int | TableType id
 
     # example passing only required values which don't have defaults set
     try:
-        # delete a Telescope
-        api_instance.delete_telescope(id)
+        # delete a TableType
+        api_instance.delete_table_type(id)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->delete_telescope: %s\n" % e)
+        print("Exception when calling ObservatoryApi->delete_table_type: %s\n" % e)
 ```
 
 
@@ -745,7 +775,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 <tr>
 <td><strong>id</strong></td>
 <td><strong>int</strong></td>
-<td>Telescope id</td>
+<td>TableType id</td>
 <td></td>
 </tr>
 
@@ -783,7 +813,7 @@ void (empty response body)
 
 <tr>
     <td><strong>200</strong></td>
-    <td>Telescope deleted</td>
+    <td>TableType deleted</td>
     <td> - </td>
 </tr>
 <tr>
@@ -795,12 +825,12 @@ void (empty response body)
 </tbody>
 </table></div>
 
-## **delete_telescope_type**
-> delete_telescope_type(id)
+## **delete_workflow**
+> delete_workflow(id)
 
-delete a TelescopeType
+delete a Workflow
 
-Delete a TelescopeType by passing it's id. 
+Delete a Workflow by passing it's id. 
 
 ### Example
 
@@ -831,14 +861,14 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | TelescopeType id
+    id = 1 # int | Workflow id
 
     # example passing only required values which don't have defaults set
     try:
-        # delete a TelescopeType
-        api_instance.delete_telescope_type(id)
+        # delete a Workflow
+        api_instance.delete_workflow(id)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->delete_telescope_type: %s\n" % e)
+        print("Exception when calling ObservatoryApi->delete_workflow: %s\n" % e)
 ```
 
 
@@ -861,7 +891,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 <tr>
 <td><strong>id</strong></td>
 <td><strong>int</strong></td>
-<td>TelescopeType id</td>
+<td>Workflow id</td>
 <td></td>
 </tr>
 
@@ -899,7 +929,123 @@ void (empty response body)
 
 <tr>
     <td><strong>200</strong></td>
-    <td>TelescopeType deleted</td>
+    <td>Workflow deleted</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
+## **delete_workflow_type**
+> delete_workflow_type(id)
+
+delete a WorkflowType
+
+Delete a WorkflowType by passing it's id. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    id = 1 # int | WorkflowType id
+
+    # example passing only required values which don't have defaults set
+    try:
+        # delete a WorkflowType
+        api_instance.delete_workflow_type(id)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->delete_workflow_type: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+<tr>
+<td><strong>id</strong></td>
+<td><strong>int</strong></td>
+<td>WorkflowType id</td>
+<td></td>
+</tr>
+
+
+
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>200</strong></td>
+    <td>WorkflowType deleted</td>
     <td> - </td>
 </tr>
 <tr>
@@ -1418,12 +1564,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **get_dataset_storage**
-> DatasetStorage get_dataset_storage(id)
+## **get_dataset_type**
+> DatasetType get_dataset_type()
 
-get a DatasetStorage
+get a DatasetType
 
-Get the details of a DatasetStorage by passing it's id or dataset id. 
+Get the details of a DatasetType by passing it's id or type_id. 
 
 ### Example
 
@@ -1432,7 +1578,7 @@ Get the details of a DatasetStorage by passing it's id or dataset id.
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.dataset_storage import DatasetStorage
+from observatory.api.client.model.dataset_type import DatasetType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -1455,15 +1601,17 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | DatasetStorage id
+    id = 1 # int | DatasetType id (optional)
+    type_id = "type_id_example" # str | DatasetType type_id (optional)
 
     # example passing only required values which don't have defaults set
+    # and optional values
     try:
-        # get a DatasetStorage
-        api_response = api_instance.get_dataset_storage(id)
+        # get a DatasetType
+        api_response = api_instance.get_dataset_type(id=id, type_id=type_id)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->get_dataset_storage: %s\n" % e)
+        print("Exception when calling ObservatoryApi->get_dataset_type: %s\n" % e)
 ```
 
 
@@ -1483,23 +1631,27 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 
 
+
+
 <tr>
 <td><strong>id</strong></td>
 <td><strong>int</strong></td>
-<td>DatasetStorage id</td>
-<td></td>
-</tr>
-
-
-
-
+<td>DatasetType id</td>
+<td>
+[optional]
+<tr>
+<td><strong>type_id</strong></td>
+<td><strong>str</strong></td>
+<td>DatasetType type_id</td>
+<td>
+[optional]
 </tbody>
 </table></div>
 
 
 ### Return type
 
-[**DatasetStorage**](DatasetStorage.html)
+[**DatasetType**](DatasetType.html)
 
 ### Authorization
 
@@ -1524,7 +1676,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>200</strong></td>
-    <td>the fetched DatasetStorage</td>
+    <td>the fetched DatasetType</td>
     <td> - </td>
 </tr>
 <tr>
@@ -1541,12 +1693,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **get_dataset_storages**
-> [DatasetStorage] get_dataset_storages(limit)
+## **get_dataset_types**
+> [DatasetType] get_dataset_types(limit)
 
-Get a list of DatasetStorage objects
+Get a list of DatasetType objects
 
-Get a list of DatasetStorage objects 
+Get a list of DatasetType objects 
 
 ### Example
 
@@ -1555,7 +1707,7 @@ Get a list of DatasetStorage objects
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.dataset_storage import DatasetStorage
+from observatory.api.client.model.dataset_type import DatasetType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -1579,24 +1731,14 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
     limit = 1 # int | the maximum number of results to return
-    dataset_id = 1 # int | the dataset_id to filter for. (optional)
 
     # example passing only required values which don't have defaults set
     try:
-        # Get a list of DatasetStorage objects
-        api_response = api_instance.get_dataset_storages(limit)
+        # Get a list of DatasetType objects
+        api_response = api_instance.get_dataset_types(limit)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->get_dataset_storages: %s\n" % e)
-
-    # example passing only required values which don't have defaults set
-    # and optional values
-    try:
-        # Get a list of DatasetStorage objects
-        api_response = api_instance.get_dataset_storages(limit, dataset_id=dataset_id)
-        pprint(api_response)
-    except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->get_dataset_storages: %s\n" % e)
+        print("Exception when calling ObservatoryApi->get_dataset_types: %s\n" % e)
 ```
 
 
@@ -1626,19 +1768,13 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 
 
-<tr>
-<td><strong>dataset_id</strong></td>
-<td><strong>int</strong></td>
-<td>the dataset_id to filter for.</td>
-<td>
-[optional]
 </tbody>
 </table></div>
 
 
 ### Return type
 
-[**[DatasetStorage]**](DatasetStorage.html)
+[**[DatasetType]**](DatasetType.html)
 
 ### Authorization
 
@@ -1663,7 +1799,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>200</strong></td>
-    <td>a list of DatasetStorage objects</td>
+    <td>a list of DatasetType objects</td>
     <td> - </td>
 </tr>
 <tr>
@@ -1718,7 +1854,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
     limit = 1 # int | the maximum number of results to return
-    telescope_id = 1 # int | Dataset id to filter by (optional)
+    workflow_id = 1 # int | Workflow id to filter for (optional)
 
     # example passing only required values which don't have defaults set
     try:
@@ -1732,7 +1868,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     # and optional values
     try:
         # Get a list of Datasets
-        api_response = api_instance.get_datasets(limit, telescope_id=telescope_id)
+        api_response = api_instance.get_datasets(limit, workflow_id=workflow_id)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
         print("Exception when calling ObservatoryApi->get_datasets: %s\n" % e)
@@ -1766,9 +1902,9 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 
 <tr>
-<td><strong>telescope_id</strong></td>
+<td><strong>workflow_id</strong></td>
 <td><strong>int</strong></td>
-<td>Dataset id to filter by</td>
+<td>Workflow id to filter for</td>
 <td>
 [optional]
 </tbody>
@@ -2065,12 +2201,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **get_telescope**
-> Telescope get_telescope(id)
+## **get_table_type**
+> TableType get_table_type()
 
-get a Telescope
+get a TableType
 
-Get the details of a Telescope by passing it's id. 
+Get the details of a TableType by passing it's id or type_id. 
 
 ### Example
 
@@ -2079,7 +2215,7 @@ Get the details of a Telescope by passing it's id.
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.telescope import Telescope
+from observatory.api.client.model.table_type import TableType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -2102,140 +2238,17 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | Telescope id
-
-    # example passing only required values which don't have defaults set
-    try:
-        # get a Telescope
-        api_response = api_instance.get_telescope(id)
-        pprint(api_response)
-    except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->get_telescope: %s\n" % e)
-```
-
-
-### Parameters
-
-
-<div class="wy-table-responsive"><table border="1" class="docutils">
-<thead>
-<tr>
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-
-
-
-<tr>
-<td><strong>id</strong></td>
-<td><strong>int</strong></td>
-<td>Telescope id</td>
-<td></td>
-</tr>
-
-
-
-
-</tbody>
-</table></div>
-
-
-### Return type
-
-[**Telescope**](Telescope.html)
-
-### Authorization
-
-[api_key](ObservatoryApi.html#api_key)
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-
-### HTTP response details
-<div class="wy-table-responsive"><table border="1" class="docutils">
-<thead>
-<tr>
-<th>Status code</th>
-<th>Description</th>
-<th>Response headers</th>
-</tr>
-</thead>
-<tbody>
-
-<tr>
-    <td><strong>200</strong></td>
-    <td>the fetched Telescope</td>
-    <td> - </td>
-</tr>
-<tr>
-    <td><strong>400</strong></td>
-    <td>bad input parameter</td>
-    <td> - </td>
-</tr>
-<tr>
-    <td><strong>401</strong></td>
-    <td>API key is missing or invalid</td>
-    <td> * WWW_Authenticate -  <br> </td>
-</tr>
-
-</tbody>
-</table></div>
-
-## **get_telescope_type**
-> TelescopeType get_telescope_type()
-
-get a TelescopeType
-
-Get the details of a TelescopeType by passing it's id or type_id. 
-
-### Example
-
-* Api Key Authentication (api_key):
-```python
-import time
-import observatory.api.client
-from observatory.api.client.api import observatory_api
-from observatory.api.client.model.telescope_type import TelescopeType
-from pprint import pprint
-# Defining the host is optional and defaults to https://api.observatory.academy
-# See configuration.py for a list of all supported configuration parameters.
-configuration = observatory.api.client.Configuration(
-    host = "https://api.observatory.academy"
-)
-
-# The client must configure the authentication and authorization parameters
-# in accordance with the API server security policy.
-# Examples for each auth method are provided below, use the example that
-# satisfies your auth use case.
-
-# Configure API key authorization: api_key
-configuration.api_key['api_key'] = 'YOUR_API_KEY'
-
-# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
-# configuration.api_key_prefix['api_key'] = 'Bearer'
-
-# Enter a context with an instance of the API client
-with observatory.api.client.ApiClient(configuration) as api_client:
-    # Create an instance of the API class
-    api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | TelescopeType id (optional)
-    type_id = "type_id_example" # str | TelescopeType type_id (optional)
+    id = 1 # int | TableType id (optional)
+    type_id = "type_id_example" # str | TableType type_id (optional)
 
     # example passing only required values which don't have defaults set
     # and optional values
     try:
-        # get a TelescopeType
-        api_response = api_instance.get_telescope_type(id=id, type_id=type_id)
+        # get a TableType
+        api_response = api_instance.get_table_type(id=id, type_id=type_id)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->get_telescope_type: %s\n" % e)
+        print("Exception when calling ObservatoryApi->get_table_type: %s\n" % e)
 ```
 
 
@@ -2260,13 +2273,13 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 <tr>
 <td><strong>id</strong></td>
 <td><strong>int</strong></td>
-<td>TelescopeType id</td>
+<td>TableType id</td>
 <td>
 [optional]
 <tr>
 <td><strong>type_id</strong></td>
 <td><strong>str</strong></td>
-<td>TelescopeType type_id</td>
+<td>TableType type_id</td>
 <td>
 [optional]
 </tbody>
@@ -2275,7 +2288,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Return type
 
-[**TelescopeType**](TelescopeType.html)
+[**TableType**](TableType.html)
 
 ### Authorization
 
@@ -2300,7 +2313,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>200</strong></td>
-    <td>the fetched TelescopeType</td>
+    <td>the fetched TableType</td>
     <td> - </td>
 </tr>
 <tr>
@@ -2317,12 +2330,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **get_telescope_types**
-> [TelescopeType] get_telescope_types(limit)
+## **get_table_types**
+> [TableType] get_table_types(limit)
 
-Get a list of TelescopeType objects
+Get a list of TableType objects
 
-Get a list of TelescopeType objects 
+Get a list of TableType objects 
 
 ### Example
 
@@ -2331,7 +2344,7 @@ Get a list of TelescopeType objects
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.telescope_type import TelescopeType
+from observatory.api.client.model.table_type import TableType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -2358,11 +2371,11 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
     # example passing only required values which don't have defaults set
     try:
-        # Get a list of TelescopeType objects
-        api_response = api_instance.get_telescope_types(limit)
+        # Get a list of TableType objects
+        api_response = api_instance.get_table_types(limit)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->get_telescope_types: %s\n" % e)
+        print("Exception when calling ObservatoryApi->get_table_types: %s\n" % e)
 ```
 
 
@@ -2398,7 +2411,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Return type
 
-[**[TelescopeType]**](TelescopeType.html)
+[**[TableType]**](TableType.html)
 
 ### Authorization
 
@@ -2423,7 +2436,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>200</strong></td>
-    <td>a list of TelescopeType objects</td>
+    <td>a list of TableType objects</td>
     <td> - </td>
 </tr>
 <tr>
@@ -2440,12 +2453,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **get_telescopes**
-> [Telescope] get_telescopes(limit)
+## **get_workflow**
+> Workflow get_workflow(id)
 
-Get a list of Telescope objects
+get a Workflow
 
-Get a list of Telescope objects and optionally filter via a Telescope id and or an Organisation id. 
+Get the details of a Workflow by passing it's id. 
 
 ### Example
 
@@ -2454,7 +2467,259 @@ Get a list of Telescope objects and optionally filter via a Telescope id and or 
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.telescope import Telescope
+from observatory.api.client.model.workflow import Workflow
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    id = 1 # int | Workflow id
+
+    # example passing only required values which don't have defaults set
+    try:
+        # get a Workflow
+        api_response = api_instance.get_workflow(id)
+        pprint(api_response)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->get_workflow: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+<tr>
+<td><strong>id</strong></td>
+<td><strong>int</strong></td>
+<td>Workflow id</td>
+<td></td>
+</tr>
+
+
+
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+[**Workflow**](Workflow.html)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>200</strong></td>
+    <td>the fetched Workflow</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>400</strong></td>
+    <td>bad input parameter</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
+## **get_workflow_type**
+> WorkflowType get_workflow_type()
+
+get a WorkflowType
+
+Get the details of a WorkflowType by passing it's id or type_id. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from observatory.api.client.model.workflow_type import WorkflowType
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    id = 1 # int | WorkflowType id (optional)
+    type_id = "type_id_example" # str | WorkflowType type_id (optional)
+
+    # example passing only required values which don't have defaults set
+    # and optional values
+    try:
+        # get a WorkflowType
+        api_response = api_instance.get_workflow_type(id=id, type_id=type_id)
+        pprint(api_response)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->get_workflow_type: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+
+
+<tr>
+<td><strong>id</strong></td>
+<td><strong>int</strong></td>
+<td>WorkflowType id</td>
+<td>
+[optional]
+<tr>
+<td><strong>type_id</strong></td>
+<td><strong>str</strong></td>
+<td>WorkflowType type_id</td>
+<td>
+[optional]
+</tbody>
+</table></div>
+
+
+### Return type
+
+[**WorkflowType**](WorkflowType.html)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>200</strong></td>
+    <td>the fetched WorkflowType</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>400</strong></td>
+    <td>bad input parameter</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
+## **get_workflow_types**
+> [WorkflowType] get_workflow_types(limit)
+
+Get a list of WorkflowType objects
+
+Get a list of WorkflowType objects 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from observatory.api.client.model.workflow_type import WorkflowType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -2478,25 +2743,148 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
     limit = 1 # int | the maximum number of results to return
-    telescope_type_id = 1 # int | filter telescopes by a TelescopeType id (optional)
-    organisation_id = 1 # int | filter telescopes by an Organisation id (optional)
 
     # example passing only required values which don't have defaults set
     try:
-        # Get a list of Telescope objects
-        api_response = api_instance.get_telescopes(limit)
+        # Get a list of WorkflowType objects
+        api_response = api_instance.get_workflow_types(limit)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->get_telescopes: %s\n" % e)
+        print("Exception when calling ObservatoryApi->get_workflow_types: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+<tr>
+<td><strong>limit</strong></td>
+<td><strong>int</strong></td>
+<td>the maximum number of results to return</td>
+<td></td>
+</tr>
+
+
+
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+[**[WorkflowType]**](WorkflowType.html)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>200</strong></td>
+    <td>a list of WorkflowType objects</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>400</strong></td>
+    <td>bad input parameter</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
+## **get_workflows**
+> [Workflow] get_workflows(limit)
+
+Get a list of Workflow objects
+
+Get a list of Workflow objects and optionally filter via a Workflow id and or an Organisation id. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from observatory.api.client.model.workflow import Workflow
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    limit = 1 # int | the maximum number of results to return
+    workflow_type_id = 1 # int | filter workflows by a WorkflowType id (optional)
+    organisation_id = 1 # int | filter workflows by an Organisation id (optional)
+
+    # example passing only required values which don't have defaults set
+    try:
+        # Get a list of Workflow objects
+        api_response = api_instance.get_workflows(limit)
+        pprint(api_response)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->get_workflows: %s\n" % e)
 
     # example passing only required values which don't have defaults set
     # and optional values
     try:
-        # Get a list of Telescope objects
-        api_response = api_instance.get_telescopes(limit, telescope_type_id=telescope_type_id, organisation_id=organisation_id)
+        # Get a list of Workflow objects
+        api_response = api_instance.get_workflows(limit, workflow_type_id=workflow_type_id, organisation_id=organisation_id)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->get_telescopes: %s\n" % e)
+        print("Exception when calling ObservatoryApi->get_workflows: %s\n" % e)
 ```
 
 
@@ -2527,15 +2915,15 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 
 <tr>
-<td><strong>telescope_type_id</strong></td>
+<td><strong>workflow_type_id</strong></td>
 <td><strong>int</strong></td>
-<td>filter telescopes by a TelescopeType id</td>
+<td>filter workflows by a WorkflowType id</td>
 <td>
 [optional]
 <tr>
 <td><strong>organisation_id</strong></td>
 <td><strong>int</strong></td>
-<td>filter telescopes by an Organisation id</td>
+<td>filter workflows by an Organisation id</td>
 <td>
 [optional]
 </tbody>
@@ -2544,7 +2932,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Return type
 
-[**[Telescope]**](Telescope.html)
+[**[Workflow]**](Workflow.html)
 
 ### Authorization
 
@@ -2569,7 +2957,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>200</strong></td>
-    <td>a list of Telescope objects</td>
+    <td>a list of Workflow objects</td>
     <td> - </td>
 </tr>
 <tr>
@@ -2748,18 +3136,19 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     body = Dataset(
         id=1,
         name="RoR",
-        connection=Telescope(
+        workflow=Workflow(
             id=1,
-            name="Curtin University ONIX Telescope",
+            name="Curtin University ONIX Workflow",
             extra={},
+            tags="oaebu",
             organisation=Organisation(
                 id=1,
                 name="Curtin University",
-                gcp_project_id="curtin-dev",
-                gcp_download_bucket="curtin-dev-download",
-                gcp_transform_bucket="curtin-dev-transform",
+                project_id="curtin-dev",
+                download_bucket="curtin-dev-download",
+                transform_bucket="curtin-dev-transform",
             ),
-            telescope_type=TelescopeType(
+            workflow_type=WorkflowType(
                 id=1,
                 type_id="onix",
                 name="Scopus",
@@ -2768,7 +3157,19 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                 Dataset(),
             ],
         ),
-        extra={},
+        service="google",
+        address="curtin_gcp_project_id.my_dataset_id.my_table",
+        dataset_type=DatasetType(
+            id=1,
+            type_id="onix",
+            name="ONIX dataset",
+            extra={},
+            table_type=TableType(
+                id=1,
+                type_id="bq_partitioned",
+                name="BigQuery partitioned table",
+            ),
+        ),
     ) # Dataset | Dataset to create
 
     # example passing only required values which don't have defaults set
@@ -2889,27 +3290,24 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     api_instance = observatory_api.ObservatoryApi(api_client)
     body = DatasetRelease(
         id=1,
-        schema_version="20211031",
-        schema_version_alt="wok5.4",
         start_date=dateutil_parser('1970-01-01T00:00:00.00Z'),
         end_date=dateutil_parser('1970-01-01T00:00:00.00Z'),
-        ingestion_start=dateutil_parser('1970-01-01T00:00:00.00Z'),
-        ingestion_end=dateutil_parser('1970-01-01T00:00:00.00Z'),
         dataset=Dataset(
             id=1,
             name="RoR",
-            connection=Telescope(
+            workflow=Workflow(
                 id=1,
-                name="Curtin University ONIX Telescope",
+                name="Curtin University ONIX Workflow",
                 extra={},
+                tags="oaebu",
                 organisation=Organisation(
                     id=1,
                     name="Curtin University",
-                    gcp_project_id="curtin-dev",
-                    gcp_download_bucket="curtin-dev-download",
-                    gcp_transform_bucket="curtin-dev-transform",
+                    project_id="curtin-dev",
+                    download_bucket="curtin-dev-download",
+                    transform_bucket="curtin-dev-transform",
                 ),
-                telescope_type=TelescopeType(
+                workflow_type=WorkflowType(
                     id=1,
                     type_id="onix",
                     name="Scopus",
@@ -2918,7 +3316,19 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                     Dataset(),
                 ],
             ),
-            extra={},
+            service="google",
+            address="curtin_gcp_project_id.my_dataset_id.my_table",
+            dataset_type=DatasetType(
+                id=1,
+                type_id="onix",
+                name="ONIX dataset",
+                extra={},
+                table_type=TableType(
+                    id=1,
+                    type_id="bq_partitioned",
+                    name="BigQuery partitioned table",
+                ),
+            ),
         ),
     ) # DatasetRelease | DatasetRelease to create
 
@@ -3001,12 +3411,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **post_dataset_storage**
-> DatasetStorage post_dataset_storage(body)
+## **post_dataset_type**
+> DatasetType post_dataset_type(body)
 
-create a DatasetStorage
+create a DatasetType
 
-Create a DatasetStorage by passing a DatasetStorage object, without an id. 
+Create a DatasetType by passing a DatasetType object, without an id. 
 
 ### Example
 
@@ -3015,7 +3425,7 @@ Create a DatasetStorage by passing a DatasetStorage object, without an id.
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.dataset_storage import DatasetStorage
+from observatory.api.client.model.dataset_type import DatasetType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -3038,45 +3448,25 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    body = DatasetStorage(
+    body = DatasetType(
         id=1,
-        service="google",
-        address="curtin_gcp_project_id.my_dataset_id.my_table",
+        type_id="onix",
+        name="ONIX dataset",
         extra={},
-        dataset=Dataset(
+        table_type=TableType(
             id=1,
-            name="RoR",
-            connection=Telescope(
-                id=1,
-                name="Curtin University ONIX Telescope",
-                extra={},
-                organisation=Organisation(
-                    id=1,
-                    name="Curtin University",
-                    gcp_project_id="curtin-dev",
-                    gcp_download_bucket="curtin-dev-download",
-                    gcp_transform_bucket="curtin-dev-transform",
-                ),
-                telescope_type=TelescopeType(
-                    id=1,
-                    type_id="onix",
-                    name="Scopus",
-                ),
-                datasets=[
-                    Dataset(),
-                ],
-            ),
-            extra={},
+            type_id="bq_partitioned",
+            name="BigQuery partitioned table",
         ),
-    ) # DatasetStorage | DatasetStorage to create
+    ) # DatasetType | DatasetType to create
 
     # example passing only required values which don't have defaults set
     try:
-        # create a DatasetStorage
-        api_response = api_instance.post_dataset_storage(body)
+        # create a DatasetType
+        api_response = api_instance.post_dataset_type(body)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->post_dataset_storage: %s\n" % e)
+        print("Exception when calling ObservatoryApi->post_dataset_type: %s\n" % e)
 ```
 
 
@@ -3098,8 +3488,8 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>body</strong></td>
-<td><a href="DatasetStorage.html"><strong>DatasetStorage</strong></a></td>
-<td>DatasetStorage to create</td>
+<td><a href="DatasetType.html"><strong>DatasetType</strong></a></td>
+<td>DatasetType to create</td>
 <td></td>
 </tr>
 
@@ -3112,7 +3502,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Return type
 
-[**DatasetStorage**](DatasetStorage.html)
+[**DatasetType**](DatasetType.html)
 
 ### Authorization
 
@@ -3137,7 +3527,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>201</strong></td>
-    <td>DatasetStorage created, returning the created object with an id</td>
+    <td>DatasetType created, returning the created object with an id</td>
     <td> - </td>
 </tr>
 <tr>
@@ -3189,9 +3579,9 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     body = Organisation(
         id=1,
         name="Curtin University",
-        gcp_project_id="curtin-dev",
-        gcp_download_bucket="curtin-dev-download",
-        gcp_transform_bucket="curtin-dev-transform",
+        project_id="curtin-dev",
+        download_bucket="curtin-dev-download",
+        transform_bucket="curtin-dev-transform",
     ) # Organisation | Organisation to create
 
     # example passing only required values which don't have defaults set
@@ -3273,12 +3663,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **post_telescope**
-> Telescope post_telescope(body)
+## **post_table_type**
+> TableType post_table_type(body)
 
-create a Telescope
+create a TableType
 
-Create a Telescope by passing a Telescope object, without an id. 
+Create a TableType by passing a TableType object, without an id. 
 
 ### Example
 
@@ -3287,7 +3677,7 @@ Create a Telescope by passing a Telescope object, without an id.
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.telescope import Telescope
+from observatory.api.client.model.table_type import TableType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -3310,39 +3700,19 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    body = Telescope(
+    body = TableType(
         id=1,
-        name="Curtin University ONIX Telescope",
-        extra={},
-        organisation=Organisation(
-            id=1,
-            name="Curtin University",
-            gcp_project_id="curtin-dev",
-            gcp_download_bucket="curtin-dev-download",
-            gcp_transform_bucket="curtin-dev-transform",
-        ),
-        telescope_type=TelescopeType(
-            id=1,
-            type_id="onix",
-            name="Scopus",
-        ),
-        datasets=[
-            Dataset(
-                id=1,
-                name="RoR",
-                connection=Telescope(),
-                extra={},
-            ),
-        ],
-    ) # Telescope | Telescope to create
+        type_id="bq_partitioned",
+        name="BigQuery partitioned table",
+    ) # TableType | TableType to create
 
     # example passing only required values which don't have defaults set
     try:
-        # create a Telescope
-        api_response = api_instance.post_telescope(body)
+        # create a TableType
+        api_response = api_instance.post_table_type(body)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->post_telescope: %s\n" % e)
+        print("Exception when calling ObservatoryApi->post_table_type: %s\n" % e)
 ```
 
 
@@ -3364,8 +3734,8 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>body</strong></td>
-<td><a href="Telescope.html"><strong>Telescope</strong></a></td>
-<td>Telescope to create</td>
+<td><a href="TableType.html"><strong>TableType</strong></a></td>
+<td>TableType to create</td>
 <td></td>
 </tr>
 
@@ -3378,7 +3748,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Return type
 
-[**Telescope**](Telescope.html)
+[**TableType**](TableType.html)
 
 ### Authorization
 
@@ -3403,7 +3773,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>201</strong></td>
-    <td>Telescope created, returning the created object with an id</td>
+    <td>TableType created, returning the created object with an id</td>
     <td> - </td>
 </tr>
 <tr>
@@ -3415,12 +3785,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **post_telescope_type**
-> TelescopeType post_telescope_type(body)
+## **post_workflow**
+> Workflow post_workflow(body)
 
-create a TelescopeType
+create a Workflow
 
-Create a TelescopeType by passing a TelescopeType object, without an id. 
+Create a Workflow by passing a Workflow object, without an id. 
 
 ### Example
 
@@ -3429,7 +3799,7 @@ Create a TelescopeType by passing a TelescopeType object, without an id.
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.telescope_type import TelescopeType
+from observatory.api.client.model.workflow import Workflow
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -3452,19 +3822,52 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    body = TelescopeType(
+    body = Workflow(
         id=1,
-        type_id="onix",
-        name="Scopus",
-    ) # TelescopeType | TelescopeType to create
+        name="Curtin University ONIX Workflow",
+        extra={},
+        tags="oaebu",
+        organisation=Organisation(
+            id=1,
+            name="Curtin University",
+            project_id="curtin-dev",
+            download_bucket="curtin-dev-download",
+            transform_bucket="curtin-dev-transform",
+        ),
+        workflow_type=WorkflowType(
+            id=1,
+            type_id="onix",
+            name="Scopus",
+        ),
+        datasets=[
+            Dataset(
+                id=1,
+                name="RoR",
+                workflow=Workflow(),
+                service="google",
+                address="curtin_gcp_project_id.my_dataset_id.my_table",
+                dataset_type=DatasetType(
+                    id=1,
+                    type_id="onix",
+                    name="ONIX dataset",
+                    extra={},
+                    table_type=TableType(
+                        id=1,
+                        type_id="bq_partitioned",
+                        name="BigQuery partitioned table",
+                    ),
+                ),
+            ),
+        ],
+    ) # Workflow | Workflow to create
 
     # example passing only required values which don't have defaults set
     try:
-        # create a TelescopeType
-        api_response = api_instance.post_telescope_type(body)
+        # create a Workflow
+        api_response = api_instance.post_workflow(body)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->post_telescope_type: %s\n" % e)
+        print("Exception when calling ObservatoryApi->post_workflow: %s\n" % e)
 ```
 
 
@@ -3486,8 +3889,8 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>body</strong></td>
-<td><a href="TelescopeType.html"><strong>TelescopeType</strong></a></td>
-<td>TelescopeType to create</td>
+<td><a href="Workflow.html"><strong>Workflow</strong></a></td>
+<td>Workflow to create</td>
 <td></td>
 </tr>
 
@@ -3500,7 +3903,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Return type
 
-[**TelescopeType**](TelescopeType.html)
+[**Workflow**](Workflow.html)
 
 ### Authorization
 
@@ -3525,7 +3928,129 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>201</strong></td>
-    <td>TelescopeType created, returning the created object with an id</td>
+    <td>Workflow created, returning the created object with an id</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
+## **post_workflow_type**
+> WorkflowType post_workflow_type(body)
+
+create a WorkflowType
+
+Create a WorkflowType by passing a WorkflowType object, without an id. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from observatory.api.client.model.workflow_type import WorkflowType
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    body = WorkflowType(
+        id=1,
+        type_id="onix",
+        name="Scopus",
+    ) # WorkflowType | WorkflowType to create
+
+    # example passing only required values which don't have defaults set
+    try:
+        # create a WorkflowType
+        api_response = api_instance.post_workflow_type(body)
+        pprint(api_response)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->post_workflow_type: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+<tr>
+<td><strong>body</strong></td>
+<td><a href="WorkflowType.html"><strong>WorkflowType</strong></a></td>
+<td>WorkflowType to create</td>
+<td></td>
+</tr>
+
+
+
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+[**WorkflowType**](WorkflowType.html)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>201</strong></td>
+    <td>WorkflowType created, returning the created object with an id</td>
     <td> - </td>
 </tr>
 <tr>
@@ -3577,18 +4102,19 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     body = Dataset(
         id=1,
         name="RoR",
-        connection=Telescope(
+        workflow=Workflow(
             id=1,
-            name="Curtin University ONIX Telescope",
+            name="Curtin University ONIX Workflow",
             extra={},
+            tags="oaebu",
             organisation=Organisation(
                 id=1,
                 name="Curtin University",
-                gcp_project_id="curtin-dev",
-                gcp_download_bucket="curtin-dev-download",
-                gcp_transform_bucket="curtin-dev-transform",
+                project_id="curtin-dev",
+                download_bucket="curtin-dev-download",
+                transform_bucket="curtin-dev-transform",
             ),
-            telescope_type=TelescopeType(
+            workflow_type=WorkflowType(
                 id=1,
                 type_id="onix",
                 name="Scopus",
@@ -3597,7 +4123,19 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                 Dataset(),
             ],
         ),
-        extra={},
+        service="google",
+        address="curtin_gcp_project_id.my_dataset_id.my_table",
+        dataset_type=DatasetType(
+            id=1,
+            type_id="onix",
+            name="ONIX dataset",
+            extra={},
+            table_type=TableType(
+                id=1,
+                type_id="bq_partitioned",
+                name="BigQuery partitioned table",
+            ),
+        ),
     ) # Dataset | Dataset to create or update
 
     # example passing only required values which don't have defaults set
@@ -3723,27 +4261,24 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     api_instance = observatory_api.ObservatoryApi(api_client)
     body = DatasetRelease(
         id=1,
-        schema_version="20211031",
-        schema_version_alt="wok5.4",
         start_date=dateutil_parser('1970-01-01T00:00:00.00Z'),
         end_date=dateutil_parser('1970-01-01T00:00:00.00Z'),
-        ingestion_start=dateutil_parser('1970-01-01T00:00:00.00Z'),
-        ingestion_end=dateutil_parser('1970-01-01T00:00:00.00Z'),
         dataset=Dataset(
             id=1,
             name="RoR",
-            connection=Telescope(
+            workflow=Workflow(
                 id=1,
-                name="Curtin University ONIX Telescope",
+                name="Curtin University ONIX Workflow",
                 extra={},
+                tags="oaebu",
                 organisation=Organisation(
                     id=1,
                     name="Curtin University",
-                    gcp_project_id="curtin-dev",
-                    gcp_download_bucket="curtin-dev-download",
-                    gcp_transform_bucket="curtin-dev-transform",
+                    project_id="curtin-dev",
+                    download_bucket="curtin-dev-download",
+                    transform_bucket="curtin-dev-transform",
                 ),
-                telescope_type=TelescopeType(
+                workflow_type=WorkflowType(
                     id=1,
                     type_id="onix",
                     name="Scopus",
@@ -3752,7 +4287,19 @@ with observatory.api.client.ApiClient(configuration) as api_client:
                     Dataset(),
                 ],
             ),
-            extra={},
+            service="google",
+            address="curtin_gcp_project_id.my_dataset_id.my_table",
+            dataset_type=DatasetType(
+                id=1,
+                type_id="onix",
+                name="ONIX dataset",
+                extra={},
+                table_type=TableType(
+                    id=1,
+                    type_id="bq_partitioned",
+                    name="BigQuery partitioned table",
+                ),
+            ),
         ),
     ) # DatasetRelease | DatasetRelease to create or update
 
@@ -3840,12 +4387,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **put_dataset_storage**
-> DatasetStorage put_dataset_storage(body)
+## **put_dataset_type**
+> DatasetType put_dataset_type(body)
 
-create or update a DatasetStorage
+create or update a DatasetType
 
-Create a DatasetStorage by passing a DatasetStorage object, without an id. Update an existing DatasetStorage by passing a DatasetStorage object with an id. 
+Create a DatasetType by passing a DatasetType object, without an id. Update an existing DatasetType by passing a DatasetType object with an id. 
 
 ### Example
 
@@ -3854,7 +4401,7 @@ Create a DatasetStorage by passing a DatasetStorage object, without an id. Updat
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.dataset_storage import DatasetStorage
+from observatory.api.client.model.dataset_type import DatasetType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -3877,45 +4424,25 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    body = DatasetStorage(
+    body = DatasetType(
         id=1,
-        service="google",
-        address="curtin_gcp_project_id.my_dataset_id.my_table",
+        type_id="onix",
+        name="ONIX dataset",
         extra={},
-        dataset=Dataset(
+        table_type=TableType(
             id=1,
-            name="RoR",
-            connection=Telescope(
-                id=1,
-                name="Curtin University ONIX Telescope",
-                extra={},
-                organisation=Organisation(
-                    id=1,
-                    name="Curtin University",
-                    gcp_project_id="curtin-dev",
-                    gcp_download_bucket="curtin-dev-download",
-                    gcp_transform_bucket="curtin-dev-transform",
-                ),
-                telescope_type=TelescopeType(
-                    id=1,
-                    type_id="onix",
-                    name="Scopus",
-                ),
-                datasets=[
-                    Dataset(),
-                ],
-            ),
-            extra={},
+            type_id="bq_partitioned",
+            name="BigQuery partitioned table",
         ),
-    ) # DatasetStorage | DatasetStorage to create or update
+    ) # DatasetType | DatasetType to create or update
 
     # example passing only required values which don't have defaults set
     try:
-        # create or update a DatasetStorage
-        api_response = api_instance.put_dataset_storage(body)
+        # create or update a DatasetType
+        api_response = api_instance.put_dataset_type(body)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->put_dataset_storage: %s\n" % e)
+        print("Exception when calling ObservatoryApi->put_dataset_type: %s\n" % e)
 ```
 
 
@@ -3937,8 +4464,8 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>body</strong></td>
-<td><a href="DatasetStorage.html"><strong>DatasetStorage</strong></a></td>
-<td>DatasetStorage to create or update</td>
+<td><a href="DatasetType.html"><strong>DatasetType</strong></a></td>
+<td>DatasetType to create or update</td>
 <td></td>
 </tr>
 
@@ -3951,7 +4478,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Return type
 
-[**DatasetStorage**](DatasetStorage.html)
+[**DatasetType**](DatasetType.html)
 
 ### Authorization
 
@@ -3976,12 +4503,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>200</strong></td>
-    <td>DatasetStorage updated</td>
+    <td>DatasetType updated</td>
     <td> - </td>
 </tr>
 <tr>
     <td><strong>201</strong></td>
-    <td>DatasetStorage created, returning the created object with an id</td>
+    <td>DatasetType created, returning the created object with an id</td>
     <td> - </td>
 </tr>
 <tr>
@@ -4033,9 +4560,9 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     body = Organisation(
         id=1,
         name="Curtin University",
-        gcp_project_id="curtin-dev",
-        gcp_download_bucket="curtin-dev-download",
-        gcp_transform_bucket="curtin-dev-transform",
+        project_id="curtin-dev",
+        download_bucket="curtin-dev-download",
+        transform_bucket="curtin-dev-transform",
     ) # Organisation | Organisation to create or update
 
     # example passing only required values which don't have defaults set
@@ -4122,12 +4649,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **put_telescope**
-> Telescope put_telescope(body)
+## **put_table_type**
+> TableType put_table_type(body)
 
-create or update a Telescope
+create or update a TableType
 
-Create a Telescope by passing a Telescope object, without an id. Update an existing Telescope by passing a Telescope object with an id. 
+Create a TableType by passing a TableType object, without an id. Update an existing TableType by passing a TableType object with an id. 
 
 ### Example
 
@@ -4136,7 +4663,7 @@ Create a Telescope by passing a Telescope object, without an id. Update an exist
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.telescope import Telescope
+from observatory.api.client.model.table_type import TableType
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -4159,39 +4686,19 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    body = Telescope(
+    body = TableType(
         id=1,
-        name="Curtin University ONIX Telescope",
-        extra={},
-        organisation=Organisation(
-            id=1,
-            name="Curtin University",
-            gcp_project_id="curtin-dev",
-            gcp_download_bucket="curtin-dev-download",
-            gcp_transform_bucket="curtin-dev-transform",
-        ),
-        telescope_type=TelescopeType(
-            id=1,
-            type_id="onix",
-            name="Scopus",
-        ),
-        datasets=[
-            Dataset(
-                id=1,
-                name="RoR",
-                connection=Telescope(),
-                extra={},
-            ),
-        ],
-    ) # Telescope | Telescope to create or update
+        type_id="bq_partitioned",
+        name="BigQuery partitioned table",
+    ) # TableType | TableType to create or update
 
     # example passing only required values which don't have defaults set
     try:
-        # create or update a Telescope
-        api_response = api_instance.put_telescope(body)
+        # create or update a TableType
+        api_response = api_instance.put_table_type(body)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->put_telescope: %s\n" % e)
+        print("Exception when calling ObservatoryApi->put_table_type: %s\n" % e)
 ```
 
 
@@ -4213,8 +4720,8 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>body</strong></td>
-<td><a href="Telescope.html"><strong>Telescope</strong></a></td>
-<td>Telescope to create or update</td>
+<td><a href="TableType.html"><strong>TableType</strong></a></td>
+<td>TableType to create or update</td>
 <td></td>
 </tr>
 
@@ -4227,7 +4734,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Return type
 
-[**Telescope**](Telescope.html)
+[**TableType**](TableType.html)
 
 ### Authorization
 
@@ -4252,12 +4759,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>200</strong></td>
-    <td>Telescope updated</td>
+    <td>TableType updated</td>
     <td> - </td>
 </tr>
 <tr>
     <td><strong>201</strong></td>
-    <td>Telescope created, returning the created object with an id</td>
+    <td>TableType created, returning the created object with an id</td>
     <td> - </td>
 </tr>
 <tr>
@@ -4269,12 +4776,12 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 </tbody>
 </table></div>
 
-## **put_telescope_type**
-> TelescopeType put_telescope_type(body)
+## **put_workflow**
+> Workflow put_workflow(body)
 
-create or update a TelescopeType
+create or update a Workflow
 
-Create a TelescopeType by passing a TelescopeType object, without an id. Update an existing TelescopeType by passing a TelescopeType object with an id. 
+Create a Workflow by passing a Workflow object, without an id. Update an existing Workflow by passing a Workflow object with an id. 
 
 ### Example
 
@@ -4283,7 +4790,7 @@ Create a TelescopeType by passing a TelescopeType object, without an id. Update 
 import time
 import observatory.api.client
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.telescope_type import TelescopeType
+from observatory.api.client.model.workflow import Workflow
 from pprint import pprint
 # Defining the host is optional and defaults to https://api.observatory.academy
 # See configuration.py for a list of all supported configuration parameters.
@@ -4306,19 +4813,52 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    body = TelescopeType(
+    body = Workflow(
         id=1,
-        type_id="onix",
-        name="Scopus",
-    ) # TelescopeType | TelescopeType to create or update
+        name="Curtin University ONIX Workflow",
+        extra={},
+        tags="oaebu",
+        organisation=Organisation(
+            id=1,
+            name="Curtin University",
+            project_id="curtin-dev",
+            download_bucket="curtin-dev-download",
+            transform_bucket="curtin-dev-transform",
+        ),
+        workflow_type=WorkflowType(
+            id=1,
+            type_id="onix",
+            name="Scopus",
+        ),
+        datasets=[
+            Dataset(
+                id=1,
+                name="RoR",
+                workflow=Workflow(),
+                service="google",
+                address="curtin_gcp_project_id.my_dataset_id.my_table",
+                dataset_type=DatasetType(
+                    id=1,
+                    type_id="onix",
+                    name="ONIX dataset",
+                    extra={},
+                    table_type=TableType(
+                        id=1,
+                        type_id="bq_partitioned",
+                        name="BigQuery partitioned table",
+                    ),
+                ),
+            ),
+        ],
+    ) # Workflow | Workflow to create or update
 
     # example passing only required values which don't have defaults set
     try:
-        # create or update a TelescopeType
-        api_response = api_instance.put_telescope_type(body)
+        # create or update a Workflow
+        api_response = api_instance.put_workflow(body)
         pprint(api_response)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->put_telescope_type: %s\n" % e)
+        print("Exception when calling ObservatoryApi->put_workflow: %s\n" % e)
 ```
 
 
@@ -4340,8 +4880,8 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
 <td><strong>body</strong></td>
-<td><a href="TelescopeType.html"><strong>TelescopeType</strong></a></td>
-<td>TelescopeType to create or update</td>
+<td><a href="Workflow.html"><strong>Workflow</strong></a></td>
+<td>Workflow to create or update</td>
 <td></td>
 </tr>
 
@@ -4354,7 +4894,7 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 ### Return type
 
-[**TelescopeType**](TelescopeType.html)
+[**Workflow**](Workflow.html)
 
 ### Authorization
 
@@ -4379,12 +4919,139 @@ with observatory.api.client.ApiClient(configuration) as api_client:
 
 <tr>
     <td><strong>200</strong></td>
-    <td>TelescopeType updated</td>
+    <td>Workflow updated</td>
     <td> - </td>
 </tr>
 <tr>
     <td><strong>201</strong></td>
-    <td>TelescopeType created, returning the created object with an id</td>
+    <td>Workflow created, returning the created object with an id</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>401</strong></td>
+    <td>API key is missing or invalid</td>
+    <td> * WWW_Authenticate -  <br> </td>
+</tr>
+
+</tbody>
+</table></div>
+
+## **put_workflow_type**
+> WorkflowType put_workflow_type(body)
+
+create or update a WorkflowType
+
+Create a WorkflowType by passing a WorkflowType object, without an id. Update an existing WorkflowType by passing a WorkflowType object with an id. 
+
+### Example
+
+* Api Key Authentication (api_key):
+```python
+import time
+import observatory.api.client
+from observatory.api.client.api import observatory_api
+from observatory.api.client.model.workflow_type import WorkflowType
+from pprint import pprint
+# Defining the host is optional and defaults to https://api.observatory.academy
+# See configuration.py for a list of all supported configuration parameters.
+configuration = observatory.api.client.Configuration(
+    host = "https://api.observatory.academy"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: api_key
+configuration.api_key['api_key'] = 'YOUR_API_KEY'
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['api_key'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with observatory.api.client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = observatory_api.ObservatoryApi(api_client)
+    body = WorkflowType(
+        id=1,
+        type_id="onix",
+        name="Scopus",
+    ) # WorkflowType | WorkflowType to create or update
+
+    # example passing only required values which don't have defaults set
+    try:
+        # create or update a WorkflowType
+        api_response = api_instance.put_workflow_type(body)
+        pprint(api_response)
+    except observatory.api.client.ApiException as e:
+        print("Exception when calling ObservatoryApi->put_workflow_type: %s\n" % e)
+```
+
+
+### Parameters
+
+
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+
+
+
+<tr>
+<td><strong>body</strong></td>
+<td><a href="WorkflowType.html"><strong>WorkflowType</strong></a></td>
+<td>WorkflowType to create or update</td>
+<td></td>
+</tr>
+
+
+
+
+</tbody>
+</table></div>
+
+
+### Return type
+
+[**WorkflowType**](WorkflowType.html)
+
+### Authorization
+
+[api_key](ObservatoryApi.html#api_key)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+<div class="wy-table-responsive"><table border="1" class="docutils">
+<thead>
+<tr>
+<th>Status code</th>
+<th>Description</th>
+<th>Response headers</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+    <td><strong>200</strong></td>
+    <td>WorkflowType updated</td>
+    <td> - </td>
+</tr>
+<tr>
+    <td><strong>201</strong></td>
+    <td>WorkflowType created, returning the created object with an id</td>
     <td> - </td>
 </tr>
 <tr>

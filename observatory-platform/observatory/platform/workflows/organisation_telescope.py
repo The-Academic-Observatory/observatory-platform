@@ -61,7 +61,7 @@ class OrganisationRelease(Release):
 
         :return: the download bucket name.
         """
-        return self.organisation.gcp_download_bucket
+        return self.organisation.download_bucket
 
     @property
     def transform_bucket(self):
@@ -69,7 +69,7 @@ class OrganisationRelease(Release):
 
         :return: the transform bucket name.
         """
-        return self.organisation.gcp_transform_bucket
+        return self.organisation.transform_bucket
 
 
 class OrganisationTelescope(Workflow):
@@ -93,6 +93,7 @@ class OrganisationTelescope(Workflow):
         table_descriptions: Dict[str, str] = None,
         airflow_vars: list = None,
         airflow_conns: list = None,
+        workflow_id: int = None,
     ):
         """Construct a OrganisationTelescope instance.
 
@@ -114,6 +115,7 @@ class OrganisationTelescope(Workflow):
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
+        :param workflow_id: api workflow id.
         """
 
         # Set transform_bucket_name as required airflow variable
@@ -130,9 +132,10 @@ class OrganisationTelescope(Workflow):
             max_active_runs,
             airflow_vars,
             airflow_conns,
+            workflow_id=workflow_id,
         )
         self.organisation = organisation
-        self.project_id = organisation.gcp_project_id
+        self.project_id = organisation.project_id
         self.dataset_id = dataset_id
         self.dataset_location = "us"  # TODO: add to API
         self.source_format = source_format

@@ -31,8 +31,8 @@ from observatory.api.client.exceptions import ApiAttributeError
 
 
 def lazy_import():
-    from observatory.api.client.model.telescope import Telescope
-    globals()['Telescope'] = Telescope
+    from observatory.api.client.model.workflow import Workflow
+    globals()['Workflow'] = Workflow
 
 
 class Organisation(ModelNormal):
@@ -67,15 +67,15 @@ class Organisation(ModelNormal):
             'max_length': 250,
             'min_length': 1,
         },
-        ('gcp_project_id',): {
+        ('project_id',): {
             'max_length': 30,
             'min_length': 6,
         },
-        ('gcp_download_bucket',): {
+        ('download_bucket',): {
             'max_length': 222,
             'min_length': 3,
         },
-        ('gcp_transform_bucket',): {
+        ('transform_bucket',): {
             'max_length': 222,
             'min_length': 3,
         },
@@ -83,7 +83,7 @@ class Organisation(ModelNormal):
 
     additional_properties_type = None
 
-    _nullable = False
+    _nullable = True
 
     @cached_property
     def openapi_types():
@@ -99,10 +99,10 @@ class Organisation(ModelNormal):
         return {
             'id': (int,),  # noqa: E501, F821
             'name': (str,),  # noqa: E501, F821
-            'gcp_project_id': (str, none_type,),  # noqa: E501, F821
-            'gcp_download_bucket': (str, none_type,),  # noqa: E501, F821
-            'gcp_transform_bucket': (str, none_type,),  # noqa: E501, F821
-            'telescopes': ([Telescope],),  # noqa: E501, F821
+            'project_id': (str, none_type,),  # noqa: E501, F821
+            'download_bucket': (str, none_type,),  # noqa: E501, F821
+            'transform_bucket': (str, none_type,),  # noqa: E501, F821
+            'workflows': ([Workflow],),  # noqa: E501, F821
             'created': (datetime,),  # noqa: E501, F821
             'modified': (datetime,),  # noqa: E501, F821
         }
@@ -115,16 +115,16 @@ class Organisation(ModelNormal):
     attribute_map = {
         'id': 'id',  # noqa: E501
         'name': 'name',  # noqa: E501
-        'gcp_project_id': 'gcp_project_id',  # noqa: E501
-        'gcp_download_bucket': 'gcp_download_bucket',  # noqa: E501
-        'gcp_transform_bucket': 'gcp_transform_bucket',  # noqa: E501
-        'telescopes': 'telescopes',  # noqa: E501
+        'project_id': 'project_id',  # noqa: E501
+        'download_bucket': 'download_bucket',  # noqa: E501
+        'transform_bucket': 'transform_bucket',  # noqa: E501
+        'workflows': 'workflows',  # noqa: E501
         'created': 'created',  # noqa: E501
         'modified': 'modified',  # noqa: E501
     }
 
     read_only_vars = {
-        'telescopes',  # noqa: E501
+        'workflows',  # noqa: E501
         'created',  # noqa: E501
         'modified',  # noqa: E501
     }
@@ -169,10 +169,10 @@ class Organisation(ModelNormal):
                                 _visited_composed_classes = (Animal,)
             id (int): [optional]  # noqa: E501
             name (str): [optional]  # noqa: E501
-            gcp_project_id (str, none_type): [optional]  # noqa: E501
-            gcp_download_bucket (str, none_type): [optional]  # noqa: E501
-            gcp_transform_bucket (str, none_type): [optional]  # noqa: E501
-            telescopes ([Telescope]): [optional]  # noqa: E501
+            project_id (str, none_type): [optional]  # noqa: E501
+            download_bucket (str, none_type): [optional]  # noqa: E501
+            transform_bucket (str, none_type): [optional]  # noqa: E501
+            workflows ([Workflow]): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
             modified (datetime): [optional]  # noqa: E501
         """
@@ -258,10 +258,10 @@ class Organisation(ModelNormal):
                                 _visited_composed_classes = (Animal,)
             id (int): [optional]  # noqa: E501
             name (str): [optional]  # noqa: E501
-            gcp_project_id (str, none_type): [optional]  # noqa: E501
-            gcp_download_bucket (str, none_type): [optional]  # noqa: E501
-            gcp_transform_bucket (str, none_type): [optional]  # noqa: E501
-            telescopes ([Telescope]): [optional]  # noqa: E501
+            project_id (str, none_type): [optional]  # noqa: E501
+            download_bucket (str, none_type): [optional]  # noqa: E501
+            transform_bucket (str, none_type): [optional]  # noqa: E501
+            workflows ([Workflow]): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
             modified (datetime): [optional]  # noqa: E501
         """
