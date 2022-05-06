@@ -81,12 +81,6 @@ x-environment: &environment
   {{ conn.conn_name }}: {{ '${' + conn.conn_name + '}' }}
   {%- endfor %}
 
-  # API server
-  API_SERVER_DB: "{{api_server_db}}"
-  BASE_DB_URI: "postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/postgres"
-  OBSERVATORY_DB_URI: "postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/{{api_server_db}}"
-  OBSERVATORY_DB_PORT: "{{api_server_port}}"
-
   {%- endif %}
 
   # Variables
@@ -304,13 +298,17 @@ services:
 
   apiserver:
     build: *build
-    environment: *environment
+    environment:
+      - API_SERVER_DB={{api_server_db}}
+      - BASE_DB_URI=postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/postgres
+      - OBSERVATORY_DB_URI=postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/{{api_server_db}}
+      - OBSERVATORY_API_PORT={{api_server_port}}
     volumes: *volumes
     restart: always
     <<: *networks
     depends_on:
       - postgres
-    entrypoint: /entrypoint-api.sh
+    command: apiserver
     ports:
       - {{api_server_port}}:{{api_server_port}}
   {%- endif %}
