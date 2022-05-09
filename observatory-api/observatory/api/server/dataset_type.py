@@ -27,7 +27,7 @@ class DatasetTypeId:
     grid = "grid"
     mag = "mag"
     open_citations = "open_citations"
-    openalex = "openalex"
+    open_alex = "open_alex"
     orcid = "orcid"
     ror = "ror"
     scopus = "scopus"
@@ -48,3 +48,41 @@ class DatasetTypeId:
     ucl_discovery = "ucl_discovery"
 
     # Workflow dataset types, i.e., dataset types for datasets created by various non Telescope workflows.
+    doi_workflow = "doi"
+    onix_workflow = "onix_workflow"
+    oapen_workflow = "oapen_workflow"
+
+
+class WorkflowTypeId:
+    """WorkflowTypeId type_id constants"""
+
+    # academic observatory workflows
+    crossref_events = "crossref_events"
+    crossref_fundref = "crossref_fundref"
+    crossref_metadata = "crossref_metadata"
+    geonames = "geonames"
+    grid = "grid"
+    mag = "mag"
+    open_citations = "open_citations"
+    open_alex = "open_alex"
+    orcid = "orcid"
+    ror = "ror"
+    scopus = "scopus"
+    unpaywall_snapshot = "unpaywall_snapshot"
+    unpaywall = "unpaywall"
+    web_of_science = "web_of_science"
+
+    # oaebu workflows
+    doab = "doab"
+    oapen_metadata = "oapen_metadata"
+    onix = "onix"
+    google_analytics = "google_analytics"
+    google_books = "google_books"
+    jstor = "jstor"
+    oapen_irus_uk = "oapen_irus_uk"
+    ucl_discovery = "ucl_discovery"
+
+    # Workflow dataset types, i.e., dataset types for datasets created by various non Telescope workflows.
+    doi_workflow = "doi"
+    onix_workflow = "onix_workflow"
+    oapen_workflow = "oapen_workflow"
