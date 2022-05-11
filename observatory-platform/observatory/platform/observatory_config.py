@@ -830,16 +830,16 @@ class ObservatoryConfig:
 
         packages = [
             PythonPackage(
-                name="observatory-api",
-                type=self.observatory.api_package_type,
-                host_package=self.observatory.api_package,
-                docker_package=os.path.basename(self.observatory.api_package),
-            ),
-            PythonPackage(
                 name="observatory-platform",
                 type=self.observatory.package_type,
                 host_package=self.observatory.package,
                 docker_package=os.path.basename(self.observatory.package),
+            ),
+            PythonPackage(
+                name="observatory-api",
+                type=self.observatory.api_package_type,
+                host_package=self.observatory.api_package,
+                docker_package=os.path.basename(self.observatory.api_package),
             ),
         ]
 
