@@ -28,16 +28,18 @@ def make_observatory_api() -> "ObservatoryApi":  # noqa: F821
     assert (
         conn.host != "" and conn.host is not None
     ), f"Airflow Connection {AirflowConns.OBSERVATORY_API} host must not be None"
-    assert (
-        conn.password != "" and conn.password is not None
-    ), f"Airflow Connection {AirflowConns.OBSERVATORY_API} password must not be None"
 
     # Make host
     host = f'{str(conn.conn_type).replace("_", "-").lower()}://{conn.host}'
     if conn.port:
         host += f":{conn.port}"
 
+    # Only api_key when password present in connection
+    api_key = None
+    if conn.password != "" and conn.password is not None:
+        api_key = {"api_key": conn.password}
+
     # Return ObservatoryApi
-    config = Configuration(host=host, api_key={"api_key": conn.password})
+    config = Configuration(host=host, api_key=api_key)
     api_client = ApiClient(config)
     return ObservatoryApi(api_client=api_client)

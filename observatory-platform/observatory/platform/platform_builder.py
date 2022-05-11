@@ -101,9 +101,6 @@ class PlatformBuilder(ComposeRunner):
             self.add_file(
                 path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
             )
-            self.add_file(
-                path=os.path.join(self.docker_module_path, "entrypoint-api.sh"), output_file_name="entrypoint-api.sh"
-            )
 
             # Add all project requirements files for local projects
             if self.config is not None and self.config_is_valid:
