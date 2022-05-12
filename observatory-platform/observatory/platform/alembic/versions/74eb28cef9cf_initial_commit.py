@@ -1,7 +1,7 @@
 """Initial commit
 
 Revision ID: 74eb28cef9cf
-Revises: 
+Revises:
 Create Date: 2022-05-11 20:39:59.365335
 
 """
