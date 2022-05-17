@@ -1,0 +1,68 @@
+name: Build Observatory API
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+      - feature/build-api
+    tags:
+      - '*'
+
+env:
+  REGISTRY: us-docker.pkg.dev
+  USER_NAME: _json_key_base64
+  IMAGE_PATH: observatory-platform/observatory-api
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    strategy:
+      matrix:
+        environment: [ develop, staging, production ]
+        include:
+          - environment: develop
+            gcp_project_id: DEVELOP_GCP_PROJECT_ID
+          - environment: staging
+            gcp_project_id: STAGING_GCP_PROJECT_ID
+          - environment: production
+            gcp_project_id: PRODUCTION_GCP_PROJECT_ID
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.USER_NAME }}
+          password: ${{ env.ARTIFACT_REGISTRY_GCP_SERVICE_KEY }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: ${{ env.REGISTRY }}/${{ secrets[matrix.gcp_project_id] }}/${{ env.IMAGE_PATH }}
+          tags: |
+            # On branch
+            type=ref,event=branch
+
+            # Set latest tag for main branch
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+
+            # On push tag use version
+            type=semver,pattern={{version}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: ./observatory-api/
+          push: true
+
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

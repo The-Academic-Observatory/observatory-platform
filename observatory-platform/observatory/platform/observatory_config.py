@@ -29,20 +29,18 @@ import cerberus.validator
 import yaml
 from cerberus import Validator
 from cryptography.fernet import Fernet
+
 from observatory.platform.cli.click_utils import (
     INDENT1,
-    INDENT2,
     INDENT3,
     comment,
     indent,
 )
 from observatory.platform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.config_utils import (
     observatory_home as default_observatory_home,
 )
-from observatory.platform.utils.jinja2_utils import render_template
 
 
 def generate_fernet_key() -> str:
@@ -601,13 +599,15 @@ class Api:
         domain_name: the custom domain name of the API
         subdomain: the subdomain of the API, can be either based on the google project id or the environment. When
         based on the environment, there is no subdomain for the production environment.
+        image: the path to the API image on Google Cloud Artifact Registry.
     """
 
     domain_name: str
     subdomain: str
+    image: str
 
     def to_hcl(self):
-        return to_hcl({"domain_name": self.domain_name, "subdomain": self.subdomain})
+        return to_hcl({"domain_name": self.domain_name, "subdomain": self.subdomain, "image": self.image})
 
     @staticmethod
     def from_dict(dict_: Dict) -> Api:
@@ -619,7 +619,8 @@ class Api:
 
         domain_name = dict_.get("domain_name")
         subdomain = dict_.get("subdomain")
-        return Api(domain_name, subdomain)
+        image = dict_.get("image")
+        return Api(domain_name, subdomain, image)
 
 
 def is_base64(text: bytes) -> bool:
@@ -1554,6 +1555,7 @@ def make_schema(backend_type: BackendType) -> Dict:
             "schema": {
                 "domain_name": {"required": True, "type": "string"},
                 "subdomain": {"required": True, "type": "string", "allowed": ["project_id", "environment"]},
+                "image": {"required": True, "type": "string"},
             },
         }
 
@@ -1866,12 +1868,14 @@ class ObserveratoryConfigString:
             api = Api(
                 domain_name="api.observatory.academy",
                 subdomain="project_id",
+                image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
             )
 
         lines = [
             "api:\n",
             indent(f"domain_name: {api.domain_name}\n", INDENT1),
             indent(f"subdomain: {api.subdomain}\n", INDENT1),
+            indent(f"api: {api.image}\n", INDENT1),
         ]
 
         return lines

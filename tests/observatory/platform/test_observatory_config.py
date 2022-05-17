@@ -23,7 +23,7 @@ from typing import Dict, List
 
 import yaml
 from click.testing import CliRunner
-from cryptography.fernet import Fernet
+
 from observatory.platform.observatory_config import (
     AirflowConnection,
     AirflowVariable,
@@ -42,17 +42,11 @@ from observatory.platform.observatory_config import (
     TerraformConfig,
     VirtualMachine,
     WorkflowsProject,
-    check_schema_field_fernet_key,
-    check_schema_field_secret_key,
-    generate_fernet_key,
     is_base64,
     is_fernet_key,
     is_secret_key,
     make_schema,
     save_yaml,
-)
-from observatory.platform.utils.config_utils import (
-    observatory_home as default_observatory_home,
 )
 
 
@@ -245,7 +239,11 @@ class TestTerraformConfig(unittest.TestCase):
                     "create": False,
                 },
                 "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
-                "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
+                "api": {
+                    "domain_name": "api.custom.domain",
+                    "subdomain": "project_id",
+                    "image": "us-docker.pkg.dev/academic-observatory/observatory-platform/observatory-api:latest",
+                },
             }
 
             save_yaml(file_path, dict_)
@@ -309,7 +307,11 @@ class TestTerraformConfig(unittest.TestCase):
                     },
                 ],
                 "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
-                "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
+                "api": {
+                    "domain_name": "api.custom.domain",
+                    "subdomain": "project_id",
+                    "image": "us-docker.pkg.dev/academic-observatory/observatory-platform/observatory-api:latest",
+                },
             }
 
             save_yaml(file_path, dict_)
@@ -957,7 +959,11 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
             airflow_main_vm=VirtualMachine(machine_type="aa", disk_size=1, disk_type="pd-standard", create=False),
             airflow_worker_vm=VirtualMachine(machine_type="bb", disk_size=1, disk_type="pd-ssd", create=True),
             elasticsearch=ElasticSearch(host="http://", api_key="key"),
-            api=Api(domain_name="api.something", subdomain="project_id"),
+            api=Api(
+                domain_name="api.something",
+                subdomain="project_id",
+                image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
+            ),
         )
 
         file = "config.yaml"
@@ -1055,7 +1061,14 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
                 ),
             )
 
-            self.assertEqual(loaded.api, Api(domain_name="api.observatory.academy", subdomain="project_id"))
+            self.assertEqual(
+                loaded.api,
+                Api(
+                    domain_name="api.observatory.academy",
+                    subdomain="project_id",
+                    image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
+                ),
+            )
 
 
 class TestKeyCheckers(unittest.TestCase):

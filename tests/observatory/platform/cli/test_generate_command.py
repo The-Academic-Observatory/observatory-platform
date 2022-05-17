@@ -933,6 +933,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         api = Api(
             domain_name="api.something",
             subdomain="project_id",
+            image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
         )
 
         m_prompt.side_effect = [

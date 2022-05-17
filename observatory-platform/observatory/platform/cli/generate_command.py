@@ -1023,4 +1023,5 @@ class InteractiveConfigBuilder:
         config.api = Api(
             domain_name=domain_name,
             subdomain=subdomain,
+            image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
         )
