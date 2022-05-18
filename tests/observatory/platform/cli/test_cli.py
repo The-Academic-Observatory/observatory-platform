@@ -22,6 +22,7 @@ from typing import Any, List
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
+
 from observatory.platform.cli.cli import (
     LOCAL_CONFIG_PATH,
     TERRAFORM_CONFIG_PATH,
@@ -589,7 +590,11 @@ class TestObservatoryTerraform(unittest.TestCase):
                         "create": False,
                     },
                     "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
-                    "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
+                    "api": {
+                        "domain_name": "api.custom.domain",
+                        "subdomain": "project_id",
+                        "api_image": "us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
+                    },
                 }
             )
 
@@ -731,7 +736,11 @@ class TestObservatoryTerraform(unittest.TestCase):
                         "create": False,
                     },
                     "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
-                    "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
+                    "api": {
+                        "domain_name": "api.custom.domain",
+                        "subdomain": "project_id",
+                        "api_image": "us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
+                    },
                 }
             )
             mock_load_config.return_value = config

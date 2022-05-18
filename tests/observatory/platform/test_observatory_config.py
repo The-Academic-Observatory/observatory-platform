@@ -962,7 +962,7 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
             api=Api(
                 domain_name="api.something",
                 subdomain="project_id",
-                image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
+                api_image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
             ),
         )
 
@@ -1066,7 +1066,7 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
                 Api(
                     domain_name="api.observatory.academy",
                     subdomain="project_id",
-                    image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
+                    api_image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
                 ),
             )
 

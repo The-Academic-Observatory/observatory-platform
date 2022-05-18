@@ -61,7 +61,7 @@ resource "google_cloud_run_service" "api_backend" {
   template {
     spec {
       containers {
-        image = var.api.image
+        image = var.api.api_image
         env {
           name = "ES_API_KEY"
           value = "sm://${var.google_cloud.project_id}/elasticsearch-api_key"
@@ -147,7 +147,7 @@ resource "google_cloud_run_service" "api_gateway" {
   template {
     spec {
       containers {
-        image = "gcr.io/endpoints-release/endpoints-runtime-serverless:2.36.0"
+        image = var.api.er_image
         env {
           name = "ENDPOINTS_SERVICE_NAME"
           value = google_endpoints_service.api.service_name

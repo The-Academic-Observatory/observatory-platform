@@ -599,15 +599,24 @@ class Api:
         domain_name: the custom domain name of the API
         subdomain: the subdomain of the API, can be either based on the google project id or the environment. When
         based on the environment, there is no subdomain for the production environment.
-        image: the path to the API image on Google Cloud Artifact Registry.
+        api_image: the path to the Observatory API image on Google Cloud Artifact Registry.
+        er_image: the path to the Google Cloud Endpoints Runtime image.
     """
 
     domain_name: str
     subdomain: str
-    image: str
+    api_image: str
+    er_image: str = "gcr.io/endpoints-release/endpoints-runtime-serverless:2"
 
     def to_hcl(self):
-        return to_hcl({"domain_name": self.domain_name, "subdomain": self.subdomain, "image": self.image})
+        return to_hcl(
+            {
+                "domain_name": self.domain_name,
+                "subdomain": self.subdomain,
+                "api_image": self.api_image,
+                "er_image": self.er_image,
+            }
+        )
 
     @staticmethod
     def from_dict(dict_: Dict) -> Api:
@@ -619,8 +628,9 @@ class Api:
 
         domain_name = dict_.get("domain_name")
         subdomain = dict_.get("subdomain")
-        image = dict_.get("image")
-        return Api(domain_name, subdomain, image)
+        api_image = dict_.get("api_image")
+        er_image = dict_.get("er_image", Api.er_image)
+        return Api(domain_name, subdomain, api_image, er_image=er_image)
 
 
 def is_base64(text: bytes) -> bool:
@@ -1555,7 +1565,8 @@ def make_schema(backend_type: BackendType) -> Dict:
             "schema": {
                 "domain_name": {"required": True, "type": "string"},
                 "subdomain": {"required": True, "type": "string", "allowed": ["project_id", "environment"]},
-                "image": {"required": True, "type": "string"},
+                "api_image": {"required": True, "type": "string"},
+                "er_image": {"required": False, "type": "string"},
             },
         }
 
@@ -1868,14 +1879,15 @@ class ObserveratoryConfigString:
             api = Api(
                 domain_name="api.observatory.academy",
                 subdomain="project_id",
-                image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
+                api_image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
             )
 
         lines = [
             "api:\n",
             indent(f"domain_name: {api.domain_name}\n", INDENT1),
             indent(f"subdomain: {api.subdomain}\n", INDENT1),
-            indent(f"api: {api.image}\n", INDENT1),
+            indent(f"api_image: {api.api_image}\n", INDENT1),
+            indent(f"er_image: {api.er_image}\n", INDENT1),
         ]
 
         return lines

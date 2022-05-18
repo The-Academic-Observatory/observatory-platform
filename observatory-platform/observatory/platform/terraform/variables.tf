@@ -117,11 +117,13 @@ Settings related to the Observatory API
 
 domain_name: the custom domain name for the API, used for the google cloud endpoints service
 subdomain: can be either 'project_id' or 'environment', used to determine a prefix for the domain_name
-image: the path to the API image on Google Cloud Artifact Registry.
+api_image: the path to the Observatory API image on Google Cloud Artifact Registry.
+er_image: the path to the Google Cloud Endpoints Runtime image.
 EOF
   type = object({
     domain_name = string
     subdomain = string
-    image = string
+    api_image = string
+    er_image = string
   })
 }

@@ -80,7 +80,11 @@ class TestTerraformBuilder(unittest.TestCase):
             "airflow_variables": {"my-variable-name": "my-variable-value"},
             "airflow_connections": {"my-connection": "http://:my-token-key@"},
             "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
-            "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
+            "api": {
+                "domain_name": "api.custom.domain",
+                "subdomain": "project_id",
+                "api_image": "us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
+            },
         }
 
         save_yaml(config_path, dict_)
