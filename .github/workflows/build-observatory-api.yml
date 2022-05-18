@@ -41,7 +41,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ env.USER_NAME }}
-          password: ${{ env.ARTIFACT_REGISTRY_GCP_SERVICE_KEY }}
+          password: ${{ secrets.ARTIFACT_REGISTRY_GCP_SERVICE_KEY }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
