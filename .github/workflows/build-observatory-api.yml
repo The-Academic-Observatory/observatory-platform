@@ -1,13 +1,7 @@
 name: Build Observatory API
 
-on:
-  push:
-    branches:
-      - develop
-      - main
-      - feature/build-api
-    tags:
-      - '*'
+# Run workflow on push to any branch or tag
+on: [ push ]
 
 env:
   REGISTRY: us-docker.pkg.dev
