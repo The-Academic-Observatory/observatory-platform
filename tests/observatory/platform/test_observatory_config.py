@@ -242,7 +242,7 @@ class TestTerraformConfig(unittest.TestCase):
                 "api": {
                     "domain_name": "api.custom.domain",
                     "subdomain": "project_id",
-                    "image": "us-docker.pkg.dev/academic-observatory/observatory-platform/observatory-api:latest",
+                    "api_image": "us-docker.pkg.dev/academic-observatory/observatory-platform/observatory-api:latest",
                 },
             }
 
@@ -310,7 +310,7 @@ class TestTerraformConfig(unittest.TestCase):
                 "api": {
                     "domain_name": "api.custom.domain",
                     "subdomain": "project_id",
-                    "image": "us-docker.pkg.dev/academic-observatory/observatory-platform/observatory-api:latest",
+                    "api_image": "us-docker.pkg.dev/academic-observatory/observatory-platform/observatory-api:latest",
                 },
             }
 
