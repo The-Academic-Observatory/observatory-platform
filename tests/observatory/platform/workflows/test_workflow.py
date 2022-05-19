@@ -37,7 +37,7 @@ from observatory.platform.workflows.workflow import Release, Workflow, make_task
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_type import DatasetType
 from observatory.api.client.model.workflow import Workflow as apiWorkflow
-from observatory.api.testing import ObservatoryApiEnvironment
+from observatory.api.tests.testing import ObservatoryApiEnvironment
 from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
 from observatory.api.client.model.organisation import Organisation

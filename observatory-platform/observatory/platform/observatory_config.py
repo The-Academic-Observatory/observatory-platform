@@ -247,6 +247,8 @@ class Observatory(ConfigSection):
     docker_network_is_external: bool = False
     docker_compose_project_name: str = "observatory"
     enable_elk: bool = True
+    api_package: str = "observatory-api"
+    api_package_type: str = "pypi"
 
     def to_hcl(self):
         return to_hcl(
@@ -298,6 +300,8 @@ class Observatory(ConfigSection):
         docker_network_is_external = dict_.get("docker_network_is_external", Observatory.docker_network_is_external)
         docker_compose_project_name = dict_.get("docker_compose_project_name", Observatory.docker_compose_project_name)
         enable_elk = dict_.get("enable_elk", Observatory.enable_elk)
+        api_package = dict_.get("api_package", Observatory.api_package)
+        api_package_type = dict_.get("api_package_type", Observatory.api_package_type)
 
         return Observatory(
             package,
@@ -317,6 +321,8 @@ class Observatory(ConfigSection):
             docker_network_is_external=docker_network_is_external,
             docker_compose_project_name=docker_compose_project_name,
             enable_elk=enable_elk,
+            api_package=api_package,
+            api_package_type=api_package_type,
         )
 
 

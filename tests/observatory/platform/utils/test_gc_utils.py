@@ -32,7 +32,7 @@ from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E
 from observatory.api.client.model.big_query_bytes_processed import (
     BigQueryBytesProcessed,
 )
-from observatory.api.testing import ObservatoryApiEnvironment
+from observatory.api.tests.testing import ObservatoryApiEnvironment
 from observatory.platform.utils.file_utils import crc32c_base64_hash, hex_to_base64_str
 from observatory.platform.utils.gc_utils import (
     BIGQUERY_QUERY_DAILY_BYTE_LIMIT,
