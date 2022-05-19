@@ -247,8 +247,6 @@ class Observatory(ConfigSection):
     docker_network_is_external: bool = False
     docker_compose_project_name: str = "observatory"
     enable_elk: bool = True
-    api_package: str = "observatory-api"
-    api_package_type: str = "pypi"
 
     def to_hcl(self):
         return to_hcl(
@@ -300,8 +298,6 @@ class Observatory(ConfigSection):
         docker_network_is_external = dict_.get("docker_network_is_external", Observatory.docker_network_is_external)
         docker_compose_project_name = dict_.get("docker_compose_project_name", Observatory.docker_compose_project_name)
         enable_elk = dict_.get("enable_elk", Observatory.enable_elk)
-        api_package = dict_.get("api_package", Observatory.api_package)
-        api_package_type = dict_.get("api_package_type", Observatory.api_package_type)
 
         return Observatory(
             package,
@@ -321,8 +317,38 @@ class Observatory(ConfigSection):
             docker_network_is_external=docker_network_is_external,
             docker_compose_project_name=docker_compose_project_name,
             enable_elk=enable_elk,
-            api_package=api_package,
-            api_package_type=api_package_type,
+        )
+
+
+@dataclass
+class ObservatoryApi(ConfigSection):
+    package: str = "observatory-api"
+    package_type: str = "pypi"
+
+    def to_string(self, requirement: str, comment_out: bool, backend_type: BackendType) -> List[str]:
+        description = [
+            f"# [{requirement}] Observatory API settings\n",
+        ]
+        lines = ["observatory_api:\n"]
+        for variable in fields(self):
+            value = getattr(self, variable.name)
+            lines.append(indent(f"{variable.name}: {value}\n", INDENT1))
+        lines = map(comment, lines) if comment_out else lines
+        return description + list(lines)
+
+    @staticmethod
+    def from_dict(dict_: Dict) -> ObservatoryApi:
+        """Constructs an Observatory API instance from a dictionary.
+
+        :param dict_: the dictionary.
+        :return: the Airflow instance.
+        """
+        package = dict_.get("package", ObservatoryApi.package)
+        package_type = dict_.get("package_type", ObservatoryApi.package_type)
+
+        return ObservatoryApi(
+            package=package,
+            package_type=package_type,
         )
 
 
@@ -1027,6 +1053,7 @@ class ObservatoryConfig:
         self,
         backend: Backend = None,
         observatory: Observatory = None,
+        observatory_api: ObservatoryApi = None,
         google_cloud: GoogleCloud = None,
         terraform: Terraform = None,
         airflow_variables: AirflowVariables = None,
@@ -1038,6 +1065,7 @@ class ObservatoryConfig:
 
         :param backend: the backend config.
         :param observatory: the Observatory config.
+        :param observatory_api: the Observatory API config.
         :param google_cloud: the Google Cloud config.
         :param terraform: the Terraform config.
         :param airflow_variables: a list of Airflow variables.
@@ -1048,6 +1076,7 @@ class ObservatoryConfig:
 
         self.backend = backend if backend is not None else Backend(type=BackendType.local)
         self.observatory = observatory if observatory is not None else Observatory()
+        self.observatory_api = observatory_api if observatory_api is not None else ObservatoryApi()
         self.google_cloud = google_cloud
         self.terraform = terraform
         self.airflow_variables = airflow_variables
@@ -1102,9 +1131,9 @@ class ObservatoryConfig:
             ),
             PythonPackage(
                 name="observatory-api",
-                type=self.observatory.api_package_type,
-                host_package=self.observatory.api_package,
-                docker_package=os.path.basename(self.observatory.api_package),
+                type=self.observatory_api.package_type,
+                host_package=self.observatory_api.package,
+                docker_package=os.path.basename(self.observatory_api.package),
             ),
         ]
         if self.workflows_projects:
@@ -1656,6 +1685,16 @@ def make_schema(backend_type: BackendType) -> Dict:
             "docker_network_is_external": {"required": False, "type": "boolean"},
             "docker_compose_project_name": {"required": False, "type": "string"},
             "enable_elk": {"required": False, "type": "boolean"},
+        },
+    }
+
+    # Observatory API settings
+    schema["observatory_api"] = {
+        "required": is_backend_local,
+        "type": "dict",
+        "schema": {
+            "package": {"required": True, "type": "string"},
+            "package_type": {"required": True, "type": "string", "allowed": package_types},
         },
     }
 

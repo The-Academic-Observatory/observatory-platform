@@ -102,7 +102,14 @@ from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
 from observatory.api.tests.testing import ObservatoryApiEnvironment
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
-from observatory.platform.observatory_config import Api, GoogleCloud, Observatory, TerraformAPIConfig, TerraformConfig
+from observatory.platform.observatory_config import (
+    Api,
+    GoogleCloud,
+    Observatory,
+    TerraformAPIConfig,
+    TerraformConfig,
+    Terraform,
+)
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.file_utils import (
@@ -185,7 +192,8 @@ def save_terraform_config(work_dir: str) -> str:
     # Save config
     observatory = Observatory(package=observatory_platform_path, observatory_home=observatory_home)
     google_cloud = GoogleCloud(credentials=credentials_path)
-    TerraformConfig(observatory=observatory, google_cloud=google_cloud).save(config_path)
+    terraform = Terraform()
+    TerraformConfig(observatory=observatory, google_cloud=google_cloud, terraform=terraform).save(config_path)
 
     return config_path
 
