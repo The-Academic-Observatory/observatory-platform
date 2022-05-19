@@ -14,13 +14,17 @@ import unittest
 
 import observatory.api.client
 from observatory.api.client.model.dataset import Dataset
+from observatory.api.client.model.organisation import Organisation
+from observatory.api.client.model.workflow_type import WorkflowType
 
 globals()["Dataset"] = Dataset
-from observatory.api.client.model.dataset_release import DatasetRelease
+globals()["Organisation"] = Organisation
+globals()["WorkflowType"] = WorkflowType
+from observatory.api.client.model.workflow import Workflow
 
 
-class TestDatasetRelease(unittest.TestCase):
-    """DatasetRelease unit test stubs"""
+class TestWorkflow(unittest.TestCase):
+    """Workflow unit test stubs"""
 
     def setUp(self):
         pass
@@ -28,10 +32,10 @@ class TestDatasetRelease(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def testDatasetRelease(self):
-        """Test DatasetRelease"""
+    def testWorkflow(self):
+        """Test Workflow"""
         # FIXME: construct object with mandatory attributes with example values
-        # model = DatasetRelease()  # noqa: E501
+        # model = Workflow()  # noqa: E501
         pass
 
 

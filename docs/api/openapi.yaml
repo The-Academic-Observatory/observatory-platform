@@ -24,6 +24,7 @@ securityDefinitions:
 security:
   - api_key: []
 
+
 host: api.observatory.academy
 
 
@@ -1075,6 +1076,7 @@ paths:
         401:
           description: API key is missing or invalid
           $ref: '#/responses/UnauthorizedError'
+
 
 definitions:
   WorkflowType:

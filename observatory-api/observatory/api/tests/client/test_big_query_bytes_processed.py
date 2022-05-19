@@ -13,14 +13,11 @@ import sys
 import unittest
 
 import observatory.api.client
-from observatory.api.client.model.dataset import Dataset
-
-globals()["Dataset"] = Dataset
-from observatory.api.client.model.dataset_release import DatasetRelease
+from observatory.api.client.model.big_query_bytes_processed import BigQueryBytesProcessed
 
 
-class TestDatasetRelease(unittest.TestCase):
-    """DatasetRelease unit test stubs"""
+class TestBigQueryBytesProcessed(unittest.TestCase):
+    """BigQueryBytesProcessed unit test stubs"""
 
     def setUp(self):
         pass
@@ -28,10 +25,10 @@ class TestDatasetRelease(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def testDatasetRelease(self):
-        """Test DatasetRelease"""
+    def testBigQueryBytesProcessed(self):
+        """Test BigQueryBytesProcessed"""
         # FIXME: construct object with mandatory attributes with example values
-        # model = DatasetRelease()  # noqa: E501
+        # model = BigQueryBytesProcessed()  # noqa: E501
         pass
 
 

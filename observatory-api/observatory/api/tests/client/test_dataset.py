@@ -9,84 +9,32 @@
 """
 
 
+import sys
 import unittest
 
-from observatory.api.client.exceptions import ApiAttributeError, ApiTypeError
-from observatory.api.client.model.dataset_release import DatasetRelease
-
-globals()["DatasetRelease"] = DatasetRelease
-import datetime
-
-from observatory.api.client.model.dataset import Dataset
-from observatory.api.client.model.organisation import Organisation
+import observatory.api.client
+from observatory.api.client.model.dataset_type import DatasetType
 from observatory.api.client.model.workflow import Workflow
-from observatory.api.client.model.workflow_type import WorkflowType
+
+globals()["DatasetType"] = DatasetType
+globals()["Workflow"] = Workflow
+from observatory.api.client.model.dataset import Dataset
 
 
 class TestDataset(unittest.TestCase):
     """Dataset unit test stubs"""
 
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
+
     def testDataset(self):
         """Test Dataset"""
-
-        class Configuration:
-            def __init__(self):
-                self.discard_unknown_keys = True
-
-        dt = datetime.datetime.utcnow()
-        organisation = Organisation(
-            id=1,
-            name="Curtin",
-            project_id="my-gcp-project",
-            download_bucket="my-download-bucket",
-            transform_bucket="my-transform-bucket",
-        )
-
-        workflow = Workflow(
-            id=1,
-            name="Curtin ONIX Workflow",
-            organisation=organisation,
-            workflow_type=WorkflowType(id=1, name="ONIX Workflow"),
-            extra={"view_id": 123456},
-            tags='["oaebu"]',
-        )
-
-        dt = datetime.datetime.utcnow()
-        Dataset(
-            id=1,
-            name="name",
-            service="bigquery",
-            address="project.dataset.table",
-            workflow=workflow,
-            _configuration=Configuration(),
-            unknown="var",
-        )
-
-        self.assertRaises(
-            ApiAttributeError,
-            Dataset,
-            id=1,
-            name="name",
-            service="bigquery",
-            address="project.dataset.table",
-            workflow=workflow,
-            _configuration=Configuration(),
-            unknown="var",
-            created=dt,
-            modified=dt,
-        )
-
-        # Invalid argument
-        with self.assertRaises(ApiTypeError):
-            Dataset("hello")
-
-        # Invalid keyword argument
-        with self.assertRaises(ApiAttributeError):
-            Dataset(hello="world")
-
-        self.assertRaises(ApiTypeError, Dataset._from_openapi_data, "hello")
-
-        Dataset._from_openapi_data(hello="world", _configuration=Configuration())
+        # FIXME: construct object with mandatory attributes with example values
+        # model = Dataset()  # noqa: E501
+        pass
 
 
 if __name__ == "__main__":

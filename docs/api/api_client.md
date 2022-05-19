@@ -37,7 +37,6 @@ from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
 from observatory.api.client.model.dataset_type import DatasetType
 from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.query_response import QueryResponse
 from observatory.api.client.model.table_type import TableType
 from observatory.api.client.model.workflow import Workflow
 from observatory.api.client.model.workflow_type import WorkflowType

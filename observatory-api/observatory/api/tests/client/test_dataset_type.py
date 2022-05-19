@@ -13,14 +13,14 @@ import sys
 import unittest
 
 import observatory.api.client
-from observatory.api.client.model.dataset import Dataset
+from observatory.api.client.model.table_type import TableType
 
-globals()["Dataset"] = Dataset
-from observatory.api.client.model.dataset_release import DatasetRelease
+globals()["TableType"] = TableType
+from observatory.api.client.model.dataset_type import DatasetType
 
 
-class TestDatasetRelease(unittest.TestCase):
-    """DatasetRelease unit test stubs"""
+class TestDatasetType(unittest.TestCase):
+    """DatasetType unit test stubs"""
 
     def setUp(self):
         pass
@@ -28,10 +28,10 @@ class TestDatasetRelease(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def testDatasetRelease(self):
-        """Test DatasetRelease"""
+    def testDatasetType(self):
+        """Test DatasetType"""
         # FIXME: construct object with mandatory attributes with example values
-        # model = DatasetRelease()  # noqa: E501
+        # model = DatasetType()  # noqa: E501
         pass
 
 
