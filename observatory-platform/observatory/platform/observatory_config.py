@@ -835,7 +835,8 @@ class Api(ConfigSection):
     package: str = "/path/to/package/my_api"
     domain_name: str = "api.observatory.academy"
     subdomain: str = "project_id"
-    image_tag: str = "2021.09.01"
+    backend_image: str = "us-docker.pkg.dev/academic-observatory/observatory-platform/observatory-api:latest"
+    gateway_image: str = "gcr.io/endpoints-release/endpoints-runtime-serverless:2"
     api_key: str = "api key"
     session_secret_key: str = os.urandom(24).hex()
 
@@ -846,7 +847,8 @@ class Api(ConfigSection):
                 "package": self.package,
                 "domain_name": self.domain_name,
                 "subdomain": self.subdomain,
-                "image_tag": self.image_tag,
+                "backend_image": self.backend_image,
+                "gateway_image": self.gateway_image,
                 "api_key": self.api_key,
                 "session_secret_key": self.session_secret_key,
             }
@@ -876,11 +878,12 @@ class Api(ConfigSection):
         package = dict_.get("package")
         domain_name = dict_.get("domain_name")
         subdomain = dict_.get("subdomain")
-        image_tag = dict_.get("image_tag", "")
+        backend_image = dict_.get("backend_image")
+        gateway_image = dict_.get("gateway_image")
         api_key = dict_.get("api_key")
         session_secret_key = dict_.get("session_secret_key")
 
-        return Api(name, package, domain_name, subdomain, image_tag, api_key, session_secret_key)
+        return Api(name, package, domain_name, subdomain, backend_image, gateway_image, api_key, session_secret_key)
 
 
 @dataclass
@@ -1201,16 +1204,35 @@ class ObservatoryConfig:
     @staticmethod
     def _parse_fields(
         dict_: Dict,
-    ) -> Tuple[Backend, Observatory, GoogleCloud, Terraform, AirflowVariables, AirflowConnections, WorkflowsProjects,]:
+    ) -> Tuple[
+        Backend,
+        Observatory,
+        ObservatoryApi,
+        GoogleCloud,
+        Terraform,
+        AirflowVariables,
+        AirflowConnections,
+        WorkflowsProjects,
+    ]:
         backend = Backend.from_dict(dict_.get("backend", dict()))
         observatory = Observatory.from_dict(dict_.get("observatory", dict()))
+        observatory_api = ObservatoryApi.from_dict(dict_.get("observatory_api", dict()))
         google_cloud = GoogleCloud.from_dict(dict_.get("google_cloud", dict()))
         terraform = Terraform.from_dict(dict_.get("terraform", dict()))
         airflow_variables = AirflowVariables.from_dict(dict_.get("airflow_variables", dict()))
         airflow_connections = AirflowConnections.from_dict(dict_.get("airflow_connections", dict()))
         workflows_projects = WorkflowsProjects.from_dict(dict_.get("workflows_projects", list()))
 
-        return backend, observatory, google_cloud, terraform, airflow_variables, airflow_connections, workflows_projects
+        return (
+            backend,
+            observatory,
+            observatory_api,
+            google_cloud,
+            terraform,
+            airflow_variables,
+            airflow_connections,
+            workflows_projects,
+        )
 
     @classmethod
     def from_dict(cls, dict_: Dict) -> ObservatoryConfig:
@@ -1231,6 +1253,7 @@ class ObservatoryConfig:
             (
                 backend,
                 observatory,
+                observatory_api,
                 google_cloud,
                 terraform,
                 airflow_variables,
@@ -1241,6 +1264,7 @@ class ObservatoryConfig:
             return ObservatoryConfig(
                 backend,
                 observatory,
+                observatory_api,
                 google_cloud=google_cloud,
                 terraform=terraform,
                 airflow_variables=airflow_variables,
@@ -1430,6 +1454,7 @@ class TerraformConfig(ObservatoryConfig):
             (
                 backend,
                 observatory,
+                _,
                 google_cloud,
                 terraform,
                 airflow_variables,
@@ -1551,6 +1576,7 @@ class TerraformAPIConfig(ObservatoryConfig):
         if is_valid:
             (
                 backend,
+                _,
                 _,
                 google_cloud,
                 terraform,
@@ -1784,7 +1810,8 @@ def make_schema(backend_type: BackendType) -> Dict:
                 },
                 "domain_name": {"required": True, "type": "string"},
                 "subdomain": {"required": True, "type": "string", "allowed": ["project_id", "environment"]},
-                "image_tag": {"required": True, "type": "string"},
+                "backend_image": {"required": True, "type": "string"},
+                "gateway_image": {"required": True, "type": "string"},
                 "api_key": {"required": True, "type": "string"},
                 "session_secret_key": {"required": True, "type": "string"},
             },

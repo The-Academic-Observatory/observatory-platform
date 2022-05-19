@@ -231,7 +231,8 @@ class TestCliFunctional(unittest.TestCase):
         self.assertTrue(redis.ping())
 
     def test_run_platform_editable(self):
-        """Test that the platform runs when built from an editable project. API installed from PyPI."""
+        """Test that the platform runs when built from an editable project. API installed from editable
+        observatory-api module."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -266,7 +267,8 @@ class TestCliFunctional(unittest.TestCase):
                 runner.invoke(cli, self.stop_cmd + [config_path])
 
     def test_dag_load_workflows_project_editable(self):
-        """Test that the DAGs load when build from an editable workflows project. API installed from PyPI."""
+        """Test that the DAGs load when build from an editable workflows project. API installed from editable
+        observatory-api module."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
