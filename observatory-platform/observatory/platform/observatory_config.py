@@ -1281,6 +1281,7 @@ class ObservatoryConfig:
         for section, default in [
             (self.backend, Backend(self.backend.type)),
             (self.observatory, Observatory()),
+            (self.observatory_api, ObservatoryApi()),
             (self.google_cloud, GoogleCloud()),
             (self.terraform, Terraform()),
             (self.airflow_variables, AirflowVariables()),

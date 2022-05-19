@@ -99,6 +99,10 @@ class TestPlatformBuilder(unittest.TestCase):
                 "airflow_secret_key": "a" * 16,
                 "observatory_home": t,
             },
+            "observatory_api": {
+                "package": "foo",
+                "package_type": "editable",
+            },
         }
 
         save_yaml(config_path, dict_)

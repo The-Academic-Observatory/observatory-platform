@@ -36,6 +36,7 @@ from observatory.platform.observatory_config import (
     ObservatoryConfig,
     Backend,
     Observatory,
+    ObservatoryApi,
     BackendType,
     Environment,
     WorkflowsProject,
@@ -149,15 +150,18 @@ class TestCliFunctional(unittest.TestCase):
                 docker_compose_project_name=self.docker_compose_project_name,
                 enable_elk=False,
             ),
+            observatory_api=ObservatoryApi(
+                package=os.path.join(temp_dir, self.observatory_api_package_name), package_type="editable"
+            ),
         )
 
     def copy_observatory_api(self, temp_dir: str):
-        """Copy the workflows project to the test dir"""
+        """Copy the api package to the test dir"""
 
         shutil.copytree(self.observatory_api_path, os.path.join(temp_dir, self.observatory_api_package_name))
 
     def copy_observatory_platform(self, temp_dir: str):
-        """Copy the workflows project to the test dir"""
+        """Copy the observatory platform project to the test dir"""
 
         shutil.copytree(self.observatory_platform_path, os.path.join(temp_dir, self.observatory_platform_package_name))
 
@@ -338,6 +342,9 @@ class TestCliFunctional(unittest.TestCase):
                 docker_network_name=self.docker_network_name,
                 docker_compose_project_name=self.docker_compose_project_name,
                 enable_elk=False,
+            ),
+            observatory_api=ObservatoryApi(
+                package=os.path.join(temp_dir, self.observatory_api_package_name), package_type="editable"
             ),
         )
 

@@ -39,6 +39,7 @@ from observatory.platform.observatory_config import (
     Environment,
     GoogleCloud,
     Observatory,
+    ObservatoryApi,
     ObservatoryConfig,
     ObservatoryConfigValidator,
     Terraform,
@@ -95,6 +96,7 @@ class TestObservatoryConfig(unittest.TestCase):
                 "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
                 "airflow_secret_key": "a" * 16,
             },
+            "observatory_api": {"package": "observatory-api", "package_type": "pypi"},
         }
 
         file_path = "config-valid-minimal.yaml"
@@ -127,6 +129,10 @@ class TestObservatoryConfig(unittest.TestCase):
                     "package_type": "pypi",
                     "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
                     "airflow_secret_key": "a" * 16,
+                },
+                "observatory_api": {
+                    "package": "observatory-api",
+                    "package_type": "pypi",
                 },
                 "airflow_variables": {"my-variable-name": "my-variable-value"},
                 "airflow_connections": {"my-connection": "http://:my-token-key@"},
@@ -1025,6 +1031,10 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
                 docker_network_is_external=True,
                 enable_elk=False,
             ),
+            observatory_api=ObservatoryApi(
+                package="observatory-api",
+                package_type="editable",
+            ),
             google_cloud=GoogleCloud(
                 project_id="myproject",
                 credentials="config.yaml",
@@ -1105,6 +1115,7 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
             self.assertEqual(loaded.terraform, Terraform(organization=None))
             self.assertEqual(loaded.google_cloud.project_id, None)
             self.assertEqual(loaded.observatory, config.observatory)
+            self.assertEqual(loaded.observatory_api, config.observatory_api)
 
     def test_save_terraform_config_defaults(self):
         config = TerraformConfig(
