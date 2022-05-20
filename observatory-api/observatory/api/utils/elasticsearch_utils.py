@@ -21,8 +21,7 @@ from connexion import request
 
 from elasticsearch import Elasticsearch
 import os
-from observatory.api.utils.exception_utils import AuthError, APIError
-from observatory.api.utils.auth_utils import has_scope
+from observatory.api.utils.exception_utils import APIError
 from abc import abstractmethod
 from typing import Dict
 
@@ -35,16 +34,6 @@ class ElasticsearchIndex:
 
         # Create alias from aggregate and subaggregate
         self.alias = self.set_alias()
-
-        # Check if scope is in access token
-        required_scope = self.get_required_scope()
-        if not has_scope(required_scope):
-            raise AuthError(
-                {
-                    "code": "missing_scope",
-                    "description": f"Required scope '{required_scope}' for this alias is not available in access token.",
-                }
-            )
 
         # Set index date
         index_dates = list_available_index_dates(es, self.alias)
@@ -91,10 +80,6 @@ class ElasticsearchIndex:
     @property
     @abstractmethod
     def subagg_mappings(self) -> Dict[str, str]:
-        pass
-
-    @abstractmethod
-    def get_required_scope(self) -> str:
         pass
 
     @abstractmethod
