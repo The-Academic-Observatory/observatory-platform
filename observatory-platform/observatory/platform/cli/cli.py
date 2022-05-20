@@ -147,7 +147,7 @@ def platform_check_dependencies(platform_cmd: PlatformCommand, min_line_chars: i
         exit(os.EX_CONFIG)
 
     print(indent("Host machine settings:", INDENT1))
-    print(indent(f"- observatory home: {platform_cmd.config.observatory.observatory_home}", INDENT2))
+    print(indent(f"- observatory home: {platform_cmd.config.backend.observatory_home}", INDENT2))
     print(indent(f"- host-uid: {platform_cmd.host_uid}", INDENT2))
 
 

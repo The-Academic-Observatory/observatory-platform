@@ -67,7 +67,7 @@ def make_expected_env(cmd: PlatformBuilder) -> Dict:
     return {
         "COMPOSE_PROJECT_NAME": cmd.config.observatory.docker_compose_project_name,
         "HOST_USER_ID": str(HOST_UID),
-        "HOST_OBSERVATORY_HOME": cmd.config.observatory.observatory_home,
+        "HOST_OBSERVATORY_HOME": cmd.config.backend.observatory_home,
         "HOST_REDIS_PORT": str(cmd.config.observatory.redis_port),
         "HOST_FLOWER_UI_PORT": str(cmd.config.observatory.flower_ui_port),
         "HOST_AIRFLOW_UI_PORT": str(cmd.config.observatory.airflow_ui_port),

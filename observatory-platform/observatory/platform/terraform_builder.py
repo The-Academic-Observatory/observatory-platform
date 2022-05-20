@@ -82,7 +82,7 @@ class TerraformBuilder(AbstractBuilder):
             self.config: TerraformConfig = TerraformConfig.load(config_path)
             self.config_is_valid = self.config.is_valid
             if self.config_is_valid:
-                self.build_path = os.path.join(self.config.observatory.observatory_home, "build", "terraform")
+                self.build_path = os.path.join(self.config.backend.observatory_home, "build", "terraform")
                 self.platform_builder = PlatformBuilder(
                     config_path=config_path,
                     docker_build_path=os.path.join(self.build_path, "docker"),
@@ -225,7 +225,7 @@ class TerraformAPIBuilder(AbstractBuilder):
 
     @property
     def terraform_build_path(self):
-        build_path = os.path.join(default_observatory_home(), "build", "terraform-api", self.config.api.name)
+        build_path = os.path.join(self.config.backend.observatory_home, "build", "terraform-api", self.config.api.name)
         return os.path.join(build_path, "terraform")
 
     @property

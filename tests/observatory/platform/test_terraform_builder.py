@@ -52,7 +52,7 @@ class TestTerraformBuilder(unittest.TestCase):
             config = TerraformConfig.load(config_path)
 
             # Test attributes of terraform builder
-            expected_build_path = os.path.join(config.observatory.observatory_home, "build", "terraform")
+            expected_build_path = os.path.join(config.backend.observatory_home, "build", "terraform")
             expected_packages_build_path = os.path.join(expected_build_path, "packages")
             expected_terraform_build_path = os.path.join(expected_build_path, "terraform")
             expected_terraform_path = module_file_path("observatory.platform.terraform")

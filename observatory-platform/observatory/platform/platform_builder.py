@@ -24,10 +24,10 @@ import requests
 
 from observatory.platform.docker.compose import ComposeRunner
 from observatory.platform.observatory_config import (
+    Backend,
     ObservatoryConfig,
     BackendType,
     TerraformConfig,
-    Observatory,
 )
 from observatory.platform.utils.config_utils import module_file_path
 
@@ -74,9 +74,9 @@ class PlatformBuilder(ComposeRunner):
             self.config_is_valid = self.config.is_valid
 
             # Set default values when config is invalid
-            observatory_home = Observatory.observatory_home
+            observatory_home = Backend.observatory_home
             if self.config_is_valid:
-                observatory_home = self.config.observatory.observatory_home
+                observatory_home = self.config.backend.observatory_home
 
             if docker_build_path is None:
                 docker_build_path = os.path.join(observatory_home, "build", "docker")
@@ -193,7 +193,7 @@ class PlatformBuilder(ComposeRunner):
 
         # Host settings
         env["HOST_USER_ID"] = str(self.host_uid)
-        env["HOST_OBSERVATORY_HOME"] = os.path.normpath(self.config.observatory.observatory_home)
+        env["HOST_OBSERVATORY_HOME"] = os.path.normpath(self.config.backend.observatory_home)
         env["HOST_REDIS_PORT"] = str(self.config.observatory.redis_port)
         env["HOST_FLOWER_UI_PORT"] = str(self.config.observatory.flower_ui_port)
         env["HOST_AIRFLOW_UI_PORT"] = str(self.config.observatory.airflow_ui_port)

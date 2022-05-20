@@ -596,7 +596,14 @@ class InteractiveConfigBuilder:
             click.prompt(text=text, type=choices, default=default, show_default=True, show_choices=True)
         ]
 
-        config.backend = Backend(type=config.backend.type, environment=environment)
+        text = "Enter observatory config directory. If it does not exist, it will be created."
+        default = config.backend.observatory_home
+        observatory_home = click.prompt(
+            text=text, type=click.Path(exists=False, readable=True), default=default, show_default=True
+        )
+        Path(observatory_home).mkdir(exist_ok=True, parents=True)
+
+        config.backend = Backend(type=config.backend.type, environment=environment, observatory_home=observatory_home)
 
     @staticmethod
     def set_editable_observatory_platform(config: Union[ObservatoryConfig, TerraformConfig]):
@@ -636,13 +643,6 @@ class InteractiveConfigBuilder:
         default = config.observatory.airflow_ui_user_password
         user_pass = click.prompt(text=text, type=str, default=default, show_default=True)
         airflow_ui_user_password = user_pass
-
-        text = "Enter observatory config directory. If it does not exist, it will be created."
-        default = config.observatory.observatory_home
-        observatory_home = click.prompt(
-            text=text, type=click.Path(exists=False, readable=True), default=default, show_default=True
-        )
-        Path(observatory_home).mkdir(exist_ok=True, parents=True)
 
         text = "Enter postgres password"
         default = config.observatory.postgres_password
@@ -689,7 +689,6 @@ class InteractiveConfigBuilder:
             airflow_secret_key=airflow_secret_key,
             airflow_ui_user_email=airflow_ui_user_email,
             airflow_ui_user_password=airflow_ui_user_password,
-            observatory_home=observatory_home,
             postgres_password=postgres_password,
             redis_port=redis_port,
             flower_ui_port=flower_ui_port,

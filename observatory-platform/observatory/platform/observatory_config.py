@@ -153,10 +153,12 @@ class Backend(ConfigSection):
     Attributes:
         type: the type of backend being used (local environment or Terraform).
         environment: what type of environment is being deployed (develop, staging or production).
+        observatory_home: The observatory home folder.
     """
 
     type: BackendType
     environment: Environment = Environment.develop
+    observatory_home: str = default_observatory_home()
 
     @staticmethod
     def from_dict(dict_: Dict) -> Backend:
@@ -168,10 +170,12 @@ class Backend(ConfigSection):
 
         backend_type = BackendType(dict_.get("type"))
         environment = Environment(dict_.get("environment"))
+        observatory_home = dict_.get("observatory_home", Backend.observatory_home)
 
         return Backend(
             backend_type,
             environment,
+            observatory_home
         )
 
     def to_string(self, requirement: str, comment_out: bool, backend_type: BackendType) -> List[str]:
@@ -216,7 +220,6 @@ class Observatory(ConfigSection):
         :param airflow_secret_key: the secret key used to run the flask app.
         :param airflow_ui_user_password: the password for the Apache Airflow UI admin user.
         :param airflow_ui_user_email: the email address for the Apache Airflow UI admin user.
-        :param observatory_home: The observatory home folder.
         :param postgres_password: the Postgres SQL password.
         :param redis_port: The host Redis port number.
         :param flower_ui_port: The host's Flower UI port number.
@@ -236,7 +239,6 @@ class Observatory(ConfigSection):
     airflow_secret_key: str = field(default_factory=generate_secret_key)
     airflow_ui_user_email: str = "airflow@airflow.com"
     airflow_ui_user_password: str = "airflow"
-    observatory_home: str = default_observatory_home()
     postgres_password: str = "postgres"
     redis_port: int = 6379
     flower_ui_port: int = 5555
@@ -287,7 +289,6 @@ class Observatory(ConfigSection):
         airflow_secret_key = dict_.get("airflow_secret_key")
         airflow_ui_user_email = dict_.get("airflow_ui_user_email", Observatory.airflow_ui_user_email)
         airflow_ui_user_password = dict_.get("airflow_ui_user_password", Observatory.airflow_ui_user_password)
-        observatory_home = dict_.get("observatory_home", Observatory.observatory_home)
         postgres_password = dict_.get("postgres_password", Observatory.postgres_password)
         redis_port = dict_.get("redis_port", Observatory.redis_port)
         flower_ui_port = dict_.get("flower_ui_port", Observatory.flower_ui_port)
@@ -306,7 +307,6 @@ class Observatory(ConfigSection):
             airflow_secret_key,
             airflow_ui_user_password=airflow_ui_user_password,
             airflow_ui_user_email=airflow_ui_user_email,
-            observatory_home=observatory_home,
             postgres_password=postgres_password,
             redis_port=redis_port,
             flower_ui_port=flower_ui_port,
@@ -1645,6 +1645,7 @@ def make_schema(backend_type: BackendType) -> Dict:
         "schema": {
             "type": {"required": True, "type": "string", "allowed": [backend_type.value]},
             "environment": {"required": True, "type": "string", "allowed": ["develop", "staging", "production"]},
+            "observatory_home": {"required": False, "type": "string"},
         },
     }
 
@@ -1701,7 +1702,6 @@ def make_schema(backend_type: BackendType) -> Dict:
             "airflow_secret_key": {"required": True, "type": "string", "check_with": check_schema_field_secret_key},
             "airflow_ui_user_password": {"required": is_backend_terraform, "type": "string"},
             "airflow_ui_user_email": {"required": is_backend_terraform, "type": "string"},
-            "observatory_home": {"required": False, "type": "string"},
             "postgres_password": {"required": is_backend_terraform, "type": "string"},
             "redis_port": {"required": False, "type": "integer"},
             "flower_ui_port": {"required": False, "type": "integer"},
