@@ -192,7 +192,7 @@ class TerraformBuilder(AbstractBuilder):
 
 class TerraformAPIBuilder(AbstractBuilder):
     def __init__(self, config_path: str, debug: bool = False):
-        """Create a TerraformBuilder instance, which is used to build, start and stop an Observatory Platform instance.
+        """Create a TerraformAPIBuilder instance, which is used to build the terraform files and the Docker image.
 
         :param config_path: the path to the config.yaml configuration file.
         :param debug: whether to print debug statements.
@@ -256,17 +256,13 @@ class TerraformAPIBuilder(AbstractBuilder):
 
     def build_image(self):
         image_tag = "local"
-        # Create image tag with random id
-        # image_tag = f"local-{random_id()[0:7]}"
 
         # Activate service account and build docker image
         self.gcloud_activate_service_account()
+        self.gcloud_authenticate_artifact_registry()
+        if not self.gcloud_get_artifact_registry():
+            self.gcloud_create_artifact_registry()
         self.gcloud_builds_submit(image_tag)
-
-        # # Write image tag to file
-        # info_filepath = os.path.join(self.terraform_build_path, "image_build.txt")
-        # with open(info_filepath, "w") as f:
-        #     f.write(image_tag)
 
     def make_files(self):
         """Copy terraform configuration files and the openapi template in a 'terraform' dir
@@ -313,22 +309,89 @@ class TerraformAPIBuilder(AbstractBuilder):
         output, error = stream_process(proc, True)
         return output, error, proc.returncode
 
+    def gcloud_authenticate_artifact_registry(self):
+        project_id = self.config.google_cloud.project_id
+        args = ["gcloud", "auth", "configure-docker", "us-docker.pkg.dev", "--project", project_id, "--quiet"]
+        if self.debug:
+            print("Executing subprocess:")
+            print(indent(f"Command: {subprocess.list2cmdline(args)}", INDENT1))
+            print(indent(f"Cwd: {self.config.api.package}", INDENT1))
+
+        proc: Popen = subprocess.Popen(
+            args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.config.api.package
+        )
+
+        # Wait for results
+        output, error = stream_process(proc, True)
+        return output, error, proc.returncode
+
+    def gcloud_get_artifact_registry(self) -> bool:
+        # Check if repository already exists
+        project_id = self.config.google_cloud.project_id
+        args = [
+            "gcloud",
+            "artifacts",
+            "repositories",
+            "list",
+            "--location",
+            "us",
+            "--filter",
+            "name:*repositories/observatory-platform",
+            "--project",
+            project_id,
+        ]
+        if self.debug:
+            print("Executing subprocess:")
+            print(indent(f"Command: {subprocess.list2cmdline(args)}", INDENT1))
+            print(indent(f"Cwd: {self.config.api.package}", INDENT1))
+
+        proc: Popen = subprocess.Popen(
+            args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.config.api.package
+        )
+
+        # Wait for results
+        output, error = stream_process(proc, True)
+        return True if output else False
+
+    def gcloud_create_artifact_registry(self):
+        project_id = self.config.google_cloud.project_id
+        args = [
+            "gcloud",
+            "artifacts",
+            "repositories",
+            "create",
+            "observatory-platform",
+            "--repository-format",
+            "docker",
+            "--location",
+            "us",
+            "--project",
+            project_id,
+        ]
+        if self.debug:
+            print("Executing subprocess:")
+            print(indent(f"Command: {subprocess.list2cmdline(args)}", INDENT1))
+            print(indent(f"Cwd: {self.config.api.package}", INDENT1))
+
+        proc: Popen = subprocess.Popen(
+            args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.config.api.package
+        )
+
+        # Wait for results
+        output, error = stream_process(proc, True)
+        return output, error, proc.returncode
+
     def gcloud_builds_submit(self, image_tag: str) -> Tuple[str, str, int]:
         # Build the google container image
         project_id = self.config.google_cloud.project_id
-        # --gcs-logs-dir is specified to avoid storage.objects.get access error, see:
-        # https://github.com/google-github-actions/setup-gcloud/issues/105
-        # the _cloudbuild bucket is created already to store the build image
         args = [
             "gcloud",
             "builds",
             "submit",
             "--tag",
-            f"gcr.io/{project_id}/{self.config.api.name}-api:{image_tag}",
+            f"us-docker.pkg.dev/{project_id}/observatory-platform/{self.config.api.name}:{image_tag}",
             "--project",
             project_id,
-            "--gcs-log-dir",
-            f"gs://{project_id}_cloudbuild/logs",
         ]
         if self.debug:
             print("Executing subprocess:")

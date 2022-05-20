@@ -916,8 +916,8 @@ class ApiType(ConfigSection):
 
     def to_string(self, requirement: str, comment_out: bool, backend_type: BackendType):
         description = [
-            f"# [{requirement}] Settings related to the API type. Elasticsearch details "
-            f"are only required if the type is 'data_api'\n",
+            f"# [{requirement}] Settings related to the API type. Valid types are 'data_api' or 'observatory_api'."
+            f"\n# Elasticsearch details are only required if the type is 'data_api'\n",
         ]
 
         lines = ["api_type:\n"]

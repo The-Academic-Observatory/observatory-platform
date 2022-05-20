@@ -935,7 +935,7 @@ class InteractiveConfigBuilder:
         machine_type = click.prompt(text=text, type=str, default=default, show_default=True)
 
         text = "Disk size (GB)"
-        default = 50
+        default = "50"
         disk_size = click.prompt(text=text, type=int, default=default, show_default=True)
 
         text = "Disk type"
@@ -968,7 +968,7 @@ class InteractiveConfigBuilder:
         machine_type = click.prompt(text=text, type=str, default=default, show_default=True)
 
         text = "Disk size (GB)"
-        default = 3000
+        default = "3000"
         disk_size = click.prompt(text=text, type=int, default=default, show_default=True)
 
         text = "Disk type"
