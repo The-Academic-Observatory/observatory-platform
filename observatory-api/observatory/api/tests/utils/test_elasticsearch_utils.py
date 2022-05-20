@@ -59,14 +59,12 @@ class UnittestElasticsearchIndex(ElasticsearchIndex):
 
 
 @patch("observatory.api.utils.elasticsearch_utils.Elasticsearch.ping")
-@patch("observatory.api.utils.elasticsearch_utils.has_scope")
 @patch("observatory.api.utils.elasticsearch_utils.list_available_index_dates")
 @patch.dict(os.environ, {"ES_HOST": "address", "ES_API_KEY": "api_key"})
 class TestElasticsearchIndex(unittest.TestCase):
-    def test_valid_init(self, mock_list_dates, mock_has_scope, mock_es_ping):
+    def test_valid_init(self, mock_list_dates, mock_es_ping):
         # Set up mock values
         mock_list_dates.return_value = ["20220101", "20220201"]
-        mock_has_scope.return_value = True
         mock_es_ping.return_value = True
 
         es = create_es_connection()
@@ -108,21 +106,9 @@ class TestElasticsearchIndex(unittest.TestCase):
         es_index = UnittestElasticsearchIndex(es, "agg", None, None)
         self.assertEqual("20220101", es_index.index_date)
 
-    def test_invalid_scope_init(self, mock_list_dates, mock_has_scope, mock_es_ping):
-        # Set up mock values
-        mock_list_dates.return_value = ["20220101"]
-        mock_has_scope.return_value = False
-        mock_es_ping.return_value = True
-
-        # Create class instance
-        es = create_es_connection()
-        with self.assertRaises(AuthError):
-            UnittestElasticsearchIndex(es, "agg", "subagg", "20220101")
-
-    def test_invalid_date_init(self, mock_list_dates, mock_has_scope, mock_es_ping):
+    def test_invalid_date_init(self, mock_list_dates, mock_es_ping):
         # Set up mock values
         mock_list_dates.side_effect = [["20220101"], []]
-        mock_has_scope.return_value = True
         mock_es_ping.return_value = True
 
         # Create class instance
