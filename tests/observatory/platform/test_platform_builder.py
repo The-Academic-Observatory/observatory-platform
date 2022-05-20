@@ -21,9 +21,10 @@ import unittest
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
-import observatory.platform.docker as docker_module
 import requests
 from click.testing import CliRunner
+
+import observatory.platform.docker as docker_module
 from observatory.platform.cli.cli import HOST_UID
 from observatory.platform.observatory_config import (
     AirflowConnection,
@@ -37,10 +38,10 @@ from observatory.platform.observatory_config import (
     ObservatoryConfig,
     Terraform,
     WorkflowsProject,
-    module_file_path,
     save_yaml,
 )
 from observatory.platform.platform_builder import PlatformBuilder
+from observatory.platform.utils.test_utils import module_file_path
 
 
 class MockFromEnv(Mock):

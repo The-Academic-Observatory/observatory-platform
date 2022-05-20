@@ -20,9 +20,11 @@ import unittest
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
-from observatory.platform.observatory_config import module_file_path, save_yaml
+
+from observatory.platform.observatory_config import save_yaml
 from observatory.platform.terraform_builder import TerraformBuilder
 from observatory.platform.utils.proc_utils import stream_process
+from observatory.platform.utils.test_utils import module_file_path
 
 
 class Popen(Mock):
@@ -78,7 +80,11 @@ class TestTerraformBuilder(unittest.TestCase):
             "airflow_variables": {"my-variable-name": "my-variable-value"},
             "airflow_connections": {"my-connection": "http://:my-token-key@"},
             "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
-            "api": {"domain_name": "api.custom.domain", "subdomain": "project_id"},
+            "api": {
+                "domain_name": "api.custom.domain",
+                "subdomain": "project_id",
+                "api_image": "us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
+            },
         }
 
         save_yaml(config_path, dict_)

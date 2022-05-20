@@ -40,11 +40,10 @@ from observatory.platform.observatory_config import (
     Observatory,
     BackendType,
     Environment,
-    module_file_path,
     WorkflowsProject,
 )
 from observatory.platform.utils.proc_utils import stream_process
-from observatory.platform.utils.test_utils import test_fixtures_path, find_free_port, save_empty_file
+from observatory.platform.utils.test_utils import test_fixtures_path, find_free_port, save_empty_file, module_file_path
 from observatory.platform.utils.url_utils import wait_for_url
 
 
