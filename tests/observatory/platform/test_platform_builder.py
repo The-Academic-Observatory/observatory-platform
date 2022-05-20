@@ -86,6 +86,7 @@ class TestPlatformBuilder(unittest.TestCase):
     def setUp(self) -> None:
         self.is_env_local = True
         self.observatory_platform_path = module_file_path("observatory.platform", nav_back_steps=-3)
+        self.observatory_api_path = module_file_path("observatory.api", nav_back_steps=-3)
 
     def save_config(self, t: str):
         config_path = os.path.join(t, "config.yaml")
@@ -100,7 +101,7 @@ class TestPlatformBuilder(unittest.TestCase):
                 "observatory_home": t,
             },
             "observatory_api": {
-                "package": "foo",
+                "package": self.observatory_api_path,
                 "package_type": "editable",
             },
         }

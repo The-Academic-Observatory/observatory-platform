@@ -1011,8 +1011,13 @@ class InteractiveConfigBuilder:
         choices = click.Choice(choices=["project_id", "environment"], case_sensitive=False)
         subdomain = click.prompt(text=text, type=choices, default=default, show_default=True, show_choices=True)
 
-        text = "Image tag, based on the github release tag, pull request id or 'local'"
-        image_tag = click.prompt(text=text, type=str)
+        text = "Observatory API backend Docker image"
+        default = "us-docker.pkg.dev/academic-observatory/observatory-platform/observatory-api:latest"
+        backend_image = click.prompt(text=text, type=str, default=default, show_default=True)
+
+        text = "Observatory API gateway image (endpoints service)"
+        default = "gcr.io/endpoints-release/endpoints-runtime-serverless:2"
+        gateway_image = click.prompt(text=text, type=str, default=default, show_default=True)
 
         text = "API key"
         api_key = click.prompt(text=text, type=str)
@@ -1026,7 +1031,8 @@ class InteractiveConfigBuilder:
             package=package_path,
             domain_name=domain_name,
             subdomain=subdomain,
-            image_tag=image_tag,
+            backend_image=backend_image,
+            gateway_image=gateway_image,
             api_key=api_key,
             session_secret_key=session_secret_key,
         )

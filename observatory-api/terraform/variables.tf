@@ -30,14 +30,17 @@ name: Name of the API project, e.g. academic-observatory or oaebu
 //package_name: Local path to the Data API package, e.g. /path/to/academic_observatory_workflows_api
 domain_name: The custom domain name for the API, used for the google cloud endpoints service
 subdomain: Can be either 'project_id' or 'environment', used to determine a prefix for the domain_name
+backend_image: The image URL that will be used for the Cloud Run backend.
+gateway_image: The image URL that will be used for the Cloud Run gateway (endpoints service)
 image_tag: The image tag that will be used for the Cloud Run backend. If the value is null, Terraform will get the image
 tag from a local file "./image_build.txt".
 EOF
   type = object({
-    name        = string
-    domain_name = string
-    subdomain   = string
-    image_tag   = string
+    name            = string
+    domain_name     = string
+    subdomain       = string
+    backend_image   = string
+    gateway_image   = string
   })
 }
 
