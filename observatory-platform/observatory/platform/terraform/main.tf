@@ -307,6 +307,7 @@ resource "google_compute_firewall" "allow_http" {
   name = "allow-http"
   description = "Allow HTTP ingress"
   network = google_compute_network.observatory_network.name
+  source_ranges = ["0.0.0.0/0"]
 
   allow {
     protocol = "tcp"
@@ -320,6 +321,7 @@ resource "google_compute_firewall" "allow_https" {
   name = "allow-https"
   description = "Allow HTTPS ingress"
   network = google_compute_network.observatory_network.name
+  source_ranges = ["0.0.0.0/0"]
 
   allow {
     protocol = "tcp"
@@ -345,6 +347,7 @@ resource "google_compute_firewall" "allow_ssh" {
   name = "allow-ssh"
   description = "Allow SSH from anywhere"
   network = google_compute_network.observatory_network.name
+  source_ranges = ["0.0.0.0/0"]
 
   allow {
     protocol = "tcp"
