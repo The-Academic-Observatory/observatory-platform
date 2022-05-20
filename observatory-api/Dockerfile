@@ -30,8 +30,12 @@ ENV PYTHONUNBUFFERED True
 RUN mkdir /observatory-api
 COPY . ./observatory-api
 
+# Setup correct requirements
+WORKDIR /observatory-api
+RUN mv -f requirements.cloudrun.txt requirements.txt
+
 # Install observatory-api
-RUN pip3 install /observatory-api
+RUN pip3 install .
 
 # Install berglas
 COPY --from=gcr.io/berglas/berglas:latest /bin/berglas /bin/berglas
