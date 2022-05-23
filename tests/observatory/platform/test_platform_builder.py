@@ -92,13 +92,12 @@ class TestPlatformBuilder(unittest.TestCase):
         config_path = os.path.join(t, "config.yaml")
 
         dict_ = {
-            "backend": {"type": "local", "environment": "develop"},
+            "backend": {"type": "local", "environment": "develop",                 "observatory_home": t},
             "observatory": {
                 "package": self.observatory_platform_path,
                 "package_type": "editable",
                 "airflow_fernet_key": "ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
                 "airflow_secret_key": "a" * 16,
-                "observatory_home": t,
             },
             "observatory_api": {
                 "package": self.observatory_api_path,
@@ -237,13 +236,12 @@ class TestPlatformBuilder(unittest.TestCase):
                 dags_module="academic_observatory_workflows.dags",
             )
 
-            backend = Backend(type=BackendType.local, environment=Environment.develop)
+            backend = Backend(type=BackendType.local, environment=Environment.develop,                 observatory_home=t,)
             observatory = Observatory(
                 package="/path/to/observatory-platform",
                 package_type="editable",
                 airflow_fernet_key="ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
                 airflow_secret_key="a" * 16,
-                observatory_home=t,
             )
             google_cloud = GoogleCloud(
                 project_id="my-project-id", credentials="/path/to/creds.json", data_location="us", buckets=[bucket]

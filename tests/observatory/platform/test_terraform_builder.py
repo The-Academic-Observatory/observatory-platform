@@ -284,7 +284,8 @@ class TestTerraformAPIBuilder(unittest.TestCase):
                 builder = TerraformAPIBuilder(config_path)
 
                 terraform_build_path = os.path.join(
-                    default_observatory_home(), "build", "terraform-api", builder.config.api.name, "terraform"
+                    builder.config.backend.observatory_home, "build", "terraform-api", builder.config.api.name,
+                    "terraform"
                 )
                 self.assertEqual(terraform_build_path, builder.terraform_build_path)
 

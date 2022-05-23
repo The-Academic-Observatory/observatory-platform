@@ -187,13 +187,14 @@ def save_terraform_config(work_dir: str) -> str:
 
     # Set observatory platform path and observatory home
     observatory_platform_path = module_file_path("observatory.platform", nav_back_steps=-3)
-    observatory_home = os.path.join(work_dir, ".observatory")
+    # observatory_home = os.path.join(work_dir, ".observatory")
 
     # Save config
-    observatory = Observatory(package=observatory_platform_path, observatory_home=observatory_home)
+    observatory = Observatory(package=observatory_platform_path)
     google_cloud = GoogleCloud(credentials=credentials_path)
     terraform = Terraform()
-    TerraformConfig(observatory=observatory, google_cloud=google_cloud, terraform=terraform).save(config_path)
+    TerraformConfig(observatory=observatory, google_cloud=google_cloud, terraform=terraform).save(
+        config_path)
 
     return config_path
 

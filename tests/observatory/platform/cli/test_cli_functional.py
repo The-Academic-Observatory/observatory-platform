@@ -132,7 +132,7 @@ class TestCliFunctional(unittest.TestCase):
         """
 
         return ObservatoryConfig(
-            backend=Backend(type=BackendType.local, environment=Environment.develop),
+            backend=Backend(type=BackendType.local, environment=Environment.develop, observatory_home=temp_dir),
             observatory=Observatory(
                 package=os.path.join(temp_dir, self.observatory_platform_package_name),
                 package_type="editable",
@@ -140,7 +140,6 @@ class TestCliFunctional(unittest.TestCase):
                 airflow_secret_key=self.airflow_secret_key,
                 airflow_ui_user_email=self.airflow_ui_user_email,
                 airflow_ui_user_password=self.airflow_ui_user_password,
-                observatory_home=temp_dir,
                 redis_port=find_free_port(),
                 flower_ui_port=find_free_port(),
                 airflow_ui_port=find_free_port(),
@@ -327,7 +326,7 @@ class TestCliFunctional(unittest.TestCase):
         """
 
         return ObservatoryConfig(
-            backend=Backend(type=BackendType.local, environment=Environment.develop),
+            backend=Backend(type=BackendType.local, environment=Environment.develop, observatory_home=temp_dir),
             observatory=Observatory(
                 package=observatory_sdist_path,
                 package_type="sdist",
@@ -335,7 +334,6 @@ class TestCliFunctional(unittest.TestCase):
                 airflow_secret_key=self.airflow_secret_key,
                 airflow_ui_user_email=self.airflow_ui_user_email,
                 airflow_ui_user_password=self.airflow_ui_user_password,
-                observatory_home=temp_dir,
                 redis_port=find_free_port(),
                 flower_ui_port=find_free_port(),
                 airflow_ui_port=find_free_port(),

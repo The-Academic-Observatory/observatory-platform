@@ -1015,11 +1015,10 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
     def test_save_observatory_config(self):
         config = ObservatoryConfig(
             terraform=Terraform(organization="myorg"),
-            backend=Backend(type=BackendType.local, environment=Environment.staging),
+            backend=Backend(type=BackendType.local, environment=Environment.staging,                 observatory_home="home"),
             observatory=Observatory(
                 package="observatory-platform",
                 package_type="editable",
-                observatory_home="home",
                 postgres_password="pass",
                 redis_port=111,
                 airflow_ui_user_password="pass",

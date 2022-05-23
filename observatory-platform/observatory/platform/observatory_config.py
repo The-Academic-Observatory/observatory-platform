@@ -1557,7 +1557,7 @@ class TerraformAPIConfig(ObservatoryConfig):
             TerraformVariable("environment", self.backend.environment.value),
             TerraformVariable("google_cloud", self.google_cloud.to_hcl(), sensitive=sensitive, hcl=True),
             TerraformVariable("api", self.api.to_hcl(), sensitive=sensitive, hcl=True),
-            TerraformVariable("api_type", self.api_type.to_hcl(), sensitive=sensitive, hcl=True),
+            TerraformVariable("api_type", self.api_type.to_hcl(), sensitive=False, hcl=True),
         ]
 
     @classmethod
@@ -1590,8 +1590,8 @@ class TerraformAPIConfig(ObservatoryConfig):
 
             organization = terraform.organization
             workspace = TerraformAPIConfig.WORKSPACE_PREFIX + backend.environment.value
-            api_type.observatory_organization = organization if api_type == ApiTypes.observatory_api else ""
-            api_type.observatory_workspace = workspace if api_type == ApiTypes.observatory_api else ""
+            api_type.observatory_organization = organization if api_type.type == ApiTypes.observatory_api else ""
+            api_type.observatory_workspace = workspace if api_type.type == ApiTypes.observatory_api else ""
 
             return TerraformAPIConfig(
                 backend,

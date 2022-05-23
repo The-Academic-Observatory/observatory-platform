@@ -52,13 +52,12 @@ class TestPlatformCommand(unittest.TestCase):
         """
 
         return ObservatoryConfig(
-            backend=Backend(type=BackendType.local, environment=Environment.develop),
+            backend=Backend(type=BackendType.local, environment=Environment.develop,                 observatory_home=t),
             observatory=Observatory(
                 package=os.path.join(t, self.observatory_platform_package_name),
                 package_type="editable",
                 airflow_fernet_key=self.airflow_fernet_key,
                 airflow_secret_key=self.airflow_secret_key,
-                observatory_home=t,
                 airflow_ui_port=find_free_port(),
             ),
         )

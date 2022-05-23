@@ -297,7 +297,7 @@ class MockConfig(Mock):
         self._errors = errors
 
     @property
-    def observatory(self):
+    def backend(self):
         mock = Mock()
         mock.observatory_home = "/path/to/home"
         return mock
