@@ -561,6 +561,33 @@ def bq_delete_old(
     run_bigquery_query(query, bytes_budget=bytes_budget)
 
 
+def bq_delete_old_rows(project_id: str, dataset_id: str, table_id: str, identifier: str,bytes_budget: Optional[int] = None):
+    """ Delete older entries from an ingestion time partitioned table.
+    When there are multiple rows with the same identifier, but a different partition date the rows with the older
+    partition date(s) are deleted.
+    Note that if there are multiple rows with the same identifier and same partition date, that all of those rows
+    will be deleted.
+
+    :param project_id: GCP project id.
+    :param dataset_id: BigQuery dataset id
+    :param table_id: BigQuery table id
+    :param identifier: Field in the table on which newer/older rows are matched
+    :param bytes_budget: Maximum bytes allowed to be processed.
+    :return: None.
+    """
+    logging.info(f"Deleting old data from table based on partition date")
+
+    template_path = os.path.join(utils_templates_path(), make_sql_jinja2_filename("delete_older_partition"))
+    query = render_template(
+        template_path,
+        project_id=project_id,
+        dataset=dataset_id,
+        table=table_id,
+        identifier=identifier,
+    )
+    run_bigquery_query(query, bytes_budget=bytes_budget)
+
+
 def bq_append_from_partition(
     ingestion_date: pendulum.DateTime,
     dataset_id: str,
@@ -598,6 +625,7 @@ def bq_append_from_file(
     prefix: str = "",
     schema_version: str = None,
     dataset_description: str = "",
+    partition_decorator: str = "",
     **load_bigquery_table_kwargs,
 ):
     """Appends rows to the main table by loading data from a specific file (blob) in the transform bucket.
@@ -621,7 +649,7 @@ def bq_append_from_file(
     logging.info(f"URI: {uri}")
 
     # Append to table table
-    table_id = main_table_id
+    table_id = main_table_id + f"${partition_decorator}" if partition_decorator else main_table_id
     success = load_bigquery_table(
         uri,
         dataset_id,
