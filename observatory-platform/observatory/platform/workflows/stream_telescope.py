@@ -15,17 +15,16 @@
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
 
 import logging
-from typing import Dict, Tuple, List
-import pendulum
-import os
-import json
-from pathlib import Path
+from typing import Dict, List, Tuple
 
-from airflow.exceptions import AirflowSkipException
-from airflow.models.dagrun import DagRun
-from croniter import croniter
+import pendulum
+from airflow.models import Variable
 from google.cloud.bigquery import SourceFormat
+
 from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.gc_utils import bigquery_sharded_table_id, create_bigquery_snapshot
+from observatory.platform.utils.release_utils import (get_dataset_releases, get_datasets, get_latest_dataset_release,
+                                                      is_first_release)
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
     blob_name,
@@ -34,31 +33,22 @@ from observatory.platform.utils.workflow_utils import (
     bq_delete_old,
     bq_load_ingestion_partition,
     delete_old_xcoms,
-    is_first_dag_run,
     table_ids_from_path,
     upload_files_from_list,
 )
 from observatory.platform.workflows.workflow import Release, Workflow
-from airflow.models import Variable
-from observatory.platform.utils.release_utils import (
-    is_first_release,
-    get_dataset_releases,
-    get_datasets,
-    get_latest_dataset_release,
-)
-from airflow.models import Variable
 
 
 class StreamRelease(Release):
     def __init__(
-        self,
-        dag_id: str,
-        start_date: pendulum.DateTime,
-        end_date: pendulum.DateTime,
-        first_release: bool,
-        download_files_regex: str = None,
-        extract_files_regex: str = None,
-        transform_files_regex: str = None,
+            self,
+            dag_id: str,
+            start_date: pendulum.DateTime,
+            end_date: pendulum.DateTime,
+            first_release: bool,
+            download_files_regex: str = None,
+            extract_files_regex: str = None,
+            transform_files_regex: str = None,
     ):
         """Construct a StreamRelease instance
 
@@ -79,26 +69,26 @@ class StreamRelease(Release):
 
 class StreamTelescope(Workflow):
     def __init__(
-        self,
-        dag_id: str,
-        start_date: pendulum.DateTime,
-        schedule_interval: str,
-        dataset_id: str,
-        merge_partition_field: str,
-        schema_folder: str,
-        queue: str = "default",
-        max_retries: int = 3,
-        max_active_runs: int = 1,
-        source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
-        schema_prefix: str = "",
-        schema_version: str = None,
-        load_bigquery_table_kwargs: Dict = None,
-        dataset_description: str = "",
-        table_descriptions: Dict[str, str] = None,
-        batch_load: bool = False,
-        airflow_vars: list = None,
-        airflow_conns: list = None,
-        workflow_id: int = None,
+            self,
+            dag_id: str,
+            start_date: pendulum.DateTime,
+            schedule_interval: str,
+            dataset_id: str,
+            merge_partition_field: str,
+            schema_folder: str,
+            queue: str = "default",
+            max_retries: int = 3,
+            max_active_runs: int = 1,
+            source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
+            schema_prefix: str = "",
+            schema_version: str = None,
+            load_bigquery_table_kwargs: Dict = None,
+            dataset_description: str = "",
+            table_descriptions: Dict[str, str] = None,
+            batch_load: bool = False,
+            airflow_vars: list = None,
+            airflow_conns: list = None,
+            workflow_id: int = None,
     ):
         """Construct a StreamTelescope instance.
 
@@ -335,6 +325,19 @@ class StreamTelescope(Workflow):
                 main_table_id,
                 partition_table_id,
             )
+
+    def bq_create_snapshot(self, release: StreamRelease, **kwargs):
+        """ Create a snapshot from an existing BigQuery table
+
+        :param release: a StreamRelease instance
+        :param kwargs: The context passed from the PythonOperator.
+        :return: None.
+        """
+        logging.info("Creating a BigQuery snapshot")
+        bq_load_info = self.get_bq_load_info(release)
+        for _, main_table_id, _ in bq_load_info:
+            destination_table_id = bigquery_sharded_table_id(main_table_id + "_snapshots", release.end_date)
+            create_bigquery_snapshot(self.dataset_id, main_table_id, self.dataset_id, destination_table_id)
 
     def cleanup(self, release: StreamRelease, **kwargs):
         """Delete downloaded, extracted and transformed files of the release. Deletes old xcoms.
