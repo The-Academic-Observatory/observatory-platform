@@ -15,7 +15,7 @@
 # Author: Aniek Roelofs, Tuan Chien
 
 import os
-from datetime import timedelta
+from typing import List, Tuple
 from unittest.mock import MagicMock, call, patch
 from glob import glob
 import shutil
@@ -25,6 +25,16 @@ import jsonlines
 import pendulum
 from airflow.utils.state import State
 from google.cloud.bigquery import SourceFormat, TimePartitioningType
+from observatory.api.client import ApiClient, Configuration
+from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
+from observatory.api.client.model.dataset import Dataset
+from observatory.api.client.model.dataset_type import DatasetType
+from observatory.api.client.model.organisation import Organisation
+from observatory.api.client.model.table_type import TableType
+from observatory.api.client.model.workflow import Workflow
+from observatory.api.client.model.workflow_type import WorkflowType
+from observatory.api.testing import ObservatoryApiEnvironment
+from observatory.platform.utils.release_utils import get_dataset_releases, get_latest_dataset_release
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -32,6 +42,7 @@ from observatory.platform.utils.test_utils import (
 )
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
+    bigquery_sharded_table_id,
     blob_name,
     create_date_table_id,
     table_ids_from_path,
@@ -40,19 +51,6 @@ from observatory.platform.workflows.stream_telescope import (
     StreamRelease,
     StreamTelescope,
 )
-from observatory.api.testing import ObservatoryApiEnvironment
-from observatory.api.client import ApiClient, Configuration
-from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
-from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.table_type import TableType
-from observatory.api.client.model.dataset_type import DatasetType
-from observatory.api.client.model.workflow import Workflow
-from observatory.api.client.model.workflow_type import WorkflowType
-from observatory.api.client.model.dataset import Dataset
-from observatory.api.client.model.dataset_release import DatasetRelease
-from observatory.platform.utils.release_utils import get_dataset_releases, get_latest_dataset_release
-from click.testing import CliRunner
-
 
 DEFAULT_SCHEMA_PATH = "/path/to/schemas"
 
@@ -666,13 +664,19 @@ class MockTelescope(StreamTelescope):
         )
         self.add_setup_task(self.task)
         self.add_task(self.add_new_dataset_releases)
-        
+
     def task(self, **kwargs):
         self._start, self._end, self._first_release = self.get_release_info(**kwargs)
         return True
 
     def make_release(self, **kwargs) -> StreamRelease:
         return StreamRelease(dag_id="dag", start_date=pendulum.now(), end_date=pendulum.now(), first_release=True)
+
+    def get_bq_load_info(self, release: StreamRelease) -> List[Tuple[str, str, str]]:
+        return [
+            ("transform_blob1", "main_table1", "partition_table1"),
+            ("transform_blob2", "main_table2", "partition_table2"),
+        ]
 
 
 class TestStreamTelescopeTasks(ObservatoryTestCase):
@@ -775,8 +779,8 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
         with patch("observatory.platform.workflows.stream_telescope.upload_files_from_list") as m_upload:
             telescope = MockTelescope()
 
-            releases = telescope.make_release()
-            telescope.upload_downloaded(releases)
+            release = telescope.make_release()
+            telescope.upload_downloaded(release)
 
             self.assertEqual(m_upload.call_count, 1)
             call_args, _ = m_upload.call_args
@@ -796,10 +800,10 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
     def test_transform(self, m_get):
         m_get.return_value = "data"
         telescope = MockTelescope()
-        releases = telescope.make_release()
-        releases.transform = MagicMock()
-        telescope.transform(releases)
-        self.assertEqual(releases.transform.call_count, 1)
+        release = telescope.make_release()
+        release.transform = MagicMock()
+        telescope.transform(release)
+        self.assertEqual(release.transform.call_count, 1)
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_upload_transformed(self, m_get):
@@ -807,13 +811,35 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
         with patch("observatory.platform.workflows.stream_telescope.upload_files_from_list") as m_upload:
             telescope = MockTelescope()
 
-            releases = telescope.make_release()
-            telescope.upload_transformed(releases)
+            release = telescope.make_release()
+            telescope.upload_transformed(release)
 
             self.assertEqual(m_upload.call_count, 1)
             call_args, _ = m_upload.call_args
             self.assertEqual(call_args[0], [])
             self.assertEqual(call_args[1], "data")
+
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
+    def test_bq_create_snapshot(self, m_get):
+        m_get.return_value = "data"
+        with patch(
+            "observatory.platform.workflows.stream_telescope.create_bigquery_snapshot"
+        ) as m_create_bigquery_snapshot:
+            telescope = MockTelescope()
+            release = telescope.make_release()
+            telescope.bq_create_snapshot(release)
+
+            self.assertEqual(2, m_create_bigquery_snapshot.call_count)
+            table_id = bigquery_sharded_table_id("main_table1_snapshots", release.end_date)
+            self.assertEqual(
+                (telescope.dataset_id, "main_table1", telescope.dataset_id, table_id),
+                (m_create_bigquery_snapshot.call_args_list[0].args),
+            )
+            table_id = bigquery_sharded_table_id("main_table2_snapshots", release.end_date)
+            self.assertEqual(
+                (telescope.dataset_id, "main_table2", telescope.dataset_id, table_id),
+                (m_create_bigquery_snapshot.call_args_list[1].args),
+            )
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_merge_update_files(self, m_get):
@@ -850,7 +876,7 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
 
             merged_file = os.path.join(tmpdir, "telescope.jsonl")
             self.assertTrue(os.path.exists(merged_file))
-            
+
             key = telescope.merge_partition_field
             with open(merged_file, "r") as f:
                 merged_data = {}
