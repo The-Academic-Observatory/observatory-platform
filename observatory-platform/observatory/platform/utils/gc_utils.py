@@ -32,7 +32,7 @@ import pendulum
 from airflow.models import Variable
 from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud import bigquery, storage
-from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat
+from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat, CopyJobConfig, CopyJob
 from google.cloud.bigquery.job import QueryJobConfig
 from google.cloud.exceptions import Conflict, NotFound
 from google.cloud.storage import Blob
@@ -289,6 +289,47 @@ def create_empty_bigquery_table(
 
     table = client.create_table(table)
     return table
+
+
+def create_bigquery_snapshot(
+    source_dataset_id: str,
+    source_table_name: str,
+    destination_dataset_id: str,
+    destination_table_name: str,
+    project_id: str = None,
+):
+    """ Create a BigQuery snapshot from an existing table inside the same project.
+
+    :param source_dataset_id: The BigQuery source dataset id.
+    :param source_table_name: The BigQuery source table name.
+    :param destination_dataset_id: The BigQuery destination dataset id.
+    :param destination_table_name: The BigQuery destination table name.
+    :param project_id: Google Cloud project id.
+    :return: The table instance if the request was successful.
+    """
+    func_name = create_bigquery_snapshot.__name__
+    msg = f"source: dataset_id={source_dataset_id}, table={source_table_name}, destination: dataset_id=" \
+          f"{destination_dataset_id}, table={destination_table_name}"
+    logging.info(f"{func_name}: creating bigquery snapshot {msg}")
+
+    client = bigquery.Client()
+    if project_id is None:
+        project_id = client.project
+
+    source_dataset_ref = f"{project_id}.{source_dataset_id}"
+    source_dataset = bigquery.Dataset(source_dataset_ref)
+    source_table = bigquery.Table(source_dataset.table(source_table_name))
+
+    destination_dataset = create_bigquery_dataset(project_id, destination_dataset_id, source_dataset.location)
+    destination_table = bigquery.Table(destination_dataset.table(destination_table_name))
+
+    job_config = CopyJobConfig(operation_type="SNAPSHOT", write_disposition="WRITE_EMPTY")
+    copy_job: CopyJob = client.copy_table(sources=source_table, destination=destination_table, job_config=job_config)
+
+    copy_job.result()
+    success = copy_job.done()
+    logging.info(f"{func_name}: create bigquery snapshot {msg}: {success}")
+    return success
 
 
 def load_bigquery_table(

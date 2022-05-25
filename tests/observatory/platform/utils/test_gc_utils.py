@@ -47,6 +47,7 @@ from observatory.platform.utils.gc_utils import (
     copy_bigquery_table,
     copy_blob_from_cloud_storage,
     create_bigquery_dataset,
+    create_bigquery_snapshot,
     create_bigquery_table_from_query,
     create_bigquery_view,
     create_cloud_storage_bucket,
@@ -225,6 +226,31 @@ class TestGoogleCloudUtils(unittest.TestCase):
             with patch("observatory.platform.utils.gc_utils.create_bigquery_dataset") as mock_create_dataset:
                 create_empty_bigquery_table(dataset_id, "EU", "table_id", schema_file_path)
                 mock_create_dataset.assert_called_once_with("foo_bar", dataset_id, "EU")
+
+    def test_create_bigquery_snapshot(self):
+        client = bigquery.Client()
+        dataset_id = random_id()
+        data_location = self.gc_bucket_location
+
+        public_table_id = "bigquery-public-data.labeled_patents.figures"
+        source_table = "figures"
+        source_table_id = f"{self.gc_project_id}.{dataset_id}.{source_table}"
+        destination_table = "figures20220101"
+
+        try:
+            # First copy data into the gc_project_id project
+            create_bigquery_dataset(self.gc_project_id, dataset_id, data_location)
+            success = copy_bigquery_table(public_table_id, source_table_id, data_location)
+            self.assertTrue(success)
+
+            # Create snapshot
+            success = create_bigquery_snapshot(dataset_id, source_table, dataset_id, destination_table)
+            self.assertTrue(success)
+
+            # Test if snapshot exists
+            self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, destination_table))
+        finally:
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
     def test_load_bigquery_table(self):
         schema_file_name = "people_schema.json"
