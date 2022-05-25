@@ -298,7 +298,7 @@ def create_bigquery_snapshot(
     destination_table_name: str,
     project_id: str = None,
 ):
-    """ Create a BigQuery snapshot from an existing table inside the same project.
+    """Create a BigQuery snapshot from an existing table inside the same project.
 
     :param source_dataset_id: The BigQuery source dataset id.
     :param source_table_name: The BigQuery source table name.
@@ -308,8 +308,10 @@ def create_bigquery_snapshot(
     :return: The table instance if the request was successful.
     """
     func_name = create_bigquery_snapshot.__name__
-    msg = f"source: dataset_id={source_dataset_id}, table={source_table_name}, destination: dataset_id=" \
-          f"{destination_dataset_id}, table={destination_table_name}"
+    msg = (
+        f"source: dataset_id={source_dataset_id}, table={source_table_name}, destination: dataset_id="
+        f"{destination_dataset_id}, table={destination_table_name}"
+    )
     logging.info(f"{func_name}: creating bigquery snapshot {msg}")
 
     client = bigquery.Client()
@@ -1189,6 +1191,34 @@ def select_table_shard_dates(
         date = pendulum.Date(py_date.year, py_date.month, py_date.day)
         dates.append(date)
     return dates
+
+
+def bq_delete_old_rows(
+    project_id: str, dataset_id: str, table_id: str, identifier: str, bytes_budget: Optional[int] = None
+):
+    """Delete older entries from an ingestion time partitioned table.
+    When there are multiple rows with the same identifier, but a different partition date the rows with the older
+    partition date(s) are deleted.
+    Note that if there are multiple rows with the same identifier and same partition date, that all of those rows
+    will be deleted.
+
+    :param project_id: GCP project id.
+    :param dataset_id: BigQuery dataset id
+    :param table_id: BigQuery table id
+    :param identifier: Field in the table on which newer/older rows are matched
+    :param bytes_budget: Maximum bytes allowed to be processed.
+    :return: None.
+    """
+    logging.info(f"Deleting old data from table based on partition date")
+    template_path = os.path.join(utils_templates_path(), make_sql_jinja2_filename("delete_older_partition"))
+    query = render_template(
+        template_path,
+        project_id=project_id,
+        dataset=dataset_id,
+        table=table_id,
+        identifier=identifier,
+    )
+    run_bigquery_query(query, bytes_budget=bytes_budget)
 
 
 def delete_bucket_dir(*, bucket_name: str, prefix: str):

@@ -14,6 +14,7 @@
 
 # Author: James Diprose, Aniek Roelofs
 
+import datetime
 import os
 import unittest
 from datetime import timedelta
@@ -40,6 +41,7 @@ from observatory.platform.utils.gc_utils import (
     azure_to_google_cloud_storage_transfer,
     bigquery_sharded_table_id,
     bigquery_table_exists,
+    bq_delete_old_rows,
     bq_query_bytes_budget_check,
     bq_query_bytes_daily_limit_check,
     bq_query_bytes_estimate,
@@ -58,9 +60,9 @@ from observatory.platform.utils.gc_utils import (
     get_bytes_processed,
     load_bigquery_table,
     run_bigquery_query,
+    save_bytes_processed,
     select_table_shard_dates,
     table_name_from_blob,
-    save_bytes_processed,
     upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
 )
@@ -940,6 +942,59 @@ class TestGoogleCloudUtils(unittest.TestCase):
             for date in dates:
                 self.assertIsInstance(date, pendulum.Date)
             self.assertEqual(release_3, dates[0])
+
+        finally:
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+
+    def test_bq_delete_old_rows(self):
+        client = bigquery.Client()
+        dataset_id = random_id()
+
+        schema_file_name = "people_schema.json"
+        test_data_path = test_fixtures_path("utils")
+        schema_file_path = os.path.join(test_data_path, schema_file_name)
+
+        file_path_old = os.path.join(test_data_path, "people.jsonl")
+        file_path_new = os.path.join(test_data_path, "people_new.jsonl")
+
+        blob_name_old = f"people_{random_id()}.jsonl"
+        blob_name_new = f"people_new_{random_id()}.jsonl"
+
+        try:
+            result, upload = upload_file_to_cloud_storage(self.gc_bucket_name, blob_name_old, file_path_old)
+            self.assertTrue(result)
+
+            result, upload = upload_file_to_cloud_storage(self.gc_bucket_name, blob_name_new, file_path_new)
+            self.assertTrue(result)
+
+            create_bigquery_dataset(self.gc_project_id, dataset_id, self.gc_bucket_location)
+
+            # Load old and new data in different partitions
+            for uri, table_name in [
+                (f"gs://{self.gc_bucket_name}/{blob_name_old}", "delete_rows$20220101"),
+                (f"gs://{self.gc_bucket_name}/{blob_name_new}", "delete_rows$20220102"),
+            ]:
+                success = load_bigquery_table(
+                    uri,
+                    dataset_id,
+                    self.gc_bucket_location,
+                    table_name,
+                    schema_file_path,
+                    source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+                    write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+                    project_id=self.gc_project_id,
+                    partition=True,
+                    partition_type=bigquery.TimePartitioningType.DAY,
+                )
+                self.assertTrue(success)
+
+            with patch("observatory.platform.utils.gc_utils.bq_query_bytes_daily_limit_check"):
+                bq_delete_old_rows(self.gc_project_id, dataset_id, "delete_rows", "first_name")
+
+            # Check that only the newer rows remain
+            row_iterator = client.list_rows(f"{self.gc_project_id}.{dataset_id}.delete_rows")
+            for row in row_iterator:
+                self.assertTrue(datetime.date(2000, 1, 1), dict(row)["dob"])
 
         finally:
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
