@@ -17,6 +17,9 @@
 import os
 from datetime import timedelta
 from unittest.mock import MagicMock, call, patch
+from glob import glob
+import shutil
+import json
 
 import jsonlines
 import pendulum
@@ -48,6 +51,7 @@ from observatory.api.client.model.workflow_type import WorkflowType
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
 from observatory.platform.utils.release_utils import get_dataset_releases, get_latest_dataset_release
+from click.testing import CliRunner
 
 
 DEFAULT_SCHEMA_PATH = "/path/to/schemas"
@@ -648,6 +652,8 @@ class TestStreamTelescope(ObservatoryTestCase):
 
 
 class MockTelescope(StreamTelescope):
+    DAG_ID = "telescope"
+
     def __init__(self, start_date: pendulum.DateTime = pendulum.now(), schedule_interval: str = "@monthly"):
         super().__init__(
             dag_id="dag",
@@ -660,10 +666,9 @@ class MockTelescope(StreamTelescope):
         )
         self.add_setup_task(self.task)
         self.add_task(self.add_new_dataset_releases)
-
+        
     def task(self, **kwargs):
         self._start, self._end, self._first_release = self.get_release_info(**kwargs)
-        print("Hello")
         return True
 
     def make_release(self, **kwargs) -> StreamRelease:
@@ -809,3 +814,51 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
             call_args, _ = m_upload.call_args
             self.assertEqual(call_args[0], [])
             self.assertEqual(call_args[1], "data")
+
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
+    def test_merge_update_files(self, m_get):
+        m_get.return_value = "data"
+        telescope = MockTelescope()
+
+        class MockRelease:
+            def __init__(self, dir):
+                self.transform_folder = dir
+                self.transform_files = glob(os.path.join(dir, "db_merge*.json"))
+                self.first_release = True
+                self.transform_bucket = "bucket"
+
+        fixtures = glob(os.path.join(test_fixtures_path("workflows"), "db_merge*.json"))
+        with CliRunner().isolated_filesystem() as tmpdir:
+            for file in fixtures:
+                filename = os.path.basename(file)
+                dst = os.path.join(tmpdir, filename)
+                shutil.copyfile(file, dst)
+
+            release = MockRelease(tmpdir)
+
+            # Test first release. Should do nothing.
+            telescope.merge_update_files(release)
+            self.assertEqual(len(os.listdir(tmpdir)), 2)  # Did nothing
+
+            # Subsequent releases
+            release.first_release = False
+
+            self.assertEqual(len(os.listdir(tmpdir)), 2)
+            with patch("observatory.platform.workflows.stream_telescope.upload_files_from_list"):
+                telescope.merge_update_files(release)
+            self.assertEqual(len(os.listdir(tmpdir)), 1)
+
+            merged_file = os.path.join(tmpdir, "telescope.jsonl")
+            self.assertTrue(os.path.exists(merged_file))
+            
+            key = telescope.merge_partition_field
+            with open(merged_file, "r") as f:
+                merged_data = {}
+                for line in f:
+                    row = json.loads(line)
+                    merged_data[row[key]] = row["aux"]
+
+            self.assertEqual(len(merged_data), 2)
+            self.assertEqual(merged_data["myfirstdoi"], "value3")
+            self.assertEqual(merged_data["myseconddoi"], "value2")
+

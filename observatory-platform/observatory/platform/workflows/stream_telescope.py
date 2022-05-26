@@ -16,8 +16,11 @@
 
 import logging
 from typing import Dict, Tuple, List
-
 import pendulum
+import os
+import json
+from pathlib import Path
+
 from airflow.exceptions import AirflowSkipException
 from airflow.models.dagrun import DagRun
 from croniter import croniter
@@ -344,3 +347,46 @@ class StreamTelescope(Workflow):
 
         execution_date = kwargs["execution_date"]
         delete_old_xcoms(dag_id=self.dag_id, execution_date=execution_date)
+
+
+    def merge_update_files(self, release: StreamRelease, **kwargs):
+        """Merge the transformed jsonl into a single jsonl and delete the parts.
+
+        :param release: a StreamRelease instance
+        :param kwargs: The context passed from the PythonOperator.
+        :return: None.
+        """
+
+        # Skip on first release.
+        if release.first_release:
+            return
+
+        key = self.merge_partition_field
+        input_files = release.transform_files
+        input_files.sort()  # Assume lexicological order is correct order to apply updates.
+        output_file = os.path.join(release.transform_folder, f"{self.DAG_ID}.jsonl")
+
+        # Create mapping
+        update_data = {}
+        for i, input_file in enumerate(input_files):
+            with open(input_file, "r") as f:
+                for line in f:
+                    row = json.loads(line)
+                    update_data[row[key]] = i
+
+        # Write out merged file
+        with open(output_file, "w") as outf:
+            for i, input_file in enumerate(input_files):
+                with open(input_file, "r") as inf:
+                    for line in inf:
+                        row = json.loads(line)
+                        if update_data[row[key]] == i:
+                            outf.write(line)
+
+        # Delete original parts
+        for file in input_files:
+            Path(file).unlink()
+
+        # Upload merged file to bucket.
+        # Ideally in own task, but would it need branching mechanic (currently not implemented in Workflow).
+        upload_files_from_list(release.transform_files, release.transform_bucket)
