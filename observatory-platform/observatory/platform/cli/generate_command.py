@@ -13,16 +13,17 @@
 # limitations under the License.
 
 # Author: James Diprose, Aniek Roelofs, Tuan Chien
+
 import os
 import re
 import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple
 
 import click
-from click.termui import edit
+
 from observatory.platform.observatory_config import (
     AirflowConnection,
     AirflowVariable,
@@ -41,6 +42,7 @@ from observatory.platform.observatory_config import (
     WorkflowsProject,
     is_fernet_key,
     is_secret_key,
+    Config,
 )
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
@@ -78,7 +80,7 @@ class DefaultWorkflowsProject:
 
 
 class GenerateCommand:
-    def generate_local_config(self, config_path: str, *, editable: str, workflows: List[str], oapi: bool):
+    def generate_local_config(self, config_path: str, *, editable: bool, workflows: List[str], oapi: bool):
         """Command line user interface for generating an Observatory Config config.yaml.
 
         :param config_path: the path where the config file should be saved.
@@ -103,7 +105,7 @@ class GenerateCommand:
 
         click.echo(f'{file_type} saved to: "{config_path}"')
 
-    def generate_terraform_config(self, config_path: str, *, editable: str, workflows: List[str], oapi: bool):
+    def generate_terraform_config(self, config_path: str, *, editable: bool, workflows: List[str], oapi: bool):
         """Command line user interface for generating a Terraform Config config-terraform.yaml.
 
         :param config_path: the path where the config file should be saved.
@@ -518,9 +520,7 @@ class InteractiveConfigBuilder:
         return workflows_projects
 
     @staticmethod
-    def build(
-        *, backend_type: BackendType, workflows: List[str], oapi: bool, editable: bool
-    ) -> Union[ObservatoryConfig, TerraformConfig]:
+    def build(*, backend_type: BackendType, workflows: List[str], oapi: bool, editable: bool) -> Config:
         """Build the correct observatory configuration object through user assisted parameters.
 
         :param backend_type: The type of Observatory backend being configured.
@@ -557,7 +557,7 @@ class InteractiveConfigBuilder:
         return config
 
     @staticmethod
-    def config_backend(*, config: Union[ObservatoryConfig, TerraformConfig], backend_type: BackendType):
+    def config_backend(*, config: Config, backend_type: BackendType):
         """Configure the backend section.
 
         :param config: Configuration object to edit.
@@ -579,7 +579,7 @@ class InteractiveConfigBuilder:
         ]
 
     @staticmethod
-    def config_observatory(*, config: Union[ObservatoryConfig, TerraformConfig], oapi: bool, editable: bool):
+    def config_observatory(*, config: Config, oapi: bool, editable: bool):
         """Configure the observatory section.
 
         :param config: Configuration object to edit.
@@ -696,7 +696,7 @@ class InteractiveConfigBuilder:
             config.observatory.api_package_type = api_package_type
 
     @staticmethod
-    def config_google_cloud(config: Union[ObservatoryConfig, TerraformConfig]):
+    def config_google_cloud(config: Config):
         """Configure the Google Cloud section.
 
         :param config: Configuration object to edit.
@@ -751,7 +751,7 @@ class InteractiveConfigBuilder:
         )
 
     @staticmethod
-    def config_terraform(config: Union[ObservatoryConfig, TerraformConfig]):
+    def config_terraform(config: Config):
         """Configure the Terraform section.
 
         :param config: Configuration object to edit.
@@ -779,7 +779,7 @@ class InteractiveConfigBuilder:
         config.terraform = Terraform(organization=organization)
 
     @staticmethod
-    def config_airflow_connections(config: Union[ObservatoryConfig, TerraformConfig]):
+    def config_airflow_connections(config: Config):
         """Configure the Airflow connections section.
 
         :param config: Configuration object to edit.
@@ -812,7 +812,7 @@ class InteractiveConfigBuilder:
         config.airflow_connections = connections
 
     @staticmethod
-    def config_airflow_variables(config: Union[ObservatoryConfig, TerraformConfig]):
+    def config_airflow_variables(config: Config):
         """Configure the Airflow variables section.
 
         :param config: Configuration object to edit.
@@ -845,7 +845,7 @@ class InteractiveConfigBuilder:
         config.airflow_variables = variables
 
     @staticmethod
-    def config_workflows_projects(config: Union[ObservatoryConfig, TerraformConfig]):
+    def config_workflows_projects(config: Config):
         """Configure the DAGs projects section.
 
         :param config: Configuration object to edit.
