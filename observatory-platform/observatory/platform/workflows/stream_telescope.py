@@ -354,9 +354,10 @@ class StreamTelescope(Workflow):
         """
         logging.info("Creating a BigQuery snapshot")
         bq_load_info = self.get_bq_load_info(release)
+        project_id = Variable.get(AirflowVars.PROJECT_ID)
         for _, main_table_id, _ in bq_load_info:
             destination_table_id = bigquery_sharded_table_id(main_table_id + "_snapshots", release.end_date)
-            create_bigquery_snapshot(self.dataset_id, main_table_id, self.dataset_id, destination_table_id)
+            create_bigquery_snapshot(project_id, self.dataset_id, main_table_id, self.dataset_id, destination_table_id)
 
     def cleanup(self, release: StreamRelease, **kwargs):
         """Delete downloaded, extracted and transformed files of the release. Deletes old xcoms.

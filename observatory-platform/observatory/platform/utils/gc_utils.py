@@ -292,19 +292,19 @@ def create_empty_bigquery_table(
 
 
 def create_bigquery_snapshot(
+    project_id: str,
     source_dataset_id: str,
     source_table_name: str,
     destination_dataset_id: str,
     destination_table_name: str,
-    project_id: str = None,
 ):
     """Create a BigQuery snapshot from an existing table inside the same project.
 
+    :param project_id: Google Cloud project id.
     :param source_dataset_id: The BigQuery source dataset id.
     :param source_table_name: The BigQuery source table name.
     :param destination_dataset_id: The BigQuery destination dataset id.
     :param destination_table_name: The BigQuery destination table name.
-    :param project_id: Google Cloud project id.
     :return: The table instance if the request was successful.
     """
     func_name = create_bigquery_snapshot.__name__

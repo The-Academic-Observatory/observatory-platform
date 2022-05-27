@@ -246,7 +246,9 @@ class TestGoogleCloudUtils(unittest.TestCase):
             self.assertTrue(success)
 
             # Create snapshot
-            success = create_bigquery_snapshot(dataset_id, source_table, dataset_id, destination_table)
+            success = create_bigquery_snapshot(
+                self.gc_project_id, dataset_id, source_table, dataset_id, destination_table
+            )
             self.assertTrue(success)
 
             # Test if snapshot exists
