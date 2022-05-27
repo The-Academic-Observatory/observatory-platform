@@ -18,13 +18,18 @@ import logging
 from typing import Dict, List, Tuple
 
 import pendulum
+from airflow.exceptions import AirflowException
 from airflow.models import Variable
 from google.cloud.bigquery import SourceFormat
 
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id, create_bigquery_snapshot
-from observatory.platform.utils.release_utils import (get_dataset_releases, get_datasets, get_latest_dataset_release,
-                                                      is_first_release)
+from observatory.platform.utils.release_utils import (
+    get_dataset_releases,
+    get_datasets,
+    get_latest_dataset_release,
+    is_first_release,
+)
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
     blob_name,
@@ -41,14 +46,14 @@ from observatory.platform.workflows.workflow import Release, Workflow
 
 class StreamRelease(Release):
     def __init__(
-            self,
-            dag_id: str,
-            start_date: pendulum.DateTime,
-            end_date: pendulum.DateTime,
-            first_release: bool,
-            download_files_regex: str = None,
-            extract_files_regex: str = None,
-            transform_files_regex: str = None,
+        self,
+        dag_id: str,
+        start_date: pendulum.DateTime,
+        end_date: pendulum.DateTime,
+        first_release: bool,
+        download_files_regex: str = None,
+        extract_files_regex: str = None,
+        transform_files_regex: str = None,
     ):
         """Construct a StreamRelease instance
 
@@ -69,26 +74,27 @@ class StreamRelease(Release):
 
 class StreamTelescope(Workflow):
     def __init__(
-            self,
-            dag_id: str,
-            start_date: pendulum.DateTime,
-            schedule_interval: str,
-            dataset_id: str,
-            merge_partition_field: str,
-            schema_folder: str,
-            queue: str = "default",
-            max_retries: int = 3,
-            max_active_runs: int = 1,
-            source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
-            schema_prefix: str = "",
-            schema_version: str = None,
-            load_bigquery_table_kwargs: Dict = None,
-            dataset_description: str = "",
-            table_descriptions: Dict[str, str] = None,
-            batch_load: bool = False,
-            airflow_vars: list = None,
-            airflow_conns: list = None,
-            workflow_id: int = None,
+        self,
+        dag_id: str,
+        start_date: pendulum.DateTime,
+        schedule_interval: str,
+        dataset_id: str,
+        merge_partition_field: str,
+        schema_folder: str,
+        queue: str = "default",
+        max_retries: int = 3,
+        max_active_runs: int = 1,
+        source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
+        schema_prefix: str = "",
+        schema_version: str = None,
+        load_bigquery_table_kwargs: Dict = None,
+        dataset_description: str = "",
+        table_descriptions: Dict[str, str] = None,
+        batch_load: bool = False,
+        airflow_vars: list = None,
+        airflow_conns: list = None,
+        workflow_id: int = None,
+        dataset_type_id: str = None,
     ):
         """Construct a StreamTelescope instance.
 
@@ -110,7 +116,8 @@ class StreamTelescope(Workflow):
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
-        :param workflow_id: api workflow id.
+        :param workflow_id: Observatory API workflow id.
+        :param workflow_id: Observatory API type_id for the top level dataset type.
         """
 
         # Set transform_bucket_name as required airflow variable
@@ -129,6 +136,7 @@ class StreamTelescope(Workflow):
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
             workflow_id=workflow_id,
+            dataset_type_id=dataset_type_id,
         )
 
         self.schema_prefix = schema_prefix
@@ -156,7 +164,15 @@ class StreamTelescope(Workflow):
             start_date = pendulum.instance(kwargs["dag"].default_args["start_date"]).start_of("day")
         else:
             datasets = get_datasets(workflow_id=self.workflow_id)
-            releases = get_dataset_releases(dataset_id=datasets[0].id)
+            try:
+                top_level_dataset = [
+                    dataset for dataset in datasets if dataset.dataset_type.type_id == self.dataset_type_id
+                ][0]
+            except IndexError:
+                raise AirflowException(
+                    f"No top level dataset type set, expecting dataset type with type_id: {self.dataset_type_id}"
+                )
+            releases = get_dataset_releases(dataset_id=top_level_dataset.id)
             latest_release = get_latest_dataset_release(releases=releases)
             start_date = pendulum.instance(latest_release.end_date).start_of("day")
 
@@ -327,7 +343,7 @@ class StreamTelescope(Workflow):
             )
 
     def bq_create_snapshot(self, release: StreamRelease, **kwargs):
-        """ Create a snapshot from an existing BigQuery table
+        """Create a snapshot from an existing BigQuery table
 
         :param release: a StreamRelease instance
         :param kwargs: The context passed from the PythonOperator.
