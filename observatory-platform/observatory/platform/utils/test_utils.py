@@ -377,17 +377,15 @@ class ObservatoryEnvironment:
         """
         # Get start date, which is one schedule interval after execution date
         if isinstance(dag.normalized_schedule_interval, (timedelta, relativedelta)):
-            next_execution_date = (
+            start_date = (
                 datetime.fromtimestamp(execution_date.timestamp(), pendulum.tz.UTC) + dag.normalized_schedule_interval
             )
         else:
-            next_execution_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(
-                pendulum.DateTime
-            )
+            start_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(pendulum.DateTime)
 
         # Disable freezegun for the observatory api client. OpenAPI client generated code does not like FakeDateTime
         freezegun.configure(extend_ignore_list=["observatory.api.client"])
-        frozen_time = freeze_time(next_execution_date, tick=True)
+        frozen_time = freeze_time(start_date, tick=True)
 
         run_id = "manual__{0}".format(execution_date.isoformat())
 
@@ -400,8 +398,8 @@ class ObservatoryEnvironment:
                 self.dag_run = dag.create_dagrun(
                     run_id=run_id,
                     state=state,
+                    execution_date=execution_date,
                     start_date=pendulum.now("UTC"),
-                    data_interval=[execution_date, next_execution_date],
                 )
                 yield self.dag_run
             finally:
