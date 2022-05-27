@@ -14,7 +14,10 @@
 
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
 
+import json
 import logging
+import os
+import pathlib
 from typing import Dict, List, Tuple
 
 import pendulum
@@ -367,7 +370,6 @@ class StreamTelescope(Workflow):
         execution_date = kwargs["execution_date"]
         delete_old_xcoms(dag_id=self.dag_id, execution_date=execution_date)
 
-
     def merge_update_files(self, release: StreamRelease, **kwargs):
         """Merge the transformed jsonl into a single jsonl and delete the parts.
 
@@ -404,7 +406,7 @@ class StreamTelescope(Workflow):
 
         # Delete original parts
         for file in input_files:
-            Path(file).unlink()
+            pathlib.Path(file).unlink()
 
         # Upload merged file to bucket.
         # Ideally in own task, but would it need branching mechanic (currently not implemented in Workflow).

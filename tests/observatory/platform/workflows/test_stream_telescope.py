@@ -14,17 +14,19 @@
 
 # Author: Aniek Roelofs, Tuan Chien
 
+import json
 import os
+import shutil
+from glob import glob
 from typing import List, Tuple
 from unittest.mock import MagicMock, call, patch
-from glob import glob
-import shutil
-import json
 
 import jsonlines
 import pendulum
 from airflow.utils.state import State
+from click.testing import CliRunner
 from google.cloud.bigquery import SourceFormat, TimePartitioningType
+
 from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
 from observatory.api.client.model.dataset import Dataset
@@ -887,4 +889,3 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
             self.assertEqual(len(merged_data), 2)
             self.assertEqual(merged_data["myfirstdoi"], "value3")
             self.assertEqual(merged_data["myseconddoi"], "value2")
-
