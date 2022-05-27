@@ -315,8 +315,6 @@ def create_bigquery_snapshot(
     logging.info(f"{func_name}: creating bigquery snapshot {msg}")
 
     client = bigquery.Client()
-    if project_id is None:
-        project_id = client.project
 
     source_dataset_ref = f"{project_id}.{source_dataset_id}"
     source_dataset = bigquery.Dataset(source_dataset_ref)
