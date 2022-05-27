@@ -78,6 +78,7 @@ class MyTestStreamTelescope(StreamTelescope):
         dataset_description: str = "dataset_description",
         batch_load: bool = False,
         workflow_id: int = 1,
+        dataset_type_id=DAG_ID,
     ):
         table_descriptions = {
             "1": "table description 1",
@@ -98,6 +99,7 @@ class MyTestStreamTelescope(StreamTelescope):
             table_descriptions=table_descriptions,
             batch_load=batch_load,
             workflow_id=workflow_id,
+            dataset_type_id=dataset_type_id,
         )
 
         self.add_setup_task(self.check_dependencies)
@@ -225,7 +227,7 @@ class TestStreamTelescope(ObservatoryTestCase):
 
         dataset_type = DatasetType(
             name="My dataset type",
-            type_id="type id",
+            type_id=MyTestStreamTelescope.DAG_ID,
             table_type=TableType(id=1),
         )
 
@@ -654,15 +656,18 @@ class TestStreamTelescope(ObservatoryTestCase):
 class MockTelescope(StreamTelescope):
     DAG_ID = "telescope"
 
-    def __init__(self, start_date: pendulum.DateTime = pendulum.now(), schedule_interval: str = "@monthly"):
+    def __init__(
+        self, dag_id: str = DAG_ID, start_date: pendulum.DateTime = pendulum.now(), schedule_interval: str = "@monthly"
+    ):
         super().__init__(
-            dag_id="dag",
+            dag_id=dag_id,
             start_date=start_date,
             schedule_interval=schedule_interval,
             dataset_id="data",
             merge_partition_field="field",
             schema_folder="folder",
             workflow_id=1,
+            dataset_type_id=dag_id,
         )
         self.add_setup_task(self.task)
         self.add_task(self.add_new_dataset_releases)
@@ -692,6 +697,43 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
         self.env = ObservatoryApiEnvironment(host=self.host, port=self.port)
         self.org_name = "Curtin University"
         self.workflow = 1
+
+    def setup_api(self):
+        org = Organisation(name=self.org_name)
+        result = self.api.put_organisation(org)
+        self.assertIsInstance(result, Organisation)
+
+        tele_type = WorkflowType(type_id="tele_type", name="My Telescope")
+        result = self.api.put_workflow_type(tele_type)
+        self.assertIsInstance(result, WorkflowType)
+
+        telescope = Workflow(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
+        result = self.api.put_workflow(telescope)
+        self.assertIsInstance(result, Workflow)
+
+        table_type = TableType(
+            type_id="partitioned",
+            name="partitioned bq table",
+        )
+        self.api.put_table_type(table_type)
+
+        dataset_type = DatasetType(
+            name="My dataset type",
+            type_id=MockTelescope.DAG_ID,
+            table_type=TableType(id=1),
+        )
+
+        self.api.put_dataset_type(dataset_type)
+
+        dataset = Dataset(
+            name="My dataset",
+            service="bigquery",
+            address="project.dataset.table",
+            workflow=Workflow(id=1),
+            dataset_type=DatasetType(id=1),
+        )
+        result = self.api.put_dataset(dataset)
+        self.assertIsInstance(result, Dataset)
 
     @patch("observatory.platform.utils.release_utils.make_observatory_api")
     def test_get_release_info(self, m_makeapi):
@@ -728,43 +770,6 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
                 expected_end = pendulum.datetime(2021, 12, 1)
                 self.assertEqual(expected_start, telescope._start)
                 self.assertEqual(expected_end, telescope._end)
-
-    def setup_api(self):
-        org = Organisation(name=self.org_name)
-        result = self.api.put_organisation(org)
-        self.assertIsInstance(result, Organisation)
-
-        tele_type = WorkflowType(type_id="tele_type", name="My Telescope")
-        result = self.api.put_workflow_type(tele_type)
-        self.assertIsInstance(result, WorkflowType)
-
-        telescope = Workflow(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
-        result = self.api.put_workflow(telescope)
-        self.assertIsInstance(result, Workflow)
-
-        table_type = TableType(
-            type_id="partitioned",
-            name="partitioned bq table",
-        )
-        self.api.put_table_type(table_type)
-
-        dataset_type = DatasetType(
-            name="My dataset type",
-            type_id="type id",
-            table_type=TableType(id=1),
-        )
-
-        self.api.put_dataset_type(dataset_type)
-
-        dataset = Dataset(
-            name="My dataset",
-            service="bigquery",
-            address="project.dataset.table",
-            workflow=Workflow(id=1),
-            dataset_type=DatasetType(id=1),
-        )
-        result = self.api.put_dataset(dataset)
-        self.assertIsInstance(result, Dataset)
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_download(self, m_get):
@@ -823,7 +828,7 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_bq_create_snapshot(self, m_get):
-        m_get.return_value = "data"
+        m_get.side_effect = lambda x: {"data_path": "data", "project_id": "project_id"}[x]
         with patch(
             "observatory.platform.workflows.stream_telescope.create_bigquery_snapshot"
         ) as m_create_bigquery_snapshot:
@@ -834,12 +839,12 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
             self.assertEqual(2, m_create_bigquery_snapshot.call_count)
             table_id = bigquery_sharded_table_id("main_table1_snapshots", release.end_date)
             self.assertEqual(
-                (telescope.dataset_id, "main_table1", telescope.dataset_id, table_id),
+                ("project_id", telescope.dataset_id, "main_table1", telescope.dataset_id, table_id),
                 (m_create_bigquery_snapshot.call_args_list[0].args),
             )
             table_id = bigquery_sharded_table_id("main_table2_snapshots", release.end_date)
             self.assertEqual(
-                (telescope.dataset_id, "main_table2", telescope.dataset_id, table_id),
+                ("project_id", telescope.dataset_id, "main_table2", telescope.dataset_id, table_id),
                 (m_create_bigquery_snapshot.call_args_list[1].args),
             )
 
