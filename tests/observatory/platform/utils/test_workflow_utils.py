@@ -131,8 +131,9 @@ class MockStreamTelescope(StreamTelescope):
         start_date: pendulum.DateTime = pendulum.datetime(2021, 1, 1),
         schedule_interval: str = "@weekly",
         dataset_id: str = random_id(),
+        workflow_id: int = 1,
+        dataset_type_id: str = "dataset_type_id",
         merge_partition_field: str = "id",
-        bq_merge_days: int = 7,
         schema_folder: str = DEFAULT_SCHEMA_PATH,
         source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
         schema_prefix: str = "prefix",
@@ -146,8 +147,9 @@ class MockStreamTelescope(StreamTelescope):
             schedule_interval,
             dataset_id,
             merge_partition_field,
-            bq_merge_days,
             schema_folder,
+            workflow_id,
+            dataset_type_id,
             source_format=source_format,
             schema_prefix=schema_prefix,
             schema_version=schema_version,
@@ -830,7 +832,7 @@ class TestTemplateUtils(unittest.TestCase):
                     telescope.source_format,
                     write_disposition="WRITE_APPEND",
                     table_description=table_description,
-                    project_id=self.project_id
+                    project_id=self.project_id,
                 )
 
                 mock_load_bigquery_table.return_value = False

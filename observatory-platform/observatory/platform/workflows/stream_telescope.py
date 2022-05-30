@@ -84,6 +84,8 @@ class StreamTelescope(Workflow):
         dataset_id: str,
         merge_partition_field: str,
         schema_folder: str,
+        workflow_id: int,
+        dataset_type_id: str,
         queue: str = "default",
         max_retries: int = 3,
         max_active_runs: int = 1,
@@ -96,8 +98,6 @@ class StreamTelescope(Workflow):
         batch_load: bool = False,
         airflow_vars: list = None,
         airflow_conns: list = None,
-        workflow_id: int = None,
-        dataset_type_id: str = None,
     ):
         """Construct a StreamTelescope instance.
 
@@ -107,6 +107,8 @@ class StreamTelescope(Workflow):
         :param dataset_id: the dataset id.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param schema_folder: the path to the SQL schema folder.
+        :param workflow_id: Observatory API workflow id.
+        :param dataset_type_id: Observatory API type_id for the top level dataset type.
         :param queue: the Airflow queue name.
         :param max_retries: the number of times to retry each task.
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
@@ -119,8 +121,6 @@ class StreamTelescope(Workflow):
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
-        :param workflow_id: Observatory API workflow id.
-        :param workflow_id: Observatory API type_id for the top level dataset type.
         """
 
         # Set transform_bucket_name as required airflow variable
