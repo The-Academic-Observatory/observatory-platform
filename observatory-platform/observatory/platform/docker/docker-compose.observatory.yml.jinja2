@@ -307,15 +307,15 @@ services:
       - BASE_DB_URI=postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/postgres
       - OBSERVATORY_DB_URI=postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/{{api_server_db}}
       - OBSERVATORY_API_PORT={{api_server_port}}
-    volumes:
+    
       {%- for package in config.python_packages %}
-      {% if package.name == 'observatory-api' %}
+      {%- if package.name == 'observatory-api' %}
       {%- if config.backend.type.value == 'local' and package.type == 'editable' %}
-      - "{{ package.host_package }}:/opt/{{ package.name }}"
+    volumes: ["{{ package.host_package }}:/opt/{{ package.name }}"]
       {%- elif config.backend.type.value == 'terraform' and package.type == 'editable'  %}
       - "/opt/{{ package.name }}:/opt/{{ package.name }}"
       {%- endif -%}
-      {% endif %}
+      {%- endif %}
       {%- endfor %}
     restart: always
     <<: *networks
@@ -340,15 +340,14 @@ services:
     environment:
       - API_HOST=apiserver
       - API_PORT={{api_server_port}}
-    volumes:
       {%- for package in config.python_packages %}
-      {% if package.name == 'observatory-api' %}
+      {%- if package.name == 'observatory-api' %}
       {%- if config.backend.type.value == 'local' and package.type == 'editable' %}
-      - "{{ package.host_package }}:/opt/{{ package.name }}"
+    volumes: ["{{ package.host_package }}:/opt/{{ package.name }}"]
       {%- elif config.backend.type.value == 'terraform' and package.type == 'editable'  %}
       - "/opt/{{ package.name }}:/opt/{{ package.name }}"
       {%- endif -%}
-      {% endif %}
+      {%- endif %}
       {%- endfor %}
     <<: *networks
     depends_on:
