@@ -172,7 +172,7 @@ class Observatory:
         :param api_port: Port for accessing the API locally (exposed by docker container).
     """
 
-    package: str = "observatory-platform"
+    package: str = "path/to/observatory-platform/observatory-platform"
     package_type: str = "pypi"
     airflow_fernet_key: str = field(default_factory=generate_fernet_key)
     airflow_secret_key: str = field(default_factory=generate_secret_key)
