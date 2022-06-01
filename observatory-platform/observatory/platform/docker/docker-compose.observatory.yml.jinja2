@@ -297,20 +297,63 @@ services:
       retries: 5
 
   apiserver:
-    build: *build
+    build:
+      context: .
+      dockerfile: Dockerfile.apiserver
+      args:
+        - HOST_USER_ID=${HOST_USER_ID}
     environment:
       - API_SERVER_DB={{api_server_db}}
       - BASE_DB_URI=postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/postgres
       - OBSERVATORY_DB_URI=postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/{{api_server_db}}
       - OBSERVATORY_API_PORT={{api_server_port}}
-    volumes: *volumes
+    volumes:
+      {%- for package in config.python_packages %}
+      {% if package.name == 'observatory-api' %}
+      {%- if config.backend.type.value == 'local' and package.type == 'editable' %}
+      - "{{ package.host_package }}:/opt/{{ package.name }}"
+      {%- elif config.backend.type.value == 'terraform' and package.type == 'editable'  %}
+      - "/opt/{{ package.name }}:/opt/{{ package.name }}"
+      {%- endif -%}
+      {% endif %}
+      {%- endfor %}
     restart: always
     <<: *networks
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nc", "-z", "-v", "apiserver", "{{api_server_port}}"]
+      interval: 5s
+      retries: 5
     command: apiserver
     ports:
       - {{api_server_port}}:{{api_server_port}}
+    entrypoint: /entrypoint-api.sh
+
+  seed_db:
+    build:
+      context: .
+      dockerfile: Dockerfile.seed_db
+      args:
+        - HOST_USER_ID=${HOST_USER_ID}
+    environment:
+      - API_HOST=apiserver
+      - API_PORT={{api_server_port}}
+    volumes:
+      {%- for package in config.python_packages %}
+      {% if package.name == 'observatory-api' %}
+      {%- if config.backend.type.value == 'local' and package.type == 'editable' %}
+      - "{{ package.host_package }}:/opt/{{ package.name }}"
+      {%- elif config.backend.type.value == 'terraform' and package.type == 'editable'  %}
+      - "/opt/{{ package.name }}:/opt/{{ package.name }}"
+      {%- endif -%}
+      {% endif %}
+      {%- endfor %}
+    <<: *networks
+    depends_on:
+      apiserver:
+        condition: service_healthy
   {%- endif %}
 
 {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}

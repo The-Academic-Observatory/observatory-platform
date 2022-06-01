@@ -1,0 +1,106 @@
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Tuan Chien
+
+FROM python:3.9-slim
+
+ARG HOST_USER_ID
+ARG OBSERVATORY_HOME=/opt/observatory
+
+RUN adduser apiserver
+USER root
+RUN apt-get update -yqq
+RUN apt-get install -y git python3-pip postgresql-client-13 gunicorn procps netcat
+RUN usermod -u ${HOST_USER_ID} apiserver
+
+USER apiserver
+
+# Clean up default installed Python packages
+RUN python -m pip install --upgrade pip
+RUN pip cache purge
+
+# Install dependencies for all projects
+{% for package in config.python_packages %}
+{% if package.name == 'observatory-api' %}
+# Set working directory for {{ package.name }}
+ARG WORKING_DIR=/opt/{{ package.name }}
+WORKDIR ${WORKING_DIR}
+
+# Change owner of directory to airflow
+USER root
+RUN chown -R apiserver ${WORKING_DIR}
+USER apiserver
+{% if package.type == 'editable' %}
+
+# Install editable package system dependencies: {{ package.name }}
+COPY ./requirements.{{ package.name }}.sh requirements.sh
+USER root
+RUN chmod +x ./requirements.sh
+RUN ./requirements.sh
+USER apiserver
+
+# Install editable package: {{ package.name }}
+COPY ./requirements.{{ package.name }}.txt requirements.txt
+RUN pip3 install -r requirements.txt --user
+
+{% elif package.type == 'sdist' %}
+
+# Install sdist package: {{ package.name }}
+COPY ./{{ package.docker_package }} {{ package.docker_package }}
+
+# Extract sdist and install requirements.sh
+RUN tar -xf *.tar.gz --one-top-level=sdist --strip-components 1
+RUN cp sdist/requirements.sh ./requirements.sh
+USER root
+RUN chmod +x ./requirements.sh
+RUN ./requirements.sh
+USER apiserver
+
+# Install Python package
+RUN pip3 install {{ package.docker_package }} --user
+
+{% elif package.type == 'pypi' %}
+
+# Install PyPI package: {{ package.name }}
+
+# Extract sdist and install requirements.sh
+RUN pip3 download {{ package.docker_package }} --no-binary :all: --no-deps
+RUN tar -xf *.tar.gz --one-top-level=sdist --strip-components 1
+RUN cp sdist/requirements.sh ./requirements.sh
+USER root
+RUN chmod +x ./requirements.sh
+RUN ./requirements.sh
+USER apiserver
+
+# Install package with PyPI
+RUN pip3 install {{ package.docker_package }} --user
+
+{% endif %}
+
+# Set working directory back to airflow home
+WORKDIR ${OBSERVATORY_HOME}
+{% endif %}
+{% endfor %}
+
+# Copy entry point scripts which install new dependencies at runtime and the Observatory Platform Python package
+USER root
+
+COPY entrypoint-api.sh /entrypoint-api.sh
+RUN chmod +x /entrypoint-api.sh
+
+RUN chown -R apiserver /opt/observatory
+
+USER apiserver
+ENTRYPOINT ["/entrypoint-api.sh"]

@@ -165,6 +165,7 @@ def platform_start(platform_cmd: PlatformCommand, min_line_chars: int = 80):
         print(f"{PLATFORM_NAME}: built".ljust(min_line_chars))
     else:
         print(f"{PLATFORM_NAME}: build error".ljust(min_line_chars))
+        print(response.output)
         exit(os.EX_CONFIG)
 
     # Start the built containers
@@ -182,6 +183,7 @@ def platform_start(platform_cmd: PlatformCommand, min_line_chars: int = 80):
             print(f"Could not find the Airflow UI at {platform_cmd.ui_url}")
     else:
         print("Error starting the Observatory Platform")
+        print(response.output)
         exit(os.EX_CONFIG)
 
 

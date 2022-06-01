@@ -10,3 +10,4 @@ python-dateutil>=2.8.2,<3
 certifi>=2021.5.30
 pendulum>=2.1.2,<3
 openapi-spec-validator>=0.3.1,<1
+markupsafe>=2.0.1,<2.1

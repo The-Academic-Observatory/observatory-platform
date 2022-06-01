@@ -1,0 +1,40 @@
+#!/bin/bash
+set -x
+
+########################################
+# Install editable mode Python packages
+########################################
+
+{% for package in config.python_packages %}
+{% if package.name == 'observatory-api' %}
+{% if package.type == 'editable' -%}
+cd /opt/{{ package.name }}
+pip3 install -r requirements.txt
+
+export PBR_VERSION=0.0.1
+pip3 install --no-deps -e . --user
+unset PBR_VERSION
+{% endif %}
+{% endif %}
+{% endfor %}
+
+echo "Seeding TableType"
+find /seed_db -name "*.table_type_info.py" -exec python3 {} \;
+
+echo "Seeding WorkflowType"
+find /seed_db -name "*.workflow_type_info.py" -exec python3 {} \;
+
+echo "Seeding DatasetType"
+find /seed_db -name "*.dataset_type_info.py" -exec python3 {} \;
+
+echo "Seeding Organisation"
+find /seed_db -name "*.organisation_info.py" -exec python3 {} \;
+
+echo "Seeding Workflow"
+find /seed_db -name "*.workflow_info.py" -exec python3 {} \;
+
+echo "Seeding Dataset"
+find /seed_db -name "*.dataset_info.py" -exec python3 {} \;
+
+#echo "Staying alive for debug"
+#tail -f /dev/null
