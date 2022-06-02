@@ -27,7 +27,8 @@ from observatory.api.client.model.workflow import Workflow
 
 limit = int(1e6)
 
-def get_api_client(host:str=None, port:int=None, api_key:str=None) -> ObservatoryApi:
+
+def get_api_client(host: str = None, port: int = None, api_key: str = None) -> ObservatoryApi:
     """Get an API client.
     :param host: Server hostname or ip.
     :param port: Server port.
@@ -45,7 +46,7 @@ def get_api_client(host:str=None, port:int=None, api_key:str=None) -> Observator
 
     if api_key is None:
         api_key = os.environ["API_KEY"] if "API_KEY" in os.environ else None
-        
+
     configuration = Configuration(host=f"http://{host}:{port}", api_key=api_key)
     api_client = ApiClient(configuration)
     api = ObservatoryApi(api_client=api_client)
@@ -101,7 +102,7 @@ def get_table_type_ids(api: ObservatoryApi) -> dict:
     """
 
     table_types = api.get_table_types(limit=limit)
-    ttids = {tt.type_id : tt.id for tt in table_types}
+    ttids = {tt.type_id: tt.id for tt in table_types}
 
     return ttids
 
@@ -113,7 +114,7 @@ def get_organisation_ids(api: ObservatoryApi) -> dict:
     """
 
     orgs = api.get_organisations(limit=limit)
-    org_ids = {org.name : org.id for org in orgs}
+    org_ids = {org.name: org.id for org in orgs}
 
     return org_ids
 
@@ -139,7 +140,7 @@ def get_workflow_type_ids(api: ObservatoryApi) -> dict:
     """
 
     workflow_types = api.get_workflow_types(limit=limit)
-    wt_tids = {wt.type_id : wt.id for wt in workflow_types}
+    wt_tids = {wt.type_id: wt.id for wt in workflow_types}
 
     return wt_tids
 
@@ -165,7 +166,7 @@ def get_workflows(api: ObservatoryApi):
     """
 
     workflows = api.get_workflows(limit=limit)
-    wf_ids = {wf.name : Workflow(id=wf.id) for wf in workflows}
+    wf_ids = {wf.name: Workflow(id=wf.id) for wf in workflows}
 
     return wf_ids
 
@@ -261,6 +262,3 @@ def clear_organisations(api: ObservatoryApi):
     existing = api.get_organisations(limit=limit)
     for record in existing:
         api.delete_organisation(id=record.id)
-
-
-
