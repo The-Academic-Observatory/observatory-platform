@@ -347,7 +347,7 @@ def get_workflow_template_path(workflow_type: str) -> Tuple[str, str, str, str, 
             "test": "test_snapshot.py.jinja2",
         },
         "StreamTelescope": {
-            "dag": "dag.py.jinja2",
+            "dag": "dag_stream.py.jinja2",
             "workflow": "workflow_stream.py.jinja2",
             "test": "test_stream.py.jinja2",
         },

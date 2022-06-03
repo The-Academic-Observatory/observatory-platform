@@ -396,7 +396,10 @@ class ObservatoryEnvironment:
                     frozen_time.start()
                 state = State.RUNNING
                 self.dag_run = dag.create_dagrun(
-                    run_id=run_id, state=state, execution_date=execution_date, start_date=pendulum.now("UTC")
+                    run_id=run_id,
+                    state=state,
+                    execution_date=execution_date,
+                    start_date=pendulum.now("UTC"),
                 )
                 yield self.dag_run
             finally:

@@ -206,6 +206,7 @@ class Workflow(AbstractWorkflow):
         airflow_vars: list = None,
         airflow_conns: list = None,
         workflow_id: int = None,
+        dataset_type_id: str = None,
     ):
         """Construct a Workflow instance.
 
@@ -232,6 +233,7 @@ class Workflow(AbstractWorkflow):
         self.airflow_conns = airflow_conns
         self._parallel_tasks = False
         self.workflow_id = workflow_id
+        self.dataset_type_id = dataset_type_id
 
         self.operators = []
         self.default_args = {

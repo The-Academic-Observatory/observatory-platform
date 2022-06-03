@@ -14,18 +14,25 @@
 
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
 
-import logging
-from typing import Dict, Tuple, List
-import pendulum
-import os
 import json
-from pathlib import Path
+import logging
+import os
+import pathlib
+from typing import Dict, List, Tuple
 
-from airflow.exceptions import AirflowSkipException
-from airflow.models.dagrun import DagRun
-from croniter import croniter
+import pendulum
+from airflow.exceptions import AirflowException
+from airflow.models import Variable
 from google.cloud.bigquery import SourceFormat
+
 from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.gc_utils import bigquery_sharded_table_id, create_bigquery_snapshot
+from observatory.platform.utils.release_utils import (
+    get_dataset_releases,
+    get_datasets,
+    get_latest_dataset_release,
+    is_first_release,
+)
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
     blob_name,
@@ -34,19 +41,10 @@ from observatory.platform.utils.workflow_utils import (
     bq_delete_old,
     bq_load_ingestion_partition,
     delete_old_xcoms,
-    is_first_dag_run,
     table_ids_from_path,
     upload_files_from_list,
 )
 from observatory.platform.workflows.workflow import Release, Workflow
-from airflow.models import Variable
-from observatory.platform.utils.release_utils import (
-    is_first_release,
-    get_dataset_releases,
-    get_datasets,
-    get_latest_dataset_release,
-)
-from airflow.models import Variable
 
 
 class StreamRelease(Release):
@@ -86,6 +84,8 @@ class StreamTelescope(Workflow):
         dataset_id: str,
         merge_partition_field: str,
         schema_folder: str,
+        workflow_id: int,
+        dataset_type_id: str,
         queue: str = "default",
         max_retries: int = 3,
         max_active_runs: int = 1,
@@ -98,7 +98,6 @@ class StreamTelescope(Workflow):
         batch_load: bool = False,
         airflow_vars: list = None,
         airflow_conns: list = None,
-        workflow_id: int = None,
     ):
         """Construct a StreamTelescope instance.
 
@@ -108,6 +107,8 @@ class StreamTelescope(Workflow):
         :param dataset_id: the dataset id.
         :param merge_partition_field: the BigQuery field used to match partitions for a merge
         :param schema_folder: the path to the SQL schema folder.
+        :param workflow_id: Observatory API workflow id.
+        :param dataset_type_id: Observatory API type_id for the top level dataset type.
         :param queue: the Airflow queue name.
         :param max_retries: the number of times to retry each task.
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
@@ -120,7 +121,6 @@ class StreamTelescope(Workflow):
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
-        :param workflow_id: api workflow id.
         """
 
         # Set transform_bucket_name as required airflow variable
@@ -139,6 +139,7 @@ class StreamTelescope(Workflow):
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
             workflow_id=workflow_id,
+            dataset_type_id=dataset_type_id,
         )
 
         self.schema_prefix = schema_prefix
@@ -166,7 +167,15 @@ class StreamTelescope(Workflow):
             start_date = pendulum.instance(kwargs["dag"].default_args["start_date"]).start_of("day")
         else:
             datasets = get_datasets(workflow_id=self.workflow_id)
-            releases = get_dataset_releases(dataset_id=datasets[0].id)
+            try:
+                top_level_dataset = [
+                    dataset for dataset in datasets if dataset.dataset_type.type_id == self.dataset_type_id
+                ][0]
+            except IndexError:
+                raise AirflowException(
+                    f"No top level dataset type set, expecting dataset type with type_id: {self.dataset_type_id}"
+                )
+            releases = get_dataset_releases(dataset_id=top_level_dataset.id)
             latest_release = get_latest_dataset_release(releases=releases)
             start_date = pendulum.instance(latest_release.end_date).start_of("day")
 
@@ -336,6 +345,20 @@ class StreamTelescope(Workflow):
                 partition_table_id,
             )
 
+    def bq_create_snapshot(self, release: StreamRelease, **kwargs):
+        """Create a snapshot from an existing BigQuery table
+
+        :param release: a StreamRelease instance
+        :param kwargs: The context passed from the PythonOperator.
+        :return: None.
+        """
+        logging.info("Creating a BigQuery snapshot")
+        bq_load_info = self.get_bq_load_info(release)
+        project_id = Variable.get(AirflowVars.PROJECT_ID)
+        for _, main_table_id, _ in bq_load_info:
+            destination_table_id = bigquery_sharded_table_id(main_table_id + "_snapshots", release.end_date)
+            create_bigquery_snapshot(project_id, self.dataset_id, main_table_id, self.dataset_id, destination_table_id)
+
     def cleanup(self, release: StreamRelease, **kwargs):
         """Delete downloaded, extracted and transformed files of the release. Deletes old xcoms.
 
@@ -347,7 +370,6 @@ class StreamTelescope(Workflow):
 
         execution_date = kwargs["execution_date"]
         delete_old_xcoms(dag_id=self.dag_id, execution_date=execution_date)
-
 
     def merge_update_files(self, release: StreamRelease, **kwargs):
         """Merge the transformed jsonl into a single jsonl and delete the parts.
@@ -385,7 +407,7 @@ class StreamTelescope(Workflow):
 
         # Delete original parts
         for file in input_files:
-            Path(file).unlink()
+            pathlib.Path(file).unlink()
 
         # Upload merged file to bucket.
         # Ideally in own task, but would it need branching mechanic (currently not implemented in Workflow).

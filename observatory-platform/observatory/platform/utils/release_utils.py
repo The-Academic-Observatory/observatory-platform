@@ -34,7 +34,7 @@ def address_to_gcp_fields(address: str) -> Tuple[str, str, str]:
     return tuple(address.split("."))
 
 
-def get_datasets(*, workflow_id: str) -> List["Dataset"]:  # noqa: F821
+def get_datasets(*, workflow_id: int) -> List["Dataset"]:  # noqa: F821
     """Get a list of datasets for a workflow.
     Only returns the first 1000 datasets for that workflow.
 
