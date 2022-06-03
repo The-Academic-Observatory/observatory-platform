@@ -325,7 +325,14 @@ def bq_load_shard(
     logging.info(f"URI: {uri}")
 
     success = load_bigquery_table(
-        uri, dataset_id, data_location, table_id, schema_file_path, source_format, project_id=project_id, **load_bigquery_table_kwargs
+        uri,
+        dataset_id,
+        data_location,
+        table_id,
+        schema_file_path,
+        source_format,
+        project_id=project_id,
+        **load_bigquery_table_kwargs,
     )
     if not success:
         raise AirflowException()
@@ -598,6 +605,7 @@ def bq_append_from_file(
     prefix: str = "",
     schema_version: str = None,
     dataset_description: str = "",
+    partition_decorator: str = "",
     **load_bigquery_table_kwargs,
 ):
     """Appends rows to the main table by loading data from a specific file (blob) in the transform bucket.
@@ -621,7 +629,7 @@ def bq_append_from_file(
     logging.info(f"URI: {uri}")
 
     # Append to table table
-    table_id = main_table_id
+    table_id = main_table_id + f"${partition_decorator}" if partition_decorator else main_table_id
     success = load_bigquery_table(
         uri,
         dataset_id,

@@ -15,8 +15,10 @@
 import os
 import pendulum
 from unittest.mock import patch
+from airflow.models import Connection
 
 from {{ package_name }}.workflows.{{ workflow_module }} import {{ workflow_class }}
+from observatory.platform.utils.airflow_utils import AirflowConns
 from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
@@ -63,7 +65,7 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
         result = self.api.put_organisation(org)
         self.assertIsInstance(result, Organisation)
 
-        tele_type = WorkflowType(type_id="tele_type", name="My Workflow")
+        tele_type = WorkflowType(type_id="my_stream", name="My Workflow")
         result = self.api.put_workflow_type(tele_type)
         self.assertIsInstance(result, WorkflowType)
 
@@ -89,12 +91,21 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
         result = self.api.put_dataset(dataset)
         self.assertIsInstance(result, Dataset)
 
+    def setup_connections(self, env):
+        """Setup the Observatory API airflow connection.
+
+        :return: None
+        """
+        # Add Observatory API connection
+        conn = Connection(conn_id=AirflowConns.OBSERVATORY_API, uri=f"http://:password@{self.host}:{self.port}")
+        env.add_connection(conn)
+
     def test_dag_structure(self):
         """Test that the DAG has the correct structure.
 
         :return: None
         """
-        dag = {{ workflow_class }}().make_dag()
+        dag = {{ workflow_class }}(workflow_id=self.workflow_id).make_dag()
         self.assert_dag_structure(
             {
                 "check_dependencies": ["task1"],
@@ -109,7 +120,11 @@ class Test{{ workflow_class }}(ObservatoryTestCase):
 
         :return: None
         """
-        with ObservatoryEnvironment().create():
+        env = ObservatoryEnvironment(self.project_id, self.data_location, api_host=self.host, api_port=self.port)
+
+        with env.create():
+            self.setup_connections(env)
+            self.setup_api()
             dag_file = os.path.join(module_file_path("{{ package_name }}.dags"), "{{ workflow_module }}.py")
             self.assert_dag_load("{{ workflow_module }}", dag_file)
 

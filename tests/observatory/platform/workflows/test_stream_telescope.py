@@ -10,21 +10,33 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.
+# limitations under the License.Ï
 
 # Author: Aniek Roelofs, Tuan Chien
 
-import os
-from datetime import timedelta
-from unittest.mock import MagicMock, call, patch
-from glob import glob
-import shutil
 import json
+import os
+import shutil
+from glob import glob
+from typing import List, Tuple
+from unittest.mock import MagicMock, call, patch
 
 import jsonlines
 import pendulum
 from airflow.utils.state import State
+from click.testing import CliRunner
 from google.cloud.bigquery import SourceFormat, TimePartitioningType
+
+from observatory.api.client import ApiClient, Configuration
+from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
+from observatory.api.client.model.dataset import Dataset
+from observatory.api.client.model.dataset_type import DatasetType
+from observatory.api.client.model.organisation import Organisation
+from observatory.api.client.model.table_type import TableType
+from observatory.api.client.model.workflow import Workflow
+from observatory.api.client.model.workflow_type import WorkflowType
+from observatory.api.testing import ObservatoryApiEnvironment
+from observatory.platform.utils.release_utils import get_dataset_releases, get_latest_dataset_release
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -32,6 +44,7 @@ from observatory.platform.utils.test_utils import (
 )
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
+    bigquery_sharded_table_id,
     blob_name,
     create_date_table_id,
     table_ids_from_path,
@@ -40,19 +53,6 @@ from observatory.platform.workflows.stream_telescope import (
     StreamRelease,
     StreamTelescope,
 )
-from observatory.api.testing import ObservatoryApiEnvironment
-from observatory.api.client import ApiClient, Configuration
-from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
-from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.table_type import TableType
-from observatory.api.client.model.dataset_type import DatasetType
-from observatory.api.client.model.workflow import Workflow
-from observatory.api.client.model.workflow_type import WorkflowType
-from observatory.api.client.model.dataset import Dataset
-from observatory.api.client.model.dataset_release import DatasetRelease
-from observatory.platform.utils.release_utils import get_dataset_releases, get_latest_dataset_release
-from click.testing import CliRunner
-
 
 DEFAULT_SCHEMA_PATH = "/path/to/schemas"
 
@@ -78,6 +78,7 @@ class MyTestStreamTelescope(StreamTelescope):
         dataset_description: str = "dataset_description",
         batch_load: bool = False,
         workflow_id: int = 1,
+        dataset_type_id=DAG_ID,
     ):
         table_descriptions = {
             "1": "table description 1",
@@ -98,6 +99,7 @@ class MyTestStreamTelescope(StreamTelescope):
             table_descriptions=table_descriptions,
             batch_load=batch_load,
             workflow_id=workflow_id,
+            dataset_type_id=dataset_type_id,
         )
 
         self.add_setup_task(self.check_dependencies)
@@ -225,7 +227,7 @@ class TestStreamTelescope(ObservatoryTestCase):
 
         dataset_type = DatasetType(
             name="My dataset type",
-            type_id="type id",
+            type_id=MyTestStreamTelescope.DAG_ID,
             table_type=TableType(id=1),
         )
 
@@ -654,25 +656,34 @@ class TestStreamTelescope(ObservatoryTestCase):
 class MockTelescope(StreamTelescope):
     DAG_ID = "telescope"
 
-    def __init__(self, start_date: pendulum.DateTime = pendulum.now(), schedule_interval: str = "@monthly"):
+    def __init__(
+        self, dag_id: str = DAG_ID, start_date: pendulum.DateTime = pendulum.now(), schedule_interval: str = "@monthly"
+    ):
         super().__init__(
-            dag_id="dag",
+            dag_id=dag_id,
             start_date=start_date,
             schedule_interval=schedule_interval,
             dataset_id="data",
             merge_partition_field="field",
             schema_folder="folder",
             workflow_id=1,
+            dataset_type_id=dag_id,
         )
         self.add_setup_task(self.task)
         self.add_task(self.add_new_dataset_releases)
-        
+
     def task(self, **kwargs):
         self._start, self._end, self._first_release = self.get_release_info(**kwargs)
         return True
 
     def make_release(self, **kwargs) -> StreamRelease:
         return StreamRelease(dag_id="dag", start_date=pendulum.now(), end_date=pendulum.now(), first_release=True)
+
+    def get_bq_load_info(self, release: StreamRelease) -> List[Tuple[str, str, str]]:
+        return [
+            ("transform_blob1", "main_table1", "partition_table1"),
+            ("transform_blob2", "main_table2", "partition_table2"),
+        ]
 
 
 class TestStreamTelescopeTasks(ObservatoryTestCase):
@@ -686,6 +697,43 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
         self.env = ObservatoryApiEnvironment(host=self.host, port=self.port)
         self.org_name = "Curtin University"
         self.workflow = 1
+
+    def setup_api(self):
+        org = Organisation(name=self.org_name)
+        result = self.api.put_organisation(org)
+        self.assertIsInstance(result, Organisation)
+
+        tele_type = WorkflowType(type_id="tele_type", name="My Telescope")
+        result = self.api.put_workflow_type(tele_type)
+        self.assertIsInstance(result, WorkflowType)
+
+        telescope = Workflow(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
+        result = self.api.put_workflow(telescope)
+        self.assertIsInstance(result, Workflow)
+
+        table_type = TableType(
+            type_id="partitioned",
+            name="partitioned bq table",
+        )
+        self.api.put_table_type(table_type)
+
+        dataset_type = DatasetType(
+            name="My dataset type",
+            type_id=MockTelescope.DAG_ID,
+            table_type=TableType(id=1),
+        )
+
+        self.api.put_dataset_type(dataset_type)
+
+        dataset = Dataset(
+            name="My dataset",
+            service="bigquery",
+            address="project.dataset.table",
+            workflow=Workflow(id=1),
+            dataset_type=DatasetType(id=1),
+        )
+        result = self.api.put_dataset(dataset)
+        self.assertIsInstance(result, Dataset)
 
     @patch("observatory.platform.utils.release_utils.make_observatory_api")
     def test_get_release_info(self, m_makeapi):
@@ -723,43 +771,6 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
                 self.assertEqual(expected_start, telescope._start)
                 self.assertEqual(expected_end, telescope._end)
 
-    def setup_api(self):
-        org = Organisation(name=self.org_name)
-        result = self.api.put_organisation(org)
-        self.assertIsInstance(result, Organisation)
-
-        tele_type = WorkflowType(type_id="tele_type", name="My Telescope")
-        result = self.api.put_workflow_type(tele_type)
-        self.assertIsInstance(result, WorkflowType)
-
-        telescope = Workflow(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
-        result = self.api.put_workflow(telescope)
-        self.assertIsInstance(result, Workflow)
-
-        table_type = TableType(
-            type_id="partitioned",
-            name="partitioned bq table",
-        )
-        self.api.put_table_type(table_type)
-
-        dataset_type = DatasetType(
-            name="My dataset type",
-            type_id="type id",
-            table_type=TableType(id=1),
-        )
-
-        self.api.put_dataset_type(dataset_type)
-
-        dataset = Dataset(
-            name="My dataset",
-            service="bigquery",
-            address="project.dataset.table",
-            workflow=Workflow(id=1),
-            dataset_type=DatasetType(id=1),
-        )
-        result = self.api.put_dataset(dataset)
-        self.assertIsInstance(result, Dataset)
-
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_download(self, m_get):
         m_get.return_value = "data"
@@ -775,8 +786,8 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
         with patch("observatory.platform.workflows.stream_telescope.upload_files_from_list") as m_upload:
             telescope = MockTelescope()
 
-            releases = telescope.make_release()
-            telescope.upload_downloaded(releases)
+            release = telescope.make_release()
+            telescope.upload_downloaded(release)
 
             self.assertEqual(m_upload.call_count, 1)
             call_args, _ = m_upload.call_args
@@ -796,10 +807,10 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
     def test_transform(self, m_get):
         m_get.return_value = "data"
         telescope = MockTelescope()
-        releases = telescope.make_release()
-        releases.transform = MagicMock()
-        telescope.transform(releases)
-        self.assertEqual(releases.transform.call_count, 1)
+        release = telescope.make_release()
+        release.transform = MagicMock()
+        telescope.transform(release)
+        self.assertEqual(release.transform.call_count, 1)
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_upload_transformed(self, m_get):
@@ -807,13 +818,35 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
         with patch("observatory.platform.workflows.stream_telescope.upload_files_from_list") as m_upload:
             telescope = MockTelescope()
 
-            releases = telescope.make_release()
-            telescope.upload_transformed(releases)
+            release = telescope.make_release()
+            telescope.upload_transformed(release)
 
             self.assertEqual(m_upload.call_count, 1)
             call_args, _ = m_upload.call_args
             self.assertEqual(call_args[0], [])
             self.assertEqual(call_args[1], "data")
+
+    @patch("observatory.platform.utils.workflow_utils.Variable.get")
+    def test_bq_create_snapshot(self, m_get):
+        m_get.side_effect = lambda x: {"data_path": "data", "project_id": "project_id"}[x]
+        with patch(
+            "observatory.platform.workflows.stream_telescope.create_bigquery_snapshot"
+        ) as m_create_bigquery_snapshot:
+            telescope = MockTelescope()
+            release = telescope.make_release()
+            telescope.bq_create_snapshot(release)
+
+            self.assertEqual(2, m_create_bigquery_snapshot.call_count)
+            table_id = bigquery_sharded_table_id("main_table1_snapshots", release.end_date)
+            self.assertEqual(
+                ("project_id", telescope.dataset_id, "main_table1", telescope.dataset_id, table_id),
+                (m_create_bigquery_snapshot.call_args_list[0].args),
+            )
+            table_id = bigquery_sharded_table_id("main_table2_snapshots", release.end_date)
+            self.assertEqual(
+                ("project_id", telescope.dataset_id, "main_table2", telescope.dataset_id, table_id),
+                (m_create_bigquery_snapshot.call_args_list[1].args),
+            )
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_merge_update_files(self, m_get):
@@ -850,7 +883,7 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
 
             merged_file = os.path.join(tmpdir, "telescope.jsonl")
             self.assertTrue(os.path.exists(merged_file))
-            
+
             key = telescope.merge_partition_field
             with open(merged_file, "r") as f:
                 merged_data = {}
@@ -861,4 +894,3 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
             self.assertEqual(len(merged_data), 2)
             self.assertEqual(merged_data["myfirstdoi"], "value3")
             self.assertEqual(merged_data["myseconddoi"], "value2")
-
