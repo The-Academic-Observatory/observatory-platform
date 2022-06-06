@@ -337,18 +337,20 @@ services:
       dockerfile: Dockerfile.seed_db
       args:
         - HOST_USER_ID=${HOST_USER_ID}
-    environment:
-      - API_HOST=apiserver
-      - API_PORT={{api_server_port}}
-      {%- for package in config.python_packages %}
-      {%- if package.name == 'observatory-api' %}
-      {%- if config.backend.type.value == 'local' and package.type == 'editable' %}
+    {%- for conn in config.airflow_connections %}
+    {%- if conn.name == "observatory_api" %}
+    environment: [API_URL={{conn.value}}]
+    {%- endif %}
+    {%- endfor %}
+    {%- for package in config.python_packages %}
+    {%- if package.name == 'observatory-api' %}
+    {%- if config.backend.type.value == 'local' and package.type == 'editable' %}
     volumes: ["{{ package.host_package }}:/opt/{{ package.name }}"]
-      {%- elif config.backend.type.value == 'terraform' and package.type == 'editable'  %}
-      - "/opt/{{ package.name }}:/opt/{{ package.name }}"
-      {%- endif -%}
-      {%- endif %}
-      {%- endfor %}
+    {%- elif config.backend.type.value == 'terraform' and package.type == 'editable'  %}
+    volumes: ["/opt/{{ package.name }}:/opt/{{ package.name }}"]
+    {%- endif -%}
+    {%- endif %}
+    {%- endfor %}
     <<: *networks
     depends_on:
       apiserver:

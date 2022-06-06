@@ -18,6 +18,7 @@
 
 import os
 from collections import OrderedDict
+from urllib.parse import urlparse
 
 from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi
@@ -28,26 +29,27 @@ from observatory.api.client.model.workflow import Workflow
 limit = int(1e6)
 
 
-def get_api_client(host: str = None, port: int = None, api_key: str = None) -> ObservatoryApi:
+def get_api_client(host: str = None, port: int = None, api_key: dict = None) -> ObservatoryApi:
     """Get an API client.
-    :param host: Server hostname or ip.
+    :param host: URL for api server.
     :param port: Server port.
     :param api_key: API key.
     :return: ObservatoryApi object.
     """
 
+    url = os.environ["API_URL"]
+    url_fields = urlparse(url)
+
     if host is None:
-        env_host = os.environ["API_HOST"] if "API_HOST" in os.environ else None
-        host = env_host if env_host is not None else "localhost"
+        host = url_fields.hostname if url_fields.hostname is not None else "localhost"
 
     if port is None:
-        env_port = os.environ["API_PORT"] if "API_PORT" in os.environ else None
-        port = env_port if env_port is not None else 5002
+        port = url_fields.port if url_fields.port is not None else 5002
 
     if api_key is None:
-        api_key = os.environ["API_KEY"] if "API_KEY" in os.environ else None
+        api_key = {"api_key": url_fields.password} if url_fields.password is not None else None
 
-    configuration = Configuration(host=f"http://{host}:{port}", api_key=api_key)
+    configuration = Configuration(host=f"{url_fields.scheme}://{host}:{port}", api_key=api_key)
     api_client = ApiClient(configuration)
     api = ObservatoryApi(api_client=api_client)
     return api
