@@ -312,8 +312,6 @@ services:
       {%- if package.name == 'observatory-api' %}
       {%- if config.backend.type.value == 'local' and package.type == 'editable' %}
     volumes: ["{{ package.host_package }}:/opt/{{ package.name }}"]
-      {%- elif config.backend.type.value == 'terraform' and package.type == 'editable'  %}
-      - "/opt/{{ package.name }}:/opt/{{ package.name }}"
       {%- endif -%}
       {%- endif %}
       {%- endfor %}
