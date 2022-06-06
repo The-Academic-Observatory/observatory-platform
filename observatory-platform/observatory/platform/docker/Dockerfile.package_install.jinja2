@@ -1,0 +1,63 @@
+# Copyright 2020 Curtin University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: Tuan Chien
+
+
+{% if package.type == 'editable' %}
+
+# Install editable package system dependencies: {{ package.name }}
+COPY ./requirements.{{ package.name }}.sh requirements.sh
+USER root
+RUN chmod +x ./requirements.sh
+RUN ./requirements.sh
+USER ${INSTALL_USER}
+
+# Install editable package: {{ package.name }}
+COPY ./requirements.{{ package.name }}.txt requirements.txt
+RUN pip3 install -r requirements.txt --user
+
+{% elif package.type == 'sdist' %}
+
+# Install sdist package: {{ package.name }}
+COPY ./{{ package.docker_package }} {{ package.docker_package }}
+
+# Extract sdist and install requirements.sh
+RUN tar -xf *.tar.gz --one-top-level=sdist --strip-components 1
+RUN cp sdist/requirements.sh ./requirements.sh
+USER root
+RUN chmod +x ./requirements.sh
+RUN ./requirements.sh
+USER ${INSTALL_USER}
+
+# Install Python package
+RUN pip3 install {{ package.docker_package }} --user
+
+{% elif package.type == 'pypi' %}
+
+# Install PyPI package: {{ package.name }}
+
+# Extract sdist and install requirements.sh
+RUN pip3 download {{ package.docker_package }} --no-binary :all: --no-deps
+RUN tar -xf *.tar.gz --one-top-level=sdist --strip-components 1
+RUN cp sdist/requirements.sh ./requirements.sh
+USER root
+RUN chmod +x ./requirements.sh
+RUN ./requirements.sh
+USER ${INSTALL_USER}
+
+# Install package with PyPI
+RUN pip3 install {{ package.docker_package }} --user
+
+{% endif %}
