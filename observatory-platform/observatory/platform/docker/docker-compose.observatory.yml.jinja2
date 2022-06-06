@@ -328,6 +328,7 @@ services:
     ports:
       - {{api_server_port}}:{{api_server_port}}
     entrypoint: /entrypoint-api.sh
+  {%- endif %}
 
   seed_db:
     build:
@@ -353,7 +354,6 @@ services:
     depends_on:
       apiserver:
         condition: service_healthy
-  {%- endif %}
 
 {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
 secrets:
