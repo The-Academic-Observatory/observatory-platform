@@ -168,7 +168,6 @@ class ComposeRunner(ComposeRunnerInterface):
 
         self.compose_template_path = compose_template_path
         self.build_path = build_path
-        self.seed_db_dir = os.path.join(self.build_path, "seed_db")
         self.templates: List[Template] = []
         self.files: List[File] = []
         self.add_template(path=compose_template_path, **compose_template_kwargs)
@@ -213,7 +212,6 @@ class ComposeRunner(ComposeRunnerInterface):
         if os.path.exists(self.build_path):
             shutil.rmtree(self.build_path)
         os.makedirs(self.build_path)
-        Path(self.seed_db_dir).mkdir(parents=True, exist_ok=True)
 
         # Render templates
         for template in self.templates:

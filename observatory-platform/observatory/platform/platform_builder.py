@@ -32,6 +32,8 @@ from observatory.platform.observatory_config import (
     Observatory,
 )
 from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.cli.seed_db import copy_api_seed_files
+
 
 HOST_UID = os.getuid()
 DEBUG = False
@@ -112,11 +114,7 @@ class PlatformBuilder(ComposeRunner):
             self.add_file(
                 path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
             )
-            self.add_template(
-                path=os.path.join(self.docker_module_path, "seed_db.sh.jinja2"), config=self.config
-            )
-            
-            self.add_api_db_seeding_files()
+            self.add_template(path=os.path.join(self.docker_module_path, "seed_db.sh.jinja2"), config=self.config)
 
             # Add all project requirements files for local projects
             if self.config is not None and self.config_is_valid:
@@ -136,26 +134,6 @@ class PlatformBuilder(ComposeRunner):
                     elif package.type == "sdist":
                         # Add sdist package file
                         self.add_file(path=package.host_package, output_file_name=package.docker_package)
-
-    def add_api_db_seeding_files(self):
-        """Copy all the api db server seeding scripts to a subdir of the observatory build directory."""
-
-        seed_dir = os.path.join(self.build_path, "seed_db")
-        Path(seed_dir).mkdir(exist_ok=True, parents=True)
-        for package in self.config.python_packages:
-            search_files = ["table_type_info.py", "dataset_type_info.py", "workflow_type_info.py", "organisation_info.py", "workflow_info.py", "dataset_info.py"]
-            files_to_copy = []
-            for file in search_files:
-                search_path = os.path.join(package.host_package, "**", file)
-                found = glob(search_path, recursive=True)
-                files_to_copy.extend(found)
-
-            for file in files_to_copy:
-                prefix = package.name
-                dst_file = f"{prefix}.{os.path.basename(file)}"
-                dst_path = os.path.join(self.seed_db_dir, dst_file)
-                self.add_file(path=file, output_file_name=dst_path)
-
 
     @property
     def is_environment_valid(self) -> bool:
@@ -255,3 +233,10 @@ class PlatformBuilder(ComposeRunner):
             env[conn.conn_name] = conn.value
 
         return env
+
+    def make_files(self):
+        """Copies files and renders templates in the build directory. Adds API seeding scripts."""
+
+        super().make_files()
+
+        copy_api_seed_files(build_path=self.build_path, pkgs=self.config.python_packages)
