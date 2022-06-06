@@ -31,13 +31,13 @@ limit = int(1e6)
 
 def get_api_client(host: str = None, port: int = None, api_key: dict = None) -> ObservatoryApi:
     """Get an API client.
-    :param host: URL for api server.
+    :param host: URI for api server.
     :param port: Server port.
     :param api_key: API key.
     :return: ObservatoryApi object.
     """
 
-    url = os.environ["API_URL"]
+    url = os.environ["API_URI"]
     url_fields = urlparse(url)
 
     if host is None:
