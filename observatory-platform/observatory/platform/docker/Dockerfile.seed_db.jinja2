@@ -19,13 +19,13 @@ FROM python:3.9-slim
 ARG HOST_USER_ID
 ARG OBSERVATORY_HOME=/opt/observatory
 ARG INSTALL_USER=apiserver
+ENV PATH="$PATH:/home/${INSTALL_USER}/.local/bin/"
 
 RUN adduser ${INSTALL_USER}
 USER root
 RUN apt-get update -yqq
 RUN apt-get install -y git python3-pip postgresql-client-13 gunicorn procps netcat
 RUN usermod -u ${HOST_USER_ID} ${INSTALL_USER}
-
 USER ${INSTALL_USER}
 
 # Clean up default installed Python packages
@@ -34,7 +34,7 @@ RUN pip cache purge
 
 # Install dependencies for all projects
 {% for package in config.python_packages %}
-{% if package.name == 'observatory-api' %}
+{% if package.name != 'observatory-platform' %}
 # Set working directory for {{ package.name }}
 ARG WORKING_DIR=/opt/{{ package.name }}
 WORKDIR ${WORKING_DIR}
@@ -43,6 +43,11 @@ WORKDIR ${WORKING_DIR}
 USER root
 RUN chown -R ${INSTALL_USER} ${WORKING_DIR}
 USER ${INSTALL_USER}
+
+{% set install_deps=false %}
+{% if package.name == 'observatory-api' %}
+{% set install_deps=true %}
+{% endif %}
 
 {% include 'Dockerfile.package_install.jinja2' %}
 
@@ -54,7 +59,6 @@ WORKDIR ${OBSERVATORY_HOME}
 # Copy entry point scripts which install new dependencies at runtime and the Observatory Platform Python package
 USER root
 
-ADD seed_db /seed_db
 COPY seed_db.sh /seed_db.sh
 RUN chmod +x /seed_db.sh
 RUN chown -R ${INSTALL_USER} /opt/observatory

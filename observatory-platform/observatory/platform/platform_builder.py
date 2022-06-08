@@ -18,8 +18,6 @@
 import os
 import shutil
 from typing import Union
-from pathlib import Path
-from glob import glob
 
 import docker
 import requests
@@ -32,8 +30,6 @@ from observatory.platform.observatory_config import (
     Observatory,
 )
 from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.cli.seed_db import copy_api_seed_files
-
 
 HOST_UID = os.getuid()
 DEBUG = False
@@ -233,10 +229,3 @@ class PlatformBuilder(ComposeRunner):
             env[conn.conn_name] = conn.value
 
         return env
-
-    def make_files(self):
-        """Copies files and renders templates in the build directory. Adds API seeding scripts."""
-
-        super().make_files()
-
-        copy_api_seed_files(build_path=self.build_path, pkgs=self.config.python_packages)

@@ -47,7 +47,9 @@ USER root
 RUN chown -R ${INSTALL_USER} ${WORKING_DIR}
 USER ${INSTALL_USER}
 
-{% include 'Dockerfile.package_install.jinja2' %}
+{% with install_deps=true %}
+  {% include 'Dockerfile.package_install.jinja2' %}
+{% endwith %}
 
 # Set working directory back to airflow home
 WORKDIR ${AIRFLOW_HOME}

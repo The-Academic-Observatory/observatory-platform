@@ -14,9 +14,10 @@
 
 # Author: Tuan Chien
 
-
+USER ${INSTALL_USER}
 {% if package.type == 'editable' %}
 
+{% if install_deps %}
 # Install editable package system dependencies: {{ package.name }}
 COPY ./requirements.{{ package.name }}.sh requirements.sh
 USER root
@@ -27,10 +28,12 @@ USER ${INSTALL_USER}
 # Install editable package: {{ package.name }}
 COPY ./requirements.{{ package.name }}.txt requirements.txt
 RUN pip3 install -r requirements.txt --user
+{% endif %}
 
 {% elif package.type == 'sdist' %}
 
 # Install sdist package: {{ package.name }}
+{% if install_deps %}
 COPY ./{{ package.docker_package }} {{ package.docker_package }}
 
 # Extract sdist and install requirements.sh
@@ -43,12 +46,14 @@ USER ${INSTALL_USER}
 
 # Install Python package
 RUN pip3 install {{ package.docker_package }} --user
+{% endif %}
 
 {% elif package.type == 'pypi' %}
 
 # Install PyPI package: {{ package.name }}
 
 # Extract sdist and install requirements.sh
+{% if install_deps %}
 RUN pip3 download {{ package.docker_package }} --no-binary :all: --no-deps
 RUN tar -xf *.tar.gz --one-top-level=sdist --strip-components 1
 RUN cp sdist/requirements.sh ./requirements.sh
@@ -56,8 +61,9 @@ USER root
 RUN chmod +x ./requirements.sh
 RUN ./requirements.sh
 USER ${INSTALL_USER}
+{% endif %}
 
 # Install package with PyPI
-RUN pip3 install {{ package.docker_package }} --user
+RUN pip3 install {{ package.docker_package }} --user {{ "--no-deps" if not install_deps }}
 
 {% endif %}

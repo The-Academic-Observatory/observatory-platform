@@ -6,7 +6,7 @@ set -x
 ########################################
 
 {% for package in config.python_packages %}
-{% if package.name == 'observatory-api' %}
+{% if package.name != 'observatory-platform' %}
 {% if package.type == 'editable' -%}
 cd /opt/{{ package.name }}
 pip3 install -r requirements.txt
@@ -18,23 +18,13 @@ unset PBR_VERSION
 {% endif %}
 {% endfor %}
 
-echo "Seeding TableType"
-find /seed_db -name "*.table_type_info.py" -exec python3 {} \;
-
-echo "Seeding WorkflowType"
-find /seed_db -name "*.workflow_type_info.py" -exec python3 {} \;
-
-echo "Seeding DatasetType"
-find /seed_db -name "*.dataset_type_info.py" -exec python3 {} \;
-
-echo "Seeding Organisation"
-find /seed_db -name "*.organisation_info.py" -exec python3 {} \;
-
-echo "Seeding Workflow"
-find /seed_db -name "*.workflow_info.py" -exec python3 {} \;
-
-echo "Seeding Dataset"
-find /seed_db -name "*.dataset_info.py" -exec python3 {} \;
+{% for package in config.python_packages %}
+{% if package.name != 'observatory-platform' and package.name != 'observatory-api' %}
+# Call the command for seeding the database
+echo "Seeding {{ package.name }}"
+{{ package.name }}-seed
+{% endif %}
+{% endfor %}
 
 echo "Staying alive for debug"
 tail -f /dev/null

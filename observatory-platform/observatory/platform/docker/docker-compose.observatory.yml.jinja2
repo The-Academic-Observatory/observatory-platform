@@ -33,6 +33,7 @@ version: '3.8'
 {%- set redis_hostname="redis" -%}
 {%- set api_server_db="observatory" -%}
 {%- set api_server_port="5002" -%}
+{%- set api_uri="http://apiserver:5002" -%}
 {%- else -%}
 
 {%- set host_data_path="/opt/observatory/data" -%}
@@ -40,6 +41,7 @@ version: '3.8'
 {%- set google_application_credentials="/opt/observatory/google_application_credentials.json" -%}
 {%- set postgres_hostname="${POSTGRES_HOSTNAME}" -%}
 {%- set redis_hostname="${REDIS_HOSTNAME}" -%}
+{%- set api_uri="${API_URI}" -%}
 
 {%- endif -%}
 
@@ -307,14 +309,7 @@ services:
       - BASE_DB_URI=postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/postgres
       - OBSERVATORY_DB_URI=postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/{{api_server_db}}
       - OBSERVATORY_API_PORT={{api_server_port}}
-    
-      {%- for package in config.python_packages %}
-      {%- if package.name == 'observatory-api' %}
-      {%- if config.backend.type.value == 'local' and package.type == 'editable' %}
-    volumes: ["{{ package.host_package }}:/opt/{{ package.name }}"]
-      {%- endif -%}
-      {%- endif %}
-      {%- endfor %}
+    volumes: *volumes
     restart: always
     <<: *networks
     depends_on:
@@ -336,20 +331,9 @@ services:
       dockerfile: Dockerfile.seed_db
       args:
         - HOST_USER_ID=${HOST_USER_ID}
-    {%- for conn in config.airflow_connections %}
-    {%- if conn.name == "observatory_api" %}
-    environment: [API_URI={{conn.value}}]
-    {%- endif %}
-    {%- endfor %}
-    {%- for package in config.python_packages %}
-    {%- if package.name == 'observatory-api' %}
-    {%- if config.backend.type.value == 'local' and package.type == 'editable' %}
-    volumes: ["{{ package.host_package }}:/opt/{{ package.name }}"]
-    {%- elif config.backend.type.value == 'terraform' and package.type == 'editable'  %}
-    volumes: ["/opt/{{ package.name }}:/opt/{{ package.name }}"]
-    {%- endif -%}
-    {%- endif %}
-    {%- endfor %}
+    environment:
+      - API_URI={{api_uri}}
+    volumes: *volumes
     <<: *networks
     depends_on:
       apiserver:
