@@ -317,8 +317,8 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "nc", "-z", "-v", "apiserver", "{{api_server_port}}"]
-      interval: 5s
-      retries: 5
+      interval: 30s
+      retries: 20
     command: apiserver
     ports:
       - {{api_server_port}}:{{api_server_port}}
