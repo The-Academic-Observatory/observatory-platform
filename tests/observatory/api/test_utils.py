@@ -249,38 +249,17 @@ class TestApiUtils(ObservatoryTestCase):
         self.assertEqual(api.api_client.configuration.host, "http://localhost:5002")
         self.assertEqual(api.api_client.configuration.api_key, {})
 
-        # Host set
-        os.environ["API_HOST"] = "testhost"
+        # Environment variable set
+        os.environ["API_URI"] = "http://testhost:5002"
         api = get_api_client()
         self.assertEqual(api.api_client.configuration.host, "http://testhost:5002")
-        self.assertEqual(api.api_client.configuration.api_key, {})
+        self.assertEqual(api.api_client.configuration.api_key, {"api_key": None})
+        del os.environ["API_URI"]
 
-        # Port set
-        os.environ["API_PORT"] = "5001"
-        api = get_api_client()
-        self.assertEqual(api.api_client.configuration.host, "http://testhost:5001")
-        self.assertEqual(api.api_client.configuration.api_key, {})
-
-        # API key set
-        os.environ["API_KEY"] = "mykey"
-        api = get_api_client()
-        self.assertEqual(api.api_client.configuration.host, "http://testhost:5001")
-        self.assertEqual(api.api_client.configuration.api_key, "mykey")
-
-        # Pass in host argument
+        # Pass in arguments
         api = get_api_client(host="host1")
-        self.assertEqual(api.api_client.configuration.host, "http://host1:5001")
-        self.assertEqual(api.api_client.configuration.api_key, "mykey")
-
-        # Pass in port argument
-        api = get_api_client(port=1000)
-        self.assertEqual(api.api_client.configuration.host, "http://testhost:1000")
-        self.assertEqual(api.api_client.configuration.api_key, "mykey")
-
-        # Pass in key argument
-        api = get_api_client(api_key="key")
-        self.assertEqual(api.api_client.configuration.host, "http://testhost:5001")
-        self.assertEqual(api.api_client.configuration.api_key, "key")
+        self.assertEqual(api.api_client.configuration.host, "http://host1:5002")
+        self.assertEqual(api.api_client.configuration.api_key, {})
 
     def test_get_table_type_ids(self):
         with self.env.create():

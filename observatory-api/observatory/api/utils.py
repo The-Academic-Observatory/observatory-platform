@@ -29,7 +29,7 @@ from observatory.api.client.model.workflow import Workflow
 limit = int(1e6)
 
 
-def get_api_client(host: str = None, port: int = None, api_key: dict = None) -> ObservatoryApi:
+def get_api_client(host: str = "localhost", port: int = 5002, api_key: dict = None) -> ObservatoryApi:
     """Get an API client.
     :param host: URI for api server.
     :param port: Server port.
@@ -37,19 +37,14 @@ def get_api_client(host: str = None, port: int = None, api_key: dict = None) -> 
     :return: ObservatoryApi object.
     """
 
-    url = os.environ["API_URI"]
-    url_fields = urlparse(url)
+    if "API_URI" in os.environ:
+        fields = urlparse(os.environ["API_URI"])
+        uri = f"{fields.scheme}://{fields.hostname}:{fields.port}"
+        api_key={"api_key": fields.password}
+    else:
+        uri = f"http://{host}:{port}"
 
-    if host is None:
-        host = url_fields.hostname if url_fields.hostname is not None else "localhost"
-
-    if port is None:
-        port = url_fields.port if url_fields.port is not None else 5002
-
-    if api_key is None:
-        api_key = {"api_key": url_fields.password} if url_fields.password is not None else None
-
-    configuration = Configuration(host=f"{url_fields.scheme}://{host}:{port}", api_key=api_key)
+    configuration = Configuration(host=uri, api_key=api_key)
     api_client = ApiClient(configuration)
     api = ObservatoryApi(api_client=api_client)
     return api
