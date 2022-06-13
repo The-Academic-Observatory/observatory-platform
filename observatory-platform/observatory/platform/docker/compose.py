@@ -23,7 +23,7 @@ from subprocess import Popen
 from typing import Dict, List
 
 from observatory.platform.utils.jinja2_utils import render_template
-from observatory.platform.utils.proc_utils import wait_for_process
+from observatory.platform.utils.proc_utils import stream_process
 
 
 @dataclasses.dataclass
@@ -281,6 +281,6 @@ class ComposeRunner(ComposeRunnerInterface):
         )
 
         # Wait for results
-        output, error = wait_for_process(proc)
+        output, error = stream_process(proc, True)
 
         return ProcessOutput(output, error, proc.returncode)

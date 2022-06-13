@@ -33,6 +33,7 @@ version: '3.8'
 {%- set redis_hostname="redis" -%}
 {%- set api_server_db="observatory" -%}
 {%- set api_server_port="5002" -%}
+{%- set api_uri="http://apiserver:5002" -%}
 {%- else -%}
 
 {%- set host_data_path="/opt/observatory/data" -%}
@@ -40,6 +41,7 @@ version: '3.8'
 {%- set google_application_credentials="/opt/observatory/google_application_credentials.json" -%}
 {%- set postgres_hostname="${POSTGRES_HOSTNAME}" -%}
 {%- set redis_hostname="${REDIS_HOSTNAME}" -%}
+{%- set api_uri="${API_URI}" -%}
 
 {%- endif -%}
 
@@ -297,7 +299,11 @@ services:
       retries: 5
 
   apiserver:
-    build: *build
+    build:
+      context: .
+      dockerfile: Dockerfile.apiserver
+      args:
+        - HOST_USER_ID=${HOST_USER_ID}
     environment:
       - API_SERVER_DB={{api_server_db}}
       - BASE_DB_URI=postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/postgres
@@ -307,11 +313,31 @@ services:
     restart: always
     <<: *networks
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nc", "-z", "-v", "apiserver", "{{api_server_port}}"]
+      interval: 30s
+      retries: 20
     command: apiserver
     ports:
       - {{api_server_port}}:{{api_server_port}}
+    entrypoint: /entrypoint-api.sh
   {%- endif %}
+
+  seed_db:
+    build:
+      context: .
+      dockerfile: Dockerfile.seed_db
+      args:
+        - HOST_USER_ID=${HOST_USER_ID}
+    environment:
+      - API_URI={{api_uri}}
+    volumes: *volumes
+    <<: *networks
+    depends_on:
+      apiserver:
+        condition: service_healthy
 
 {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
 secrets:

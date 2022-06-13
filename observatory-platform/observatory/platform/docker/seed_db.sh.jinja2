@@ -1,0 +1,30 @@
+#!/bin/bash
+set -x
+
+########################################
+# Install editable mode Python packages
+########################################
+
+{% for package in config.python_packages %}
+{% if package.name != 'observatory-platform' %}
+{% if package.type == 'editable' -%}
+cd /opt/{{ package.name }}
+pip3 install -r requirements.txt
+
+export PBR_VERSION=0.0.1
+pip3 install --no-deps -e . --user
+unset PBR_VERSION
+{% endif %}
+{% endif %}
+{% endfor %}
+
+{% for package in config.python_packages %}
+{% if package.name != 'observatory-platform' and package.name != 'observatory-api' %}
+# Call the command for seeding the database
+echo "Seeding {{ package.name }}"
+{{ package.name }}-seed
+{% endif %}
+{% endfor %}
+
+echo "Staying alive for debug"
+tail -f /dev/null

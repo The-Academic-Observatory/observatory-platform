@@ -12,32 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: Tuan Chien
 
-FROM apache/airflow:2.2.1-python3.8
+FROM python:3.9-slim
 
 ARG HOST_USER_ID
 ARG OBSERVATORY_HOME=/opt/observatory
-ARG INSTALL_USER=airflow
+ARG INSTALL_USER=apiserver
 
-# Install git which is required when installing dependencies with pip
+RUN adduser ${INSTALL_USER}
 USER root
 RUN apt-get update -yqq
-
-# Change airflow user's user id to the hosts user id
+RUN apt-get install -y git python3-pip postgresql-client-13 gunicorn procps netcat
 RUN usermod -u ${HOST_USER_ID} ${INSTALL_USER}
 
-# Install Python dependencies for Observatory Platform as airflow user
 USER ${INSTALL_USER}
 
 # Clean up default installed Python packages
-RUN pip freeze | xargs pip uninstall -y
 RUN python -m pip install --upgrade pip
 RUN pip cache purge
-RUN pip install apache-airflow-providers-google==5.1.0 --no-deps
 
 # Install dependencies for all projects
 {% for package in config.python_packages %}
+{% if package.name == 'observatory-api' %}
 # Set working directory for {{ package.name }}
 ARG WORKING_DIR=/opt/{{ package.name }}
 WORKDIR ${WORKING_DIR}
@@ -52,15 +49,17 @@ USER ${INSTALL_USER}
 {% endwith %}
 
 # Set working directory back to airflow home
-WORKDIR ${AIRFLOW_HOME}
+WORKDIR ${OBSERVATORY_HOME}
+{% endif %}
 {% endfor %}
 
 # Copy entry point scripts which install new dependencies at runtime and the Observatory Platform Python package
 USER root
 
-COPY entrypoint-root.sh /entrypoint-root.sh
-COPY entrypoint-airflow.sh /entrypoint-airflow.sh
-RUN chmod +x /entrypoint-root.sh
-RUN chmod +x /entrypoint-airflow.sh
+COPY entrypoint-api.sh /entrypoint-api.sh
+RUN chmod +x /entrypoint-api.sh
 
-ENTRYPOINT ["/entrypoint-root.sh"]
+RUN chown -R ${INSTALL_USER} /opt/observatory
+
+USER ${INSTALL_USER}
+ENTRYPOINT ["/entrypoint-api.sh"]
