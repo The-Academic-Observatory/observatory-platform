@@ -20,7 +20,7 @@ import logging
 import shutil
 from abc import ABC, abstractmethod
 from functools import partial
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, Union, Optional
 
 try:
     from typing import Protocol
@@ -207,6 +207,7 @@ class Workflow(AbstractWorkflow):
         airflow_conns: list = None,
         workflow_id: int = None,
         dataset_type_id: str = None,
+        tags: Optional[List[str]] = None,
     ):
         """Construct a Workflow instance.
 
@@ -220,6 +221,7 @@ class Workflow(AbstractWorkflow):
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         :param workflow_id: api workflow id.
+        :param tags: Optional Airflow DAG tags to add.
         """
 
         self.dag_id = dag_id
@@ -234,6 +236,7 @@ class Workflow(AbstractWorkflow):
         self._parallel_tasks = False
         self.workflow_id = workflow_id
         self.dataset_type_id = dataset_type_id
+        self.tags = tags
 
         self.operators = []
         self.default_args = {
@@ -250,6 +253,7 @@ class Workflow(AbstractWorkflow):
             catchup=self.catchup,
             max_active_runs=self.max_active_runs,
             doc_md=self.__doc__,
+            tags=self.tags,
         )
 
     def add_operator(self, operator: BaseOperator):
