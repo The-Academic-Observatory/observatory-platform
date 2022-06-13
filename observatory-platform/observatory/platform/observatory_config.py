@@ -169,6 +169,7 @@ class Observatory:
         :param docker_network_is_external: whether the docker network is external or not.
         :param docker_compose_project_name: The namespace for the Docker Compose containers: https://docs.docker.com/compose/reference/envvars/#compose_project_name.
         :param enable_elk: whether to enable the elk stack or not.
+        :param api_port: Port for accessing the API locally (exposed by docker container).
     """
 
     package: str = "observatory-platform"
@@ -190,6 +191,7 @@ class Observatory:
     enable_elk: bool = True
     api_package: str = "observatory-api"
     api_package_type: str = "pypi"
+    api_port: int = 5002
 
     def to_hcl(self):
         return to_hcl(
@@ -233,6 +235,7 @@ class Observatory:
         enable_elk = dict_.get("enable_elk", Observatory.enable_elk)
         api_package = dict_.get("api_package", Observatory.api_package)
         api_package_type = dict_.get("api_package_type", Observatory.api_package_type)
+        api_port = dict_.get("api_port", Observatory.api_port)
 
         return Observatory(
             package,
@@ -254,6 +257,7 @@ class Observatory:
             enable_elk=enable_elk,
             api_package=api_package,
             api_package_type=api_package_type,
+            api_port=api_port,
         )
 
 
