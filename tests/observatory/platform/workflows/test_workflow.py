@@ -427,3 +427,13 @@ class TestAddOperatorsTelescope(ObservatoryTestCase):
         dag = mt.make_dag()
 
         self.assert_dag_structure({"dummy_func": []}, dag)
+
+    def test_workflow_tags(self):
+        mt = MockWorkflow(
+            dag_id="1",
+            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            schedule_interval="daily",
+            tags=["oaebu"],
+        )
+
+        self.assertEqual(mt.dag.tags, ["oaebu"])
