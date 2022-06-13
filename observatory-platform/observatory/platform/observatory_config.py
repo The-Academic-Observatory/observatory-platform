@@ -1476,6 +1476,7 @@ def make_schema(backend_type: BackendType) -> Dict:
             "enable_elk": {"required": False, "type": "boolean"},
             "api_package": {"required": False, "type": "string"},
             "api_package_type": {"required": False, "type": "string", "allowed": package_types},
+            "api_port": {"required": False, "type": "integer"},
         },
     }
 
