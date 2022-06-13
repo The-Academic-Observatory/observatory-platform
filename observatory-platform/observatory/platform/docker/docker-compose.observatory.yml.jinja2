@@ -321,7 +321,7 @@ services:
       retries: 20
     command: apiserver
     ports:
-      - {{api_server_port}}:{{api_server_port}}
+      - ${HOST_API_PORT}:{{api_server_port}}
     entrypoint: /entrypoint-api.sh
   {%- endif %}
 
