@@ -46,19 +46,10 @@ if [ "$1" = "webserver" ]; then
   airflow users create -r Admin -u ${AIRFLOW_UI_USER_EMAIL} -e ${AIRFLOW_UI_USER_EMAIL} -f Observatory -l Admin -p ${AIRFLOW_UI_USER_PASSWORD}
 fi
 
-if [ "$1" = "apiserver" ]; then
-  # For API server
-  # Create database if it does not exist
-  psql ${BASE_DB_URI} -tc "SELECT 1 FROM pg_database WHERE datname = '${API_SERVER_DB}'" | grep -q 1 || psql ${BASE_DB_URI} -c "CREATE DATABASE ${API_SERVER_DB}"
-  gunicorn -b 0.0.0.0:${OBSERVATORY_API_PORT} --timeout 0 observatory.api.server.app:app
-else
-  # Enter airflow home folder. Must be in the AIRFLOW_HOME folder (i.e. /opt/airflow) before running the next command
-  # otherwise the system will start but the workers and scheduler will not find the DAGs and other files because
-  # they look for them based on the current working directory.
-  cd ${AIRFLOW_HOME}
+# Enter airflow home folder. Must be in the AIRFLOW_HOME folder (i.e. /opt/airflow) before running the next command
+# otherwise the system will start but the workers and scheduler will not find the DAGs and other files because
+# they look for them based on the current working directory.
+cd ${AIRFLOW_HOME}
 
-  # Run entrypoint given by airflow docker file
-  /usr/bin/dumb-init -- /entrypoint "$@"
-fi
-
-
+# Run entrypoint given by airflow docker file
+/usr/bin/dumb-init -- /entrypoint "$@"

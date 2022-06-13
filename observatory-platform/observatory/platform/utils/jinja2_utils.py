@@ -15,7 +15,8 @@
 
 # Author: James Diprose
 
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader
+import os
 
 
 def render_template(template_path: str, **kwargs) -> str:
@@ -30,10 +31,8 @@ def render_template(template_path: str, **kwargs) -> str:
     with open(template_path, "r") as file:
         contents = file.read()
 
-    # Fill template with text
-    template = Template(contents, keep_trailing_newline=True)
-
-    # Render template
+    dir = os.path.dirname(template_path)
+    template = Environment(loader=FileSystemLoader(dir)).from_string(contents)
     rendered = template.render(**kwargs)
 
     return rendered
