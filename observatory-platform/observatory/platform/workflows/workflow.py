@@ -439,6 +439,9 @@ class Workflow(AbstractWorkflow):
                     end_date=end_date,
                     dataset_id=dataset.id,
                 )
+                logging.info(
+                    f"Creating new dataset release for dag={self.dag_id}, workflow_id={self.workflow_id}, dataset.id={dataset.id}, dataset.name={dataset.name}, start_date={start_date}, end_date={end_date}"
+                )
 
 
 class AbstractRelease(ABC):
