@@ -14,28 +14,24 @@
 
 # Author: James Diprose
 
-from observatory.platform.observatory_config import BackendType
-from observatory.platform.platform_builder import PlatformBuilder, HOST_UID, DEBUG
+from observatory.platform.docker.platform_runner import PlatformRunner, HOST_UID, DEBUG
+from observatory.platform.observatory_config import ObservatoryConfig
 from observatory.platform.utils.url_utils import wait_for_url
 
 
-class PlatformCommand(PlatformBuilder):
-    def __init__(self, config_path: str, host_uid: int = HOST_UID, debug: bool = DEBUG):
+class PlatformCommand(PlatformRunner):
+    def __init__(self, config: ObservatoryConfig, host_uid: int = HOST_UID, debug: bool = DEBUG):
         """Create a PlatformCommand, which can be used to start and stop Observatory Platform instances.
-
-        :param config_path: The path to the config.yaml configuration file.
+        :param config: The path to the observatory config.
         :param host_uid: The user id of the host system. Used to set the user id in the Docker containers.
         :param debug: Print debugging information.
         """
 
-        super().__init__(
-            config_path=config_path, host_uid=host_uid, debug=debug, backend_type=BackendType.local
-        )
+        super().__init__(config=config, host_uid=host_uid, debug=debug)
 
     @property
     def ui_url(self) -> str:
         """Return the URL to Apache Airflow UI.
-
         :return: Apache Airflow UI URL.
         """
 
@@ -43,7 +39,6 @@ class PlatformCommand(PlatformBuilder):
 
     def wait_for_airflow_ui(self, timeout: int = 60) -> bool:
         """Wait for the Apache Airflow UI to start.
-
         :param timeout: the number of seconds to wait before timing out.
         :return: whether connecting to the Apache Airflow UI was successful or not.
         """

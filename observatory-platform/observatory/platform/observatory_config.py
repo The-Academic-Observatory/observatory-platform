@@ -30,13 +30,13 @@ import yaml
 from cerberus import Validator
 from cryptography.fernet import Fernet
 
-from observatory.platform.cli.click_utils import (
+from observatory.platform.cli.cli_utils import (
     INDENT1,
     INDENT3,
     comment,
     indent,
 )
-from observatory.platform.terraform_api import TerraformVariable
+from observatory.platform.terraform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.config_utils import (
     observatory_home as default_observatory_home,
@@ -1386,6 +1386,9 @@ class TerraformConfig(ObservatoryConfig):
         lines = ObserveratoryConfigString.api(self.api)
         f.writelines(lines)
         f.write("\n")
+
+
+Config = Union[ObservatoryConfig, TerraformConfig]
 
 
 def make_schema(backend_type: BackendType) -> Dict:

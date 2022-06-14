@@ -27,11 +27,12 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.utils.state import DagRunState
 from croniter import croniter
+
 from observatory.platform.observatory_config import (
     TerraformConfig,
     VirtualMachine,
 )
-from observatory.platform.terraform_api import TerraformApi, TerraformVariable
+from observatory.platform.terraform.terraform_api import TerraformApi, TerraformVariable
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
     AirflowVars,
