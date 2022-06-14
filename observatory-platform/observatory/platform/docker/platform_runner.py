@@ -167,6 +167,7 @@ class PlatformRunner(ComposeRunner):
         env["HOST_AIRFLOW_UI_PORT"] = str(self.config.observatory.airflow_ui_port)
         env["HOST_ELASTIC_PORT"] = str(self.config.observatory.elastic_port)
         env["HOST_KIBANA_PORT"] = str(self.config.observatory.kibana_port)
+        env["HOST_API_PORT"] = str(self.config.observatory.api_port)
 
         # Secrets
         if self.config.google_cloud is not None and self.config.google_cloud.credentials is not None:
@@ -187,3 +188,22 @@ class PlatformRunner(ComposeRunner):
             env[conn.conn_name] = conn.value
 
         return env
+
+    def make_files(self):
+        """Create directories that are mounted as volumes as defined in the docker-compose file.
+
+        :return: None.
+        """
+        super(PlatformRunner, self).make_files()
+        observatory_home = os.path.normpath(self.config.observatory.observatory_home)
+        # Create data directory
+        data_dir = os.path.join(observatory_home, "data")
+        os.makedirs(data_dir, exist_ok=True)
+
+        # Create logs directory
+        logs_dir = os.path.join(observatory_home, "logs")
+        os.makedirs(logs_dir, exist_ok=True)
+
+        # Create postgres directory
+        postgres_dir = os.path.join(observatory_home, "postgres")
+        os.makedirs(postgres_dir, exist_ok=True)
