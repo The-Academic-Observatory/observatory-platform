@@ -52,6 +52,7 @@ from observatory.platform.utils.test_utils import (
     SftpServer,
     random_id,
     test_fixtures_path,
+    find_free_port,
 )
 from observatory.platform.utils.url_utils import retry_session
 from observatory.platform.workflows.workflow import AbstractRelease, Workflow
@@ -649,7 +650,7 @@ class TestObservatoryTestCase(unittest.TestCase):
 class TestSftpServer(unittest.TestCase):
     def setUp(self) -> None:
         self.host = "localhost"
-        self.port = 3373
+        self.port = find_free_port()
 
     def test_server(self):
         """Test that the SFTP server can be connected to"""

@@ -41,6 +41,7 @@ from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     test_fixtures_path,
+    find_free_port,
 )
 from observatory.platform.utils.workflow_utils import (
     batch_blob_name,
@@ -198,7 +199,7 @@ class TestStreamTelescope(ObservatoryTestCase):
         }
 
         self.host = "localhost"
-        self.port = 5001
+        self.port = find_free_port()
         configuration = Configuration(host=f"http://{self.host}:{self.port}")
         api_client = ApiClient(configuration)
         self.api = ObservatoryApi(api_client=api_client)  # noqa: E501
@@ -690,7 +691,7 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.host = "localhost"
-        self.port = 5001
+        self.port = find_free_port()
         configuration = Configuration(host=f"http://{self.host}:{self.port}")
         api_client = ApiClient(configuration)
         self.api = ObservatoryApi(api_client=api_client)  # noqa: E501

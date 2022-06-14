@@ -49,7 +49,7 @@ from observatory.api.client.model.table_type import TableType
 from observatory.api.client.model.dataset_type import DatasetType
 from observatory.api.testing import ObservatoryApiEnvironment
 from unittest.mock import patch
-
+from observatory.platform.utils.test_utils import find_free_port
 from tests.observatory.api.server.test_elastic import SCROLL_ID, Elasticsearch
 
 RES_EXAMPLE = {
@@ -107,7 +107,7 @@ class TestObservatoryApi(unittest.TestCase):
     def setUp(self):
         self.timezone = "Pacific/Auckland"
         self.host = "localhost"
-        self.port = 5001
+        self.port = find_free_port()
         configuration = Configuration(host=f"http://{self.host}:{self.port}")
         api_client = ApiClient(configuration)
         self.api = ObservatoryApi(api_client=api_client)  # noqa: E501
