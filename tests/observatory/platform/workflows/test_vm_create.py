@@ -1,5 +1,5 @@
 import os
-from unittest.mock import Mock, PropertyMock, patch
+from unittest.mock import PropertyMock, patch
 
 import pendulum
 from airflow.models import XCom
@@ -7,8 +7,9 @@ from airflow.models.connection import Connection
 from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+
 from observatory.platform.observatory_config import VirtualMachine
-from observatory.platform.terraform_api import TerraformVariable
+from observatory.platform.terraform.terraform_api import TerraformVariable
 from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,

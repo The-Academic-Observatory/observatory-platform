@@ -17,17 +17,20 @@
 import os
 import subprocess
 import sys
+from typing import ClassVar
 
 import click
-from observatory.platform.cli.click_utils import INDENT1, INDENT2, INDENT3, indent
+
+from observatory.platform.cli.cli_utils import INDENT1, INDENT2, INDENT3, indent
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
+from observatory.platform.docker.platform_runner import DEBUG, HOST_UID
+from observatory.platform.observatory_config import Config, TerraformConfig, ObservatoryConfig
 from observatory.platform.observatory_config import (
     generate_fernet_key,
     generate_secret_key,
 )
-from observatory.platform.platform_builder import DEBUG, HOST_UID
 from observatory.platform.utils.config_utils import observatory_home
 from observatory.platform.utils.config_utils import (
     terraform_credentials_path as default_terraform_credentials_path,
@@ -39,6 +42,41 @@ TERRAFORM_NAME = "Observatory Terraform"
 
 LOCAL_CONFIG_PATH = os.path.join(observatory_home(), "config.yaml")
 TERRAFORM_CONFIG_PATH = os.path.join(observatory_home(), "config-terraform.yaml")
+
+
+def load_config(cls: ClassVar, config_path: str) -> Config:
+    """Load a config file.
+    :param cls: the config file class.
+    :param config_path: the path to the config file.
+    :return: the config file or exit with an OS.EX_CONFIG error or FileExistsError.
+    """
+
+    print(indent("config.yaml:", INDENT1))
+    config_exists = os.path.exists(config_path)
+
+    if not config_exists:
+        msg = indent(f"- file not found, generating a default file on path: {config_path}", INDENT2)
+        generate_cmd = GenerateCommand()
+        if cls == ObservatoryConfig:
+            print(msg)
+            generate_cmd.generate_local_config(config_path, editable=False, workflows=[], oapi=False)
+        elif cls == TerraformConfig:
+            print(msg)
+            generate_cmd.generate_terraform_config(config_path, editable=False, workflows=[], oapi=False)
+        else:
+            print(indent(f"- file not found, exiting: {config_path}", INDENT2))
+        exit(os.EX_CONFIG)
+    else:
+        cfg = cls.load(config_path)
+        if cfg.is_valid:
+            print(indent("- file valid", INDENT2))
+        else:
+            print(indent("- file invalid", INDENT2))
+            for error in cfg.errors:
+                print(indent(f"- {error.key}: {error.value}", INDENT3))
+            exit(os.EX_CONFIG)
+
+        return cfg
 
 
 @click.group()
@@ -81,26 +119,21 @@ def platform(command: str, config_path: str, host_uid: int, debug):
 
     min_line_chars = 80
     print(f"{PLATFORM_NAME}: checking dependencies...".ljust(min_line_chars), end="\r")
-    if os.path.isfile(config_path):
-        # Make the platform command, which encapsulates functionality for running the observatory
-        platform_cmd = PlatformCommand(config_path, host_uid=host_uid, debug=debug)
+    cfg = load_config(ObservatoryConfig, config_path)
 
-        # Check dependencies
-        platform_check_dependencies(platform_cmd, min_line_chars=min_line_chars)
+    # Make the platform command, which encapsulates functionality for running the observatory
+    platform_cmd = PlatformCommand(cfg, host_uid=host_uid, debug=debug)
 
-        # Start the appropriate process
-        if command == "start":
-            platform_start(platform_cmd)
-        elif command == "stop":
-            platform_stop(platform_cmd)
+    # Check dependencies
+    platform_check_dependencies(platform_cmd, min_line_chars=min_line_chars)
 
-        exit(os.EX_OK)
-    else:
-        print(indent("config.yaml:", INDENT1))
-        print(indent(f"- file not found, generating a default file on path: {config_path}", INDENT2))
-        generate_cmd = GenerateCommand()
-        generate_cmd.generate_local_config(config_path, editable=False, workflows=[], oapi=False)
-        exit(os.EX_CONFIG)
+    # Start the appropriate process
+    if command == "start":
+        platform_start(platform_cmd)
+    elif command == "stop":
+        platform_stop(platform_cmd)
+
+    exit(os.EX_OK)
 
 
 def platform_check_dependencies(platform_cmd: PlatformCommand, min_line_chars: int = 80):
@@ -132,15 +165,6 @@ def platform_check_dependencies(platform_cmd: PlatformCommand, min_line_chars: i
         print(indent(f"- path: {platform_cmd.docker_compose_path}", INDENT2))
     else:
         print(indent("- not installed, please install https://docs.docker.com/compose/install/", INDENT2))
-
-    print(indent("config.yaml:", INDENT1))
-    print(indent(f"- path: {platform_cmd.config_path}", INDENT2))
-    if platform_cmd.config.is_valid:
-        print(indent("- file valid", INDENT2))
-    else:
-        print(indent("- file invalid", INDENT2))
-        for error in platform_cmd.config.errors:
-            print(indent("- {}: {}".format(error.key, error.value), INDENT3))
 
     if not platform_cmd.is_environment_valid:
         exit(os.EX_CONFIG)
@@ -448,7 +472,6 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
     if oaebu_wf:
         workflows.append("oaebu-workflows")
 
-    cmd_func = None
     if command == "local" and not interactive:
         cmd_func = cmd.generate_local_config
     elif command == "terraform" and not interactive:
@@ -492,10 +515,8 @@ def terraform(command, config_path, terraform_credentials_path, debug):
       - build-terraform: build the Terraform files.\n
     """
 
-    # The minimum number of characters per line
-    min_line_chars = 80
-
-    terraform_cmd = TerraformCommand(config_path, terraform_credentials_path, debug=debug)
+    cfg = load_config(TerraformConfig, config_path)
+    terraform_cmd = TerraformCommand(cfg, terraform_credentials_path, debug=debug)
     generate_cmd = GenerateCommand()
 
     # Check dependencies
@@ -538,19 +559,6 @@ def terraform_check_dependencies(
         print(f"{TERRAFORM_NAME}: dependencies missing".ljust(min_line_chars))
     else:
         print(f"{TERRAFORM_NAME}: all dependencies found".ljust(min_line_chars))
-
-    print(indent("Config:", INDENT1))
-    if terraform_cmd.config_exists:
-        print(indent(f"- path: {terraform_cmd.config_path}", INDENT2))
-        if terraform_cmd.config.is_valid:
-            print(indent("- file valid", INDENT2))
-        else:
-            print(indent("- file invalid", INDENT2))
-            for key, value in terraform_cmd.config.validator.errors.items():
-                print(indent(f"- {key}: {value}", INDENT3))
-    else:
-        print(indent("- file not found, generating a default file", INDENT2))
-        generate_cmd.generate_terraform_config(terraform_cmd.config_path, editable=False, workflows=[], oapi=False)
 
     print(indent("Terraform credentials file:", INDENT1))
     if terraform_cmd.terraform_credentials_exists:
