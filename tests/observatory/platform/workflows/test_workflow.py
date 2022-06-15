@@ -29,10 +29,7 @@ from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.sensors.external_task import ExternalTaskSensor
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.test_utils import (
-    ObservatoryEnvironment,
-    ObservatoryTestCase,
-)
+from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, find_free_port
 from observatory.platform.workflows.workflow import Release, Workflow, make_task_id
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_type import DatasetType
@@ -100,7 +97,7 @@ class TestWorkflow(ObservatoryTestCase):
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
 
         self.host = "localhost"
-        self.port = 5001
+        self.port = find_free_port()
         configuration = Configuration(host=f"http://{self.host}:{self.port}")
         api_client = ApiClient(configuration)
         self.api = ObservatoryApi(api_client=api_client)  # noqa: E501

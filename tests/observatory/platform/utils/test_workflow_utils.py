@@ -51,6 +51,7 @@ from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     random_id,
     test_fixtures_path,
+    find_free_port,
 )
 from observatory.platform.utils.workflow_utils import (
     SubFolder,
@@ -1100,7 +1101,7 @@ class TestWorkflowUtils(unittest.TestCase):
         self.assertEqual(api_key, api.api_client.configuration.api_key["api_key"])
 
         # Port
-        port = 8080
+        port = find_free_port()
         mock_get_connection.return_value = Connection(uri=f"{conn_type}://:{api_key}@{host}:{port}")
         api = make_observatory_api()
         self.assertEqual(f"http://{host}:{port}", api.api_client.configuration.host)

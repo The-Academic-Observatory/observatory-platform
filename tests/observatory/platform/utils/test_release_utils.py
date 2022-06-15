@@ -38,7 +38,7 @@ from observatory.platform.utils.release_utils import (
 )
 from unittest.mock import patch, Mock
 import pendulum
-from observatory.platform.utils.test_utils import test_fixtures_path
+from observatory.platform.utils.test_utils import find_free_port
 from observatory.platform.workflows.workflow import Release
 from observatory.platform.workflows.stream_telescope import StreamRelease
 from observatory.platform.workflows.snapshot_telescope import SnapshotRelease
@@ -51,7 +51,7 @@ class TestReleaseUtils(ObservatoryTestCase):
     def setUp(self):
         self.timezone = "Pacific/Auckland"
         self.host = "localhost"
-        self.port = 5001
+        self.port = find_free_port()
         configuration = Configuration(host=f"http://{self.host}:{self.port}")
         api_client = ApiClient(configuration)
         self.api = ObservatoryApi(api_client=api_client)  # noqa: E501
