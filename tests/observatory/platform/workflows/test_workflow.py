@@ -22,6 +22,7 @@ from unittest.mock import ANY, Mock, patch
 import pendulum
 from airflow import DAG
 from airflow.exceptions import AirflowNotFoundException
+from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.variable import Variable
 from airflow.operators.bash import BashOperator
@@ -279,6 +280,18 @@ class TestWorkflow(ObservatoryTestCase):
             # Single 'releases'
             release = [Release(dag_id="dag_id", release_id="20220101")]
             telescope.add_new_dataset_releases(release)
+
+    @patch("observatory.platform.utils.release_utils.make_observatory_api")
+    @patch("observatory.platform.workflows.workflow.get_datasets")
+    def test_add_new_dataset_releases_missing_dataset(self, m_get_datasets, m_makeapi):
+        m_makeapi.return_value = self.api
+        m_get_datasets.return_value = []
+
+        with self.env.create():
+            self.setup_api()
+            telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval, workflow_id=1)
+            release = Release(dag_id="dag_id", release_id="20220101")
+            self.assertRaises(AirflowException, telescope.add_new_dataset_releases, release)
 
     @patch("observatory.platform.utils.release_utils.make_observatory_api")
     def test_telescope(self, m_makeapi):
