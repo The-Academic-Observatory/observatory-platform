@@ -426,8 +426,13 @@ class Workflow(AbstractWorkflow):
 
         for release in releases:
             start_date, end_date = get_start_end_date(release)
-
             datasets = get_datasets(workflow_id=self.workflow_id)
+
+            if len(datasets) == 0:
+                raise AirflowException(
+                    f"Workflow (workflow_id={self.workflow_id}) has no associated dataset. Check the api db is correctly populated."
+                )
+
             for dataset in datasets:
                 add_dataset_release(
                     start_date=start_date,
