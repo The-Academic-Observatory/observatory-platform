@@ -51,7 +51,7 @@ from observatory.api.client.model.dataset_release import DatasetRelease
 from observatory.api.client.model.workflow_type import WorkflowType
 from observatory.api.client.model.organisation import Organisation
 from observatory.api.client.model.workflow import Workflow
-
+from observatory.platform.utils.test_utils import find_free_port
 import pendulum
 
 
@@ -61,7 +61,7 @@ class TestApiUtils(ObservatoryTestCase):
 
         # API environment
         self.host = "localhost"
-        self.port = 5001
+        self.port = find_free_port()
         configuration = Configuration(host=f"http://{self.host}:{self.port}")
         api_client = ApiClient(configuration)
         self.api = ObservatoryApi(api_client=api_client)  # noqa: E501
@@ -80,27 +80,41 @@ class TestApiUtils(ObservatoryTestCase):
 
     def dtinfo(self):
         dataset_type_info = OrderedDict()
-        dataset_type_info["crossref_events"] = DatasetType(type_id="crossref_events", name="Crossref Events", table_type=TableType(id=1))
+        dataset_type_info["crossref_events"] = DatasetType(
+            type_id="crossref_events", name="Crossref Events", table_type=TableType(id=1)
+        )
         return dataset_type_info
 
     def wftinfo(self):
         workflow_type_info = OrderedDict()
-        workflow_type_info["crossref_events"] = WorkflowType(type_id="crossref_events", name="Crossref Events Telescope")
+        workflow_type_info["crossref_events"] = WorkflowType(
+            type_id="crossref_events", name="Crossref Events Telescope"
+        )
         return workflow_type_info
 
     def oinfo(self):
         org_info = OrderedDict()
-        org_info["COKI Press"] = Organisation(name="COKI Press", project_id="project", download_bucket="dbucket", transform_bucket="tbucket")
+        org_info["COKI Press"] = Organisation(
+            name="COKI Press", project_id="project", download_bucket="dbucket", transform_bucket="tbucket"
+        )
         return org_info
 
     def wfinfo(self):
         workflow_info = OrderedDict()
-        workflow_info["COKI Crossref Events Telescope"] = Workflow(name="COKI Crossref Events Telescope", workflow_type=WorkflowType(id=1), extra={}, tags=None)
+        workflow_info["COKI Crossref Events Telescope"] = Workflow(
+            name="COKI Crossref Events Telescope", workflow_type=WorkflowType(id=1), extra={}, tags=None
+        )
         return workflow_info
 
     def dsinfo(self):
         dataset_info = OrderedDict()
-        dataset_info["COKI Dataset"] = Dataset(name="COKI Dataset", service="google", address="project.dataset.table", workflow=Workflow(id=1), dataset_type=DatasetType(id=1))
+        dataset_info["COKI Dataset"] = Dataset(
+            name="COKI Dataset",
+            service="google",
+            address="project.dataset.table",
+            workflow=Workflow(id=1),
+            dataset_type=DatasetType(id=1),
+        )
         return dataset_info
 
     def test_table_types(self):
@@ -111,13 +125,13 @@ class TestApiUtils(ObservatoryTestCase):
             seed_table_type(api=self.api, table_type_info=self.table_type_info)
             records = self.api.get_table_types(limit=100)
             self.assertEqual(len(records), 1)
-            
+
             seed_table_type(api=self.api, table_type_info=self.table_type_info)
             records = self.api.get_table_types(limit=100)
             self.assertEqual(len(records), 1)
 
             clear_table_types(self.api)
-            
+
             records = self.api.get_table_types(limit=100)
             self.assertEqual(len(records), 0)
 
@@ -288,11 +302,11 @@ class TestApiUtils(ObservatoryTestCase):
             seed_workflow(api=self.api, workflow_info=self.workflow_info)
             wf = get_workflows(self.api)
             self.assertEqual(len(wf), 1)
-            self.assertEqual(wf["COKI Crossref Events Telescope"].id, 1)            
+            self.assertEqual(wf["COKI Crossref Events Telescope"].id, 1)
 
     def test_get_dataset_type(self):
         with self.env.create():
             seed_table_type(api=self.api, table_type_info=self.table_type_info)
             seed_dataset_type(api=self.api, dataset_type_info=self.dataset_type_info)
-            
+
             self.assertEqual(get_dataset_type(api=self.api, type_id="crossref_events").id, 1)

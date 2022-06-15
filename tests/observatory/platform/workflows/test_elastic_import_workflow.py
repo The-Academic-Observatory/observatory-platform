@@ -38,6 +38,7 @@ from observatory.platform.utils.test_utils import (
     Table,
     bq_load_tables,
     test_fixtures_path,
+    find_free_port,
 )
 from observatory.platform.workflows.elastic_import_workflow import (
     ElasticImportRelease,
@@ -161,8 +162,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.elastic_port = 9201
-        self.kibana_port = 5602
+        self.elastic_port = find_free_port()
+        self.kibana_port = find_free_port()
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
         self.table_name = "ao_author"
