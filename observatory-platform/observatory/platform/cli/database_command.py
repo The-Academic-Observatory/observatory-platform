@@ -21,11 +21,18 @@ import observatory.platform
 
 
 class DatabaseCommand:
+    def __init__(self):
+        self.observatory_dir = os.path.dirname(observatory.platform.__file__)
+        self.alembic_ini_path = os.path.join(self.observatory_dir, "alembic.ini")
+        self.alembic_cfg = Config(self.alembic_ini_path)
+
     def upgrade(self):
         """Upgrade database to alembic head."""
 
-        observatory_dir = os.path.dirname(observatory.platform.__file__)
-        alembic_ini_path = os.path.join(observatory_dir, "alembic.ini")
-        alembic_cfg = Config(alembic_ini_path)
-        os.chdir(observatory_dir)
-        command.upgrade(alembic_cfg, "head")
+        os.chdir(self.observatory_dir)
+        command.upgrade(self.alembic_cfg, "head")
+
+    def history(self):
+        """Print out revision history"""
+
+        command.history(self.alembic_cfg, verbose=True)
