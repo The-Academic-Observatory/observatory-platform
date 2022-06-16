@@ -87,12 +87,6 @@ class PlatformRunner(ComposeRunner):
                     path=os.path.join(package.host_package, "requirements.sh"),
                     output_file_name=f"requirements.{package.name}.sh",
                 )
-
-                # Add project requirements files for local projects
-                self.add_file(
-                    path=os.path.join(package.host_package, "requirements.txt"),
-                    output_file_name=f"requirements.{package.name}.txt",
-                )
             elif package.type == "sdist":
                 # Add sdist package file
                 self.add_file(path=package.host_package, output_file_name=package.docker_package)
