@@ -659,6 +659,11 @@ class InteractiveConfigBuilder:
         kibana_port = click.prompt(text=text, type=int, default=default, show_default=True)
         config.observatory.kibana_port = kibana_port
 
+        text = "API port"
+        default = config.observatory.api_port
+        api_port = click.prompt(text=text, type=int, default=default, show_default=True)
+        config.observatory.api_port = api_port
+
         text = "Docker network name"
         default = config.observatory.docker_network_name
         docker_network_name = click.prompt(text=text, type=str, default=default, show_default=True)
