@@ -1629,6 +1629,7 @@ class ObserveratoryConfigString:
             indent(f"enable_elk: {observatory.enable_elk}\n", INDENT1),
             indent(f"api_package: {observatory.api_package}\n", INDENT1),
             indent(f"api_package_type: {observatory.api_package_type}\n", INDENT1),
+            indent(f"api_port: {observatory.api_port}\n", INDENT1),
         ]
 
         return lines

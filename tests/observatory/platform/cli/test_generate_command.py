@@ -240,6 +240,7 @@ class TestGenerateCommand(ObservatoryTestCase):
                     env=dict(os.environ, PYTHONPATH=project_path),
                     capture_output=True,
                 )
+                print(proc.stderr.decode())
                 self.assertEqual("OK", proc.stderr.decode().splitlines()[-1])
 
             # Test that identifiers file is only created if it does not exist
@@ -426,6 +427,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             airflow_ui_port=64,
             elastic_port=343,
             kibana_port=143,
+            api_port=123,
             docker_network_name="raefd",
             docker_compose_project_name="proj",
         )
@@ -444,6 +446,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             observatory.airflow_ui_port,
             observatory.elastic_port,
             observatory.kibana_port,
+            observatory.api_port,
             observatory.docker_network_name,
             observatory.docker_network_is_external,
             observatory.docker_compose_project_name,
@@ -470,6 +473,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             airflow_ui_port=64,
             elastic_port=343,
             kibana_port=143,
+            api_port=123,
             docker_network_name="raefd",
             docker_compose_project_name="proj",
         )
@@ -488,6 +492,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             observatory.airflow_ui_port,
             observatory.elastic_port,
             observatory.kibana_port,
+            observatory.api_port,
             observatory.docker_network_name,
             observatory.docker_network_is_external,
             observatory.docker_compose_project_name,
@@ -519,6 +524,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             airflow_ui_port=64,
             elastic_port=343,
             kibana_port=143,
+            api_port=123,
             docker_network_name="raefd",
             docker_compose_project_name="proj",
             package=module_file_path("observatory.platform", nav_back_steps=-3),
@@ -538,6 +544,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             observatory.airflow_ui_port,
             observatory.elastic_port,
             observatory.kibana_port,
+            observatory.api_port,
             observatory.docker_network_name,
             observatory.docker_network_is_external,
             observatory.docker_compose_project_name,
@@ -567,6 +574,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             airflow_ui_port=64,
             elastic_port=343,
             kibana_port=143,
+            api_port=123,
             docker_network_name="raefd",
             docker_compose_project_name="proj",
             package_type="pypi",
@@ -587,6 +595,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             observatory.airflow_ui_port,
             observatory.elastic_port,
             observatory.kibana_port,
+            observatory.api_port,
             observatory.docker_network_name,
             observatory.docker_network_is_external,
             observatory.docker_compose_project_name,
@@ -616,6 +625,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             airflow_ui_port=64,
             elastic_port=343,
             kibana_port=143,
+            api_port=123,
             docker_network_name="raefd",
             docker_compose_project_name="proj",
             package_type="editable",
@@ -638,6 +648,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             observatory.airflow_ui_port,
             observatory.elastic_port,
             observatory.kibana_port,
+            observatory.api_port,
             observatory.docker_network_name,
             observatory.docker_network_is_external,
             observatory.docker_compose_project_name,
