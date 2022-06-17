@@ -811,3 +811,10 @@ class TestObservatoryTerraform(unittest.TestCase):
 
             # Check return code
             self.assertEqual(result.exit_code, os.EX_CONFIG)
+
+    def test_database_upgrade(self):
+        os.environ["OBSERVATORY_DB_URI"] = "sqlite://"
+        runner = CliRunner()
+        with runner.isolated_filesystem() as working_dir:
+            result = runner.invoke(cli, ["database", "upgrade"])
+            self.assertEqual(result.exit_code, 0)
