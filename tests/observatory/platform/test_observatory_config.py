@@ -914,6 +914,7 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
                 enable_elk=False,
                 api_package="api",
                 api_package_type="sdist",
+                api_port=123,
             ),
             google_cloud=GoogleCloud(
                 project_id="myproject",
