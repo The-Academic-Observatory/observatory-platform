@@ -19,6 +19,7 @@ import os
 import time
 from typing import Dict
 
+import elastic_transport
 import requests
 from elasticsearch import Elasticsearch
 
@@ -37,7 +38,6 @@ class ElasticEnvironment(ComposeRunner):
         password: str = "observatory",
         wait: bool = True,
         wait_time_secs: int = 120,
-        wait_time_secs_extra: int = 5
     ):
         """Construct an Elasticsearch and Kibana environment.
 
@@ -46,13 +46,11 @@ class ElasticEnvironment(ComposeRunner):
         :param kibana_port: the Kibana port.
         :param wait: whether to wait until Elastic and Kibana have started.
         :param wait_time_secs: the maximum wait time in seconds.
-        :param wait_time_secs_extra: the time in seconds to wait after Elastic and Kibana have started.
         """
 
         self.elastic_module_path = module_file_path("observatory.platform.elastic")
         self.wait = wait
         self.wait_time_secs = wait_time_secs
-        self.wait_time_secs_extra = wait_time_secs_extra
         self.elastic_port = elastic_port
         self.elastic_uri = f"http://localhost:{elastic_port}/"
         self.kibana_uri = f"http://localhost:{kibana_port}/"
@@ -87,9 +85,6 @@ class ElasticEnvironment(ComposeRunner):
         if self.wait:
             self.wait_until_started()
 
-        # Sleep an extra period of time to wait for Kibana
-        time.sleep(self.wait_time_secs_extra)
-
         return process_output
 
     def kibana_ping(self):
@@ -99,9 +94,11 @@ class ElasticEnvironment(ComposeRunner):
         """
 
         try:
-            response = requests.get(self.kibana_uri)
+            # Have to call a specific API endpoint, not jus the base Kibana URI, as the base Kibana URI will return 200
+            # before Kibana is actually ready.
+            response = requests.get(f"{self.kibana_uri}/api/spaces/space")
             return response.status_code == self.HTTP_OK
-        except (ConnectionResetError, requests.exceptions.ConnectionError):
+        except (ConnectionResetError, requests.exceptions.ConnectionError, elastic_transport.ConnectionError):
             pass
         return False
 
