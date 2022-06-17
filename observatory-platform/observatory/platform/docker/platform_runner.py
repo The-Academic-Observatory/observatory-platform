@@ -74,9 +74,6 @@ class PlatformRunner(ComposeRunner):
         self.add_file(
             path=os.path.join(self.docker_module_path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh"
         )
-        self.add_file(
-            path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
-        )
         self.add_template(path=os.path.join(self.docker_module_path, "seed_db.sh.jinja2"), config=self.config)
 
         # Add all project requirements files for local projects

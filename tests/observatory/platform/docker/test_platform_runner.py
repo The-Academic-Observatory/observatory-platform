@@ -167,7 +167,6 @@ class TestPlatformRunner(unittest.TestCase):
             build_file_names = [
                 "docker-compose.observatory.yml",
                 "Dockerfile.observatory",
-                "elasticsearch.yml",
                 "entrypoint-airflow.sh",
                 "entrypoint-root.sh",
             ]
