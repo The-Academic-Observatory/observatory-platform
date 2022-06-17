@@ -19,6 +19,8 @@ import os
 import unittest
 
 import pendulum
+from click.testing import CliRunner
+
 from observatory.platform.elastic.elastic import (
     Elastic,
     KeepInfo,
@@ -28,8 +30,8 @@ from observatory.platform.elastic.elastic import (
 )
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.file_utils import load_file, yield_csv
+from observatory.platform.utils.test_utils import find_free_port
 from observatory.platform.utils.test_utils import random_id, test_fixtures_path
-from click.testing import CliRunner
 
 
 class TestElastic(unittest.TestCase):
@@ -40,7 +42,11 @@ class TestElastic(unittest.TestCase):
         with CliRunner().isolated_filesystem() as temp_dir:
             # Start an Elastic environment
             elastic_build_path = os.path.join(temp_dir, "elastic")
-            cls.es = ElasticEnvironment(build_path=elastic_build_path)
+            elastic_port = find_free_port()
+            kibana_port = find_free_port()
+            cls.es = ElasticEnvironment(
+                build_path=elastic_build_path, elastic_port=elastic_port, kibana_port=kibana_port
+            )
             cls.es.start()
 
             # Create elasticsearch client
@@ -93,7 +99,7 @@ class TestElastic(unittest.TestCase):
         index_id = random_id()
 
         def index_exists():
-            return self.client.es.indices.exists(index_id)
+            return self.client.es.indices.exists(index=index_id)
 
         def doc_count():
             return self.client.es.count(index=index_id, body={"query": {"match_all": {}}})["count"]
@@ -125,13 +131,13 @@ class TestElastic(unittest.TestCase):
             self.client.es.indices.create(index=index_id)
 
             # Make aliases
-            self.client.es.indices.update_aliases({"actions": [{"add": {"index": index_id, "alias": alias_id}}]})
+            self.client.es.indices.update_aliases(actions=[{"add": {"index": index_id, "alias": alias_id}}])
 
             index_ids = self.client.get_alias_indexes(alias_id)
             self.assertListEqual([index_id], index_ids)
         finally:
             # Delete index and aliases
-            self.client.es.indices.update_aliases({"actions": [{"remove": {"index": index_id, "alias": alias_id}}]})
+            self.client.es.indices.update_aliases(actions=[{"remove": {"index": index_id, "alias": alias_id}}])
             self.client.delete_index(index_id)
 
     def test_index_create_list_delete(self):

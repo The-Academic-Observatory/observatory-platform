@@ -37,6 +37,7 @@ class ElasticEnvironment(ComposeRunner):
         password: str = "observatory",
         wait: bool = True,
         wait_time_secs: int = 120,
+        wait_time_secs_extra: int = 5
     ):
         """Construct an Elasticsearch and Kibana environment.
 
@@ -45,11 +46,13 @@ class ElasticEnvironment(ComposeRunner):
         :param kibana_port: the Kibana port.
         :param wait: whether to wait until Elastic and Kibana have started.
         :param wait_time_secs: the maximum wait time in seconds.
+        :param wait_time_secs_extra: the time in seconds to wait after Elastic and Kibana have started.
         """
 
         self.elastic_module_path = module_file_path("observatory.platform.elastic")
         self.wait = wait
         self.wait_time_secs = wait_time_secs
+        self.wait_time_secs_extra = wait_time_secs_extra
         self.elastic_port = elastic_port
         self.elastic_uri = f"http://localhost:{elastic_port}/"
         self.kibana_uri = f"http://localhost:{kibana_port}/"
@@ -60,11 +63,6 @@ class ElasticEnvironment(ComposeRunner):
             build_path=build_path,
             compose_template_kwargs={"elastic_port": elastic_port, "kibana_port": kibana_port, "password": password},
             debug=True,
-        )
-
-        # Add files
-        self.add_file(
-            path=os.path.join(self.elastic_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
         )
 
         # Stop the awful unnecessary Elasticsearch connection warnings being logged
@@ -88,6 +86,10 @@ class ElasticEnvironment(ComposeRunner):
         process_output = super().start()
         if self.wait:
             self.wait_until_started()
+
+        # Sleep an extra period of time to wait for Kibana
+        time.sleep(self.wait_time_secs_extra)
+
         return process_output
 
     def kibana_ping(self):
@@ -111,7 +113,10 @@ class ElasticEnvironment(ComposeRunner):
         es = Elasticsearch([self.elastic_uri])
         start = time.time()
         while True:
-            elastic_found = es.ping()
+            try:
+                elastic_found = es.ping()
+            except OverflowError:
+                elastic_found = False
             kibana_found = self.kibana_ping()
             services_found = elastic_found and kibana_found
             if services_found:
