@@ -19,7 +19,6 @@ import os
 import time
 from typing import Dict
 
-import elastic_transport
 import requests
 from elasticsearch import Elasticsearch
 
@@ -84,7 +83,7 @@ class ElasticEnvironment(ComposeRunner):
         process_output = super().start()
         if self.wait:
             self.wait_until_started()
-
+        time.sleep(20)
         return process_output
 
     def kibana_ping(self):
@@ -98,7 +97,7 @@ class ElasticEnvironment(ComposeRunner):
             # before Kibana is actually ready.
             response = requests.get(f"{self.kibana_uri}/api/spaces/space")
             return response.status_code == self.HTTP_OK
-        except (ConnectionResetError, requests.exceptions.ConnectionError, elastic_transport.ConnectionError):
+        except (ConnectionResetError, requests.exceptions.ConnectionError):
             pass
         return False
 
