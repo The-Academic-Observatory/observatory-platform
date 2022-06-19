@@ -57,7 +57,6 @@ from observatory.platform.utils.workflow_utils import delete_old_xcoms
 from observatory.platform.workflows.snapshot_telescope import SnapshotRelease
 from observatory.platform.workflows.workflow import Workflow
 from pendulum import Date
-from oaebu_workflows.dag_tag import Tag
 
 
 CSV_TYPES = ["csv", "csv.gz"]
@@ -636,7 +635,6 @@ class ElasticImportWorkflow(Workflow):
             catchup=catchup,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
-            tags=[Tag.oaebu],
         )
 
         self.project_id = project_id
