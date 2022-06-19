@@ -118,8 +118,8 @@ class TestCliFunctional(unittest.TestCase):
         self.start_cmd = ["platform", "start", "--debug", "--config-path"]
         self.stop_cmd = ["platform", "stop", "--debug", "--config-path"]
         self.workflows_package_name = "my-workflows-project"
-        self.dag_check_timeout = 180
-        self.port_wait_timeout = 180
+        self.dag_check_timeout = 360
+        self.port_wait_timeout = 360
         self.config_file_name = "config.yaml"
 
     def make_editable_observatory_config(self, temp_dir: str) -> ObservatoryConfig:
