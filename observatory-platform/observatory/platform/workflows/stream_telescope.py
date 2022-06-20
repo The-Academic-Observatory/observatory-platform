@@ -18,7 +18,7 @@ import json
 import logging
 import os
 import pathlib
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import pendulum
 from airflow.exceptions import AirflowException
@@ -98,6 +98,8 @@ class StreamTelescope(Workflow):
         batch_load: bool = False,
         airflow_vars: list = None,
         airflow_conns: list = None,
+        tags: Optional[List[str]] = None,
+        **kwargs,
     ):
         """Construct a StreamTelescope instance.
 
@@ -121,6 +123,7 @@ class StreamTelescope(Workflow):
         :param batch_load: whether all files in the transform folder are loaded into 1 table at once
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
+        :param tags: Optional Airflow DAG tags to add.
         """
 
         # Set transform_bucket_name as required airflow variable
@@ -140,6 +143,8 @@ class StreamTelescope(Workflow):
             airflow_conns=airflow_conns,
             workflow_id=workflow_id,
             dataset_type_id=dataset_type_id,
+            tags=tags,
+            **kwargs,
         )
 
         self.schema_prefix = schema_prefix
