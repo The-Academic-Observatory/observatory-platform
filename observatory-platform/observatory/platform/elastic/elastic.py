@@ -164,7 +164,12 @@ class Elastic:
         self.thread_count = thread_count
         self.chunk_size = chunk_size
         self.timeout = timeout
-        self.es = Elasticsearch(hosts=[self.host], timeout=timeout, api_key=(api_key_id, api_key))
+
+        es_api_key = None
+        if api_key_id is not None and api_key is not None:
+            es_api_key = (api_key_id, api_key)
+
+        self.es = Elasticsearch(hosts=[self.host], timeout=timeout, api_key=es_api_key)
 
     def query(self, index: str, query: Dict = None):
         if query is None:
@@ -184,7 +189,7 @@ class Elastic:
 
         try:
             self.es.indices.delete(index=index_id)
-        except elasticsearch.exceptions.TransportError as e:
+        except elasticsearch.NotFoundError as e:
             logging.warning(f"Index not found: {e}")
 
     def delete_indices(self, indices: List[str]):
@@ -205,7 +210,7 @@ class Elastic:
 
         index_ids = []
         try:
-            indexes: Dict = self.es.indices.get(alias_id)
+            indexes: Dict = self.es.indices.get(index=alias_id)
             for key, val in indexes.items():
                 index_ids.append(key)
         except elasticsearch.exceptions.NotFoundError:

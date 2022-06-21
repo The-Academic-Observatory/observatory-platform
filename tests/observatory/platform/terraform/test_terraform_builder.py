@@ -151,20 +151,19 @@ class TestTerraformBuilder(unittest.TestCase):
             packages = ["observatory-api", "observatory-platform"]
             for package in packages:
                 path = os.path.join(cmd.build_path, "packages", package)
+                print(f"Check exists: {path}")
                 self.assertTrue(os.path.exists(path))
 
             # Test that the expected Docker files have been written
             build_file_names = [
                 "docker-compose.observatory.yml",
                 "Dockerfile.observatory",
-                "elasticsearch.yml",
                 "entrypoint-airflow.sh",
                 "entrypoint-root.sh",
-                "requirements.observatory-platform.txt",
-                "requirements.observatory-api.txt",
             ]
             for file_name in build_file_names:
                 path = os.path.join(cmd.build_path, "docker", file_name)
+                print(f"Checking that file exists: {path}")
                 self.assertTrue(os.path.isfile(path))
                 self.assertTrue(os.stat(path).st_size > 0)
 

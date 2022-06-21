@@ -1,20 +1,22 @@
 services:
   elasticsearch:
-    image: "docker.elastic.co/elasticsearch/elasticsearch:7.16.2"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:8.2.2"
     restart: always
-    volumes:
-      - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
     ports:
       - {{ elastic_port }}:9200
     environment:
       - discovery.type=single-node
       - ELASTIC_PASSWORD={{ password }}
+      - cluster.name="test-es-cluster"
+      - network.host=0.0.0.0
+      - xpack.security.enabled=false
 
   kibana:
-    image: "docker.elastic.co/kibana/kibana:7.16.2"
+    image: "docker.elastic.co/kibana/kibana:8.2.2"
     restart: always
     ports:
       - {{ kibana_port }}:5601
     environment:
       - ELASTICSEARCH_USERNAME=kibana_system
       - ELASTICSEARCH_PASSWORD={{ password }}
+      - xpack.security.enabled=false

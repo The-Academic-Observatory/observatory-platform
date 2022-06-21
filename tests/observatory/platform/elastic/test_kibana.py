@@ -17,11 +17,13 @@
 import os
 import unittest
 
+from click.testing import CliRunner
+
 from observatory.platform.elastic.elastic import Elastic
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.elastic.kibana import Kibana, ObjectType
+from observatory.platform.utils.test_utils import find_free_port
 from observatory.platform.utils.test_utils import random_id
-from click.testing import CliRunner
 
 
 class TestKibana(unittest.TestCase):
@@ -32,7 +34,11 @@ class TestKibana(unittest.TestCase):
         with CliRunner().isolated_filesystem() as temp_dir:
             # Start an Elastic environment
             elastic_build_path = os.path.join(temp_dir, "elastic")
-            cls.es = ElasticEnvironment(build_path=elastic_build_path)
+            elastic_port = find_free_port()
+            kibana_port = find_free_port()
+            cls.es = ElasticEnvironment(
+                build_path=elastic_build_path, elastic_port=elastic_port, kibana_port=kibana_port
+            )
             cls.es.start()
 
             cls.elastic = Elastic(host=cls.es.elastic_uri)

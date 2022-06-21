@@ -24,10 +24,8 @@
 {% for package in config.python_packages %}
 {% if package.type == 'editable' -%}
 cd /opt/{{ package.name }}
-pip3 install -r requirements.txt
-
 export PBR_VERSION=0.0.1
-pip3 install --no-deps -e . --user
+pip3 install -e . --user
 unset PBR_VERSION
 {% endif %}
 {% endfor %}
