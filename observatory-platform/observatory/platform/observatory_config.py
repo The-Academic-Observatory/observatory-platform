@@ -843,18 +843,20 @@ class ObservatoryConfig:
         :return: the list of Python packages.
         """
 
+        # observatory-api should be installed first so that observatory-platform install doesn't try to install
+        # observatory-api from PyPI
         packages = [
-            PythonPackage(
-                name="observatory-platform",
-                type=self.observatory.package_type,
-                host_package=self.observatory.package,
-                docker_package=os.path.basename(self.observatory.package),
-            ),
             PythonPackage(
                 name="observatory-api",
                 type=self.observatory.api_package_type,
                 host_package=self.observatory.api_package,
                 docker_package=os.path.basename(self.observatory.api_package),
+            ),
+            PythonPackage(
+                name="observatory-platform",
+                type=self.observatory.package_type,
+                host_package=self.observatory.package,
+                docker_package=os.path.basename(self.observatory.package),
             ),
         ]
 

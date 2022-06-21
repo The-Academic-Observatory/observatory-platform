@@ -517,7 +517,7 @@ class ElasticImportRelease(SnapshotRelease):
         # Update all aliases at once
         success = False
         try:
-            result = client.es.indices.update_aliases({"actions": actions})
+            result = client.es.indices.update_aliases(actions=actions)
             success = result.get("acknowledged", False)
         except elasticsearch.exceptions.NotFoundError:
             pass

@@ -62,11 +62,6 @@ class ElasticEnvironment(ComposeRunner):
             debug=True,
         )
 
-        # Add files
-        self.add_file(
-            path=os.path.join(self.elastic_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
-        )
-
         # Stop the awful unnecessary Elasticsearch connection warnings being logged
         logging.basicConfig()
         logging.getLogger().setLevel(logging.ERROR)
@@ -88,6 +83,7 @@ class ElasticEnvironment(ComposeRunner):
         process_output = super().start()
         if self.wait:
             self.wait_until_started()
+        time.sleep(20)
         return process_output
 
     def kibana_ping(self):
@@ -97,7 +93,9 @@ class ElasticEnvironment(ComposeRunner):
         """
 
         try:
-            response = requests.get(self.kibana_uri)
+            # Have to call a specific API endpoint, not jus the base Kibana URI, as the base Kibana URI will return 200
+            # before Kibana is actually ready.
+            response = requests.get(f"{self.kibana_uri}/api/spaces/space")
             return response.status_code == self.HTTP_OK
         except (ConnectionResetError, requests.exceptions.ConnectionError):
             pass
@@ -111,7 +109,10 @@ class ElasticEnvironment(ComposeRunner):
         es = Elasticsearch([self.elastic_uri])
         start = time.time()
         while True:
-            elastic_found = es.ping()
+            try:
+                elastic_found = es.ping()
+            except OverflowError:
+                elastic_found = False
             kibana_found = self.kibana_ping()
             services_found = elastic_found and kibana_found
             if services_found:

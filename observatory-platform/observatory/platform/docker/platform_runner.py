@@ -74,9 +74,6 @@ class PlatformRunner(ComposeRunner):
         self.add_file(
             path=os.path.join(self.docker_module_path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh"
         )
-        self.add_file(
-            path=os.path.join(self.docker_module_path, "elasticsearch.yml"), output_file_name="elasticsearch.yml"
-        )
         self.add_template(path=os.path.join(self.docker_module_path, "seed_db.sh.jinja2"), config=self.config)
 
         # Add all project requirements files for local projects
@@ -86,12 +83,6 @@ class PlatformRunner(ComposeRunner):
                 self.add_file(
                     path=os.path.join(package.host_package, "requirements.sh"),
                     output_file_name=f"requirements.{package.name}.sh",
-                )
-
-                # Add project requirements files for local projects
-                self.add_file(
-                    path=os.path.join(package.host_package, "requirements.txt"),
-                    output_file_name=f"requirements.{package.name}.txt",
                 )
             elif package.type == "sdist":
                 # Add sdist package file

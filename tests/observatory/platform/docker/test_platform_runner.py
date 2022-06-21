@@ -167,10 +167,8 @@ class TestPlatformRunner(unittest.TestCase):
             build_file_names = [
                 "docker-compose.observatory.yml",
                 "Dockerfile.observatory",
-                "elasticsearch.yml",
                 "entrypoint-airflow.sh",
                 "entrypoint-root.sh",
-                "requirements.observatory-platform.txt",
             ]
             for file_name in build_file_names:
                 path = os.path.join(cmd.build_path, file_name)

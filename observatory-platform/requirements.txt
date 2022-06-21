@@ -20,7 +20,7 @@ google-auth-oauthlib>=0.4.5,<1
 google-cloud-secret-manager<2.0.0,>=0.2.0 # for Google Cloud Secret Manager backend
 
 # Elasticsearch
-elasticsearch>=7.13.3,<8
+elasticsearch>=8.0.0,<9
 
 # Docker
 docker-compose>=1.29.2,<2

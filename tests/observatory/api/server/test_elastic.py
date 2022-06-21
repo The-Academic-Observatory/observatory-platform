@@ -78,18 +78,23 @@ class TestElastic(unittest.TestCase):
 
         :return:
         """
-        # test elasticsearch instance is returned
+
+        # Test that invalid address raises error
+        with self.assertRaises(ValueError):
+            create_es_connection("address", "api_key")
+
+        # Test elasticsearch instance is returned
         mock_elasticsearch_ping.return_value = True
-        es = create_es_connection("address", "api_key")
+        es = create_es_connection("http://localhost:9200", "api_key")
         self.assertIsInstance(es, Elasticsearch)
 
         # test connection error is raised
         mock_elasticsearch_ping.return_value = False
         with self.assertRaises(ConnectionError):
-            create_es_connection("address", "api_key")
+            create_es_connection("http://localhost:9200", "api_key")
 
         # test None is returned when address or api_key is empty
-        es = create_es_connection("address", "")
+        es = create_es_connection("http://localhost:9200", "")
         self.assertIsNone(es)
 
         es = create_es_connection(None, "api_key")
@@ -262,5 +267,5 @@ class TestElastic(unittest.TestCase):
         alias = "subset-agg"
         mock_es_indices.return_value = [{"index": f"{alias}-{dates[0]}"}, {"index": f"{alias}-{dates[1]}"}]
 
-        available_dates = list_available_index_dates(Elasticsearch(), alias)
+        available_dates = list_available_index_dates(Elasticsearch("http://localhost:9200"), alias)
         self.assertEqual(dates, available_dates)
