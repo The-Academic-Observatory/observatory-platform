@@ -598,6 +598,7 @@ class ElasticImportWorkflow(Workflow):
         airflow_vars: List = None,
         airflow_conns: List = None,
         index_keep_info: Dict = None,
+        tags: List[str] = None,
     ):
         """Create the ElasticImportWorkflow.
 
@@ -635,6 +636,7 @@ class ElasticImportWorkflow(Workflow):
             catchup=catchup,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
+            tags=tags,
         )
 
         self.project_id = project_id
