@@ -599,6 +599,7 @@ class ElasticImportWorkflow(Workflow):
         airflow_conns: List = None,
         index_keep_info: Dict = None,
         tags: List[str] = None,
+        **kwargs,
     ):
         """Create the ElasticImportWorkflow.
 
@@ -618,6 +619,7 @@ class ElasticImportWorkflow(Workflow):
         :param airflow_vars: the required Airflow Variables.
         :param airflow_conns: the required Airflow Connections.
         :param index_keep_info: Index retention policy info.
+        :param tags: List of dag tags.
         """
 
         if airflow_vars is None:
@@ -637,6 +639,7 @@ class ElasticImportWorkflow(Workflow):
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
             tags=tags,
+            **kwargs,
         )
 
         self.project_id = project_id
