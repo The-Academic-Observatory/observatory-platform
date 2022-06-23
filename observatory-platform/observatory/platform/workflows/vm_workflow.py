@@ -41,6 +41,7 @@ from observatory.platform.utils.airflow_utils import (
 )
 from observatory.platform.utils.workflow_utils import delete_old_xcoms
 from observatory.platform.workflows.workflow import Workflow
+from observatory.platform.dag_tag import Tag
 
 
 class TerraformRelease:
@@ -184,6 +185,8 @@ class VmCreateWorkflow(Workflow):
         ]
         airflow_conns = [AirflowConns.TERRAFORM]
 
+        tags = [Tag.observatory_platform]
+
         super().__init__(
             dag_id=VmCreateWorkflow.DAG_ID,
             start_date=start_date,
@@ -192,6 +195,7 @@ class VmCreateWorkflow(Workflow):
             max_active_runs=1,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
+            tags=tags,
         )
 
         self.add_setup_task(self.check_dependencies)
@@ -312,6 +316,8 @@ class VmDestroyWorkflow(Workflow):
         ]
         airflow_conns = [AirflowConns.TERRAFORM]
 
+        tags = ["observatory-platform"]
+
         super().__init__(
             dag_id=VmDestroyWorkflow.DAG_ID,
             start_date=start_date,
@@ -320,6 +326,7 @@ class VmDestroyWorkflow(Workflow):
             max_active_runs=1,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
+            tags=tags,
         )
 
         self.add_setup_task(self.check_dependencies)
