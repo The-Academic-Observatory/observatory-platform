@@ -171,14 +171,11 @@ class VmCreateWorkflow(Workflow):
         *,
         start_date: pendulum.DateTime = pendulum.datetime(2020, 7, 1),
         schedule_interval: str = "@weekly",
-        tags: Optional[List[str]] = None,
-        **kwargs,
     ):
         """Construct the workflow.
 
         :param start_date: Start date for the DAG.
         :param schedule_interval: Schedule interval for the DAG.
-        :param tags: List of dag tags.
         """
 
         airflow_vars = [
@@ -188,8 +185,6 @@ class VmCreateWorkflow(Workflow):
         ]
         airflow_conns = [AirflowConns.TERRAFORM]
 
-        tags = [Tag.observatory_platform]
-
         super().__init__(
             dag_id=VmCreateWorkflow.DAG_ID,
             start_date=start_date,
@@ -198,8 +193,7 @@ class VmCreateWorkflow(Workflow):
             max_active_runs=1,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
-            tags=tags,
-            **kwargs,
+            tags=[Tag.observatory_platform],
         )
 
         self.add_setup_task(self.check_dependencies)
@@ -305,14 +299,11 @@ class VmDestroyWorkflow(Workflow):
         *,
         start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
         schedule_interval: str = "*/10 * * * *",
-        tags: Optional[List[str]] = None,
-        **kwargs,
     ):
         """Construct the workflow.
 
         :param start_date: Start date for the DAG.
         :param schedule_interval: Schedule interval for the DAG.
-        :param tags: List of dag tags.
         """
 
         airflow_vars = [
@@ -323,8 +314,6 @@ class VmDestroyWorkflow(Workflow):
         ]
         airflow_conns = [AirflowConns.TERRAFORM]
 
-        tags = ["observatory-platform"]
-
         super().__init__(
             dag_id=VmDestroyWorkflow.DAG_ID,
             start_date=start_date,
@@ -333,7 +322,7 @@ class VmDestroyWorkflow(Workflow):
             max_active_runs=1,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
-            tags=tags,
+            tags=[Tag.observatory_platform],
         )
 
         self.add_setup_task(self.check_dependencies)
