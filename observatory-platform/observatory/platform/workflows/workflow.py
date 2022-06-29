@@ -236,7 +236,6 @@ class Workflow(AbstractWorkflow):
         self._parallel_tasks = False
         self.workflow_id = workflow_id
         self.dataset_type_id = dataset_type_id
-        self.tags = tags
 
         self.operators = []
         self.default_args = {
@@ -253,7 +252,7 @@ class Workflow(AbstractWorkflow):
             catchup=self.catchup,
             max_active_runs=self.max_active_runs,
             doc_md=self.__doc__,
-            tags=self.tags,
+            tags=tags,
         )
 
     def add_operator(self, operator: BaseOperator):

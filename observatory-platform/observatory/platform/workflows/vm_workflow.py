@@ -17,7 +17,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, List
 
 import pendulum
 from airflow.models.dag import DAG
@@ -41,6 +41,7 @@ from observatory.platform.utils.airflow_utils import (
 )
 from observatory.platform.utils.workflow_utils import delete_old_xcoms
 from observatory.platform.workflows.workflow import Workflow
+from observatory.platform.dag_tag import Tag
 
 
 class TerraformRelease:
@@ -192,6 +193,7 @@ class VmCreateWorkflow(Workflow):
             max_active_runs=1,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
+            tags=[Tag.observatory_platform],
         )
 
         self.add_setup_task(self.check_dependencies)
@@ -320,6 +322,7 @@ class VmDestroyWorkflow(Workflow):
             max_active_runs=1,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
+            tags=[Tag.observatory_platform],
         )
 
         self.add_setup_task(self.check_dependencies)
