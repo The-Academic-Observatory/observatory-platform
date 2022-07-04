@@ -299,7 +299,13 @@ class Workflow(Base):
     modified = Column(DateTime())
     organisation_id = Column(Integer, ForeignKey(f"{Organisation.__tablename__}.id"), nullable=True)
     workflow_type_id = Column(Integer, ForeignKey(f"{WorkflowType.__tablename__}.id"), nullable=False)
-    datasets = relationship("Dataset", backref=__tablename__)
+    datasets = relationship(
+        "Dataset",
+        backref=__tablename__,
+        cascade="all, delete-orphan",
+        single_parent=True,
+        passive_deletes=True,
+    )
 
     def __init__(
         self,
@@ -549,9 +555,15 @@ class Dataset(Base):
     created = Column(DateTime())
     modified = Column(DateTime())
 
-    workflow_id = Column(Integer, ForeignKey(f"{Workflow.__tablename__}.id"), nullable=False)
+    workflow_id = Column(Integer, ForeignKey(f"{Workflow.__tablename__}.id", ondelete="CASCADE"), nullable=False)
     dataset_type_id = Column(Integer, ForeignKey(f"{DatasetType.__tablename__}.id"), nullable=False)
-    releases = relationship("DatasetRelease", backref=__tablename__)
+    releases = relationship(
+        "DatasetRelease",
+        backref=__tablename__,
+        cascade="all, delete-orphan",
+        single_parent=True,
+        passive_deletes=True,
+    )
 
     def __init__(
         self,
@@ -642,7 +654,7 @@ class DatasetRelease(Base):
     id = Column(Integer, primary_key=True)
     start_date = Column(DateTime())
     end_date = Column(DateTime())
-    dataset_id = Column(Integer, ForeignKey(f"{Dataset.__tablename__}.id"), nullable=False)
+    dataset_id = Column(Integer, ForeignKey(f"{Dataset.__tablename__}.id", ondelete="CASCADE"), nullable=False)
     created = Column(DateTime())
     modified = Column(DateTime())
 
