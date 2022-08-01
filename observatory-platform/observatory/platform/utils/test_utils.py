@@ -69,6 +69,7 @@ import threading
 import time
 import unittest
 import uuid
+import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -653,13 +654,13 @@ class ObservatoryTestCase(unittest.TestCase):
         actual_content = None
         try:
             rows = self.bigquery_client.list_rows(table_id)
-            actual_content = [dict(row) for row in rows]
+            actual_content = json.loads(json.dumps([dict(row) for row in rows], default=str))
         except NotFound:
             pass
 
         self.assertIsNotNone(rows)
         if expected_content is not None:
-            for row in expected_content:
+            for row in json.loads(json.dumps(expected_content, default=str)):
                 self.assertIn(row, actual_content)
                 actual_content.remove(row)
             self.assertListEqual(
