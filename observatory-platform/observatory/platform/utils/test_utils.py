@@ -660,7 +660,7 @@ class ObservatoryTestCase(unittest.TestCase):
 
         self.assertIsNotNone(rows)
         if expected_content is not None:
-            for row in json.loads(json.dumps(expected_content, default=str)):
+            for row in expected_content:
                 self.assertIn(row, actual_content)
                 actual_content.remove(row)
             self.assertListEqual(
