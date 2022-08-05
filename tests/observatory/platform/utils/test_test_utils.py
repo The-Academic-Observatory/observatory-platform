@@ -543,11 +543,11 @@ class TestObservatoryTestCase(unittest.TestCase):
             test_case = ObservatoryTestCase()
             table_id = f"{self.project_id}.{dataset_id}.{table_name}"
             expected_content = [
-                {"first_name": "Gisella", "last_name": "Derya", "dob": datetime(1997, 7, 1).date()},
-                {"first_name": "Adelaida", "last_name": "Melis", "dob": datetime(1980, 9, 3).date()},
-                {"first_name": "Melanie", "last_name": "Magomedkhan", "dob": datetime(1990, 3, 1).date()},
-                {"first_name": "Octavia", "last_name": "Tomasa", "dob": datetime(1970, 1, 8).date()},
-                {"first_name": "Ansgar", "last_name": "Zorion", "dob": datetime(2001, 2, 1).date()},
+                {"first_name": "Gisella", "last_name": "Derya", "dob": str(datetime(1997, 7, 1).date())},
+                {"first_name": "Adelaida", "last_name": "Melis", "dob": str(datetime(1980, 9, 3).date())},
+                {"first_name": "Melanie", "last_name": "Magomedkhan", "dob": str(datetime(1990, 3, 1).date())},
+                {"first_name": "Octavia", "last_name": "Tomasa", "dob": str(datetime(1970, 1, 8).date())},
+                {"first_name": "Ansgar", "last_name": "Zorion", "dob": str(datetime(2001, 2, 1).date())},
             ]
             test_case.assert_table_content(table_id, expected_content)
 
@@ -564,10 +564,10 @@ class TestObservatoryTestCase(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 table_id = f"{dataset_id}.{table_name}"
                 expected_content = [
-                    {"first_name": "Gisella", "last_name": "Derya", "dob": datetime(1997, 7, 1).date()},
-                    {"first_name": "Adelaida", "last_name": "Melis", "dob": datetime(1980, 9, 3).date()},
-                    {"first_name": "Octavia", "last_name": "Tomasa", "dob": datetime(1970, 1, 8).date()},
-                    {"first_name": "Ansgar", "last_name": "Zorion", "dob": datetime(2001, 2, 1).date()},
+                    {"first_name": "Gisella", "last_name": "Derya", "dob": str(datetime(1997, 7, 1).date())},
+                    {"first_name": "Adelaida", "last_name": "Melis", "dob": str(datetime(1980, 9, 3).date())},
+                    {"first_name": "Octavia", "last_name": "Tomasa", "dob": str(datetime(1970, 1, 8).date())},
+                    {"first_name": "Ansgar", "last_name": "Zorion", "dob": str(datetime(2001, 2, 1).date())},
                 ]
                 test_case.assert_table_content(table_id, expected_content)
 
@@ -575,12 +575,12 @@ class TestObservatoryTestCase(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 table_id = f"{self.project_id}.{dataset_id}.{table_name}"
                 expected_content = [
-                    {"first_name": "Gisella", "last_name": "Derya", "dob": datetime(1997, 7, 1).date()},
-                    {"first_name": "Adelaida", "last_name": "Melis", "dob": datetime(1980, 9, 3).date()},
-                    {"first_name": "Melanie", "last_name": "Magomedkhan", "dob": datetime(1990, 3, 1).date()},
-                    {"first_name": "Octavia", "last_name": "Tomasa", "dob": datetime(1970, 1, 8).date()},
-                    {"first_name": "Ansgar", "last_name": "Zorion", "dob": datetime(2001, 2, 1).date()},
-                    {"first_name": "Extra", "last_name": "Row", "dob": datetime(2001, 2, 1).date()},
+                    {"first_name": "Gisella", "last_name": "Derya", "dob": str(datetime(1997, 7, 1).date())},
+                    {"first_name": "Adelaida", "last_name": "Melis", "dob": str(datetime(1980, 9, 3).date())},
+                    {"first_name": "Melanie", "last_name": "Magomedkhan", "dob": str(datetime(1990, 3, 1).date())},
+                    {"first_name": "Octavia", "last_name": "Tomasa", "dob": str(datetime(1970, 1, 8).date())},
+                    {"first_name": "Ansgar", "last_name": "Zorion", "dob": str(datetime(2001, 2, 1).date())},
+                    {"first_name": "Extra", "last_name": "Row", "dob": str(datetime(2001, 2, 1).date())},
                 ]
                 test_case.assert_table_content(table_id, expected_content)
 
