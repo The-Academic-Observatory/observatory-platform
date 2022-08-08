@@ -16,13 +16,13 @@
 
 import logging
 import os
+import requests
 import time
+from elasticsearch import Elasticsearch
 from typing import Dict
 
-import requests
-from elasticsearch import Elasticsearch
-
 from observatory.platform.docker.compose_runner import ComposeRunner, ProcessOutput
+from observatory.platform.docker.platform_runner import ELASTIC_VERSION, KIBANA_VERSION
 from observatory.platform.utils.config_utils import module_file_path
 
 
@@ -37,6 +37,8 @@ class ElasticEnvironment(ComposeRunner):
         password: str = "observatory",
         wait: bool = True,
         wait_time_secs: int = 120,
+        elastic_version: str = ELASTIC_VERSION,
+        kibana_version: str = KIBANA_VERSION,
     ):
         """Construct an Elasticsearch and Kibana environment.
 
@@ -45,6 +47,8 @@ class ElasticEnvironment(ComposeRunner):
         :param kibana_port: the Kibana port.
         :param wait: whether to wait until Elastic and Kibana have started.
         :param wait_time_secs: the maximum wait time in seconds.
+        :param elastic_version: the ElasticSearch Docker version.
+        :param kibana_version: the Kibana Docker version.
         """
 
         self.elastic_module_path = module_file_path("observatory.platform.elastic")
@@ -58,7 +62,13 @@ class ElasticEnvironment(ComposeRunner):
         super().__init__(
             compose_template_path=os.path.join(self.elastic_module_path, "docker-compose.yml.jinja2"),
             build_path=build_path,
-            compose_template_kwargs={"elastic_port": elastic_port, "kibana_port": kibana_port, "password": password},
+            compose_template_kwargs={
+                "elastic_port": elastic_port,
+                "kibana_port": kibana_port,
+                "password": password,
+                "elastic_version": elastic_version,
+                "kibana_version": kibana_version,
+            },
             debug=True,
         )
 
@@ -95,7 +105,7 @@ class ElasticEnvironment(ComposeRunner):
         try:
             # Have to call a specific API endpoint, not jus the base Kibana URI, as the base Kibana URI will return 200
             # before Kibana is actually ready.
-            response = requests.get(f"{self.kibana_uri}/api/spaces/space")
+            response = requests.get(f"{self.kibana_uri}api/spaces/space")
             return response.status_code == self.HTTP_OK
         except (ConnectionResetError, requests.exceptions.ConnectionError):
             pass

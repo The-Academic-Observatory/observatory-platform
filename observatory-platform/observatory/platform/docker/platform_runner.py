@@ -15,11 +15,10 @@
 # Author: James Diprose, Aniek Roelofs
 
 
-import os
-import shutil
-
 import docker
+import os
 import requests
+import shutil
 
 from observatory.platform.docker.compose_runner import ComposeRunner
 from observatory.platform.observatory_config import Config
@@ -28,15 +27,35 @@ from observatory.platform.utils.config_utils import module_file_path
 HOST_UID = os.getuid()
 DEBUG = False
 
+PYTHON_VERSION = "3.8"
+AIRFLOW_VERSION = "2.3.3"
+ELASTIC_VERSION = "8.2.2"
+KIBANA_VERSION = "8.2.2"
+
 
 class PlatformRunner(ComposeRunner):
-    def __init__(self, *, config: Config, host_uid: int = HOST_UID, docker_build_path: str = None, debug: bool = DEBUG):
+    def __init__(
+        self,
+        *,
+        config: Config,
+        host_uid: int = HOST_UID,
+        docker_build_path: str = None,
+        debug: bool = DEBUG,
+        python_version: str = PYTHON_VERSION,
+        airflow_version: str = AIRFLOW_VERSION,
+        elastic_version: str = ELASTIC_VERSION,
+        kibana_version: str = KIBANA_VERSION,
+    ):
         """Create a PlatformRunner instance, which is used to build, start and stop an Observatory Platform instance.
 
         :param config: the config.
         :param host_uid: The user id of the host system. Used to set the user id in the Docker containers.
         :param docker_build_path: the Docker build path.
         :param debug: Print debugging information.
+        :param python_version: Python version.
+        :param airflow_version: Airflow version.
+        :param elastic_version: Python version.
+        :param kibana_version: Python version.
         """
 
         self.config = config
@@ -51,30 +70,49 @@ class PlatformRunner(ComposeRunner):
         super().__init__(
             compose_template_path=os.path.join(self.docker_module_path, "docker-compose.observatory.yml.jinja2"),
             build_path=docker_build_path,
-            compose_template_kwargs={"config": self.config},
+            compose_template_kwargs={
+                "config": self.config,
+                "elastic_version": elastic_version,
+                "kibana_version": kibana_version,
+            },
             debug=debug,
         )
 
         # Add files
         self.add_template(
-            path=os.path.join(self.docker_module_path, "Dockerfile.observatory.jinja2"), config=self.config
+            path=os.path.join(self.docker_module_path, "Dockerfile.observatory.jinja2"),
+            config=self.config,
+            airflow_version=airflow_version,
+            python_version=python_version,
         )
         self.add_template(
-            path=os.path.join(self.docker_module_path, "entrypoint-airflow.sh.jinja2"), config=self.config
+            path=os.path.join(self.docker_module_path, "entrypoint-airflow.sh.jinja2"),
+            config=self.config,
+            airflow_version=airflow_version,
+            python_version=python_version,
         )
         self.add_template(
-            path=os.path.join(self.docker_module_path, "Dockerfile.apiserver.jinja2"), config=self.config
+            path=os.path.join(self.docker_module_path, "Dockerfile.apiserver.jinja2"),
+            config=self.config,
+            airflow_version=airflow_version,
+            python_version=python_version,
         )
         self.add_template(
-            path=os.path.join(self.docker_module_path, "Dockerfile.seed_db.jinja2"), config=self.config
+            path=os.path.join(self.docker_module_path, "Dockerfile.seed_db.jinja2"),
+            config=self.config,
+            airflow_version=airflow_version,
+            python_version=python_version,
         )
-        self.add_template(
-            path=os.path.join(self.docker_module_path, "entrypoint-api.sh.jinja2"), config=self.config
-        )
+        self.add_template(path=os.path.join(self.docker_module_path, "entrypoint-api.sh.jinja2"), config=self.config)
         self.add_file(
             path=os.path.join(self.docker_module_path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh"
         )
-        self.add_template(path=os.path.join(self.docker_module_path, "seed_db.sh.jinja2"), config=self.config)
+        self.add_template(
+            path=os.path.join(self.docker_module_path, "seed_db.sh.jinja2"),
+            config=self.config,
+            airflow_version=airflow_version,
+            python_version=python_version,
+        )
 
         # Add all project requirements files for local projects
         for package in self.config.python_packages:
@@ -95,7 +133,7 @@ class PlatformRunner(ComposeRunner):
         :return: whether the environment for building the Observatory Platform is valid.
         """
 
-        return all([self.docker_exe_path is not None, self.docker_compose_path is not None, self.is_docker_running])
+        return all([self.docker_exe_path is not None, self.docker_compose is not None, self.is_docker_running])
 
     @property
     def docker_module_path(self) -> str:
@@ -116,13 +154,14 @@ class PlatformRunner(ComposeRunner):
         return shutil.which("docker")
 
     @property
-    def docker_compose_path(self) -> str:
-        """The path to the Docker Compose executable.
+    def docker_compose(self) -> bool:
+        """Whether Docker Compose is installed.
 
-        :return: the path or None.
+        :return: true or false.
         """
 
-        return shutil.which("docker-compose")
+        stream = os.popen('docker info')
+        return "compose: Docker Compose" in stream.read()
 
     @property
     def is_docker_running(self) -> bool:
