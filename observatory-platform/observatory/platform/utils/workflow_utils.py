@@ -39,13 +39,15 @@ from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from airflow.utils.db import provide_session
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
+from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import (
     AirflowConns,
     AirflowVars,
     send_slack_msg,
 )
-from observatory.platform.utils.api import make_observatory_api
 from observatory.platform.utils.config_utils import find_schema, utils_templates_path
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
@@ -60,8 +62,6 @@ from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
 )
-from sqlalchemy import and_
-from sqlalchemy.orm import Session
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -1066,9 +1066,11 @@ def delete_old_xcoms(
     """
 
     cut_off_date = execution_date.subtract(days=retention_days)
-    session.query(XCom).filter(
+    results = session.query(XCom).filter(
         and_(
             XCom.dag_id == dag_id,
             XCom.execution_date <= cut_off_date,
         )
-    ).delete()
+    )
+    # set synchronize_session="fetch" to prevent the following error: sqlalchemy.exc.InvalidRequestError: Could not evaluate current criteria in Python: "Cannot evaluate SelectStatementGrouping". Specify 'fetch' or False for the synchronize_session execution option.
+    results.delete(synchronize_session="fetch")

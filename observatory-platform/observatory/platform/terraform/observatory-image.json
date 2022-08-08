@@ -11,7 +11,7 @@
       "account_file": "{{user `credentials_file`}}",
       "project_id": "{{user `project_id`}}",
       "ssh_username": "packer",
-      "source_image_family": "ubuntu-1804-lts",
+      "source_image_family": "ubuntu-2004-lts",
       "machine_type": "n1-standard-1",
       "zone": "{{user `zone`}}",
       "image_name": "observatory-image-{{user `environment`}}"

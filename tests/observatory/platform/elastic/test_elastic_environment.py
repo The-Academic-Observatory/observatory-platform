@@ -20,12 +20,15 @@ import unittest
 from click.testing import CliRunner
 
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
+from observatory.platform.utils.test_utils import (
+    find_free_port,
+)
 
 
 class TestElasticEnvironment(unittest.TestCase):
     def setUp(self) -> None:
-        self.elastic_port = 9201
-        self.kibana_port = 5602
+        self.elastic_port = find_free_port()
+        self.kibana_port = find_free_port()
         self.wait_time_secs = 120
 
     def test_elastic_environment(self):

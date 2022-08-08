@@ -60,6 +60,7 @@
 
 import contextlib
 import datetime
+import json
 import logging
 import os
 import shutil
@@ -69,8 +70,6 @@ import threading
 import time
 import unittest
 import uuid
-import json
-import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -79,6 +78,7 @@ from typing import Dict, List, Optional
 from unittest.mock import patch
 
 import croniter
+import freezegun
 import google
 import httpretty
 import paramiko
@@ -102,6 +102,9 @@ from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
+from pendulum import DateTime
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
+
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.utils.airflow_utils import AirflowVars
@@ -121,10 +124,6 @@ from observatory.platform.utils.gc_utils import (
     delete_old_datasets_with_prefix,
 )
 from observatory.platform.utils.workflow_utils import find_schema
-from pendulum import DateTime
-from sftpserver.stub_sftp import StubServer, StubSFTPServer
-import freezegun
-import socket
 
 
 def random_id():
@@ -392,10 +391,8 @@ class ObservatoryEnvironment:
         run_id = self.dag_run.run_id
         task = dag.get_task(task_id=task_id)
         ti = TaskInstance(task, run_id=run_id)
-        ti.dag_run = self.dag_run
-        ti.init_run_context(raw=True)
+        ti.refresh_from_db()
         ti.run(ignore_ti_state=True)
-
         return ti
 
     @contextlib.contextmanager

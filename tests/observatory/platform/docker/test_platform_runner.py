@@ -84,6 +84,7 @@ class TestPlatformRunner(unittest.TestCase):
     def setUp(self) -> None:
         self.is_env_local = True
         self.observatory_platform_path = module_file_path("observatory.platform", nav_back_steps=-3)
+        self.observatory_api_path = module_file_path("observatory.api", nav_back_steps=-3)
 
     def get_config(self, t: str):
         return ObservatoryConfig(
@@ -94,6 +95,8 @@ class TestPlatformRunner(unittest.TestCase):
                 airflow_fernet_key="ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
                 airflow_secret_key="a" * 16,
                 observatory_home=t,
+                api_package=self.observatory_api_path,
+                api_package_type="editable",
             ),
         )
 
@@ -123,15 +126,13 @@ class TestPlatformRunner(unittest.TestCase):
             self.assertIsNotNone(result)
             self.assertTrue(result.endswith("docker"))
 
-    def test_docker_compose_path(self):
-        """Test that the path to the Docker Compose executable is found"""
+    def test_docker_compose(self):
+        """Test that Docker Compose is found"""
 
         with CliRunner().isolated_filesystem() as t:
             cfg = self.get_config(t)
             cmd = PlatformRunner(config=cfg)
-            result = cmd.docker_compose_path
-            self.assertIsNotNone(result)
-            self.assertTrue(result.endswith("docker-compose"))
+            self.assertTrue(cmd.docker_compose)
 
     @patch("observatory.platform.docker.platform_runner.docker.from_env")
     def test_is_docker_running_true(self, mock_from_env):

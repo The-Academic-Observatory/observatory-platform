@@ -56,7 +56,7 @@ sudo -u airflow bash -c "berglas access sm://${project_id}/google_application_cr
 cd /opt/observatory/build/docker
 
 # Pull, build and start Docker containers
-{% set docker_compose_cmd="docker-compose -f docker-compose.observatory.yml"%}
+{% set docker_compose_cmd="docker compose -f docker-compose.observatory.yml"%}
 sudo -u airflow --preserve-env=$PRESERVE_ENV bash -c "{{ docker_compose_cmd }} pull {{ docker_containers }}"
 sudo -u airflow --preserve-env=$PRESERVE_ENV bash -c "{{ docker_compose_cmd }} build {{ docker_containers }}"
 sudo -u airflow -H --preserve-env=$PRESERVE_ENV bash -c "berglas exec -- {{ docker_compose_cmd }} up -d {{ docker_containers }}"
