@@ -44,15 +44,17 @@ def stream_process(proc: Popen, debug: bool) -> Tuple[str, str]:
     output_concat = ""
     error_concat = ""
     while True:
-        for line in proc.stdout:
-            output = line.decode("utf-8")
-            if debug:
-                print(output, end="")
-            output_concat += output
-        for line in proc.stderr:
-            error = line.decode("utf-8")
-            print(error, end="")
-            error_concat += error
+        if proc.stdout:
+            for line in proc.stdout:
+                output = line.decode("utf-8")
+                if debug:
+                    print(output, end="")
+                output_concat += output
+        if proc.stderr:
+            for line in proc.stderr:
+                error = line.decode("utf-8")
+                print(error, end="")
+                error_concat += error
         if proc.poll() is not None:
             break
     return output_concat, error_concat

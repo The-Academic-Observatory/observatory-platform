@@ -121,7 +121,7 @@ class ComposeRunner(Builder):
         proc: Popen = subprocess.Popen(
             self.COMPOSE_ARGS_PREFIX + [self.compose_file_name] + args,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             env=env,
             cwd=self.build_path,
         )
