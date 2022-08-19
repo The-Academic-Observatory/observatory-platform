@@ -22,6 +22,7 @@ import multiprocessing
 import os
 import re
 import time
+import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from copy import deepcopy
 from enum import Enum
@@ -1232,3 +1233,68 @@ def delete_bucket_dir(*, bucket_name: str, prefix: str):
 
     for blob in blobs:
         blob.delete()
+
+
+def list_all_buckets():
+    """List of all Google Cloud buckets.
+
+    :return: list of buckets that the service account as access to under the project.
+    """
+
+    # Client to read Google Cloud Storage
+    storage_client = storage.Client()
+    buckets = storage_client.list_buckets()
+
+    # Make list of all names of the storage buckets
+    bucket_list = []
+    for bucket in buckets:
+        bucket_list.append(bucket.name)
+
+    return bucket_list
+
+
+def list_all_datasets():
+    """List of all BigQuery datasets.
+
+    :return: list of datasets that the service account as access to under the project.
+    """
+
+    client = bigquery.Client()
+    datasets = list(client.list_datasets())
+
+    dataset_list = []
+    for dataset in datasets:
+        dataset_list.append(dataset.dataset_id)
+
+    return dataset_list
+
+
+def get_age_of_bucket_in_days(project_id: str, bucket_name: str):
+    """Determines the age of a bucket in days from time of created to present
+    :param project_id: project_name
+    :param bucket_name: Name of bucket
+    :result age_in_days: Age of the bucket in days"""
+
+    storage_client = storage.Client(project=project_id)
+    bucket = storage_client.get_bucket(bucket_name)
+
+    # Timezone of the bucket is in UTC. Have to change local timezone to UTC to get correct age.
+    days_old = (datetime.datetime.now(datetime.timezone.utc) - bucket.time_created).days
+
+    return days_old
+
+
+def get_age_of_dataset_in_days(project_id: str, dataset_id: str):
+
+    """Determines the age of a dataset in days from time of created to present
+    :param project_id: project_name
+    :param bucket_name: Name of bucket
+    :result age_in_days: Age of the bucket in days"""
+
+    client = bigquery.Client(project=project_id)
+    dataset = client.get_dataset(dataset_id)
+
+    # Timezone of the dataset is in UTC. Have to change local timezone to UTC to get correct age.
+    days_old = (datetime.datetime.now(datetime.timezone.utc) - dataset.created).days
+
+    return days_old
