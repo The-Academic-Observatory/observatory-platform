@@ -178,19 +178,57 @@ def save_empty_file(path: str, file_name: str) -> str:
 
 
 def make_prefix(test_name: str, org_name: str):
-    """Creates a prefix for buckets and datasets for the unit tests using
-    the capital letters of the name of the test and appends the organisation name.
-
+    """Creates a unique prefix for buckets and datasets for the unit tests using
+    the capital letters of both the test and organisation name. 
+    
     :param test_name: Name of the unit test.
     :param org_name: Organisation name.
     :return prefix: Prefix for the buckets and datasets.
     """
 
-    prefix = (
+    if re.search("[A-Z]+", org_name):
+         
+        prefix = (
         ("".join(re.findall("[A-Z]+", test_name))).lower()
         + "_"
-        + org_name.strip().lower().replace(" ", "_").replace("-", "_")
-    )
+        + ("".join(re.findall("[A-Z]+", org_name))).lower()
+        )
+
+    elif org_name != "":
+
+        # For cases where the organisation name is too long and will cause 
+        # the bucket name length to be greater than the max of 63 characters.
+         
+        if len(org_name) <= 10:
+            org_part = org_name.strip().replace(" ","_").replace("-","_")
+
+        else:
+            if re.search("[\-]+", org_name):
+                org_split = org_name.split("-")
+                
+                org_part = ""
+                for part_name in org_split:
+                    org_part = org_part + part_name[0]
+            elif re.search("[\s]+", org_name):
+                org_split = org_name.split(" ")
+                
+                org_part = ""
+                for part_name in org_split:
+                    org_part = org_part + part_name[0]
+            else:
+                org_part = org_name[0]
+        
+        prefix = (
+        ("".join(re.findall("[A-Z]+", test_name))).lower()
+        + "_"
+        + org_part
+        )
+
+    else:
+
+        prefix = (
+        ("".join(re.findall("[A-Z]+", test_name))).lower()
+        )
 
     logging.info(f"Prefix for buckets and datsets: {prefix}")
 
@@ -366,22 +404,22 @@ class ObservatoryEnvironment:
         else:
             logging.info(f"Deleted the following buckets older than {age_to_delete} days: {buckets_deleted}")
 
-    def add_dataset(self, add_prefix: str = "") -> str:
+    def add_dataset(self, prefix: str = "") -> str:
         """Add a BigQuery dataset to the Observatory environment.
 
         The BigQuery dataset will be deleted when the Observatory environment is closed.
 
-        :param add_prefix: an optional additional prefix for the dataset.
+        :param prefix: an optional additional prefix for the dataset.
         :return: the BigQuery dataset identifier.
         """
 
         self.assert_gcp_dependencies()
-        if (self.prefix != "") and (add_prefix != ""):
-            dataset_id = f"{self.prefix}_{add_prefix}_{random_id()}"
-        elif self.prefix != "" and (add_prefix == ""):
+        if (self.prefix != "") and (prefix != ""):
+            dataset_id = f"{self.prefix}_{prefix}_{random_id()}"
+        elif self.prefix != "" and (prefix == ""):
             dataset_id = f"{self.prefix}_{random_id()}"
-        elif (self.prefix == "") and (add_prefix != ""):
-            dataset_id = f"{add_prefix}_{random_id()}"
+        elif (self.prefix == "") and (prefix != ""):
+            dataset_id = f"{prefix}_{random_id()}"
         else:
             dataset_id = random_id()
         logging.info(f"Created dataset name: {dataset_id}")
