@@ -330,7 +330,6 @@ class ObservatoryEnvironment:
         else:
             bucket_name = random_id()
 
-        logging.info(f"Created bucket name: {bucket_name}")
         self.buckets.append(bucket_name)
         return bucket_name
 
@@ -343,6 +342,7 @@ class ObservatoryEnvironment:
 
         self.assert_gcp_dependencies()
         self.storage_client.create_bucket(bucket_id, location=self.data_location)
+        logging.info(f"Created bucket with name: {bucket_id}")
 
     def _create_dataset(self, dataset_id: str) -> None:
         """Create a BigQuery dataset.
@@ -355,6 +355,7 @@ class ObservatoryEnvironment:
         dataset = bigquery.Dataset(f"{self.project_id}.{dataset_id}")
         dataset.location = self.data_location
         self.bigquery_client.create_dataset(dataset, exists_ok=True)
+        logging.info(f"Created dataset with name: {dataset_id}")
 
     def _delete_bucket(self, bucket_id: str) -> None:
         """Delete a Google Cloud Storage Bucket.
@@ -422,7 +423,6 @@ class ObservatoryEnvironment:
             dataset_id = f"{prefix}_{random_id()}"
         else:
             dataset_id = random_id()
-        logging.info(f"Created dataset name: {dataset_id}")
         self.datasets.append(dataset_id)
         return dataset_id
 

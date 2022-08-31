@@ -16,6 +16,7 @@
 
 """ General google cloud utility functions (independent of telescope usage) """
 
+from distutils.log import error
 import json
 import logging
 import multiprocessing
@@ -1298,3 +1299,71 @@ def get_age_of_dataset_in_days(project_id: str, dataset_id: str):
     days_old = (datetime.datetime.now(datetime.timezone.utc) - dataset.created).days
 
     return days_old
+
+def delete_old_buckets_with_prefix(project_id: str, prefix: str, age_to_delete: int = 7):
+    """Deletes buckets that share the same prefix and if it is older than "age_to_delete" days.
+
+    :param project_id: project_id that you wish to delete buckets from.
+    :param prefix: The identifying prefix of the prject and telescope name.
+    :param age_to_delete: Delete if the age of the dataset is older than this amount.
+    """
+
+    client = storage.Client(project=project_id)
+
+    # List all buckets in the project.
+    bucket_list = list_all_buckets()
+
+    buckets_deleted = []
+    for bucket_id in bucket_list:
+
+        # Check if prefix is in the bucket name.
+        if (prefix in bucket_id) and (prefix != ""):
+
+            # Check bucket age
+            bucket_age = get_age_of_bucket_in_days(project_id, bucket_id)
+
+            # Delete bucket if older than 7 days.
+            if bucket_age >= age_to_delete:
+                
+                bucket = client.get_bucket(bucket_id)
+                bucket.delete(force=True)
+
+                buckets_deleted.append(bucket_id)
+
+    if len(buckets_deleted) < 1:
+        logging.info(f"No buckets older than {age_to_delete} days to delete.")
+    else:
+        logging.info(f"Deleted the following buckets older than {age_to_delete} days: {buckets_deleted}")
+
+    return buckets_deleted
+
+def delete_old_datasets_with_prefix(project_id: str, prefix: str, age_to_delete: int = 7):
+    """Deletes datasets that share the same prefix and if it is older than "age_to_delete" days.
+
+    :param project_id: project_id that you wish to delete datasets from.
+    :param dataset_id: dataset_id that you wish to remove.
+    :param age_to_delete: Delete if the age of the dataset is older than this amount.
+    """
+
+    client = bigquery.Client(project=project_id)
+
+    # List all datsets in the project.
+    dataset_list = list_all_datasets()
+
+    datasets_deleted = []
+    for dataset_id in dataset_list:
+
+        # Check if prefix is in the dataset name.
+        if (prefix in dataset_id) and (prefix != ""):
+
+            # Get age of the dataset.
+            dataset_age = get_age_of_dataset_in_days(project_id, dataset_id)
+
+            if dataset_age >= age_to_delete:
+                client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=False)
+                datasets_deleted.append(dataset_id)
+
+    if len(datasets_deleted) < 1:
+        logging.info(f"No datasets older than {age_to_delete} days to delete.")
+    else:
+        logging.info(f"Deleted the following datasets older than {age_to_delete} days: {datasets_deleted}")

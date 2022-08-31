@@ -53,6 +53,7 @@ from observatory.platform.utils.test_utils import (
     random_id,
     test_fixtures_path,
     find_free_port,
+    make_prefix,
 )
 from observatory.platform.utils.url_utils import retry_session
 from observatory.platform.workflows.workflow import AbstractRelease, Workflow
@@ -115,10 +116,12 @@ class TestObservatoryEnvironment(unittest.TestCase):
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
 
+        self.prefix = make_prefix(__class__.__name__, "")
+
     def test_add_bucket(self):
         """Test the add_bucket method"""
 
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
 
         # The download and transform buckets are added in the constructor
         self.assertEqual(2, len(env.buckets))
@@ -136,8 +139,11 @@ class TestObservatoryEnvironment(unittest.TestCase):
     def test_create_delete_bucket(self):
         """Test _create_bucket and _delete_bucket"""
 
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
-        bucket_id = random_id()
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
+        env.delete_old_test_buckets(age_to_delete=7)
+        env.delete_old_test_datasets(age_to_delete=7)
+
+        bucket_id = self.prefix + "_" + random_id()
 
         # Create bucket
         env._create_bucket(bucket_id)
@@ -152,7 +158,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
         env._delete_bucket(bucket_id)
 
         # No Google Cloud variables raises error
-        bucket_id = random_id()
+        bucket_id = self.prefix + "_" + random_id()
         with self.assertRaises(AssertionError):
             ObservatoryEnvironment()._create_bucket(bucket_id)
         with self.assertRaises(AssertionError):
@@ -162,7 +168,10 @@ class TestObservatoryEnvironment(unittest.TestCase):
         """Test add_dataset and _delete_dataset"""
 
         # Create dataset
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
+        env.delete_old_test_buckets(age_to_delete=7)
+        env.delete_old_test_datasets()
+
         dataset_id = env.add_dataset()
         create_bigquery_dataset(self.project_id, dataset_id, self.data_location)
 
@@ -183,6 +192,49 @@ class TestObservatoryEnvironment(unittest.TestCase):
         with self.assertRaises(AssertionError):
             ObservatoryEnvironment()._delete_dataset(random_id())
 
+    def test_delete_old_test_buckets(self):
+        
+        """ Tests delete_old_test_buckets. Used to remove leftover buckets from stopped tests."""
+
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
+
+        bucket_list =[ self.prefix + "_" + random_id() for i in range(2) ]
+
+        for bucket_id in bucket_list:
+            # Create test buckets with prefix
+            env._create_bucket(bucket_id)
+            bucket = env.storage_client.bucket(bucket_id)
+            self.assertTrue(bucket.exists())
+
+        # Delete bucket with prefix and age of 0 days.
+        env.delete_old_test_buckets(age_to_delete = 0)
+
+        # Assert that bucket does not exist.
+        for bucket_id in bucket_list:
+            bucket = env.storage_client.bucket(bucket_id)
+            self.assertFalse(bucket.exists())
+    
+    def test_delete_old_test_datasets(self):
+
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix=self.prefix)
+
+        dataset_list = [ env.add_dataset() for i in range(2) ]
+
+        for dataset_id in dataset_list:
+            create_bigquery_dataset(self.project_id, dataset_id, self.data_location)
+
+            # Check that dataset exists: should not raise NotFound exception
+            dataset_id = f"{self.project_id}.{dataset_id}"
+            env.bigquery_client.get_dataset(dataset_id)
+        
+        # Delete bucket with prefix and age of 0 days.
+        env.delete_old_test_datasets(age_to_delete = 0)
+
+        # Check that dataset doesn't exist
+        for dataset_id in dataset_list:
+            with self.assertRaises(NotFound):
+                env.bigquery_client.get_dataset(dataset_id)
+
     def test_create(self):
         """Tests create, add_variable, add_connection and run_task"""
 
@@ -194,7 +246,11 @@ class TestObservatoryEnvironment(unittest.TestCase):
         dag = telescope.make_dag()
 
         # Test that previous tasks have to be finished to run next task
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
+        
+        env.delete_old_test_buckets(age_to_delete=7)
+        env.delete_old_test_datasets(age_to_delete=7)
+
         with env.create(task_logging=True):
             with env.create_dag_run(dag, execution_date):
                 # Add_variable
@@ -223,7 +279,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
         # Test that tasks are skipped when setup task returns False
         telescope = TelescopeTest(setup_task_result=False)
         dag = telescope.make_dag()
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
         with env.create(task_logging=True):
             with env.create_dag_run(dag, execution_date):
                 # Add_variable
@@ -249,7 +305,10 @@ class TestObservatoryEnvironment(unittest.TestCase):
         """Test task logging"""
 
         expected_state = "success"
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
+        env.delete_old_test_buckets(age_to_delete=7)
+        env.delete_old_test_datasets(age_to_delete=7)
+
 
         # Setup Telescope
         execution_date = pendulum.datetime(year=2020, month=11, day=1)
@@ -275,7 +334,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 self.assertEqual(expected_state, ti.state)
 
         # Test environment with logging enabled
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
         with env.create(task_logging=True):
             with env.create_dag_run(dag, execution_date):
                 # Test add_variable
@@ -294,7 +353,11 @@ class TestObservatoryEnvironment(unittest.TestCase):
 
     def test_create_dagrun(self):
         """Tests create_dag_run"""
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
+
+        env.delete_old_test_buckets(age_to_delete=7)
+        env.delete_old_test_datasets(age_to_delete=7)
 
         # Setup Telescope
         first_execution_date = pendulum.datetime(year=2020, month=11, day=1, tz="UTC")
@@ -341,7 +404,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 self.assertEqual(ti1.job_id, ti2.previous_ti.job_id)
 
         # Use DAG run without freezing time
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
         with env.create():
             # Test add_variable
             env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
@@ -372,7 +435,9 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 self.assertEqual(ti1.job_id, ti2.previous_ti.job_id)
 
     def test_create_dag_run_timedelta(self):
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+
+        self.prefix = make_prefix(__class__.__name__, "TCDRT")
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
         telescope = TelescopeTest(schedule_interval=timedelta(days=1))
         dag = telescope.make_dag()
         execution_date = pendulum.datetime(2021, 1, 1)
@@ -390,6 +455,8 @@ class TestObservatoryTestCase(unittest.TestCase):
         super(TestObservatoryTestCase, self).__init__(*args, **kwargs)
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
+
+        self.prefix = make_prefix(__class__.__name__,"")
 
     def test_assert_dag_structure(self):
         """Test assert_dag_structure"""
@@ -411,7 +478,8 @@ class TestObservatoryTestCase(unittest.TestCase):
         """Test assert_dag_load"""
 
         test_case = ObservatoryTestCase()
-        with ObservatoryEnvironment().create() as temp_dir:
+        env = ObservatoryEnvironment(prefix=self.prefix)
+        with env.create() as temp_dir:
             # Write DAG into temp_dir
             file_path = os.path.join(temp_dir, f"telescope_test.py")
             with open(file_path, mode="w") as f:
@@ -444,7 +512,7 @@ class TestObservatoryTestCase(unittest.TestCase):
     def test_assert_blob_integrity(self):
         """Test assert_blob_integrity"""
 
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
         with env.create():
             # Upload file to download bucket and check gzip-crc
             file_name = "people.csv"
@@ -463,7 +531,12 @@ class TestObservatoryTestCase(unittest.TestCase):
     def test_assert_table_integrity(self):
         """Test assert_table_integrity"""
 
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        self.prefix = make_prefix(__class__.__name__,"TATI")
+
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
+        env.delete_old_test_buckets(age_to_delete = 7)
+        env.delete_old_test_datasets(age_to_delete = 7)
+
         with env.create():
             # Upload file to download bucket and check gzip-crc
             file_name = "people.jsonl"
@@ -512,7 +585,13 @@ class TestObservatoryTestCase(unittest.TestCase):
 
         :return: None.
         """
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+
+        self.prefix = make_prefix(__class__.__name__,"TATC")
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
+
+        env.delete_old_test_buckets(age_to_delete = 7)
+        env.delete_old_test_datasets(age_to_delete = 7)
+        
         with env.create():
             # Upload file to download bucket and check gzip-crc
             file_name = "people.jsonl"

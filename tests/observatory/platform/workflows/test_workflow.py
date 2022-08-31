@@ -30,7 +30,7 @@ from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.sensors.external_task import ExternalTaskSensor
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, find_free_port
+from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, find_free_port, make_prefix
 from observatory.platform.workflows.workflow import Release, Workflow, make_task_id
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_type import DatasetType
@@ -105,6 +105,8 @@ class TestWorkflow(ObservatoryTestCase):
         self.env = ObservatoryApiEnvironment(host=self.host, port=self.port)
         self.org_name = "Curtin University"
         self.workflow_id = 1
+
+        self.prefix = make_prefix(__class__.__name__, self.org_name)
 
     def setup_api(self):
         org = Organisation(name=self.org_name)
@@ -302,7 +304,10 @@ class TestWorkflow(ObservatoryTestCase):
         m_makeapi.return_value = self.api
 
         # Setup Observatory environment
-        env = ObservatoryEnvironment(self.project_id, self.data_location, api_host=self.host, api_port=self.port)
+        env = ObservatoryEnvironment(self.project_id, self.data_location, api_host=self.host, api_port=self.port, prefix = self.prefix)
+
+        env.delete_old_test_buckets(age_to_delete=7)
+        env.delete_old_test_datasets(age_to_delete=7)
 
         # Create the Observatory environment and run tests
         with env.create(task_logging=True):
@@ -346,7 +351,10 @@ class TestWorkflow(ObservatoryTestCase):
         # mock_send_slack_msg.return_value = Mock(spec=SlackWebhookHook)
 
         # Setup Observatory environment
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
+
+        env.delete_old_test_buckets(age_to_delete=7)
+        env.delete_old_test_datasets(age_to_delete=7)
 
         # Setup Telescope with 0 retries and missing airflow variable, so it will fail the task
         execution_date = pendulum.datetime(2020, 1, 1)

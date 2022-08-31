@@ -37,6 +37,7 @@ from observatory.platform.utils.test_utils import (
     ObservatoryTestCase,
     Table,
     bq_load_tables,
+    make_prefix,
     test_fixtures_path,
     find_free_port,
 )
@@ -168,6 +169,9 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
         self.table_name = "ao_author"
 
+
+        self.prefix = make_prefix(__class__.__name__,"OTC")
+
     def test_ctor(self):
         workflow_default_index_keep_info = ElasticImportWorkflow(
             dag_id="elastic_import",
@@ -283,7 +287,12 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             enable_elastic=True,
             elastic_port=self.elastic_port,
             kibana_port=self.kibana_port,
+            prefix = self.prefix
         )
+
+        env.delete_old_test_buckets(age_to_detele=7)
+        env.delete_old_test_datasets(age_to_delete=7)
+
         dataset_id = env.add_dataset(prefix="data_export")
         with env.create() as t:
             # Create settings
