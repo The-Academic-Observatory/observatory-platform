@@ -290,7 +290,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             prefix = self.prefix
         )
 
-        env.delete_old_test_buckets(age_to_detele=7)
+        env.delete_old_test_buckets(age_to_delete=7)
         env.delete_old_test_datasets(age_to_delete=7)
 
         dataset_id = env.add_dataset(prefix="data_export")
