@@ -463,8 +463,6 @@ class TestStreamTelescope(ObservatoryTestCase):
 
         m_makeapi.return_value = self.api
 
-        self.prefix = make_prefix(__class__.__name__, "TTFC")
-
         # Setup Telescopes, first one without batch_load and second one with batch_load
         batch_load_settings = [False, True]
         for batch_load in batch_load_settings:
@@ -712,6 +710,8 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
         self.org_name = "Curtin University"
         self.workflow = 1
 
+        self.prefix = make_prefix(__class__.__name__, self.org_name)
+
     def setup_api(self):
         org = Organisation(name=self.org_name)
         result = self.api.put_organisation(org)
@@ -752,8 +752,6 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
     @patch("observatory.platform.utils.release_utils.make_observatory_api")
     def test_get_release_info(self, m_makeapi):
         m_makeapi.return_value = self.api
-
-        self.prefix = make_prefix(__class__.__name__, "TGRI")
 
         start_date = pendulum.datetime(2020, 8, 1)
         env = ObservatoryEnvironment(api_host=self.host, api_port=self.port, prefix = self.prefix)

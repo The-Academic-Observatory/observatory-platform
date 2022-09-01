@@ -992,7 +992,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
         client = bigquery.Client()
 
         # Create unique prefix just for this test
-        prefix = self.prefix + "_tdodwp_"
+        prefix = self.prefix + "_tdodwp_" + random_id()[:16] + "_"
         test_datasets = [prefix + random_id() for i in range(2) ]
         
         try: 
@@ -1022,7 +1022,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
         client = storage.Client()
 
         # Create unique prefix just for this test
-        prefix = self.prefix + "_tdobwp_"
+        prefix = self.prefix + "_tdobwp_" + random_id()[:16] + "_"
         test_buckets = [prefix + random_id() for i in range(2) ]
 
         success = False

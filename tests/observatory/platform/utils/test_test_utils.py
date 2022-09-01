@@ -116,11 +116,10 @@ class TestObservatoryEnvironment(unittest.TestCase):
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
 
-        self.prefix = make_prefix(__class__.__name__, "")
-
     def test_add_bucket(self):
         """Test the add_bucket method"""
 
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
         env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
 
         # The download and transform buckets are added in the constructor
@@ -139,9 +138,9 @@ class TestObservatoryEnvironment(unittest.TestCase):
     def test_create_delete_bucket(self):
         """Test _create_bucket and _delete_bucket"""
 
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
         env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
         env.delete_old_test_buckets(age_to_delete=7)
-        env.delete_old_test_datasets(age_to_delete=7)
 
         bucket_id = self.prefix + "_" + random_id()
 
@@ -167,10 +166,11 @@ class TestObservatoryEnvironment(unittest.TestCase):
     def test_add_delete_dataset(self):
         """Test add_dataset and _delete_dataset"""
 
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
+
         # Create dataset
         env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
-        env.delete_old_test_buckets(age_to_delete=7)
-        env.delete_old_test_datasets()
+        env.delete_old_test_datasets(age_to_delete=7)
 
         dataset_id = env.add_dataset()
         create_bigquery_dataset(self.project_id, dataset_id, self.data_location)
@@ -196,6 +196,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
         
         """ Tests delete_old_test_buckets. Used to remove leftover buckets from stopped tests."""
 
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
         env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
 
         bucket_list =[ self.prefix + "_" + random_id() for i in range(2) ]
@@ -216,6 +217,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
     
     def test_delete_old_test_datasets(self):
 
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
         env = ObservatoryEnvironment(self.project_id, self.data_location, prefix=self.prefix)
 
         dataset_list = [ env.add_dataset() for i in range(2) ]
@@ -246,6 +248,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
         dag = telescope.make_dag()
 
         # Test that previous tasks have to be finished to run next task
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
         env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
         
         env.delete_old_test_buckets(age_to_delete=7)
@@ -304,11 +307,11 @@ class TestObservatoryEnvironment(unittest.TestCase):
     def test_task_logging(self):
         """Test task logging"""
 
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
+
         expected_state = "success"
         env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
         env.delete_old_test_buckets(age_to_delete=7)
-        env.delete_old_test_datasets(age_to_delete=7)
-
 
         # Setup Telescope
         execution_date = pendulum.datetime(year=2020, month=11, day=1)
@@ -354,10 +357,10 @@ class TestObservatoryEnvironment(unittest.TestCase):
     def test_create_dagrun(self):
         """Tests create_dag_run"""
 
-        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
 
+        env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
         env.delete_old_test_buckets(age_to_delete=7)
-        env.delete_old_test_datasets(age_to_delete=7)
 
         # Setup Telescope
         first_execution_date = pendulum.datetime(year=2020, month=11, day=1, tz="UTC")
@@ -436,8 +439,10 @@ class TestObservatoryEnvironment(unittest.TestCase):
 
     def test_create_dag_run_timedelta(self):
 
-        self.prefix = make_prefix(__class__.__name__, "TCDRT")
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
         env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
+        env.delete_old_test_buckets(age_to_delete=7)
+
         telescope = TelescopeTest(schedule_interval=timedelta(days=1))
         dag = telescope.make_dag()
         execution_date = pendulum.datetime(2021, 1, 1)
@@ -455,8 +460,6 @@ class TestObservatoryTestCase(unittest.TestCase):
         super(TestObservatoryTestCase, self).__init__(*args, **kwargs)
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
-
-        self.prefix = make_prefix(__class__.__name__,"")
 
     def test_assert_dag_structure(self):
         """Test assert_dag_structure"""
@@ -476,6 +479,8 @@ class TestObservatoryTestCase(unittest.TestCase):
 
     def test_assert_dag_load(self):
         """Test assert_dag_load"""
+
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
 
         test_case = ObservatoryTestCase()
         env = ObservatoryEnvironment(prefix=self.prefix)
@@ -512,7 +517,11 @@ class TestObservatoryTestCase(unittest.TestCase):
     def test_assert_blob_integrity(self):
         """Test assert_blob_integrity"""
 
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
+
         env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
+        env.delete_old_test_buckets(age_to_delete=7)
+
         with env.create():
             # Upload file to download bucket and check gzip-crc
             file_name = "people.csv"
@@ -531,7 +540,7 @@ class TestObservatoryTestCase(unittest.TestCase):
     def test_assert_table_integrity(self):
         """Test assert_table_integrity"""
 
-        self.prefix = make_prefix(__class__.__name__,"TATI")
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
 
         env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
         env.delete_old_test_buckets(age_to_delete = 7)
@@ -586,7 +595,7 @@ class TestObservatoryTestCase(unittest.TestCase):
         :return: None.
         """
 
-        self.prefix = make_prefix(__class__.__name__,"TATC")
+        self.prefix = make_prefix(self.__class__.__name__,self._testMethodName)
         env = ObservatoryEnvironment(self.project_id, self.data_location, prefix = self.prefix)
 
         env.delete_old_test_buckets(age_to_delete = 7)

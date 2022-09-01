@@ -194,6 +194,18 @@ def make_prefix(test_name: str, org_name: str):
         + ("".join(re.findall("[A-Z]+", org_name))).lower()
         )
 
+    # no capitals in the org_part and "_" separating the name. Used for function names.
+    elif not re.search("[A-Z]+", org_name) and re.search("[\_]+", org_name):
+
+        reg = re.compile(r"(?:(?<=\_)|^)(?:[a-z]|\d+)", re.I)
+        org_part = ''.join(reg.findall(org_name))
+
+        prefix = (
+        ("".join(re.findall("[A-Z]+", test_name))).lower()
+        + "_"
+        + org_part
+        )
+
     elif org_name != "":
 
         # For cases where the organisation name is too long and will cause 
