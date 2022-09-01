@@ -997,22 +997,21 @@ class TestGoogleCloudUtils(unittest.TestCase):
         
         try: 
 
-            # Get list of all datasets
-            dataset_list = list_all_datasets()
-
             # Create test datasets
             for test_dataset in test_datasets:
                 create_bigquery_dataset(self.gc_project_id, test_dataset, self.gc_bucket_location)
-                
+
+            # Ensure that datasets have been created.
+            dataset_list = list_all_datasets()
+            self.assertTrue( set(dataset_list).issuperset( set(test_datasets)) )
+
             # Remove datasets that have shared prefix and age of 0 days.
             delete_old_datasets_with_prefix(self.gc_project_id, prefix, age_to_delete = 0)
 
-            # Get list of all datasets again after the two test ones have been deleted.
+            # Check that datasets have been deleted.
             dataset_list_post = list_all_datasets()
-
-            # Check that buckets with unique prefix are not present.
-            self.assertEqual(dataset_list_post, dataset_list)
-
+            self.assertFalse( set(dataset_list_post).issuperset( set(test_datasets)) )
+                   
         finally:
             # Delete testing datasets
             for test_dataset in test_datasets:
@@ -1030,22 +1029,22 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
         try: 
 
-            # Get list of all buckets
-            bucket_list = list_all_buckets()
-
             # Create test buckets
             for test_bucket in test_buckets:
                 success_create = create_cloud_storage_bucket(test_bucket, self.gc_bucket_location, self.gc_project_id)
                 self.assertTrue(success_create)
 
+            # Esnure buckets have been created.
+            bucket_list = list_all_buckets()
+            self.assertTrue( set(bucket_list).issuperset( set(test_buckets)) )
+
             # Remove datasets that have shared prefix and age of 0 days.
             delete_old_buckets_with_prefix(self.gc_project_id, prefix, age_to_delete = 0)
 
-            # Get list of all buckets again after the two test ones have been deleted.
-            bucket_list_post = list_all_buckets()
-
             # Check that buckets with unique prefix are not present.
-            self.assertEqual(bucket_list_post, bucket_list)
+            bucket_list_post = list_all_buckets()
+            self.assertFalse( set(bucket_list_post).issuperset( set(test_buckets)) )
+           
             success = True
 
         finally:
