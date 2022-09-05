@@ -68,17 +68,15 @@ from observatory.platform.utils.gc_utils import (
     upload_files_to_cloud_storage,
     list_all_datasets,
     list_all_buckets,
-    get_age_of_dataset_in_days,
-    get_age_of_bucket_in_days,
     delete_old_datasets_with_prefix,
     delete_old_buckets_with_prefix,
 )
 from observatory.platform.utils.test_utils import (
     ObservatoryTestCase,
-    make_prefix,
     random_id,
     test_fixtures_path,
 )
+
 
 def make_account_url(account_name: str) -> str:
     """Make an Azure Storage account URL from an account name.
@@ -89,6 +87,7 @@ def make_account_url(account_name: str) -> str:
     """
 
     return f"https://{account_name}.blob.core.windows.net"
+
 
 class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -167,6 +166,7 @@ class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
 
 class TestGoogleCloudUtils(unittest.TestCase):
     __init__already = False
+
     def __init__(self, *args, **kwargs):
         super(TestGoogleCloudUtils, self).__init__(*args, **kwargs)
         self.az_storage_account_name: str = os.getenv("TEST_AZURE_STORAGE_ACCOUNT_NAME")
@@ -181,12 +181,12 @@ class TestGoogleCloudUtils(unittest.TestCase):
         self.data = "hello world"
         self.expected_crc32c = "yZRlqg=="
 
-        self.prefix = make_prefix(__class__.__name__, "")
+        self.prefix = "tgcu_tests"
 
         # Save time and only have this run once.
         if not __class__.__init__already:
-            delete_old_datasets_with_prefix(self.gc_project_id, self.prefix, age_to_delete = 7)
-            delete_old_buckets_with_prefix(self.gc_project_id, self.prefix, age_to_delete = 7)
+            delete_old_datasets_with_prefix(self.prefix, age_to_delete=2)
+            delete_old_buckets_with_prefix(self.prefix, age_to_delete=2)
             __class__.__init__already = True
 
     def test_create_bigquery_dataset(self):
@@ -907,24 +907,25 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 self.assertFalse(blob.exists())
             finally:
                 pass
-    
+
     def test_list_all_datasets(self):
 
         client = bigquery.Client()
         dataset_id = self.prefix + "_" + random_id()
-        
+
         try:
             # Create a test dataset
             create_bigquery_dataset(self.gc_project_id, dataset_id, self.gc_bucket_location)
 
             # Get list of datasets under project
             dataset_list = list_all_datasets()
+            dataset_names = [dataset.dataset_id for dataset in dataset_list]
 
-            self.assertTrue( set(dataset_list).issuperset(set([dataset_id])) )
+            self.assertTrue(set(dataset_names).issuperset({dataset_id}))
 
         finally:
             # Delete testing dataset when finished
-            client.delete_dataset(dataset_id, delete_contents=True)
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
     def test_list_all_buckets(self):
 
@@ -936,54 +937,15 @@ class TestGoogleCloudUtils(unittest.TestCase):
             success = create_cloud_storage_bucket(bucket_id, self.gc_bucket_location, self.gc_project_id)
             self.assertTrue(success)
 
-            # Get list of buckets under project
+            # Get list of bucket objects under project
             bucket_list = list_all_buckets()
+            bucket_names = [bucket.name for bucket in bucket_list]
 
-            self.assertTrue( set(bucket_list).issuperset(set([bucket_id])) )
-
-        finally:
-            # Delete testing buckets
-            bucket = client.get_bucket(bucket_id)
-            bucket.delete(force=True)
-
-    def test_get_age_of_dataset_in_days(self):
-
-        client = bigquery.Client()
-        dataset_id = self.prefix + "_" + random_id()
-
-        try:
-             # Create a test dataset
-            create_bigquery_dataset(self.gc_project_id, dataset_id, self.gc_bucket_location)
-
-            # Get age
-            dataset_age = get_age_of_dataset_in_days(self.gc_project_id, dataset_id) 
-
-            # Since it's newly created it should have an age of 0 days.
-            self.assertEqual(dataset_age, 0) 
+            # Check that it is in the list of all other buckets
+            self.assertTrue(set(bucket_names).issuperset({bucket_id}))
 
         finally:
-
-            # Delete testing dataset when finished
-            client.delete_dataset(dataset_id, delete_contents=True)
-
-    def test_get_age_of_bucket_in_days(self):
-
-        client = storage.Client()
-        bucket_id = self.prefix + "_" + random_id()
-
-        try:
-            # Create a test bucket
-            success_create = create_cloud_storage_bucket(bucket_id, self.gc_bucket_location, self.gc_project_id)
-            self.assertTrue(success_create)
-
-            # Get age
-            bucket_age = get_age_of_bucket_in_days(self.gc_project_id, bucket_id) 
-
-            # Since it is just created, should be 0 days old. 
-            self.assertEqual(bucket_age, 0) 
-
-        finally:
-            # Delete testing buckets
+            # Delete testing bucket
             bucket = client.get_bucket(bucket_id)
             bucket.delete(force=True)
 
@@ -992,26 +954,30 @@ class TestGoogleCloudUtils(unittest.TestCase):
         client = bigquery.Client()
 
         # Create unique prefix just for this test
-        prefix = self.prefix + "_tdodwp_" + random_id()[:16] + "_"
-        test_datasets = [prefix + random_id() for i in range(2) ]
-        
-        try: 
+        prefix = self.prefix + "_tdodwp_" + random_id()[:8] + "_"
+        test_datasets = [prefix + random_id() for i in range(2)]
+
+        try:
 
             # Create test datasets
             for test_dataset in test_datasets:
-                create_bigquery_dataset(self.gc_project_id, test_dataset, self.gc_bucket_location)
+                create_bigquery_dataset(
+                    project_id=self.gc_project_id, dataset_id=test_dataset, location=self.gc_bucket_location
+                )
 
             # Ensure that datasets have been created.
             dataset_list = list_all_datasets()
-            self.assertTrue( set(dataset_list).issuperset( set(test_datasets)) )
+            dataset_names = [dataset.dataset_id for dataset in dataset_list]
+            self.assertTrue(set(dataset_names).issuperset(set(test_datasets)))
 
             # Remove datasets that have shared prefix and age of 0 days.
-            delete_old_datasets_with_prefix(self.gc_project_id, prefix, age_to_delete = 0)
+            delete_old_datasets_with_prefix(prefix, age_to_delete=0)
 
             # Check that datasets have been deleted.
             dataset_list_post = list_all_datasets()
-            self.assertFalse( set(dataset_list_post).issuperset( set(test_datasets)) )
-                   
+            dataset_names_post = [dataset.dataset_id for dataset in dataset_list_post]
+            self.assertFalse(set(dataset_names_post).issuperset(set(test_datasets)))
+
         finally:
             # Delete testing datasets
             for test_dataset in test_datasets:
@@ -1022,29 +988,30 @@ class TestGoogleCloudUtils(unittest.TestCase):
         client = storage.Client()
 
         # Create unique prefix just for this test
-        prefix = self.prefix + "_tdobwp_" + random_id()[:16] + "_"
-        test_buckets = [prefix + random_id() for i in range(2) ]
+        prefix = self.prefix + "_tdobwp_" + random_id()[:8] + "_"
+        test_buckets = [prefix + random_id() for i in range(2)]
 
         success = False
 
-        try: 
+        # Create test buckets
+        for test_bucket in test_buckets:
+            success_create = create_cloud_storage_bucket(test_bucket, self.gc_bucket_location, self.gc_project_id)
+            self.assertTrue(success_create)
 
-            # Create test buckets
-            for test_bucket in test_buckets:
-                success_create = create_cloud_storage_bucket(test_bucket, self.gc_bucket_location, self.gc_project_id)
-                self.assertTrue(success_create)
-
+        try:
             # Esnure buckets have been created.
             bucket_list = list_all_buckets()
-            self.assertTrue( set(bucket_list).issuperset( set(test_buckets)) )
+            bucket_names = [bucket.name for bucket in bucket_list]
+            self.assertTrue(set(bucket_names).issuperset(set(test_buckets)))
 
             # Remove datasets that have shared prefix and age of 0 days.
-            delete_old_buckets_with_prefix(self.gc_project_id, prefix, age_to_delete = 0)
+            delete_old_buckets_with_prefix(prefix, age_to_delete=0)
 
             # Check that buckets with unique prefix are not present.
             bucket_list_post = list_all_buckets()
-            self.assertFalse( set(bucket_list_post).issuperset( set(test_buckets)) )
-           
+            bucket_names_post = [bucket.name for bucket in bucket_list_post]
+            self.assertFalse(set(bucket_names_post).issuperset(set(test_buckets)))
+
             success = True
 
         finally:

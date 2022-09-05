@@ -117,10 +117,8 @@ from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     load_bigquery_table,
     upload_files_to_cloud_storage,
-    list_all_buckets,
-    list_all_datasets,
-    get_age_of_bucket_in_days,
-    get_age_of_dataset_in_days,
+    delete_old_buckets_with_prefix,
+    delete_old_datasets_with_prefix,
 )
 from observatory.platform.utils.workflow_utils import find_schema
 from pendulum import DateTime
@@ -177,76 +175,6 @@ def save_empty_file(path: str, file_name: str) -> str:
     return file_path
 
 
-def make_prefix(test_name: str, org_name: str):
-    """Creates a unique prefix for buckets and datasets for the unit tests using
-    the capital letters of both the test and organisation name. 
-    
-    :param test_name: Name of the unit test.
-    :param org_name: Organisation name.
-    :return prefix: Prefix for the buckets and datasets.
-    """
-
-    if re.search("[A-Z]+", org_name):
-         
-        prefix = (
-        ("".join(re.findall("[A-Z]+", test_name))).lower()
-        + "_"
-        + ("".join(re.findall("[A-Z]+", org_name))).lower()
-        )
-
-    # no capitals in the org_part and "_" separating the name. Used for function names.
-    elif not re.search("[A-Z]+", org_name) and re.search("[\_]+", org_name):
-
-        reg = re.compile(r"(?:(?<=\_)|^)(?:[a-z]|\d+)", re.I)
-        org_part = ''.join(reg.findall(org_name))
-
-        prefix = (
-        ("".join(re.findall("[A-Z]+", test_name))).lower()
-        + "_"
-        + org_part
-        )
-
-    elif org_name != "":
-
-        # For cases where the organisation name is too long and will cause 
-        # the bucket name length to be greater than the max of 63 characters.
-         
-        if len(org_name) <= 10:
-            org_part = org_name.strip().replace(" ","_").replace("-","_")
-
-        else:
-            if re.search("[\-]+", org_name):
-                org_split = org_name.split("-")
-                
-                org_part = ""
-                for part_name in org_split:
-                    org_part = org_part + part_name[0]
-            elif re.search("[\s]+", org_name):
-                org_split = org_name.split(" ")
-                
-                org_part = ""
-                for part_name in org_split:
-                    org_part = org_part + part_name[0]
-            else:
-                org_part = org_name[0]
-        
-        prefix = (
-        ("".join(re.findall("[A-Z]+", test_name))).lower()
-        + "_"
-        + org_part
-        )
-
-    else:
-
-        prefix = (
-        ("".join(re.findall("[A-Z]+", test_name))).lower()
-        )
-
-    logging.info(f"Prefix for buckets and datsets: {prefix}")
-
-    return prefix
-
-
 class ObservatoryEnvironment:
     OBSERVATORY_HOME_KEY = "OBSERVATORY_HOME"
 
@@ -254,13 +182,14 @@ class ObservatoryEnvironment:
         self,
         project_id: str = None,
         data_location: str = None,
-        prefix: str = "",
         api_host: str = "localhost",
         api_port: int = 5000,
         enable_api: bool = True,
         enable_elastic: bool = False,
         elastic_port: int = 9200,
         kibana_port: int = 5601,
+        prefix: str = "obsenv_tests",
+        age_to_delete: int = 2,
     ):
         """Constructor for an Observatory environment.
 
@@ -271,18 +200,18 @@ class ObservatoryEnvironment:
 
         :param project_id: the Google Cloud project id.
         :param data_location: the Google Cloud data location.
-        :param prefix: prefix for bucket and dataset IDs to easily identify them.
         :param api_host: the Observatory API host.
         :param api_port: the Observatory API port.
         :param enable_api: whether to enable the observatory API or not.
         :param enable_elastic: whether to enable the Elasticsearch and Kibana test services.
         :param elastic_port: the Elastic port.
         :param kibana_port: the Kibana port.
+        :param prefix: prefix for buckets and datsets created for the testing environment.
+        :param age_to_delete: age of buckets and datasets to delete that share the same prefix, in hours
         """
 
         self.project_id = project_id
         self.data_location = data_location
-        self.prefix = prefix
         self.api_host = api_host
         self.api_port = api_port
         self.buckets = []
@@ -298,6 +227,8 @@ class ObservatoryEnvironment:
         self.kibana_port = kibana_port
         self.dag_run: DagRun = None
         self.elastic_env: ElasticEnvironment = None
+        self.prefix = prefix
+        self.age_to_delete = age_to_delete
 
         if self.create_gcp_env:
             self.download_bucket = self.add_bucket()
@@ -327,7 +258,7 @@ class ObservatoryEnvironment:
 
         assert self.create_gcp_env, "Please specify the Google Cloud project_id and data_location"
 
-    def add_bucket(self) -> str:
+    def add_bucket(self, prefix: str = "") -> str:
         """Add a Google Cloud Storage Bucket to the Observatory environment.
 
         The bucket will be created when create() is called and deleted when the Observatory
@@ -337,12 +268,20 @@ class ObservatoryEnvironment:
         """
 
         self.assert_gcp_dependencies()
-        if self.prefix != "":
+        if (self.prefix != "") and (prefix != ""):
+            bucket_name = f"{self.prefix}_{prefix}_{random_id()}"
+        elif self.prefix != "" and (prefix == ""):
             bucket_name = f"{self.prefix}_{random_id()}"
+        elif (self.prefix == "") and (prefix != ""):
+            bucket_name = f"{prefix}_{random_id()}"
         else:
             bucket_name = random_id()
 
-        self.buckets.append(bucket_name)
+        if len(bucket_name) > 63:
+            raise Exception(f"Bucket name cannot be longer than 63 characters: {bucket_name}")
+        else:
+            self.buckets.append(bucket_name)
+
         return bucket_name
 
     def _create_bucket(self, bucket_id: str) -> None:
@@ -387,36 +326,6 @@ class ObservatoryEnvironment:
                 f"Bucket {bucket_id} not found. Did you mean to call _delete_bucket on the same bucket twice?"
             )
 
-    def delete_old_test_buckets(self, age_to_delete: int = 7):
-        """Deletes buckets that have the same prefix of the unit test and if it is older than "age_to_delete" days.
-
-        :param project_id: project_id that you wish to delete buckets from.
-        :param prefix: The identifying prefix of the prject and telescope name.
-        :param age_to_delete: If age of the bucket is older than or equal to this amount, delete it. Default is a week.
-        """
-
-        # List all buckets in the project.
-        bucket_list = list_all_buckets()
-
-        buckets_deleted = []
-        for bucket_id in bucket_list:
-
-            # Check if prefix is in the bucket name.
-            if (self.prefix in bucket_id) and (self.prefix != ""):
-
-                # Check bucket age
-                bucket_age = get_age_of_bucket_in_days(self.project_id, bucket_id)
-
-                # Delete bucket if older than 7 days.
-                if bucket_age >= age_to_delete:
-                    self._delete_bucket(bucket_id)
-                    buckets_deleted.append(bucket_id)
-
-        if len(buckets_deleted) < 1:
-            logging.info(f"No buckets older than {age_to_delete} days to delete.")
-        else:
-            logging.info(f"Deleted the following buckets older than {age_to_delete} days: {buckets_deleted}")
-
     def add_dataset(self, prefix: str = "") -> str:
         """Add a BigQuery dataset to the Observatory environment.
 
@@ -450,35 +359,6 @@ class ObservatoryEnvironment:
             self.bigquery_client.delete_dataset(dataset_id, not_found_ok=True, delete_contents=True)
         except requests.exceptions.ReadTimeout:
             pass
-
-    def delete_old_test_datasets(self, age_to_delete: int = 7):
-        """Deletes datasets that have the same prefix of the unit test and if it is older than "age_to_delete" days.
-
-        :param project_id: project_id that you wish to delete datasets from.
-        :param dataset_id: dataset_id that you wish to remove.
-        :param age_to_delete: If age of the dataset is older than this amount, delete it.
-        """
-
-        # List all datsets in the project.
-        dataset_list = list_all_datasets()
-
-        datasets_deleted = []
-        for dataset_id in dataset_list:
-
-            # Check if prefix is in the dataset name.
-            if (self.prefix in dataset_id) and (self.prefix != ""):
-
-                # Get age of the dataset.
-                dataset_age = get_age_of_dataset_in_days(self.project_id, dataset_id)
-
-                if dataset_age >= age_to_delete:
-                    self._delete_dataset(dataset_id)
-                    datasets_deleted.append(dataset_id)
-
-        if len(datasets_deleted) < 1:
-            logging.info(f"No datasets older than {age_to_delete} days to delete.")
-        else:
-            logging.info(f"Deleted the following datasets older than {age_to_delete} days: {datasets_deleted}")
 
     def add_variable(self, var: Variable) -> None:
         """Add an Airflow variable to the Observatory environment.
@@ -615,6 +495,10 @@ class ObservatoryEnvironment:
 
                     for dataset_id in self.datasets:
                         self._create_dataset(dataset_id)
+
+                # Deletes old test buckets and datasets from the project thats older than 2 hours.
+                delete_old_buckets_with_prefix(self.prefix, self.age_to_delete)
+                delete_old_datasets_with_prefix(self.prefix, self.age_to_delete)
 
                 # Add default Airflow variables
                 self.data_path = os.path.join(self.temp_dir, "data")

@@ -40,7 +40,6 @@ from observatory.platform.utils.release_utils import get_dataset_releases, get_l
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
-    make_prefix,
     test_fixtures_path,
     find_free_port,
 )
@@ -208,8 +207,6 @@ class TestStreamTelescope(ObservatoryTestCase):
         self.org_name = "Curtin University"
         self.workflow = 1
 
-        self.prefix = make_prefix(__class__.__name__, self.org_name)
-
     def setup_api(self):
         org = Organisation(name=self.org_name)
         result = self.api.put_organisation(org)
@@ -264,11 +261,8 @@ class TestStreamTelescope(ObservatoryTestCase):
             with self.subTest(batch_load=batch_load):
                 # Setup Observatory environment
                 env = ObservatoryEnvironment(
-                    self.project_id, self.data_location, api_host=self.host, api_port=self.port, prefix = self.prefix
+                    self.project_id, self.data_location, api_host=self.host, api_port=self.port
                 )
-
-                env.delete_old_test_buckets(age_to_delete=7)
-                env.delete_old_test_datasets(age_to_delete=7)
 
                 dataset_id = env.add_dataset()
 
@@ -469,11 +463,8 @@ class TestStreamTelescope(ObservatoryTestCase):
             with self.subTest(batch_load=batch_load):
                 # Setup Observatory environment
                 env = ObservatoryEnvironment(
-                    self.project_id, self.data_location, api_host=self.host, api_port=self.port, prefix = self.prefix
+                    self.project_id, self.data_location, api_host=self.host, api_port=self.port
                 )
-
-                env.delete_old_test_buckets(age_to_delete=7)
-                env.delete_old_test_datasets(age_to_delete=7)
 
                 dataset_id = env.add_dataset()
 
@@ -710,8 +701,6 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
         self.org_name = "Curtin University"
         self.workflow = 1
 
-        self.prefix = make_prefix(__class__.__name__, self.org_name)
-
     def setup_api(self):
         org = Organisation(name=self.org_name)
         result = self.api.put_organisation(org)
@@ -754,9 +743,7 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
         m_makeapi.return_value = self.api
 
         start_date = pendulum.datetime(2020, 8, 1)
-        env = ObservatoryEnvironment(api_host=self.host, api_port=self.port, prefix = self.prefix)
-        env.delete_old_test_buckets(age_to_delete=7)
-        env.delete_old_test_datasets(age_to_delete=7)
+        env = ObservatoryEnvironment(api_host=self.host, api_port=self.port)
 
         with env.create():
             self.setup_api()
