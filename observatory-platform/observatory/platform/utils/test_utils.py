@@ -263,7 +263,8 @@ class ObservatoryEnvironment:
 
         The bucket will be created when create() is called and deleted when the Observatory
         environment is closed.
-
+    
+        :param prefix: an optional additional prefix for the bucket.
         :return: returns the bucket name.
         """
 
