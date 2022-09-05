@@ -153,7 +153,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
         env._delete_bucket(bucket_id)
 
         # No Google Cloud variables raises error
-        bucket_id = "ObsEnv_tests_" + random_id()
+        bucket_id = "obsenv_tests_" + random_id()
         with self.assertRaises(AssertionError):
             ObservatoryEnvironment()._create_bucket(bucket_id)
         with self.assertRaises(AssertionError):
