@@ -66,8 +66,8 @@ from observatory.platform.utils.gc_utils import (
     table_name_from_blob,
     upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
-    list_all_datasets,
-    list_all_buckets,
+    list_datasets_with_prefix,
+    list_buckets_with_prefix,
     delete_old_datasets_with_prefix,
     delete_old_buckets_with_prefix,
 )
@@ -185,8 +185,8 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
         # Save time and only have this run once.
         if not __class__.__init__already:
-            delete_old_datasets_with_prefix(self.prefix, age_to_delete=2)
-            delete_old_buckets_with_prefix(self.prefix, age_to_delete=2)
+            delete_old_datasets_with_prefix(self.prefix, age_to_delete=12)
+            delete_old_buckets_with_prefix(self.prefix, age_to_delete=12)
             __class__.__init__already = True
 
     def test_create_bigquery_dataset(self):
@@ -908,7 +908,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             finally:
                 pass
 
-    def test_list_all_datasets(self):
+    def test_list_datasets_with_prefix(self):
 
         client = bigquery.Client()
         dataset_id = self.prefix + "_" + random_id()
@@ -918,7 +918,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             create_bigquery_dataset(self.gc_project_id, dataset_id, self.gc_bucket_location)
 
             # Get list of datasets under project
-            dataset_list = list_all_datasets()
+            dataset_list = list_datasets_with_prefix()
             dataset_names = [dataset.dataset_id for dataset in dataset_list]
 
             self.assertTrue(set(dataset_names).issuperset({dataset_id}))
@@ -927,7 +927,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             # Delete testing dataset when finished
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
-    def test_list_all_buckets(self):
+    def test_list_buckets_with_prefix(self):
 
         client = storage.Client()
         bucket_id = self.prefix + "_" + random_id()
@@ -938,7 +938,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             self.assertTrue(success)
 
             # Get list of bucket objects under project
-            bucket_list = list_all_buckets()
+            bucket_list = list_buckets_with_prefix()
             bucket_names = [bucket.name for bucket in bucket_list]
 
             # Check that it is in the list of all other buckets
@@ -966,7 +966,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 )
 
             # Ensure that datasets have been created.
-            dataset_list = list_all_datasets()
+            dataset_list = list_datasets_with_prefix(prefix)
             dataset_names = [dataset.dataset_id for dataset in dataset_list]
             self.assertTrue(set(dataset_names).issuperset(set(test_datasets)))
 
@@ -974,7 +974,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             delete_old_datasets_with_prefix(prefix, age_to_delete=0)
 
             # Check that datasets have been deleted.
-            dataset_list_post = list_all_datasets()
+            dataset_list_post = list_datasets_with_prefix(prefix)
             dataset_names_post = [dataset.dataset_id for dataset in dataset_list_post]
             self.assertFalse(set(dataset_names_post).issuperset(set(test_datasets)))
 
@@ -1000,7 +1000,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
         try:
             # Esnure buckets have been created.
-            bucket_list = list_all_buckets()
+            bucket_list = list_buckets_with_prefix(prefix)
             bucket_names = [bucket.name for bucket in bucket_list]
             self.assertTrue(set(bucket_names).issuperset(set(test_buckets)))
 
@@ -1008,7 +1008,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             delete_old_buckets_with_prefix(prefix, age_to_delete=0)
 
             # Check that buckets with unique prefix are not present.
-            bucket_list_post = list_all_buckets()
+            bucket_list_post = list_buckets_with_prefix(prefix)
             bucket_names_post = [bucket.name for bucket in bucket_list_post]
             self.assertFalse(set(bucket_names_post).issuperset(set(test_buckets)))
 

@@ -189,7 +189,7 @@ class ObservatoryEnvironment:
         elastic_port: int = 9200,
         kibana_port: int = 5601,
         prefix: str = "obsenv_tests",
-        age_to_delete: int = 2,
+        age_to_delete: int = 12,
     ):
         """Constructor for an Observatory environment.
 
@@ -263,7 +263,7 @@ class ObservatoryEnvironment:
 
         The bucket will be created when create() is called and deleted when the Observatory
         environment is closed.
-    
+
         :param prefix: an optional additional prefix for the bucket.
         :return: returns the bucket name.
         """

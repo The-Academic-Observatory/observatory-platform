@@ -1236,29 +1236,36 @@ def delete_bucket_dir(*, bucket_name: str, prefix: str):
         blob.delete()
 
 
-def list_all_buckets() -> List[bucket.Bucket]:
-    """List of all Google Cloud buckets.
+def list_buckets_with_prefix(prefix: str = "") -> List[bucket.Bucket]:
+    """List all Google Cloud buckets with prefix.
 
-    :param project_id: Project name.
+    :param prefix: Prefix of the buckets to list
     :return: A list of bucket objects that are under the project.
     """
 
     storage_client = storage.Client()
-    bucket_list = list(storage_client.list_buckets())
+    buckets = list(storage_client.list_buckets())
+    bucket_list = []
+    for bucket in buckets:
+        if bucket.name.startswith(prefix):
+            bucket_list.append(bucket)
 
     return bucket_list
 
 
-def list_all_datasets() -> List[dataset.Dataset]:
-    """List of all BigQuery datasets.
+def list_datasets_with_prefix(prefix: str = "") -> List[dataset.Dataset]:
+    """List all BigQuery datasets with prefix.
 
-    :param project_id: Project name
+    :param prefix: Prefix of datasets to list.
     :return: A list of dataset objects that are under the project.
     """
 
     client = bigquery.Client()
     datasets = list(client.list_datasets())
-    dataset_list = [client.get_dataset(dataset.dataset_id) for dataset in datasets]
+    dataset_list = []
+    for dataset in datasets:
+        if dataset.dataset_id.startswith(prefix):
+            dataset_list.append(client.get_dataset(dataset.dataset_id))
 
     return dataset_list
 
@@ -1271,22 +1278,19 @@ def delete_old_buckets_with_prefix(prefix: str, age_to_delete: int):
     """
 
     # List all buckets in the project.
-    bucket_list = list_all_buckets()
+    bucket_list = list_buckets_with_prefix(prefix)
 
     buckets_deleted = []
     for bucket in bucket_list:
 
-        # Check if prefix is in the bucket name.
-        if bucket.name.startswith(prefix) and (prefix != ""):
+        # Check bucket age
+        bucket_age = (datetime.datetime.now(datetime.timezone.utc) - bucket.time_created).total_seconds() / 3600.0
 
-            # Check bucket age
-            bucket_age = (datetime.datetime.now(datetime.timezone.utc) - bucket.time_created).seconds / 3600.0
+        # Delete dataset if older than specified age
+        if bucket_age >= age_to_delete:
 
-            # Delete dataset if older than specified age
-            if bucket_age >= age_to_delete:
-
-                bucket.delete(force=True)
-                buckets_deleted.append(bucket.name)
+            bucket.delete(force=True)
+            buckets_deleted.append(bucket.name)
 
     if len(buckets_deleted) < 1:
         logging.info(f"No buckets older than {age_to_delete} hours to delete.")
@@ -1303,22 +1307,19 @@ def delete_old_datasets_with_prefix(prefix: str, age_to_delete: int):
 
     client = bigquery.Client()
 
-    # List all datsets in the project.
-    dataset_list = list_all_datasets()
+    # List all datsets in the project with prefix
+    dataset_list = list_datasets_with_prefix(prefix)
 
     datasets_deleted = []
     for dataset in dataset_list:
 
-        # Check if prefix is in the dataset name.
-        if dataset.dataset_id.startswith(prefix) and (prefix != ""):
+        # Get age of the dataset.
+        dataset_age = (datetime.datetime.now(datetime.timezone.utc) - dataset.created).total_seconds() / 3600.0
 
-            # Get age of the dataset.
-            dataset_age = (datetime.datetime.now(datetime.timezone.utc) - dataset.created).seconds / 3600.0
-
-            # Delete dataset if older than specified age
-            if dataset_age >= age_to_delete:
-                client.delete_dataset(dataset.dataset_id, delete_contents=True, not_found_ok=False)
-                datasets_deleted.append(dataset.dataset_id)
+        # Delete dataset if older than specified age
+        if dataset_age >= age_to_delete:
+            client.delete_dataset(dataset.dataset_id, delete_contents=True, not_found_ok=False)
+            datasets_deleted.append(dataset.dataset_id)
 
     if len(datasets_deleted) < 1:
         logging.info(f"No datasets older than {age_to_delete} hours to delete.")
