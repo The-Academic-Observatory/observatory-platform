@@ -121,6 +121,7 @@ from observatory.platform.utils.workflow_utils import find_schema
 from pendulum import DateTime
 from sftpserver.stub_sftp import StubServer, StubSFTPServer
 import freezegun
+import socket
 
 
 def random_id():
@@ -128,7 +129,7 @@ def random_id():
 
     :return: a random string id.
     """
-    return str(uuid.uuid4()).replace("-", "")
+    return str(uuid.uuid5(uuid.uuid4(), socket.gethostname())).replace("-", "")
 
 
 def test_fixtures_path(*subdirs) -> str:
