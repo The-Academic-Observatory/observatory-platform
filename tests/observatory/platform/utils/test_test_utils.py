@@ -137,7 +137,8 @@ class TestObservatoryEnvironment(unittest.TestCase):
         """Test _create_bucket and _delete_bucket"""
 
         env = ObservatoryEnvironment(self.project_id, self.data_location)
-        bucket_id = random_id()
+
+        bucket_id = "obsenv_tests_" + random_id()
 
         # Create bucket
         env._create_bucket(bucket_id)
@@ -152,7 +153,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
         env._delete_bucket(bucket_id)
 
         # No Google Cloud variables raises error
-        bucket_id = random_id()
+        bucket_id = "obsenv_tests_" + random_id()
         with self.assertRaises(AssertionError):
             ObservatoryEnvironment()._create_bucket(bucket_id)
         with self.assertRaises(AssertionError):
@@ -163,6 +164,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
 
         # Create dataset
         env = ObservatoryEnvironment(self.project_id, self.data_location)
+
         dataset_id = env.add_dataset()
         create_bigquery_dataset(self.project_id, dataset_id, self.data_location)
 
@@ -195,6 +197,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
 
         # Test that previous tasks have to be finished to run next task
         env = ObservatoryEnvironment(self.project_id, self.data_location)
+
         with env.create(task_logging=True):
             with env.create_dag_run(dag, execution_date):
                 # Add_variable
@@ -294,6 +297,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
 
     def test_create_dagrun(self):
         """Tests create_dag_run"""
+
         env = ObservatoryEnvironment(self.project_id, self.data_location)
 
         # Setup Telescope
@@ -372,7 +376,9 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 self.assertEqual(ti1.job_id, ti2.previous_ti.job_id)
 
     def test_create_dag_run_timedelta(self):
+
         env = ObservatoryEnvironment(self.project_id, self.data_location)
+
         telescope = TelescopeTest(schedule_interval=timedelta(days=1))
         dag = telescope.make_dag()
         execution_date = pendulum.datetime(2021, 1, 1)
@@ -411,7 +417,8 @@ class TestObservatoryTestCase(unittest.TestCase):
         """Test assert_dag_load"""
 
         test_case = ObservatoryTestCase()
-        with ObservatoryEnvironment().create() as temp_dir:
+        env = ObservatoryEnvironment()
+        with env.create() as temp_dir:
             # Write DAG into temp_dir
             file_path = os.path.join(temp_dir, f"telescope_test.py")
             with open(file_path, mode="w") as f:
@@ -445,6 +452,7 @@ class TestObservatoryTestCase(unittest.TestCase):
         """Test assert_blob_integrity"""
 
         env = ObservatoryEnvironment(self.project_id, self.data_location)
+
         with env.create():
             # Upload file to download bucket and check gzip-crc
             file_name = "people.csv"
@@ -464,6 +472,7 @@ class TestObservatoryTestCase(unittest.TestCase):
         """Test assert_table_integrity"""
 
         env = ObservatoryEnvironment(self.project_id, self.data_location)
+
         with env.create():
             # Upload file to download bucket and check gzip-crc
             file_name = "people.jsonl"
@@ -512,7 +521,9 @@ class TestObservatoryTestCase(unittest.TestCase):
 
         :return: None.
         """
+
         env = ObservatoryEnvironment(self.project_id, self.data_location)
+
         with env.create():
             # Upload file to download bucket and check gzip-crc
             file_name = "people.jsonl"

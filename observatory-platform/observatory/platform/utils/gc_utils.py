@@ -16,12 +16,14 @@
 
 """ General google cloud utility functions (independent of telescope usage) """
 
+from distutils.log import error
 import json
 import logging
 import multiprocessing
 import os
 import re
 import time
+import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from copy import deepcopy
 from enum import Enum
@@ -32,10 +34,10 @@ import pendulum
 from airflow.models import Variable
 from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud import bigquery, storage
-from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat, CopyJobConfig, CopyJob
+from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat, CopyJobConfig, CopyJob, dataset
 from google.cloud.bigquery.job import QueryJobConfig
 from google.cloud.exceptions import Conflict, NotFound
-from google.cloud.storage import Blob
+from google.cloud.storage import Blob, bucket
 from googleapiclient import discovery as gcp_api
 from observatory.api.client.model.big_query_bytes_processed import (
     BigQueryBytesProcessed,
@@ -1232,3 +1234,94 @@ def delete_bucket_dir(*, bucket_name: str, prefix: str):
 
     for blob in blobs:
         blob.delete()
+
+
+def list_buckets_with_prefix(prefix: str = "") -> List[bucket.Bucket]:
+    """List all Google Cloud buckets with prefix.
+
+    :param prefix: Prefix of the buckets to list
+    :return: A list of bucket objects that are under the project.
+    """
+
+    storage_client = storage.Client()
+    buckets = list(storage_client.list_buckets())
+    bucket_list = []
+    for bucket in buckets:
+        if bucket.name.startswith(prefix):
+            bucket_list.append(bucket)
+
+    return bucket_list
+
+
+def list_datasets_with_prefix(prefix: str = "") -> List[dataset.Dataset]:
+    """List all BigQuery datasets with prefix.
+
+    :param prefix: Prefix of datasets to list.
+    :return: A list of dataset objects that are under the project.
+    """
+
+    client = bigquery.Client()
+    datasets = list(client.list_datasets())
+    dataset_list = []
+    for dataset in datasets:
+        if dataset.dataset_id.startswith(prefix):
+            dataset_list.append(client.get_dataset(dataset.dataset_id))
+
+    return dataset_list
+
+
+def delete_old_buckets_with_prefix(prefix: str, age_to_delete: int):
+    """Deletes buckets that share the same prefix and if it is older than "age_to_delete" hours.
+
+    :param prefix: The identifying prefix of the buckets to delete.
+    :param age_to_delete: Delete if the age of the bucket is older than this amount.
+    """
+
+    # List all buckets in the project.
+    bucket_list = list_buckets_with_prefix(prefix)
+
+    buckets_deleted = []
+    for bucket in bucket_list:
+
+        # Check bucket age
+        bucket_age = (datetime.datetime.now(datetime.timezone.utc) - bucket.time_created).total_seconds() / 3600.0
+
+        # Delete dataset if older than specified age
+        if bucket_age >= age_to_delete:
+
+            bucket.delete(force=True)
+            buckets_deleted.append(bucket.name)
+
+    if len(buckets_deleted) < 1:
+        logging.info(f"No buckets older than {age_to_delete} hours to delete.")
+    else:
+        logging.info(f"Deleted the following buckets older than {age_to_delete} hours: {buckets_deleted}")
+
+
+def delete_old_datasets_with_prefix(prefix: str, age_to_delete: int):
+    """Deletes datasets that share the same prefix and if it is older than "age_to_delete" hours.
+
+    :param prefix: The identifying prefix of the datasets to delete.
+    :param age_to_delete: Delete if the age of the bucket is older than this amount.
+    """
+
+    client = bigquery.Client()
+
+    # List all datsets in the project with prefix
+    dataset_list = list_datasets_with_prefix(prefix)
+
+    datasets_deleted = []
+    for dataset in dataset_list:
+
+        # Get age of the dataset.
+        dataset_age = (datetime.datetime.now(datetime.timezone.utc) - dataset.created).total_seconds() / 3600.0
+
+        # Delete dataset if older than specified age
+        if dataset_age >= age_to_delete:
+            client.delete_dataset(dataset.dataset_id, delete_contents=True, not_found_ok=False)
+            datasets_deleted.append(dataset.dataset_id)
+
+    if len(datasets_deleted) < 1:
+        logging.info(f"No datasets older than {age_to_delete} hours to delete.")
+    else:
+        logging.info(f"Deleted the following datasets older than {age_to_delete} hours: {datasets_deleted}")

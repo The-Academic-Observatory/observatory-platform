@@ -263,6 +263,7 @@ class TestStreamTelescope(ObservatoryTestCase):
                 env = ObservatoryEnvironment(
                     self.project_id, self.data_location, api_host=self.host, api_port=self.port
                 )
+
                 dataset_id = env.add_dataset()
 
                 telescope = MyTestStreamTelescope(dataset_id=dataset_id, batch_load=batch_load, workflow_id=1)
@@ -464,6 +465,7 @@ class TestStreamTelescope(ObservatoryTestCase):
                 env = ObservatoryEnvironment(
                     self.project_id, self.data_location, api_host=self.host, api_port=self.port
                 )
+
                 dataset_id = env.add_dataset()
 
                 telescope = MyTestStreamTelescope(dataset_id=dataset_id, batch_load=batch_load)
@@ -742,6 +744,7 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
 
         start_date = pendulum.datetime(2020, 8, 1)
         env = ObservatoryEnvironment(api_host=self.host, api_port=self.port)
+
         with env.create():
             self.setup_api()
             first_execution_date = pendulum.datetime(2021, 9, 2)
