@@ -127,6 +127,11 @@ import socket
 def random_id():
     """Generate a random id for bucket name.
 
+    When code is pushed to a branch and a pull request is open, Github Actions runs the unit tests workflow
+    twice, one for the push and one for the pull request. However, the uuid4 function, which calls os.urandom(16),
+    generates the same sequence of values for each workflow run. We have also used the hostname of the machine
+    in the construction of the random id to ensure sure that the ids are different on both workflow runs.
+
     :return: a random string id.
     """
     return str(uuid.uuid5(uuid.uuid4(), socket.gethostname())).replace("-", "")
