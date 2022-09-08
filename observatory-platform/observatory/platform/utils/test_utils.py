@@ -75,7 +75,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from multiprocessing import Process
-from typing import Dict, List
+from typing import Dict, List, Optional
 from unittest.mock import patch
 
 import croniter
@@ -188,7 +188,7 @@ class ObservatoryEnvironment:
         enable_elastic: bool = False,
         elastic_port: int = 9200,
         kibana_port: int = 5601,
-        prefix: str = "obsenv_tests",
+        prefix: Optional[str] = "obsenv_tests",
         age_to_delete: int = 12,
     ):
         """Constructor for an Observatory environment.
@@ -258,7 +258,7 @@ class ObservatoryEnvironment:
 
         assert self.create_gcp_env, "Please specify the Google Cloud project_id and data_location"
 
-    def add_bucket(self, prefix: str = "") -> str:
+    def add_bucket(self, prefix: Optional[str] = None) -> str:
         """Add a Google Cloud Storage Bucket to the Observatory environment.
 
         The bucket will be created when create() is called and deleted when the Observatory
@@ -269,14 +269,13 @@ class ObservatoryEnvironment:
         """
 
         self.assert_gcp_dependencies()
-        if (self.prefix != "") and (prefix != ""):
-            bucket_name = f"{self.prefix}_{prefix}_{random_id()}"
-        elif self.prefix != "" and (prefix == ""):
-            bucket_name = f"{self.prefix}_{random_id()}"
-        elif (self.prefix == "") and (prefix != ""):
-            bucket_name = f"{prefix}_{random_id()}"
-        else:
-            bucket_name = random_id()
+        parts = []
+        if self.prefix:
+            parts.append(self.prefix)
+        if prefix:
+            parts.append(prefix)
+        parts.append(random_id())
+        bucket_name = "_".join(parts)
 
         if len(bucket_name) > 63:
             raise Exception(f"Bucket name cannot be longer than 63 characters: {bucket_name}")
@@ -327,7 +326,7 @@ class ObservatoryEnvironment:
                 f"Bucket {bucket_id} not found. Did you mean to call _delete_bucket on the same bucket twice?"
             )
 
-    def add_dataset(self, prefix: str = "") -> str:
+    def add_dataset(self, prefix: Optional[str] = None) -> str:
         """Add a BigQuery dataset to the Observatory environment.
 
         The BigQuery dataset will be deleted when the Observatory environment is closed.
@@ -337,14 +336,13 @@ class ObservatoryEnvironment:
         """
 
         self.assert_gcp_dependencies()
-        if (self.prefix != "") and (prefix != ""):
-            dataset_id = f"{self.prefix}_{prefix}_{random_id()}"
-        elif self.prefix != "" and (prefix == ""):
-            dataset_id = f"{self.prefix}_{random_id()}"
-        elif (self.prefix == "") and (prefix != ""):
-            dataset_id = f"{prefix}_{random_id()}"
-        else:
-            dataset_id = random_id()
+        parts = []
+        if self.prefix:
+            parts.append(self.prefix)
+        if prefix:
+            parts.append(prefix)
+        parts.append(random_id())
+        dataset_id = "_".join(parts)
         self.datasets.append(dataset_id)
         return dataset_id
 
