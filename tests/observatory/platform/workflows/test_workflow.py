@@ -30,7 +30,11 @@ from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.sensors.external_task import ExternalTaskSensor
 from observatory.platform.observatory_config import Environment
 from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, find_free_port
+from observatory.platform.utils.test_utils import (
+    ObservatoryEnvironment,
+    ObservatoryTestCase,
+    find_free_port,
+)
 from observatory.platform.workflows.workflow import Release, Workflow, make_task_id
 from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_type import DatasetType

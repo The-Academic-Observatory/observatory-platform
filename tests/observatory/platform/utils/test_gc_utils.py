@@ -22,6 +22,7 @@ from typing import Optional
 from unittest.mock import MagicMock, patch
 
 import boto3
+from observatory.platform.utils.workflow_utils import delete_old_xcoms
 import pendulum
 from azure.storage.blob import BlobClient, BlobServiceClient
 from click.testing import CliRunner
@@ -65,6 +66,10 @@ from observatory.platform.utils.gc_utils import (
     table_name_from_blob,
     upload_file_to_cloud_storage,
     upload_files_to_cloud_storage,
+    list_datasets_with_prefix,
+    list_buckets_with_prefix,
+    delete_old_datasets_with_prefix,
+    delete_old_buckets_with_prefix,
 )
 from observatory.platform.utils.test_utils import (
     ObservatoryTestCase,
@@ -160,6 +165,8 @@ class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
 
 
 class TestGoogleCloudUtils(unittest.TestCase):
+    __init__already = False
+
     def __init__(self, *args, **kwargs):
         super(TestGoogleCloudUtils, self).__init__(*args, **kwargs)
         self.az_storage_account_name: str = os.getenv("TEST_AZURE_STORAGE_ACCOUNT_NAME")
@@ -174,8 +181,16 @@ class TestGoogleCloudUtils(unittest.TestCase):
         self.data = "hello world"
         self.expected_crc32c = "yZRlqg=="
 
+        self.prefix = "tgcu_tests"
+
+        # Save time and only have this run once.
+        if not __class__.__init__already:
+            delete_old_datasets_with_prefix(self.prefix, age_to_delete=12)
+            delete_old_buckets_with_prefix(self.prefix, age_to_delete=12)
+            __class__.__init__already = True
+
     def test_create_bigquery_dataset(self):
-        dataset_name = random_id()
+        dataset_name = self.prefix + "_" + random_id()
         client = bigquery.Client()
         try:
             create_bigquery_dataset(self.gc_project_id, dataset_name, self.gc_bucket_location)
@@ -186,7 +201,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             client.delete_dataset(dataset_name, not_found_ok=True)
 
     def test_create_empty_bigquery_table(self):
-        dataset_id = random_id()
+        dataset_id = self.prefix + "_" + random_id()
         client = bigquery.Client()
         test_data_path = test_fixtures_path("utils")
         schema_file_path = os.path.join(test_data_path, "people_schema.json")
@@ -231,7 +246,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
     def test_create_bigquery_snapshot(self):
         client = bigquery.Client()
-        dataset_id = random_id()
+        dataset_id = self.prefix + "_" + random_id()
         data_location = self.gc_bucket_location
 
         public_table_id = "bigquery-public-data.labeled_patents.figures"
@@ -258,7 +273,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
     def test_load_bigquery_table(self):
         schema_file_name = "people_schema.json"
-        dataset_id = random_id()
+        dataset_id = self.prefix + "_" + random_id()
         client = bigquery.Client()
         test_data_path = test_fixtures_path("utils")
         schema_folder = os.path.join(test_data_path, schema_file_name)
@@ -412,7 +427,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             self.assertRaises(Exception, run_bigquery_query, query, bytes_budget=1000)
 
     def test_copy_table(self):
-        dataset_id = random_id()
+        dataset_id = self.prefix + "_" + random_id()
         client = bigquery.Client()
 
         table_name = "figures"
@@ -431,7 +446,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
     def test_create_view(self):
-        dataset_id = random_id()
+        dataset_id = self.prefix + "_" + random_id()
         client = bigquery.Client()
 
         data_location = self.gc_bucket_location
@@ -447,7 +462,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
     def test_create_bigquery_table_from_query_without_schema(self):
-        dataset_id = random_id()
+        dataset_id = self.prefix + "_" + random_id()
         client = bigquery.Client()
 
         data_location = self.gc_bucket_location
@@ -490,7 +505,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
     def test_create_bigquery_table_from_query_with_schema(self):
-        dataset_id = random_id()
+        dataset_id = self.prefix + "_" + random_id()
         client = bigquery.Client()
 
         data_location = self.gc_bucket_location
@@ -547,7 +562,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
     def test_create_bigquery_table_from_query_bytes_within_budget(self):
-        dataset_id = random_id()
+        dataset_id = self.prefix + "_" + random_id()
         client = bigquery.Client()
 
         table_name = "presidents"
@@ -579,7 +594,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
         client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
     def test_create_bigquery_table_from_query_bytes_over_budget(self):
-        dataset_id = random_id()
+        dataset_id = self.prefix + "_" + random_id()
         client = bigquery.Client()
 
         table_name = "presidents"
@@ -612,7 +627,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
     def test_create_cloud_storage_bucket(self):
         """Test that storage bucket is created"""
         client = storage.Client()
-        bucket_name = "a" + random_id() + "a"
+        bucket_name = self.prefix + "_a" + random_id() + "a"
         bucket = client.bucket(bucket_name)
 
         lifecycle_delete_age = 1
@@ -893,9 +908,123 @@ class TestGoogleCloudUtils(unittest.TestCase):
             finally:
                 pass
 
+    def test_list_datasets_with_prefix(self):
+
+        client = bigquery.Client()
+        dataset_id = self.prefix + "_" + random_id()
+
+        try:
+            # Create a test dataset
+            create_bigquery_dataset(self.gc_project_id, dataset_id, self.gc_bucket_location)
+
+            # Get list of datasets under project
+            dataset_list = list_datasets_with_prefix()
+            dataset_names = [dataset.dataset_id for dataset in dataset_list]
+
+            self.assertTrue(set(dataset_names).issuperset({dataset_id}))
+
+        finally:
+            # Delete testing dataset when finished
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+
+    def test_list_buckets_with_prefix(self):
+
+        client = storage.Client()
+        bucket_id = self.prefix + "_" + random_id()
+
+        try:
+            # Create a test bucket
+            success = create_cloud_storage_bucket(bucket_id, self.gc_bucket_location, self.gc_project_id)
+            self.assertTrue(success)
+
+            # Get list of bucket objects under project
+            bucket_list = list_buckets_with_prefix()
+            bucket_names = [bucket.name for bucket in bucket_list]
+
+            # Check that it is in the list of all other buckets
+            self.assertTrue(set(bucket_names).issuperset({bucket_id}))
+
+        finally:
+            # Delete testing bucket
+            bucket = client.get_bucket(bucket_id)
+            bucket.delete(force=True)
+
+    def test_delete_old_datasets_with_prefix(self):
+
+        client = bigquery.Client()
+
+        # Create unique prefix just for this test
+        prefix = self.prefix + "_tdodwp_" + random_id()[:8] + "_"
+        test_datasets = [prefix + random_id() for i in range(2)]
+
+        try:
+
+            # Create test datasets
+            for test_dataset in test_datasets:
+                create_bigquery_dataset(
+                    project_id=self.gc_project_id, dataset_id=test_dataset, location=self.gc_bucket_location
+                )
+
+            # Ensure that datasets have been created.
+            dataset_list = list_datasets_with_prefix(prefix)
+            dataset_names = [dataset.dataset_id for dataset in dataset_list]
+            self.assertTrue(set(dataset_names).issuperset(set(test_datasets)))
+
+            # Remove datasets that have shared prefix and age of 0 days.
+            delete_old_datasets_with_prefix(prefix, age_to_delete=0)
+
+            # Check that datasets have been deleted.
+            dataset_list_post = list_datasets_with_prefix(prefix)
+            dataset_names_post = [dataset.dataset_id for dataset in dataset_list_post]
+            self.assertFalse(set(dataset_names_post).issuperset(set(test_datasets)))
+
+        finally:
+            # Delete testing datasets
+            for test_dataset in test_datasets:
+                client.delete_dataset(test_dataset, delete_contents=True, not_found_ok=True)
+
+    def test_delete_old_buckets_with_prefix(self):
+
+        client = storage.Client()
+
+        # Create unique prefix just for this test
+        prefix = self.prefix + "_tdobwp_" + random_id()[:8] + "_"
+        test_buckets = [prefix + random_id() for i in range(2)]
+
+        success = False
+
+        # Create test buckets
+        for test_bucket in test_buckets:
+            success_create = create_cloud_storage_bucket(test_bucket, self.gc_bucket_location, self.gc_project_id)
+            self.assertTrue(success_create)
+
+        try:
+            # Esnure buckets have been created.
+            bucket_list = list_buckets_with_prefix(prefix)
+            bucket_names = [bucket.name for bucket in bucket_list]
+            self.assertTrue(set(bucket_names).issuperset(set(test_buckets)))
+
+            # Remove datasets that have shared prefix and age of 0 days.
+            delete_old_buckets_with_prefix(prefix, age_to_delete=0)
+
+            # Check that buckets with unique prefix are not present.
+            bucket_list_post = list_buckets_with_prefix(prefix)
+            bucket_names_post = [bucket.name for bucket in bucket_list_post]
+            self.assertFalse(set(bucket_names_post).issuperset(set(test_buckets)))
+
+            success = True
+
+        finally:
+            # Delete testing buckets
+            # Silly if statement since bucket.delete does not have a "if not found ok" option like for datasets.
+            if not success:
+                for test_bucket in test_buckets:
+                    bucket = client.get_bucket(test_bucket)
+                    bucket.delete(force=True)
+
     def test_select_table_shard_dates(self):
         client = bigquery.Client()
-        dataset_id = random_id()
+        dataset_id = self.prefix + "_" + random_id()
         table_id = "fundref"
         release_1 = pendulum.date(year=2019, month=5, day=1)
         release_2 = pendulum.date(year=2019, month=6, day=1)
@@ -950,7 +1079,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
 
     def test_bq_delete_old_rows(self):
         client = bigquery.Client()
-        dataset_id = random_id()
+        dataset_id = self.prefix + "_" + random_id()
 
         schema_file_name = "people_schema.json"
         test_data_path = test_fixtures_path("utils")
