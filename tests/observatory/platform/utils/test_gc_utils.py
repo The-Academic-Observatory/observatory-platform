@@ -70,6 +70,8 @@ from observatory.platform.utils.gc_utils import (
     list_buckets_with_prefix,
     delete_old_datasets_with_prefix,
     delete_old_buckets_with_prefix,
+    update_bigquery_table_description,
+    update_bigquery_table_expiration_date,
 )
 from observatory.platform.utils.test_utils import (
     ObservatoryTestCase,
@@ -1021,6 +1023,56 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 for test_bucket in test_buckets:
                     bucket = client.get_bucket(test_bucket)
                     bucket.delete(force=True)
+
+    def test_update_bigquery_table_description(self):
+
+        dataset_id = self.prefix + "_" + random_id()
+        table_id = random_id()
+        updated_table_description = random_id()
+
+        client = bigquery.Client()
+
+        try:
+            create_empty_bigquery_table(dataset_id, self.gc_bucket_location, table_id)
+
+            success = update_bigquery_table_description(
+                self.gc_project_id, dataset_id, table_id, updated_table_description
+            )
+            self.assertTrue(success)
+
+            dataset_ref = bigquery.DatasetReference(self.gc_project_id, dataset_id)
+            table_ref = dataset_ref.table(table_id)
+            table = client.get_table(table_ref)
+
+            self.assertEqual(table.description, updated_table_description)
+
+        finally:
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+
+    def test_update_bigquery_table_expiration_date(self):
+
+        dataset_id = self.prefix + "_" + random_id()
+        table_id = random_id()
+        expiration_date = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
+
+        client = bigquery.Client()
+
+        try:
+            create_empty_bigquery_table(dataset_id, self.gc_bucket_location, table_id)
+
+            success = update_bigquery_table_expiration_date(self.gc_project_id, dataset_id, table_id, expiration_date)
+            self.assertTrue(success)
+
+            dataset_ref = bigquery.DatasetReference(self.gc_project_id, dataset_id)
+            table_ref = dataset_ref.table(table_id)
+            table = client.get_table(table_ref)
+            margin = datetime.timedelta(microseconds=1000)
+
+            self.assertTrue(expiration_date - margin <= table.expires)
+            self.assertTrue(table.expires <= expiration_date + margin)
+
+        finally:
+            client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
     def test_select_table_shard_dates(self):
         client = bigquery.Client()

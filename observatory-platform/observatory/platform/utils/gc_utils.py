@@ -267,7 +267,7 @@ def create_empty_bigquery_table(
     :param schema_file_path: path on local file system to BigQuery table schema.
     :param project_id: Google Cloud project id.
     :param clustering_fields: what fields to cluster on.
-    :return: The table instance if the request was successfull.
+    :return: The table instance if the request was successful.
     """
     func_name = create_empty_bigquery_table.__name__
     msg = f"dataset_id={dataset_id}, location={location}, table={table_id}, " f"schema_file_path={schema_file_path}"
@@ -1325,3 +1325,86 @@ def delete_old_datasets_with_prefix(prefix: str, age_to_delete: int):
         logging.info(f"No datasets older than {age_to_delete} hours to delete.")
     else:
         logging.info(f"Deleted the following datasets older than {age_to_delete} hours: {datasets_deleted}")
+
+
+def update_bigquery_table_description(
+    project_id: str, dataset_id: str, table_id: str, updated_description: str
+) -> bool:
+
+    """Updates the description of a BigQuery table.
+
+    :param project_id: the Google Cloud project id
+    :param dataset_id: the BigQuery dataset id
+    :param table_id: the BigQuery table id
+    :param updated_description: The new description of the table. Description is overwritten with the new.
+
+    :return success: True if successful, otherwise False.
+    """
+
+    full_table_id = f"{project_id}.{dataset_id}.{table_id}"
+
+    # Load BigQuery client
+    client = bigquery.Client(project=project_id)
+
+    # Determine if table exists first
+    try:
+        table = client.get_table(full_table_id)
+        success = True
+    except:
+        logging.error(f"Failed to find table {table_id} under dataset {dataset_id}.")
+        success = False
+
+    if success:
+        try:
+            table.description = updated_description
+            table = client.update_table(table, ["description"])
+            logging.info(f"Successfully updated description of table {full_table_id} to {updated_description}")
+        except:
+            logging.error(f"Unable to update the description of table {full_table_id}")
+            success = False
+
+    return success
+
+
+def update_bigquery_table_expiration_date(
+    project_id: str, dataset_id: str, table_id: str, expiration_date: pendulum.date
+) -> bool:
+
+    """Updates expiration date of a BigQuery table with a given date.
+
+    :param project_id: the Google Cloud project id
+    :param dataset_id: the BigQuery dataset id
+    :param table_id: the BigQuery table id
+    :param expiration_date: Updated expiration date for the Bigquery table. Needs to be in UTC timezone and explicitly set.
+
+    :return success: True if successful, ortherwise False.
+    """
+
+    full_table_id = f"{project_id}.{dataset_id}.{table_id}"
+
+    # Load BigQuery client
+    client = bigquery.Client(project=project_id)
+
+    # Determine if table exists first
+    try:
+        table = client.get_table(full_table_id)
+        success = True
+    except:
+        logging.error(f"Failed to find table {full_table_id}.")
+        success = False
+
+    # Check input date given
+    if expiration_date < datetime.datetime.now(datetime.timezone.utc):
+        logging.error(f"Given expiration date {expiration_date} is before run date.")
+        success = False
+
+    if success:
+        try:
+            table.expires = expiration_date
+            table = client.update_table(table, ["expires"])
+            logging.info(f"Successfully updated expiration date of table {full_table_id} to {expiration_date}")
+        except:
+            logging.error(f"Failed to update expiration date of table {full_table_id}")
+            success = False
+
+    return success
