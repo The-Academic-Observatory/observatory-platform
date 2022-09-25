@@ -783,7 +783,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual('"Elasticsearch environment variable for host or api key is empty"\n', e.exception.body)
 
             # Test successful query
-            mock_create_connection.return_value = Elasticsearch()
+            mock_create_connection.return_value = Elasticsearch("http://localhost:9200")
             res = copy.deepcopy(RES_EXAMPLE)
             mock_es_scroll.return_value = res
 

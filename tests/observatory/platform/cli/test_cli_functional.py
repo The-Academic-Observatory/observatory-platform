@@ -118,8 +118,8 @@ class TestCliFunctional(unittest.TestCase):
         self.start_cmd = ["platform", "start", "--debug", "--config-path"]
         self.stop_cmd = ["platform", "stop", "--debug", "--config-path"]
         self.workflows_package_name = "my-workflows-project"
-        self.dag_check_timeout = 180
-        self.port_wait_timeout = 180
+        self.dag_check_timeout = 360
+        self.port_wait_timeout = 360
         self.config_file_name = "config.yaml"
 
     def make_editable_observatory_config(self, temp_dir: str) -> ObservatoryConfig:
@@ -228,7 +228,7 @@ class TestCliFunctional(unittest.TestCase):
 
     @patch("observatory.platform.cli.cli.ObservatoryConfig.load")
     def test_run_platform_editable(self, mock_config_load):
-        """Test that the platform runs when built from an editable project. API installed from PyPI."""
+        """Test that the platform runs when built from an editable project."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -264,7 +264,7 @@ class TestCliFunctional(unittest.TestCase):
 
     @patch("observatory.platform.cli.cli.ObservatoryConfig.load")
     def test_dag_load_workflows_project_editable(self, mock_config_load):
-        """Test that the DAGs load when build from an editable workflows project. API installed from PyPI."""
+        """Test that the DAGs load when build from an editable workflows project."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -349,7 +349,7 @@ class TestCliFunctional(unittest.TestCase):
 
     @patch("observatory.platform.cli.cli.ObservatoryConfig.load")
     def test_run_platform_sdist(self, mock_config_load):
-        """Test that the platform runs when built from a source distribution. API package installed from PyPI."""
+        """Test that the platform runs when built from a source distribution."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:
@@ -389,7 +389,7 @@ class TestCliFunctional(unittest.TestCase):
 
     @patch("observatory.platform.cli.cli.ObservatoryConfig.load")
     def test_dag_load_workflows_project_sdist(self, mock_config_load):
-        """Test that DAGs load from an sdist workflows project. API package installed from PyPI."""
+        """Test that DAGs load from an sdist workflows project."""
 
         runner = CliRunner()
         with runner.isolated_filesystem() as t:

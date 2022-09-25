@@ -284,6 +284,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             elastic_port=self.elastic_port,
             kibana_port=self.kibana_port,
         )
+
         dataset_id = env.add_dataset(prefix="data_export")
         with env.create() as t:
             # Create settings
