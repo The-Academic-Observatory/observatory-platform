@@ -14,7 +14,7 @@
 
 # Author: Aniek Roelofs
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pendulum
 from google.cloud import bigquery
@@ -94,6 +94,8 @@ class OrganisationTelescope(Workflow):
         airflow_vars: list = None,
         airflow_conns: list = None,
         workflow_id: int = None,
+        tags: Optional[List[str]] = None,
+        **kwargs,
     ):
         """Construct a OrganisationTelescope instance.
 
@@ -116,6 +118,7 @@ class OrganisationTelescope(Workflow):
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
         :param workflow_id: api workflow id.
+        :param tags: Optional Airflow DAG tags to add.
         """
 
         # Set transform_bucket_name as required airflow variable
@@ -133,6 +136,8 @@ class OrganisationTelescope(Workflow):
             airflow_vars,
             airflow_conns,
             workflow_id=workflow_id,
+            tags=tags,
+            **kwargs,
         )
         self.organisation = organisation
         self.project_id = organisation.project_id

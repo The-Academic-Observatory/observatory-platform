@@ -58,6 +58,7 @@ from observatory.platform.workflows.snapshot_telescope import SnapshotRelease
 from observatory.platform.workflows.workflow import Workflow
 from pendulum import Date
 
+
 CSV_TYPES = ["csv", "csv.gz"]
 JSONL_TYPES = ["jsonl", "jsonl.gz"]
 
@@ -516,7 +517,7 @@ class ElasticImportRelease(SnapshotRelease):
         # Update all aliases at once
         success = False
         try:
-            result = client.es.indices.update_aliases({"actions": actions})
+            result = client.es.indices.update_aliases(actions=actions)
             success = result.get("acknowledged", False)
         except elasticsearch.exceptions.NotFoundError:
             pass
@@ -597,6 +598,8 @@ class ElasticImportWorkflow(Workflow):
         airflow_vars: List = None,
         airflow_conns: List = None,
         index_keep_info: Dict = None,
+        tags: List[str] = None,
+        **kwargs,
     ):
         """Create the ElasticImportWorkflow.
 
@@ -616,6 +619,7 @@ class ElasticImportWorkflow(Workflow):
         :param airflow_vars: the required Airflow Variables.
         :param airflow_conns: the required Airflow Connections.
         :param index_keep_info: Index retention policy info.
+        :param tags: List of dag tags.
         """
 
         if airflow_vars is None:
@@ -634,6 +638,8 @@ class ElasticImportWorkflow(Workflow):
             catchup=catchup,
             airflow_vars=airflow_vars,
             airflow_conns=airflow_conns,
+            tags=tags,
+            **kwargs,
         )
 
         self.project_id = project_id
