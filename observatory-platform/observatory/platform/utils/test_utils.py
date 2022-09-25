@@ -69,11 +69,13 @@ import threading
 import time
 import unittest
 import uuid
+import json
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from multiprocessing import Process
-from typing import Dict, List
+from typing import Dict, List, Optional
 from unittest.mock import patch
 
 import croniter
@@ -115,19 +117,27 @@ from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     load_bigquery_table,
     upload_files_to_cloud_storage,
+    delete_old_buckets_with_prefix,
+    delete_old_datasets_with_prefix,
 )
 from observatory.platform.utils.workflow_utils import find_schema
 from pendulum import DateTime
 from sftpserver.stub_sftp import StubServer, StubSFTPServer
 import freezegun
+import socket
 
 
 def random_id():
     """Generate a random id for bucket name.
 
+    When code is pushed to a branch and a pull request is open, Github Actions runs the unit tests workflow
+    twice, one for the push and one for the pull request. However, the uuid4 function, which calls os.urandom(16),
+    generates the same sequence of values for each workflow run. We have also used the hostname of the machine
+    in the construction of the random id to ensure sure that the ids are different on both workflow runs.
+
     :return: a random string id.
     """
-    return str(uuid.uuid4()).replace("-", "")
+    return str(uuid.uuid5(uuid.uuid4(), socket.gethostname())).replace("-", "")
 
 
 def test_fixtures_path(*subdirs) -> str:
@@ -178,6 +188,8 @@ class ObservatoryEnvironment:
         enable_elastic: bool = False,
         elastic_port: int = 9200,
         kibana_port: int = 5601,
+        prefix: Optional[str] = "obsenv_tests",
+        age_to_delete: int = 12,
     ):
         """Constructor for an Observatory environment.
 
@@ -194,6 +206,8 @@ class ObservatoryEnvironment:
         :param enable_elastic: whether to enable the Elasticsearch and Kibana test services.
         :param elastic_port: the Elastic port.
         :param kibana_port: the Kibana port.
+        :param prefix: prefix for buckets and datsets created for the testing environment.
+        :param age_to_delete: age of buckets and datasets to delete that share the same prefix, in hours
         """
 
         self.project_id = project_id
@@ -213,6 +227,8 @@ class ObservatoryEnvironment:
         self.kibana_port = kibana_port
         self.dag_run: DagRun = None
         self.elastic_env: ElasticEnvironment = None
+        self.prefix = prefix
+        self.age_to_delete = age_to_delete
 
         if self.create_gcp_env:
             self.download_bucket = self.add_bucket()
@@ -242,18 +258,30 @@ class ObservatoryEnvironment:
 
         assert self.create_gcp_env, "Please specify the Google Cloud project_id and data_location"
 
-    def add_bucket(self) -> str:
+    def add_bucket(self, prefix: Optional[str] = None) -> str:
         """Add a Google Cloud Storage Bucket to the Observatory environment.
 
         The bucket will be created when create() is called and deleted when the Observatory
         environment is closed.
 
+        :param prefix: an optional additional prefix for the bucket.
         :return: returns the bucket name.
         """
 
         self.assert_gcp_dependencies()
-        bucket_name = random_id()
-        self.buckets.append(bucket_name)
+        parts = []
+        if self.prefix:
+            parts.append(self.prefix)
+        if prefix:
+            parts.append(prefix)
+        parts.append(random_id())
+        bucket_name = "_".join(parts)
+
+        if len(bucket_name) > 63:
+            raise Exception(f"Bucket name cannot be longer than 63 characters: {bucket_name}")
+        else:
+            self.buckets.append(bucket_name)
+
         return bucket_name
 
     def _create_bucket(self, bucket_id: str) -> None:
@@ -265,6 +293,7 @@ class ObservatoryEnvironment:
 
         self.assert_gcp_dependencies()
         self.storage_client.create_bucket(bucket_id, location=self.data_location)
+        logging.info(f"Created bucket with name: {bucket_id}")
 
     def _create_dataset(self, dataset_id: str) -> None:
         """Create a BigQuery dataset.
@@ -277,6 +306,7 @@ class ObservatoryEnvironment:
         dataset = bigquery.Dataset(f"{self.project_id}.{dataset_id}")
         dataset.location = self.data_location
         self.bigquery_client.create_dataset(dataset, exists_ok=True)
+        logging.info(f"Created dataset with name: {dataset_id}")
 
     def _delete_bucket(self, bucket_id: str) -> None:
         """Delete a Google Cloud Storage Bucket.
@@ -296,20 +326,23 @@ class ObservatoryEnvironment:
                 f"Bucket {bucket_id} not found. Did you mean to call _delete_bucket on the same bucket twice?"
             )
 
-    def add_dataset(self, prefix: str = "") -> str:
+    def add_dataset(self, prefix: Optional[str] = None) -> str:
         """Add a BigQuery dataset to the Observatory environment.
 
         The BigQuery dataset will be deleted when the Observatory environment is closed.
 
-        :param prefix: an optional prefix for the dataset.
+        :param prefix: an optional additional prefix for the dataset.
         :return: the BigQuery dataset identifier.
         """
 
         self.assert_gcp_dependencies()
-        if prefix != "":
-            dataset_id = f"{prefix}_{random_id()}"
-        else:
-            dataset_id = random_id()
+        parts = []
+        if self.prefix:
+            parts.append(self.prefix)
+        if prefix:
+            parts.append(prefix)
+        parts.append(random_id())
+        dataset_id = "_".join(parts)
         self.datasets.append(dataset_id)
         return dataset_id
 
@@ -461,6 +494,10 @@ class ObservatoryEnvironment:
 
                     for dataset_id in self.datasets:
                         self._create_dataset(dataset_id)
+
+                # Deletes old test buckets and datasets from the project thats older than 2 hours.
+                delete_old_buckets_with_prefix(self.prefix, self.age_to_delete)
+                delete_old_datasets_with_prefix(self.prefix, self.age_to_delete)
 
                 # Add default Airflow variables
                 self.data_path = os.path.join(self.temp_dir, "data")
@@ -653,7 +690,7 @@ class ObservatoryTestCase(unittest.TestCase):
         actual_content = None
         try:
             rows = self.bigquery_client.list_rows(table_id)
-            actual_content = [dict(row) for row in rows]
+            actual_content = json.loads(json.dumps([dict(row) for row in rows], default=str))
         except NotFound:
             pass
 

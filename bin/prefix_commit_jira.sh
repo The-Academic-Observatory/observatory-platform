@@ -6,10 +6,14 @@
 REGEX_ISSUE_ID="^[A-Z]{1,10}-[0-9]{1,5}"
 
 # Find current branch name
-BRANCH_NAME=$(git symbolic-ref --short HEAD)
+BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
 
 if [[ -z "$BRANCH_NAME" ]]; then
     echo "No branch name... "; exit 1
+fi
+
+if [[ $BRANCH_NAME = "HEAD" ]]; then
+    echo "Rebase detected. Skipping pre-commit hook"; exit 0
 fi
 
 # Extract issue id from branch name
