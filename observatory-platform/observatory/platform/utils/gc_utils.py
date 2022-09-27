@@ -1256,9 +1256,9 @@ def list_buckets_with_prefix(prefix: str = "") -> List[bucket.Bucket]:
 def list_datasets_with_prefix(prefix: str = "") -> List[dataset.Dataset]:
     """List all BigQuery datasets with prefix.
 
-    Have to include a try and except as test datasets can be deleted
-    inbetween the time that it is listed then that grabbed by the api, due
-    to multiple unit tests being run at the same time.
+    Due multiple unit tests being run at the same time, have to include 
+    a try and except as test datasets can be deleted inbetween the time 
+    that it is listed then that grabbed by the api
 
     :param prefix: Prefix of datasets to list.
     :return: A list of dataset objects that are under the project.
