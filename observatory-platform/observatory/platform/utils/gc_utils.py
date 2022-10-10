@@ -1256,6 +1256,10 @@ def list_buckets_with_prefix(prefix: str = "") -> List[bucket.Bucket]:
 def list_datasets_with_prefix(prefix: str = "") -> List[dataset.Dataset]:
     """List all BigQuery datasets with prefix.
 
+    Due to multiple unit tests being run at once, need to include
+    a try and except as test datasets can be deleted inbetween the time
+    that it is listed and then that grabbed by the API.
+
     :param prefix: Prefix of datasets to list.
     :return: A list of dataset objects that are under the project.
     """
@@ -1265,13 +1269,25 @@ def list_datasets_with_prefix(prefix: str = "") -> List[dataset.Dataset]:
     dataset_list = []
     for dataset in datasets:
         if dataset.dataset_id.startswith(prefix):
-            dataset_list.append(client.get_dataset(dataset.dataset_id))
+
+            # Try to grab dataset object from the Google API.
+            try:
+                dataset_list.append(client.get_dataset(dataset.dataset_id))
+            except NotFound:
+                logging.info(
+                    f"Dataset {dataset.dataset_id} was not found and added to list of datasets. It may have already been deleted."
+                )
+                pass
 
     return dataset_list
 
 
 def delete_old_buckets_with_prefix(prefix: str, age_to_delete: int):
     """Deletes buckets that share the same prefix and if it is older than "age_to_delete" hours.
+
+    Due to multiple unit tests being run at once, need to include a try and except as
+    test buckets could have been deleted by other unit tests inbetween the time that they were
+    grabbed and deleted, resulting in a "not found" error.
 
     :param prefix: The identifying prefix of the buckets to delete.
     :param age_to_delete: Delete if the age of the bucket is older than this amount.
@@ -1286,20 +1302,31 @@ def delete_old_buckets_with_prefix(prefix: str, age_to_delete: int):
         # Check bucket age
         bucket_age = (datetime.datetime.now(datetime.timezone.utc) - bucket.time_created).total_seconds() / 3600.0
 
-        # Delete dataset if older than specified age
+        # Delete bucket if older than specified age
         if bucket_age >= age_to_delete:
 
-            bucket.delete(force=True)
-            buckets_deleted.append(bucket.name)
+            # Attempt to delete bucket
+            try:
+                bucket.delete(force=True)
+                buckets_deleted.append(bucket.name)
+            except:
+                logging.info(f"Bucket {bucket.name} was not found and removed. It may have already been deleted.")
+                pass
 
     if len(buckets_deleted) < 1:
-        logging.info(f"No buckets older than {age_to_delete} hours to delete.")
+        logging.info(f"No buckets with prefix '{prefix}' older than {age_to_delete} hours to delete.")
     else:
-        logging.info(f"Deleted the following buckets older than {age_to_delete} hours: {buckets_deleted}")
+        logging.info(
+            f"Deleted the following buckets with prefix '{prefix}' older than {age_to_delete} hours: {buckets_deleted}"
+        )
 
 
 def delete_old_datasets_with_prefix(prefix: str, age_to_delete: int):
     """Deletes datasets that share the same prefix and if it is older than "age_to_delete" hours.
+
+    Due to multiple unit tests being run at once, need to include a try and except as
+    test datasets could have been deleted by other unit tests inbetween the time that they were
+    grabbed and then processed, resulting in a "not found" error.
 
     :param prefix: The identifying prefix of the datasets to delete.
     :param age_to_delete: Delete if the age of the bucket is older than this amount.
@@ -1318,10 +1345,20 @@ def delete_old_datasets_with_prefix(prefix: str, age_to_delete: int):
 
         # Delete dataset if older than specified age
         if dataset_age >= age_to_delete:
-            client.delete_dataset(dataset.dataset_id, delete_contents=True, not_found_ok=False)
-            datasets_deleted.append(dataset.dataset_id)
+
+            # Try to delete the dataset - to get around the not found exception error if deleted previously.
+            try:
+                client.delete_dataset(dataset.dataset_id, delete_contents=True, not_found_ok=False)
+                datasets_deleted.append(dataset.dataset_id)
+            except NotFound:
+                logging.info(
+                    f"Dataset {dataset.dataset_id} was not found and removed. It may have already been deleted."
+                )
+                pass
 
     if len(datasets_deleted) < 1:
-        logging.info(f"No datasets older than {age_to_delete} hours to delete.")
+        logging.info(f"No datasets with prefix '{prefix}' older than {age_to_delete} hours to delete.")
     else:
-        logging.info(f"Deleted the following datasets older than {age_to_delete} hours: {datasets_deleted}")
+        logging.info(
+            f"Deleted the following datasets with prefix '{prefix}' older than {age_to_delete} hours: {datasets_deleted}"
+        )
