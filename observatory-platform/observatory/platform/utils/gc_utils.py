@@ -56,7 +56,8 @@ from requests.exceptions import ChunkedEncodingError
 DEFAULT_CHUNK_SIZE = 256 * 1024 * 4
 
 # BigQuery daily query byte limit.
-BIGQUERY_QUERY_DAILY_BYTE_LIMIT = 1024 * 1024 * 1024 * 1024 * 10  # 5 TiB
+BIGQUERY_QUERY_DAILY_BYTE_LIMIT = 1024 * 1024 * 1024 * 1024 * 10  # 10 TiB
+BIGQUERY_SINGLE_QUERY_BYTE_LIMIT = 1024 * 1024 * 1024 * 1024 * 1  # 1 TiB
 
 
 # This function makes it easier to mock out in tests. This mechanism is here to allow you to hard code disabling the
@@ -445,7 +446,7 @@ def load_bigquery_table(
     return state
 
 
-def run_bigquery_query(query: str, bytes_budget: Optional[int] = 1024 * 1024 * 1024 * 1024 * 1) -> list:
+def run_bigquery_query(query: str, bytes_budget: Optional[int] = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT) -> list:
     """Run a BigQuery query.  Defaults to 1 TiB query budget.
 
     :param query: the query to run.
@@ -522,7 +523,7 @@ def create_bigquery_table_from_query(
     labels=None,
     query_parameters=None,
     clustering_fields=None,
-    bytes_budget: Optional[int] = 549755813888,
+    bytes_budget: Optional[int] = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT,
     schema_file_path: str = None,
 ) -> bool:
     """Create a BigQuery dataset from a provided query. Defaults to 0.5 TiB query budget.
