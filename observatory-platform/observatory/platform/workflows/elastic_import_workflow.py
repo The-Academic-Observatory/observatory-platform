@@ -26,14 +26,17 @@ from dataclasses import dataclass, field
 from multiprocessing import cpu_count
 from typing import Callable, Dict, List, Optional, Tuple
 
+import airflow.hooks.base
 import elasticsearch.exceptions
 import google.cloud.bigquery as bigquery
 import pendulum
 from airflow.exceptions import AirflowException
-import airflow.hooks.base
 from airflow.models import TaskInstance
 from airflow.sensors.external_task import ExternalTaskSensor
+from elasticsearch.helpers.errors import BulkIndexError
 from natsort import natsorted
+from pendulum import Date
+
 from observatory.platform.elastic.elastic import (
     Elastic,
     KeepInfo,
@@ -56,8 +59,6 @@ from observatory.platform.utils.gc_utils import (
 from observatory.platform.utils.workflow_utils import delete_old_xcoms
 from observatory.platform.workflows.snapshot_telescope import SnapshotRelease
 from observatory.platform.workflows.workflow import Workflow
-from pendulum import Date
-
 
 CSV_TYPES = ["csv", "csv.gz"]
 JSONL_TYPES = ["jsonl", "jsonl.gz"]
@@ -276,8 +277,13 @@ def load_elastic_index(
             logging.info(f"Loading file: {file_path}")
             try:
                 result = client.index_documents(index_id_sharded, mappings, load_func(file_path))
+            except BulkIndexError as e:
+                logging.error(f"BulkIndexError loading file: {file_path}, {e}")
+                for error in e.errors:
+                    logging.error(error)
+                result = False
             except Exception as e:
-                logging.error(f"Loading file error: {file_path}, {e}")
+                logging.error(f"Loading file error: {file_path}, {type(e).__name__}, {e.args}")
                 result = False
             results.append(result)
 
@@ -472,11 +478,11 @@ class ElasticImportRelease(SnapshotRelease):
 
             # Wait for completed tasks
             for future in as_completed(futures):
+                table_id = futures_msgs[future]
                 success = future.result()
                 results.append(success)
                 if success:
                     # Update the state of table_ids that have been indexed
-                    table_id = futures_msgs[future]
                     indexed_table_ids.append(table_id)
                     self.write_import_state(indexed_table_ids)
                     logging.info(f"Loading index success: {table_id}")
