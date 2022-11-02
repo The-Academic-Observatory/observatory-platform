@@ -528,7 +528,7 @@ def create_bigquery_table_from_query(
 ) -> bool:
     """Create a BigQuery dataset from a provided query. Defaults to 0.5 TiB query budget.
     If a schema file path is given and the table does not exist yet, then an empty table will be created with this
-    schema
+    schema. Note: attempting to add data to a table with a schema will fail if the data does not match that schema.
 
     :param sql: the sql query to be executed
     :param labels: labels to place on the new table
@@ -566,21 +566,25 @@ def create_bigquery_table_from_query(
 
     write_disposition = bigquery.WriteDisposition.WRITE_TRUNCATE
 
-    # Create empty table with schema if given and table does not exist yet, change write disposition to empty so schema
-    # is not overwritten
+    # Create empty table with schema. Delete the original table if it exists.
+    # We delete the existing table instead of using WRITE_TRUNCATE (overwrite) if there's a schema supplied and the
+    # table exists already. This is because BQ will ignore any existing schema when using WIRTE_TRUNCATE
     if schema_file_path:
         try:
             client.get_table(table)
+            client.delete_table(table, not_found_ok=False)
+            logging.info(f"Deleted exising bigquery table: {table_id}")
         except NotFound:
-            table = create_empty_bigquery_table(
-                dataset_id,
-                location,
-                table_id,
-                schema_file_path,
-                project_id=project_id,
-                clustering_fields=clustering_fields,
-            )
-            write_disposition = bigquery.WriteDisposition.WRITE_EMPTY
+            pass
+        table = create_empty_bigquery_table(
+            dataset_id,
+            location,
+            table_id,
+            schema_file_path,
+            project_id=project_id,
+            clustering_fields=clustering_fields,
+        )
+        write_disposition = bigquery.WriteDisposition.WRITE_EMPTY
 
     job_config = bigquery.QueryJobConfig(
         allow_large_results=True,

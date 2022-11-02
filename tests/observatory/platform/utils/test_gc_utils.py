@@ -272,11 +272,10 @@ class TestGoogleCloudUtils(unittest.TestCase):
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
     def test_load_bigquery_table(self):
-        schema_file_name = "people_schema.json"
         dataset_id = self.prefix + "_" + random_id()
         client = bigquery.Client()
         test_data_path = test_fixtures_path("utils")
-        schema_folder = os.path.join(test_data_path, schema_file_name)
+        schema_file_path = os.path.join(test_data_path, "people_schema.json")
 
         # CSV file
         csv_file_path = os.path.join(test_data_path, "people.csv")
@@ -304,7 +303,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 dataset_id,
                 self.gc_bucket_location,
                 table_name,
-                schema_file_path=schema_folder,
+                schema_file_path=schema_file_path,
                 source_format=SourceFormat.CSV,
             )
             self.assertTrue(result)
@@ -322,7 +321,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 dataset_id,
                 self.gc_bucket_location,
                 table_name,
-                schema_file_path=schema_folder,
+                schema_file_path=schema_file_path,
                 source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
             )
             self.assertTrue(result)
@@ -335,7 +334,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 dataset_id,
                 self.gc_bucket_location,
                 table_name,
-                schema_file_path=schema_folder,
+                schema_file_path=schema_file_path,
                 source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
                 partition=True,
                 partition_field="dob",
@@ -350,7 +349,7 @@ class TestGoogleCloudUtils(unittest.TestCase):
                 dataset_id,
                 self.gc_bucket_location,
                 table_name,
-                schema_file_path=schema_folder,
+                schema_file_path=schema_file_path,
                 source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
                 partition=True,
                 partition_field="dob",

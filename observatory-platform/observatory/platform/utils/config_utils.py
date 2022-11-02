@@ -23,6 +23,7 @@ import importlib
 import logging
 import os
 import pathlib
+import re
 from typing import Union
 
 import pendulum
@@ -75,78 +76,79 @@ def terraform_credentials_path() -> str:
 
 
 def find_schema(
-    path: str, table_name: str, release_date: pendulum.DateTime, prefix: str = "", ver: str = None
+    path: str,
+    table_name: str,
+    release_date: pendulum.DateTime = None,
+    prefix: str = "",
 ) -> Union[str, None]:
 
-    """Finds a schema file on a given path, with a particular table name, release date and optional prefix.
+    """Finds a schema file on a given path, with a particular table name, optional release date and prefix.
 
-    If no version string is sepcified, the most recent schema with a date less than or equal to the release date of the
-    dataset is returned. If a version string is specified, the most current (date) schema in that series is returned.
-    Use the schema_folder function to find the path to the folder containing the schemas.
-    For example (grid schemas):
-     - grid_2015-09-22.json
-     - grid_2016-04-28.json
-     - wos_wok5.4_2016-01-01.json  (versioned schema with version 'wok5.4')
+    Depending on the input and available files in the directory, this function's return will change
+    If no release date is specified, will attempt to find a schema without a date (schema.json)
+    If a release date is specified, the schema with a date <= to the release date is used (schema_1970-01-01.json)
+    When looking for a schema with a date, the schema with the most recent date prior to the release date is preferred
 
-    For GRID releases between 2015-09-22 and 2016-04-28 grid_2015-09-22.json is returned and for GRID releases or after
-    2016-04-28 grid_2016-04-28.json is returned (until a new schema with a later date is added).
-    Unversioned schemas are named with the following pattern: [prefix]table_name_YYYY-MM-DD.json
-    Versioned schemas are named as: [prefix]table_name_ver_YYYY-MM-DD.json
-    where the things in [] are optional.
-    * prefix: an optional prefix for datasets with multiple tables, for instance the Microsoft Academic Graph (MAG)
-    dataset schema file names are prefixed with Mag, e.g. MagAffiliations2020-05-21.json, MagAuthors2020-05-21.json.
-    The GRID dataset only has one table, so there is no prefix, e.g. grid2015-09-22.json.
-    * table_name: the name of the table.
-    * ver: version string.
-    * YYYY-MM-DD: schema file names end in the release date that the particular schema should be used from in YYYY-MM-DD
-    format. For versioned schemas, this is the date of schema creation.
-    * prefix and table_name follow the naming conventions of the dataset, e.g. MAG uses CamelCase for tables and fields
-    so CamelCase is used. When there is no preference from the dataset then lower snake case is used.
+    Examples:
+    Say there is a schema_folder containing the following files:
+        - table_1900-01-01.json
+        - table_2000-01-01.json
+        - table.json
+    find_schema(schema_folder, table) -> table.json
+    find_schema(schema_folder, table, release_date=2020-01-01) -> table_2000-01-01.json
+    find_schema(schema_folder, table, release_date=1980-01-01) -> table_1900-01-01.json
+    find_schema(schema_folder, table_2) -> None
+
+    Now if schema_folder's contents change to
+        - table.json
+    find_schema(schema_folder, table) -> table.json
+    find_schema(schema_folder, table, release_date=2020-01-01) -> None
+    find_schema(schema_folder, table, release_date=1980-01-01) -> None
+    find_schema(schema_folder, table_2) -> None
 
     :param path: the path to search within.
     :param table_name: the name of the table.
     :param release_date: the release date of the table.
     :param prefix: an optional prefix.
-    :param ver: Schema version.
     :return: the path to the schema or None if no schema was found.
     """
 
     logging.info(
         f"Looking for schema with search parameters: analysis_schema_path={path}, "
         f"prefix={prefix}, table_name={table_name}, release_date={release_date}, "
-        f"version={ver}"
     )
 
     # Make search path for schemas
-    if ver:
-        search_path = os.path.join(path, f"{prefix}{table_name}_{ver}_*.json")
-        valid_length = len(prefix) + len(table_name) + len(ver) + 17  # 17 covers YYYY-MM-DD, _, .json
-    else:
-        search_path = os.path.join(path, f"{prefix}{table_name}_*.json")
-        valid_length = len(prefix) + len(table_name) + 16  # 16 covers YYYY-MM-DD, _, .json
+    # Schema format: "prefix_table_name_YYY-MM-DD.json"
+    date_re = "_[0-9]{4}-[0-9]{2}-[0-9]{2}" if release_date else ""
+    re_string = f"{prefix}{table_name}{date_re}.json"
+    search_pattern = re.compile(re_string)
 
-    # Find potential schemas with a glob search and sort them naturally
-    schema_paths = glob.glob(search_path)
+    # Find potential schemas with a glob search
+    schema_paths = glob.glob(os.path.join(path, "*"))
 
-    # Filter out invalid file names
-    filtered_paths = list()
-    for path in schema_paths:
-        file_name = os.path.basename(path)
-        if len(file_name) == valid_length:
-            filtered_paths.append(path)
-
-    schema_paths = natsorted(filtered_paths)
+    # Filter the paths with the regex pattern
+    file_names = [os.path.basename(i) for i in schema_paths]
+    filtered_names = list(filter(search_pattern.match, file_names))
+    filtered_paths = [os.path.join(path, i) for i in filtered_names]
 
     # No schemas were found
-    if len(schema_paths) == 0:
-        logging.error("No schema found.")
+    if len(filtered_paths) == 0:
+        logging.error("No schemas were found")
         return None
+
+    # No release date supplied
+    if not release_date:
+        return filtered_paths[0]
+
+    # Sort schema paths naturally
+    filtered_paths = natsorted(filtered_paths)
 
     # Get schemas with dates <= release date
     suffix_len = 5  # .json
     date_str_len = 10  # YYYY-MM-DD
     selected_paths = []
-    for path in schema_paths:
+    for path in filtered_paths:
         file_name = os.path.basename(path)
         date_str_start = -(date_str_len + suffix_len)
         date_str_end = -suffix_len
