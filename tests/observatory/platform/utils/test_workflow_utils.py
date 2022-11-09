@@ -934,9 +934,9 @@ class TestWorkflowUtils(unittest.TestCase):
             # Verify conversion
             img = PIL.Image.open('output.png')
             expected_image_array = [ [ [0, 68, 51, 234], [0, 68, 52,  64], [0,  0, 0,    0], [0,  0,  0,   0] ],
-                                    [ [0, 68, 51,  60], [0, 68, 51, 233], [0, 70, 50,  66], [0,  0,  0,   0] ],
-                                    [ [0,  0,  0,   0], [0, 68, 51,  60], [0, 60, 51, 233], [0, 70, 50,  66] ],
-                                    [ [0,  0,  0,   0], [0,  0,  0,   0], [0, 68, 52,  64], [0, 68, 51, 234] ] ]
+                                     [ [0, 68, 51,  60], [0, 68, 51, 233], [0, 70, 50,  66], [0,  0,  0,   0] ],
+                                     [ [0,  0,  0,   0], [0, 68, 51,  60], [0, 60, 51, 233], [0, 70, 50,  66] ],
+                                     [ [0,  0,  0,   0], [0,  0,  0,   0], [0, 68, 52,  64], [0, 68, 51, 234] ] ]
             self.assertEquals(asarray(expected_image_array).all(), asarray(img).all())
 
             # Check image integrity (mock is known to be good)
@@ -944,8 +944,11 @@ class TestWorkflowUtils(unittest.TestCase):
             self.assertTrue(success)
 
         finally:
-            os.remove('output.png')
-            
+            # Delete file created by test.
+            try:
+                os.remove('output.png')
+            except:
+                raise Exception('Unable to delete output.png from test.')
 
     def test_normalized_schedule_interval(self):
         """Test normalized_schedule_interval"""

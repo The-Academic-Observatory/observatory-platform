@@ -1078,8 +1078,8 @@ def delete_old_xcoms(
 
 def check_image_integrity(image_path: str, image_type: str):
 
-    """ Function to check if images exist and or currupted. Check performed by verifying and 
-    rotation/transposing, which will fail if they are courrpt. 
+    """ Function to check if images are in an accepted type, if they exist and if they are corrupt. 
+    Check performed by verifying and rotating/transposing, which will fail if they are courrpt. 
 
     PIL can take multiple different file formats, just not SVGs. SVGs are converted 
     to a PNG as required.
@@ -1093,14 +1093,18 @@ def check_image_integrity(image_path: str, image_type: str):
     # Parameter needed for PIL library to allow large images.
     PIL.Image.MAX_IMAGE_PIXELS = 933120000
 
-    if image_type != "fmt":
-        if image_type == "svg":
+    accepted_image_types = ['svg', 'jpg', 'jpeg', 'png'] 
+    if image_type in accepted_image_types:
+        if image_type == 'svg':
             # Convert SVG to PNG
             cairosvg.svg2png(url=image_path, write_to='output.png')
             valid_file = pil_check("output.png")
             os.remove("output.png")
         else:
-            valid_file = pil_check(image_path)
+            valid_file = pil_check(image_path)   
+    else:
+        valid_file = False
+        raise AirflowException(f'Image is neither a {accepted_image_types} : {image_path}')
 
     return valid_file
 
