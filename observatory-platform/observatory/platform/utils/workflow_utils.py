@@ -63,6 +63,9 @@ from observatory.platform.utils.jinja2_utils import (
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
+import PIL
+import cairosvg
+
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
 
@@ -1072,3 +1075,66 @@ def delete_old_xcoms(
             XCom.execution_date <= cut_off_date,
         )
     ).delete()
+
+def check_image_integrity(image_path: str, image_type: str):
+
+    """ Function to check if images exist and or currupted. Check performed by verifying and 
+    rotation/transposing, which will fail if they are courrpt. 
+
+    PIL can take multiple different file formats, just not SVGs. SVGs are converted 
+    to a PNG as required.
+
+    :param image_path: Path to the image to check.
+    :param fmt: File format of the image.
+    :return valid_file: True if image is okay, otherwise false. 
+
+    """
+
+    # Parameter needed for PIL library to allow large images.
+    PIL.Image.MAX_IMAGE_PIXELS = 933120000
+
+    if image_type != "fmt":
+        if image_type == "svg":
+            # Convert SVG to PNG
+            cairosvg.svg2png(url=image_path, write_to='output.png')
+            valid_file = pil_check("output.png")
+            os.remove("output.png")
+        else:
+            valid_file = pil_check(image_path)
+
+    return valid_file
+
+def pil_check(image_path: str):
+
+    """Verifies integrity of pictures using PIL (Pillow) library, by verifying and 
+    doing a basic transpose and flip.
+
+    :param image_path: Path to the image, e.g. /path/to/file/picture.png
+    :return valid_file: Return true if image is okay, otherwise false.
+    """
+
+    try:
+        valid_file = True
+        try: 
+            # Open and verify image.
+            img = PIL.Image.open(image_path)
+            img.verify()
+            img.close()
+        except:
+            logging.error('Unable to do verification on image: ', image_path)
+            valid_file = False
+        
+        try: 
+            # Open and do a transpose and flip.
+            img = PIL.Image.open(image_path)
+            img.transpose(PIL.Image.Transpose.FLIP_LEFT_RIGHT)
+            img.close()
+        except:
+            logging.error('Unable to do transpose on image: ', image_path)
+            valid_file = False  
+
+    except:
+        valid_file = False
+        logging.error("Unable to check the integrity of picture: " + image_path)
+
+    return valid_file

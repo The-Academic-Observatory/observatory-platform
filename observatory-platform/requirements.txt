@@ -55,6 +55,10 @@ validators
 xmltodict
 pandas
 
+# Verifying logos/images
+image==1.5.33
+CairoSVG==2.5.2
+
 # Test utils
 freezegun>=1.1.0,<2
 httpretty>=1.0.0,<2

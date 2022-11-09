@@ -23,6 +23,9 @@ import unittest
 from functools import partial
 from unittest.mock import Mock, patch
 from urllib.parse import quote
+import PIL
+import cairosvg
+from numpy import asarray
 
 import paramiko
 import pendulum
@@ -81,6 +84,7 @@ from observatory.platform.utils.workflow_utils import (
     table_ids_from_path,
     upload_files_from_list,
     workflow_path,
+    check_image_integrity
 )
 from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
@@ -910,6 +914,39 @@ class TestWorkflowUtils(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestWorkflowUtils, self).__init__(*args, **kwargs)
 
+    def test_check_image_ingetrity(self):
+        """Test image verification and conversion."""
+
+        try: 
+            # Create mock SVG for testing
+            svg_code = """
+                        <svg xmlns="http://www.w3.org/2000/svg" width="4" 
+                            height="4" viewBox="0 0 4 4" fill="none" 
+                            stroke="#043" stroke-width="1" stroke-linecap="round" 
+                            stroke-linejoin="round">
+                            <line x1="0" y1="0" x2="4" y2="4"/>
+                        </svg>
+                    """ 
+            
+            # Convert mock SVG to PNG 
+            cairosvg.svg2png(bytestring=svg_code,write_to='output.png')
+
+            # Verify conversion
+            img = PIL.Image.open('output.png')
+            expected_image_array = [ [ [0, 68, 51, 234], [0, 68, 52,  64], [0,  0, 0,    0], [0,  0,  0,   0] ],
+                                    [ [0, 68, 51,  60], [0, 68, 51, 233], [0, 70, 50,  66], [0,  0,  0,   0] ],
+                                    [ [0,  0,  0,   0], [0, 68, 51,  60], [0, 60, 51, 233], [0, 70, 50,  66] ],
+                                    [ [0,  0,  0,   0], [0,  0,  0,   0], [0, 68, 52,  64], [0, 68, 51, 234] ] ]
+            self.assertEquals(asarray(expected_image_array).all(), asarray(img).all())
+
+            # Check image integrity (mock is known to be good)
+            success = check_image_integrity(image_path='output.png', image_type='png')
+            self.assertTrue(success)
+
+        finally:
+            os.remove('output.png')
+            
+
     def test_normalized_schedule_interval(self):
         """Test normalized_schedule_interval"""
         schedule_intervals = [
@@ -1204,6 +1241,8 @@ class TestWorkflowUtils(unittest.TestCase):
                 delete_old_xcoms(dag_id="hello_world_dag", execution_date=execution_date, retention_days=0)
                 msgs = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
                 self.assertEqual(msgs, None)
+    
+
 
     def test_delete_old_xcom_older(self):
         """Test deleting old XCom messages."""
