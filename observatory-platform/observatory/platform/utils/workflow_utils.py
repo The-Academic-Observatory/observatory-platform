@@ -45,8 +45,7 @@ from observatory.platform.utils.airflow_utils import (
     AirflowVars,
     send_slack_msg,
 )
-from observatory.platform.utils.api import make_observatory_api
-from observatory.platform.utils.config_utils import find_schema, utils_templates_path
+from observatory.platform.utils.config_utils import utils_templates_path
 from observatory.platform.utils.gc_utils import (
     bigquery_sharded_table_id,
     copy_bigquery_table,
@@ -207,180 +206,38 @@ def create_date_table_id(table_id: str, date: datetime, partition_type: bigquery
     return f"{table_id}${date_str}"
 
 
-def prepare_bq_load(
-    schema_folder: str,
-    dataset_id: str,
-    table_id: str,
-    release_date: pendulum.DateTime,
-    prefix: str,
-    schema_version: str,
-    dataset_description: str = "",
-) -> Tuple[str, str, str, str]:
-    """
-    Prepare to load data into BigQuery. This will:
-     - create the dataset if it does not exist yet
-     - get the path to the schema
-     - return values of project id, bucket name, and data location
-    :param schema_folder: the path to the SQL schemas.
-    :param dataset_id: Dataset id.
-    :param table_id: Table id.
-    :param release_date: The release date used for schema lookup.
-    :param prefix: The prefix for the schema.
-    :param schema_version: Schema version.
-    :param dataset_description: dataset description.
-    :return: The project id, bucket name, data location and schema path
-    """
-
-    logging.info("requesting project_id variable")
-    project_id = Variable.get(AirflowVars.PROJECT_ID)
-
-    logging.info("requesting transform_bucket variable")
-    bucket_name = Variable.get(AirflowVars.TRANSFORM_BUCKET)
-
-    logging.info("requesting data_location variable")
-    data_location = Variable.get(AirflowVars.DATA_LOCATION)
-
-    # Create dataset
-    create_bigquery_dataset(project_id, dataset_id, data_location, dataset_description)
-
-    # Select schema file based on release date
-    schema_file_path = find_schema(schema_folder, table_id, release_date, prefix, schema_version)
-    if schema_file_path is None:
-        exit(os.EX_CONFIG)
-    return project_id, bucket_name, data_location, schema_file_path
-
-
-def prepare_bq_load_v2(
-    schema_folder: str,
-    project_id: str,
-    dataset_id: str,
-    dataset_location: str,
-    table_id: str,
-    release_date: pendulum.DateTime,
-    prefix: str,
-    schema_version: str,
-    dataset_description: str = "",
-) -> str:
-    """
-    Prepare to load data into BigQuery. This will:
-     - create the dataset if it does not exist yet
-     - get the path to the schema
-     - return values of project id, bucket name, and data location
-    :param schema_folder: the path to the SQL schemas.
-    :param project_id: project id.
-    :param dataset_id: Dataset id.
-    :param dataset_location: location of dataset.
-    :param table_id: Table id.
-    :param release_date: The release date used for schema lookup.
-    :param prefix: The prefix for the schema.
-    :param schema_version: Schema version.
-    :param dataset_description: dataset description.
-    :return: The project id, bucket name, data location and schema path
-    """
-
-    # Create dataset
-    dataset_id = dataset_id
-    create_bigquery_dataset(project_id, dataset_id, dataset_location, dataset_description)
-
-    # Select schema file based on release date
-    schema_file_path = find_schema(schema_folder, table_id, release_date, prefix, schema_version)
-    if schema_file_path is None:
-        exit(os.EX_CONFIG)
-    return schema_file_path
-
-
 def bq_load_shard(
-    schema_folder: str,
-    release_date: pendulum.DateTime,
-    transform_blob: str,
-    dataset_id: str,
-    table_id: str,
-    source_format: str,
-    prefix: str = "",
-    schema_version: str = None,
-    dataset_description: str = "",
-    **load_bigquery_table_kwargs,
-):
-    """Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
-    :param schema_folder: the path to the SQL schema folder.
-    :param release_date: Release date.
-    :param transform_blob: Name of the transform blob.
-    :param dataset_id: Dataset id.
-    :param table_id: Table id.
-    :param source_format: the format of the data to load into BigQuery.
-    :param prefix: The prefix for the schema.
-    :param schema_version: Schema version.
-    :param dataset_description: description of the BigQuery dataset.
-    :return: None.
-    """
-    project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
-        schema_folder, dataset_id, table_id, release_date, prefix, schema_version, dataset_description
-    )
-
-    # Create table id
-    table_id = bigquery_sharded_table_id(table_id, release_date)
-
-    # Load BigQuery table
-    uri = f"gs://{bucket_name}/{transform_blob}"
-    logging.info(f"URI: {uri}")
-
-    success = load_bigquery_table(
-        uri,
-        dataset_id,
-        data_location,
-        table_id,
-        schema_file_path,
-        source_format,
-        project_id=project_id,
-        **load_bigquery_table_kwargs,
-    )
-    if not success:
-        raise AirflowException()
-
-
-def bq_load_shard_v2(
-    schema_folder: str,
+    schema_file_path: str,
     project_id: str,
     transform_bucket: str,
     transform_blob: str,
     dataset_id: str,
-    dataset_location: str,
+    data_location: str,
     table_id: str,
     release_date: pendulum.Date,
     source_format: str,
-    prefix: str = "",
-    schema_version: str = None,
     dataset_description: str = "",
+    table_description: str = "",
     **load_bigquery_table_kwargs,
 ):
     """Load data from a specific file (blob) in the transform bucket to a BigQuery shard.
 
-    :param schema_folder: the path to the SQL schemas folder.
-    :param project_id: project id.
-    :param transform_bucket: transform bucket name.
+    :param schema_file_patjh: the path to the table schema file.
+    :param project_id: The project's id.
+    :param transform_bucket: google cloud transform bucket name with the data to load
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
-    :param dataset_location: location of dataset.
+    :param data_location: location of dataset.
     :param table_id: Table id.
     :param release_date: Release date.
     :param source_format: the format of the data to load into BigQuery.
-    :param prefix: The prefix for the schema.
-    :param schema_version: Schema version.
     :param dataset_description: description of the BigQuery dataset.
+    :param table_description: description of the BigQuery table.
     :return: None.
     """
 
-    schema_file_path = prepare_bq_load_v2(
-        schema_folder,
-        project_id,
-        dataset_id,
-        dataset_location,
-        table_id,
-        release_date,
-        prefix,
-        schema_version,
-        dataset_description,
-    )
+    # Create dataset
+    create_bigquery_dataset(project_id, dataset_id, data_location, dataset_description)
 
     # Create table id
     table_id = bigquery_sharded_table_id(table_id, release_date)
@@ -392,11 +249,12 @@ def bq_load_shard_v2(
     success = load_bigquery_table(
         uri,
         dataset_id,
-        dataset_location,
+        data_location,
         table_id,
         schema_file_path,
         source_format,
         project_id=project_id,
+        table_description=table_description,
         **load_bigquery_table_kwargs,
     )
     if not success:
@@ -404,38 +262,40 @@ def bq_load_shard_v2(
 
 
 def bq_load_ingestion_partition(
-    schema_folder: str,
-    end_date: pendulum.DateTime,
+    schema_file_path: str,
+    project_id: str,
+    bucket_name: str,
     transform_blob: str,
+    end_date: pendulum.DateTime,
     dataset_id: str,
-    main_table_id: str,
+    data_location: str,
     partition_table_id: str,
     source_format: str,
-    prefix: str = "",
-    schema_version: str = None,
     dataset_description: str = "",
+    table_description: str = "",
     partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
     **load_bigquery_table_kwargs,
 ):
     """Load data from a specific file (blob) in the transform bucket to a partition. Since no partition field is
     given it will automatically partition by ingestion datetime.
 
-    :param schema_folder: the path to the SQL schema folder.
-    :param end_date: Release end date, used to find the schema and to create table id.
+    :param schema_file_path: the path to the BQ table schema.
+    :param project_id: The project's id.
+    :param bucket_name: The name of the bucket with the data to load
     :param transform_blob: Name of the transform blob.
+    :param end_date: Release end date, used to create table id.
     :param dataset_id: Dataset id.
-    :param main_table_id: Main table id.
+    :param data_location: The google cloud region that holds the data
     :param partition_table_id: Partition table id (should include date as data in table is overwritten).
     :param source_format: the format of the data to load into BigQuery.
-    :param prefix: The prefix for the schema.
-    :param schema_version: Schema version.
     :param dataset_description: The description for the dataset
+    :param table_description: description of the BigQuery table.
     :param partition_type: The partitioning type (hour, day, month or year)
     :return: None.
     """
-    project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
-        schema_folder, dataset_id, main_table_id, end_date, prefix, schema_version, dataset_description
-    )
+
+    # Create dataset
+    create_bigquery_dataset(project_id, dataset_id, data_location, dataset_description)
 
     uri = f"gs://{bucket_name}/{transform_blob}"
 
@@ -451,6 +311,7 @@ def bq_load_ingestion_partition(
         partition=True,
         partition_type=partition_type,
         project_id=project_id,
+        table_description=table_description,
         **load_bigquery_table_kwargs,
     )
     if not success:
@@ -458,52 +319,40 @@ def bq_load_ingestion_partition(
 
 
 def bq_load_partition(
-    schema_folder: str,
+    schema_file_path: str,
     project_id: str,
     transform_bucket: str,
     transform_blob: str,
     dataset_id: str,
-    dataset_location: str,
+    data_location: str,
     table_id: str,
     release_date: pendulum.DateTime,
     source_format: str,
     partition_type: bigquery.TimePartitioningType,
-    prefix: str = "",
-    schema_version: str = None,
     dataset_description: str = "",
+    table_description: str = "",
     partition_field: str = "release_date",
     **load_bigquery_table_kwargs,
 ):
     """Load data from a specific file (blob) in the transform bucket to a partition.
 
-    :param schema_folder: the path to the SQL schema path.
-    :param project_id: project id.
-    :param transform_bucket: transform bucket name.
+    :param schema_file_path: The path to the BQ table schema.
+    :param project_id: The project's id.
+    :param transform_bucket: google cloud transform bucket name with the data to load
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
-    :param dataset_location: location of dataset.
+    :param data_location: Location of dataset.
     :param table_id: Table id.
     :param release_date: Release date.
     :param source_format: the format of the data to load into BigQuery.
     :param partition_type: The partitioning type (hour, day, month or year)
-    :param prefix: The prefix for the schema.
-    :param schema_version: Schema version.
     :param dataset_description: description of the BigQuery dataset.
+    :param table_description: description of the BigQuery table.
     :param partition_field: The name of the partition field in the BigQuery table
     :return: None.
     """
 
-    schema_file_path = prepare_bq_load_v2(
-        schema_folder,
-        project_id,
-        dataset_id,
-        dataset_location,
-        table_id,
-        release_date,
-        prefix,
-        schema_version,
-        dataset_description,
-    )
+    create_bigquery_dataset(project_id, dataset_id, data_location, dataset_description)
 
     uri = f"gs://{transform_bucket}/{transform_blob}"
 
@@ -512,7 +361,7 @@ def bq_load_partition(
     success = load_bigquery_table(
         uri,
         dataset_id,
-        dataset_location,
+        data_location,
         table_id,
         schema_file_path,
         source_format,
@@ -520,6 +369,7 @@ def bq_load_partition(
         partition=True,
         partition_field=partition_field,
         partition_type=partition_type,
+        table_description=table_description,
         **load_bigquery_table_kwargs,
     )
     if not success:
@@ -596,33 +446,36 @@ def bq_append_from_partition(
 
 
 def bq_append_from_file(
-    schema_folder: str,
-    end_date: pendulum.DateTime,
+    schema_file_path: str,
+    project_id: str,
+    bucket_name: str,
+    data_location: str,
     transform_blob: str,
     dataset_id: str,
     main_table_id: str,
     source_format: str,
-    prefix: str = "",
-    schema_version: str = None,
     dataset_description: str = "",
+    table_description: str = "",
     partition_decorator: str = "",
     **load_bigquery_table_kwargs,
 ):
     """Appends rows to the main table by loading data from a specific file (blob) in the transform bucket.
-    :param schema_folder: the path to the SQL schema folder.
-    :param end_date: End date.
+
+    :param schema_file_path: The path to the BQ table schema.
+    :param project_id: The project's id.
+    :param bucket_name: google cloud bucket name with the data to append
+    :param data_location: Location of dataset.
     :param transform_blob: Name of the transform blob.
     :param dataset_id: Dataset id.
-    :param main_table_id: Main table id.
+    :param main_table_id: Table id to append to
     :param source_format: the format of the data to load into BigQuery.
-    :param prefix: The prefix for the schema.
-    :param schema_version: Schema version.
-    :param dataset_description: The dataset description.
-    :return: None.
+    :param dataset_description: description of the BigQuery dataset.
+    :param table_description: description of the BigQuery table.
+    :param partition_decorator: Additional decorator to add to the table name
     """
-    project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
-        schema_folder, dataset_id, main_table_id, end_date, prefix, schema_version, dataset_description
-    )
+
+    # Create dataset
+    create_bigquery_dataset(project_id, dataset_id, data_location, dataset_description)
 
     # Load BigQuery table
     uri = f"gs://{bucket_name}/{transform_blob}"
@@ -639,6 +492,7 @@ def bq_append_from_file(
         source_format,
         write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
         project_id=project_id,
+        table_description=table_description,
         **load_bigquery_table_kwargs,
     )
     if not success:

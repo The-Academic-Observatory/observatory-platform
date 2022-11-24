@@ -17,8 +17,11 @@
 from typing import Dict, List, Optional
 
 import pendulum
+from airflow.models import Variable
 from google.cloud.bigquery import SourceFormat
+
 from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.workflow_utils import (
     blob_name,
     bq_load_shard,
@@ -27,7 +30,6 @@ from observatory.platform.utils.workflow_utils import (
     upload_files_from_list,
 )
 from observatory.platform.workflows.workflow import Release, Workflow
-from sqlalchemy.sql.expression import delete
 
 
 class SnapshotRelease(Release):
@@ -186,15 +188,23 @@ class SnapshotTelescope(Workflow):
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
                 table_description = self.table_descriptions.get(table_id, "")
+                # Get the schema file path
+                # TODO: Ideally this would be supplied via the function call
+                schema_file_path = find_schema(
+                    self.schema_folder, table_id, release_date=release.release_date, prefix=self.schema_prefix
+                )
+                if not schema_file_path:  # No table with date exists
+                    schema_file_path = find_schema(self.schema_folder, table_id, prefix=self.schema_prefix)
                 bq_load_shard(
-                    self.schema_folder,
-                    release.release_date,
-                    transform_blob,
-                    self.dataset_id,
-                    table_id,
-                    self.source_format,
-                    prefix=self.schema_prefix,
-                    schema_version=self.schema_version,
+                    schema_file_path=schema_file_path,
+                    project_id=Variable.get(AirflowVars.PROJECT_ID),
+                    transform_bucket=Variable.get(AirflowVars.TRANSFORM_BUCKET),
+                    data_location=Variable.get(AirflowVars.DATA_LOCATION),
+                    release_date=release.release_date,
+                    transform_blob=transform_blob,
+                    dataset_id=self.dataset_id,
+                    table_id=table_id,
+                    source_format=self.source_format,
                     dataset_description=self.dataset_description,
                     table_description=table_description,
                     **self.load_bigquery_table_kwargs,

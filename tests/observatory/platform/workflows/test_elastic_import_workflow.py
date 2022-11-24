@@ -32,6 +32,7 @@ from observatory.platform.elastic.elastic import Elastic
 from observatory.platform.elastic.kibana import Kibana, TimeField
 from observatory.platform.utils.file_utils import load_jsonl
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
+from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -47,6 +48,8 @@ from observatory.platform.workflows.elastic_import_workflow import (
     KeepOrder,
     load_elastic_mappings_simple,
 )
+
+TEST_FIXTURES_PATH = test_fixtures_path("schemas")
 
 
 def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
@@ -188,8 +191,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
     def test_load_elastic_mappings_simple(self):
         """Test load_elastic_mappings_simple"""
 
-        path = test_fixtures_path("workflows")
-        mappings = load_elastic_mappings_simple(path, self.table_name)
+        mappings = load_elastic_mappings_simple(TEST_FIXTURES_PATH, self.table_name)
         self.assertIsInstance(mappings, Dict)
 
     def test_dag_structure(self):
@@ -233,6 +235,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         dataset_id: str,
         bucket_name: str,
         release_date: pendulum.DateTime,
+        schema_file_path: str,
     ):
         """Setup the fake dataset in BigQuery.
 
@@ -241,18 +244,17 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         :param dataset_id: the BigQuery dataset id.
         :param bucket_name: the Google Cloud Storage bucket name.
         :param release_date: the dataset release date.
+        :paran schema_file_path: The location of the schema file to use
         :return: None.
         """
 
-        schema_folder = test_fixtures_path("workflows")
         tables = [
             Table(
                 table_name=table_name,
                 is_sharded=True,
                 dataset_id=dataset_id,
                 records=author_records,
-                schema_prefix=table_name,
-                schema_folder=schema_folder,
+                schema_file_path=schema_file_path,
             )
         ]
 
@@ -274,7 +276,6 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         author_records = generate_authors_table(num_rows=10)
         sort_key = lambda x: x["name"]
         author_records.sort(key=sort_key)
-        elastic_mappings_folder = test_fixtures_path("workflows")
 
         env = ObservatoryEnvironment(
             self.project_id,
@@ -302,7 +303,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 data_location=self.data_location,
                 file_type="jsonl.gz",
                 sensor_dag_ids=[dag_id_sensor],
-                elastic_mappings_folder=elastic_mappings_folder,
+                elastic_mappings_folder=TEST_FIXTURES_PATH,
                 elastic_mappings_func=load_elastic_mappings_simple,
                 kibana_spaces=[space_id],
                 kibana_time_fields=kibana_time_fields,
@@ -343,7 +344,10 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 self.assertEqual(expected_state, ti.state)
 
             # Make dataset with a small number of tables
-            self.setup_data_export(self.table_name, author_records, dataset_id, env.transform_bucket, release_date)
+            schema_file_path = find_schema(TEST_FIXTURES_PATH, self.table_name, release_date=release_date)
+            self.setup_data_export(
+                self.table_name, author_records, dataset_id, env.transform_bucket, release_date, schema_file_path
+            )
 
             # Run end to end tests for DOI DAG
             expected_state = "success"
