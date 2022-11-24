@@ -120,7 +120,6 @@ from observatory.platform.utils.gc_utils import (
     delete_old_buckets_with_prefix,
     delete_old_datasets_with_prefix,
 )
-from observatory.platform.utils.workflow_utils import find_schema
 from pendulum import DateTime
 from sftpserver.stub_sftp import StubServer, StubSFTPServer
 import freezegun
@@ -919,16 +918,14 @@ class Table:
     :param is_sharded: whether the table is sharded or not.
     :param dataset_id: the dataset id.
     :param records: the records to load.
-    :param schema_prefix: the schema prefix.
-    :param schema_folder: the schema path.
+    :param schema_file_path: the schema file path.
     """
 
     table_name: str
     is_sharded: bool
     dataset_id: str
     records: List[Dict]
-    schema_prefix: str
-    schema_folder: str
+    schema_file_path: str
 
 
 def bq_load_tables(
@@ -967,30 +964,28 @@ def bq_load_tables(
 
         # Save to BigQuery tables
         for blob_name, table in zip(blob_names, tables):
+            if table.schema_file_path is None:
+                logging.error(
+                    f"No schema found with search parameters: analysis_schema_path={table.schema_file_path}, "
+                    f"table_name={table.table_name}, release_date={release_date}"
+                )
+                exit(os.EX_CONFIG)
+
             if table.is_sharded:
                 table_id = bigquery_sharded_table_id(table.table_name, release_date)
             else:
                 table_id = table.table_name
 
-            # Select schema file based on release date
-            schema_file_path = find_schema(table.schema_folder, table.schema_prefix, release_date)
-            if schema_file_path is None:
-                logging.error(
-                    f"No schema found with search parameters: analysis_schema_path={table.schema_folder}, "
-                    f"table_name={table.table_name}, release_date={release_date}"
-                )
-                exit(os.EX_CONFIG)
-
             # Load BigQuery table
             uri = f"gs://{bucket_name}/{blob_name}"
             logging.info(f"URI: {uri}")
             success = load_bigquery_table(
-                uri,
-                table.dataset_id,
-                data_location,
-                table_id,
-                schema_file_path,
-                SourceFormat.NEWLINE_DELIMITED_JSON,
+                uri=uri,
+                dataset_id=table.dataset_id,
+                location=data_location,
+                table=table_id,
+                schema_file_path=table.schema_file_path,
+                source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
                 project_id=project_id,
             )
             if not success:

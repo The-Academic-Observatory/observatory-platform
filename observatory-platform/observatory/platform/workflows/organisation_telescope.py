@@ -21,6 +21,7 @@ from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 from observatory.api.client.model.organisation import Organisation
 from observatory.platform.utils.airflow_utils import AirflowVars
+from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.workflow_utils import (
     blob_name,
     bq_load_partition,
@@ -142,7 +143,7 @@ class OrganisationTelescope(Workflow):
         self.organisation = organisation
         self.project_id = organisation.project_id
         self.dataset_id = dataset_id
-        self.dataset_location = "us"  # TODO: add to API
+        self.data_location = "us"  # TODO: add to API
         self.source_format = source_format
         self.schema_folder = schema_folder
         self.schema_prefix = schema_prefix
@@ -184,19 +185,24 @@ class OrganisationTelescope(Workflow):
                 transform_blob = blob_name(transform_path)
                 table_id, _ = table_ids_from_path(transform_path)
                 table_description = self.table_descriptions.get(table_id, "")
+                # Get the schema file path
+                # TODO: Ideally this would be supplied via the function call
+                schema_file_path = find_schema(
+                    self.schema_folder, table_id, release_date=release.release_date, prefix=self.schema_prefix
+                )
+                if not schema_file_path:  # No table with date exists
+                    schema_file_path = find_schema(self.schema_folder, table_id, prefix=self.schema_prefix)
                 bq_load_partition(
-                    self.schema_folder,
-                    self.project_id,
-                    release.transform_bucket,
-                    transform_blob,
-                    self.dataset_id,
-                    self.dataset_location,
-                    table_id,
-                    release.release_date,
-                    self.source_format,
-                    bigquery.table.TimePartitioningType.MONTH,
-                    prefix=self.schema_prefix,
-                    schema_version=self.schema_version,
+                    schema_file_path=schema_file_path,
+                    project_id=self.project_id,
+                    transform_bucket=release.transform_bucket,
+                    transform_blob=transform_blob,
+                    dataset_id=self.dataset_id,
+                    data_location=self.data_location,
+                    table_id=table_id,
+                    release_date=release.release_date,
+                    source_format=self.source_format,
+                    partition_type=bigquery.table.TimePartitioningType.MONTH,
                     dataset_description=self.dataset_description,
                     table_description=table_description,
                     **self.load_bigquery_table_kwargs,

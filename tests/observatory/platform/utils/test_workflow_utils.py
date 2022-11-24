@@ -34,7 +34,6 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
-from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from click.testing import CliRunner
@@ -42,6 +41,8 @@ from google.cloud import bigquery
 from google.cloud.bigquery import SourceFormat
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.api import make_observatory_api
+from observatory.platform.utils.config_utils import find_schema
+from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
 from observatory.platform.utils.file_utils import (
     gzip_file_crc,
     list_to_jsonl_gz,
@@ -63,7 +64,6 @@ from observatory.platform.utils.workflow_utils import (
     bq_load_ingestion_partition,
     bq_load_partition,
     bq_load_shard,
-    bq_load_shard_v2,
     create_date_table_id,
     delete_old_xcoms,
     fetch_dag_bag,
@@ -76,8 +76,6 @@ from observatory.platform.utils.workflow_utils import (
     make_table_name,
     normalized_schedule_interval,
     on_failure_callback,
-    prepare_bq_load,
-    prepare_bq_load_v2,
     table_ids_from_path,
     upload_files_from_list,
     workflow_path,
@@ -138,7 +136,6 @@ class MockStreamTelescope(StreamTelescope):
         schema_folder: str = DEFAULT_SCHEMA_PATH,
         source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
         schema_prefix: str = "prefix",
-        schema_version: str = "1",
         dataset_description: str = "dataset_description",
     ):
         table_descriptions = {"file": "table description"}
@@ -153,7 +150,6 @@ class MockStreamTelescope(StreamTelescope):
             dataset_type_id,
             source_format=source_format,
             schema_prefix=schema_prefix,
-            schema_version=schema_version,
             dataset_description=dataset_description,
             table_descriptions=table_descriptions,
         )
@@ -171,7 +167,10 @@ class MockStreamTelescope(StreamTelescope):
 class TestTemplateUtils(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.project_id = "project_id"
+        self.project_id_mock = "project_id"
+        self.data_location_mock = "us"
+        self.bucket_mock = "bucket"
+        self.schema_mock = f"{DEFAULT_SCHEMA_PATH}/schema.json"
 
     @patch("observatory.platform.utils.workflow_utils.Variable.get")
     def test_workflow_path(self, mock_variable_get):
@@ -302,114 +301,13 @@ class TestTemplateUtils(unittest.TestCase):
         with self.assertRaises(TypeError):
             create_date_table_id(table_id, date, "error")
 
-    @patch("observatory.platform.utils.workflow_utils.find_schema")
     @patch("observatory.platform.utils.workflow_utils.create_bigquery_dataset")
-    @patch("airflow.models.variable.Variable.get")
-    @patch("observatory.platform.utils.workflow_utils.Variable.get")
-    def test_prepare_bq_load(
-        self, mock_airflowvariable_get, mock_variable_get, mock_create_bigquery_dataset, mock_find_schema
-    ):
-        with CliRunner().isolated_filesystem():
-            mock_airflowvariable_get.side_effect = side_effect
-            mock_variable_get.side_effect = side_effect
-            mock_find_schema.return_value = "schema.json"
-            schema_folder = DEFAULT_SCHEMA_PATH
-
-            telescope, release = setup(MockSnapshotTelescope)
-
-            table_id, _ = table_ids_from_path(release.transform_files[0])
-            project_id, bucket_name, data_location, schema_file_path = prepare_bq_load(
-                schema_folder,
-                telescope.dataset_id,
-                table_id,
-                release.release_date,
-                telescope.schema_prefix,
-                telescope.schema_version,
-                telescope.dataset_description,
-            )
-
-            self.assertEqual("project", project_id)
-            self.assertEqual("transform-bucket", bucket_name)
-            self.assertEqual("US", data_location)
-            self.assertEqual("schema.json", schema_file_path)
-            mock_find_schema.assert_called_once_with(
-                schema_folder, table_id, release.release_date, telescope.schema_prefix, telescope.schema_version
-            )
-            mock_create_bigquery_dataset.assert_called_once_with(
-                project_id, telescope.dataset_id, data_location, telescope.dataset_description
-            )
-
-            mock_find_schema.return_value = None
-            with self.assertRaises(SystemExit):
-                prepare_bq_load(
-                    schema_folder,
-                    telescope.dataset_id,
-                    table_id,
-                    release.release_date,
-                    telescope.schema_prefix,
-                    telescope.schema_version,
-                    telescope.dataset_description,
-                )
-
-    @patch("observatory.platform.utils.workflow_utils.find_schema")
-    @patch("observatory.platform.utils.workflow_utils.create_bigquery_dataset")
-    @patch("airflow.models.variable.Variable.get")
-    def test_prepare_bq_load_v2(self, mock_variable_get, mock_create_bigquery_dataset, mock_find_schema):
-        with CliRunner().isolated_filesystem():
-            mock_variable_get.side_effect = side_effect
-            mock_find_schema.return_value = "schema.json"
-
-            telescope, release = setup(MockSnapshotTelescope)
-            telescope.project_id = "project_id"
-            telescope.dataset_location = "us"
-            schema_folder = DEFAULT_SCHEMA_PATH
-
-            table_id, _ = table_ids_from_path(release.transform_files[0])
-
-            schema_file_path = prepare_bq_load_v2(
-                schema_folder,
-                telescope.project_id,
-                telescope.dataset_id,
-                telescope.dataset_location,
-                table_id,
-                release.release_date,
-                telescope.schema_prefix,
-                telescope.schema_version,
-                telescope.dataset_description,
-            )
-
-            self.assertEqual("schema.json", schema_file_path)
-            mock_find_schema.assert_called_once_with(
-                schema_folder, table_id, release.release_date, telescope.schema_prefix, telescope.schema_version
-            )
-            mock_create_bigquery_dataset.assert_called_once_with(
-                telescope.project_id, telescope.dataset_id, telescope.dataset_location, telescope.dataset_description
-            )
-
-            mock_find_schema.return_value = None
-            with self.assertRaises(SystemExit):
-                prepare_bq_load_v2(
-                    schema_folder,
-                    telescope.project_id,
-                    telescope.dataset_id,
-                    telescope.dataset_location,
-                    table_id,
-                    release.release_date,
-                    telescope.schema_prefix,
-                    telescope.schema_version,
-                    telescope.dataset_description,
-                )
-
     @patch("observatory.platform.utils.workflow_utils.load_bigquery_table")
-    @patch("observatory.platform.utils.workflow_utils.prepare_bq_load")
     @patch("airflow.models.variable.Variable.get")
-    def test_bq_load_shard(self, mock_variable_get, mock_prepare_bq_load, mock_load_bigquery_table):
+    def test_bq_load_shard(self, mock_variable_get, mock_load_bigquery_table, mock_create_bigquery_dataset):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
-            mock_prepare_bq_load.return_value = (None, "bucket_name", "data_location", "schema.json")
             mock_load_bigquery_table.return_value = True
-            schema_folder = DEFAULT_SCHEMA_PATH
-
             telescope, release = setup(MockSnapshotTelescope)
 
             for transform_path in release.transform_files:
@@ -418,138 +316,64 @@ class TestTemplateUtils(unittest.TestCase):
                 table_description = telescope.table_descriptions.get(table_id, "")
 
                 bq_load_shard(
-                    schema_folder,
-                    release.release_date,
-                    transform_blob,
-                    telescope.dataset_id,
-                    table_id,
-                    telescope.source_format,
-                    prefix=telescope.schema_prefix,
-                    schema_version=telescope.schema_version,
+                    schema_file_path=self.schema_mock,
+                    project_id=self.project_id_mock,
+                    data_location=self.data_location_mock,
+                    transform_bucket=self.bucket_mock,
+                    release_date=release.release_date,
+                    transform_blob=transform_blob,
+                    dataset_id=telescope.dataset_id,
+                    table_id=table_id,
+                    source_format=telescope.source_format,
                     dataset_description=telescope.dataset_description,
                     table_description=table_description,
                     **telescope.load_bigquery_table_kwargs,
                 )
 
-                mock_prepare_bq_load.assert_called_once_with(
-                    schema_folder,
+                mock_create_bigquery_dataset.assert_called_once_with(
+                    self.project_id_mock,
                     telescope.dataset_id,
-                    table_id,
-                    release.release_date,
-                    telescope.schema_prefix,
-                    telescope.schema_version,
+                    self.data_location_mock,
                     telescope.dataset_description,
                 )
+
                 mock_load_bigquery_table.assert_called_once_with(
-                    "gs://bucket_name/telescopes/dag_id/dag_id_2021_03_01/file.txt",
+                    f"gs://{self.bucket_mock}/{transform_blob}",
                     telescope.dataset_id,
-                    "data_location",
-                    "file20210301",
-                    "schema.json",
+                    self.data_location_mock,
+                    bigquery_sharded_table_id(table_id, release.release_date),
+                    self.schema_mock,
                     telescope.source_format,
+                    project_id=self.project_id_mock,
                     table_description=table_description,
-                    project_id=None,
                 )
 
                 mock_load_bigquery_table.return_value = False
                 with self.assertRaises(AirflowException):
                     bq_load_shard(
-                        schema_folder,
-                        release.release_date,
-                        transform_blob,
-                        telescope.dataset_id,
-                        table_id,
-                        telescope.source_format,
-                        prefix=telescope.schema_prefix,
-                        schema_version=telescope.schema_version,
+                        schema_file_path=self.schema_mock,
+                        project_id=self.project_id_mock,
+                        data_location=self.data_location_mock,
+                        transform_bucket=self.bucket_mock,
+                        release_date=release.release_date,
+                        transform_blob=transform_blob,
+                        dataset_id=telescope.dataset_id,
+                        table_id=table_id,
+                        source_format=telescope.source_format,
                         dataset_description=telescope.dataset_description,
                         table_description=table_description,
                         **telescope.load_bigquery_table_kwargs,
                     )
 
+    @patch("observatory.platform.utils.workflow_utils.create_bigquery_dataset")
     @patch("observatory.platform.utils.workflow_utils.load_bigquery_table")
-    @patch("observatory.platform.utils.workflow_utils.prepare_bq_load_v2")
-    @patch("observatory.platform.utils.airflow_utils.Variable.get")
-    def test_bq_load_shard_v2(self, mock_variable_get, mock_prepare_bq_load, mock_load_bigquery_table):
-        with CliRunner().isolated_filesystem():
-            mock_variable_get.side_effect = side_effect
-            mock_prepare_bq_load.return_value = "schema.json"
-            mock_load_bigquery_table.return_value = True
-            schema_folder = DEFAULT_SCHEMA_PATH
-
-            telescope, release = setup(MockSnapshotTelescope)
-            telescope.project_id = "project_id"
-            telescope.dataset_location = "us"
-
-            for transform_path in release.transform_files:
-                transform_blob = blob_name(transform_path)
-                table_id, _ = table_ids_from_path(transform_path)
-
-                bq_load_shard_v2(
-                    schema_folder,
-                    telescope.project_id,
-                    release.transform_bucket,
-                    transform_blob,
-                    telescope.dataset_id,
-                    telescope.dataset_location,
-                    table_id,
-                    release.release_date,
-                    telescope.source_format,
-                    prefix=telescope.schema_prefix,
-                    schema_version=telescope.schema_version,
-                    dataset_description=telescope.dataset_description,
-                    **telescope.load_bigquery_table_kwargs,
-                )
-
-                mock_prepare_bq_load.assert_called_once_with(
-                    schema_folder,
-                    telescope.project_id,
-                    telescope.dataset_id,
-                    telescope.dataset_location,
-                    table_id,
-                    release.release_date,
-                    telescope.schema_prefix,
-                    telescope.schema_version,
-                    telescope.dataset_description,
-                )
-                mock_load_bigquery_table.assert_called_once_with(
-                    "gs://transform-bucket/telescopes/dag_id/dag_id_2021_03_01/file.txt",
-                    telescope.dataset_id,
-                    telescope.dataset_location,
-                    "file20210301",
-                    "schema.json",
-                    telescope.source_format,
-                    project_id=telescope.project_id,
-                )
-
-                mock_load_bigquery_table.return_value = False
-                with self.assertRaises(AirflowException):
-                    bq_load_shard_v2(
-                        schema_folder,
-                        telescope.project_id,
-                        release.transform_bucket,
-                        transform_blob,
-                        telescope.dataset_id,
-                        telescope.dataset_location,
-                        table_id,
-                        release.release_date,
-                        telescope.source_format,
-                        prefix=telescope.schema_prefix,
-                        schema_version=telescope.schema_version,
-                        dataset_description=telescope.dataset_description,
-                        **telescope.load_bigquery_table_kwargs,
-                    )
-
-    @patch("observatory.platform.utils.workflow_utils.load_bigquery_table")
-    @patch("observatory.platform.utils.workflow_utils.prepare_bq_load")
     @patch("airflow.models.variable.Variable.get")
-    def test_bq_load_ingestion_partition(self, mock_variable_get, mock_prepare_bq_load, mock_load_bigquery_table):
+    def test_bq_load_ingestion_partition(
+        self, mock_variable_get, mock_load_bigquery_table, mock_create_bigquery_dataset
+    ):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
-            mock_prepare_bq_load.return_value = (None, "bucket_name", "data_location", "schema.json")
             mock_load_bigquery_table.return_value = True
-            schema_path = DEFAULT_SCHEMA_PATH
-
             telescope, release = setup(MockStreamTelescope)
 
             for transform_path in release.transform_files:
@@ -557,139 +381,128 @@ class TestTemplateUtils(unittest.TestCase):
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
                 table_description = telescope.table_descriptions.get(main_table_id, "")
                 bq_load_ingestion_partition(
-                    schema_path,
-                    release.end_date,
-                    transform_blob,
-                    telescope.dataset_id,
-                    main_table_id,
-                    partition_table_id,
-                    telescope.source_format,
-                    telescope.schema_prefix,
-                    telescope.schema_version,
-                    telescope.dataset_description,
-                    table_description=table_description,
-                    **telescope.load_bigquery_table_kwargs,
-                )
-
-                mock_prepare_bq_load.assert_called_once_with(
-                    schema_path,
-                    telescope.dataset_id,
-                    main_table_id,
-                    release.end_date,
-                    telescope.schema_prefix,
-                    telescope.schema_version,
-                    telescope.dataset_description,
-                )
-                date_table_id = create_date_table_id(
-                    partition_table_id, release.end_date, bigquery.TimePartitioningType.DAY
-                )
-                mock_load_bigquery_table.assert_called_once_with(
-                    "gs://bucket_name/telescopes/dag_id/2021_02_01-2021_03_01/file.txt",
-                    telescope.dataset_id,
-                    "data_location",
-                    date_table_id,
-                    "schema.json",
-                    telescope.source_format,
-                    partition=True,
-                    partition_type=bigquery.table.TimePartitioningType.DAY,
-                    table_description=table_description,
-                    project_id=None,
-                )
-
-                mock_load_bigquery_table.return_value = False
-                with self.assertRaises(AirflowException):
-                    bq_load_ingestion_partition(
-                        schema_path,
-                        release.end_date,
-                        transform_blob,
-                        telescope.dataset_id,
-                        main_table_id,
-                        partition_table_id,
-                        telescope.source_format,
-                        telescope.schema_prefix,
-                        telescope.schema_version,
-                        telescope.dataset_description,
-                        table_description=table_description,
-                        **telescope.load_bigquery_table_kwargs,
-                    )
-
-    @patch("observatory.platform.utils.workflow_utils.load_bigquery_table")
-    @patch("observatory.platform.utils.workflow_utils.prepare_bq_load_v2")
-    @patch("observatory.platform.utils.airflow_utils.Variable.get")
-    def test_bq_load_partition(self, mock_variable_get, mock_prepare_bq_load, mock_load_bigquery_table):
-        with CliRunner().isolated_filesystem():
-            mock_variable_get.side_effect = side_effect
-            mock_prepare_bq_load.return_value = "schema.json"
-            mock_load_bigquery_table.return_value = True
-            schema_path = DEFAULT_SCHEMA_PATH
-
-            telescope, release = setup(MockSnapshotTelescope)
-            telescope.project_id = "project_id"
-            telescope.dataset_location = "us"
-
-            for transform_path in release.transform_files:
-                transform_blob = blob_name(transform_path)
-                table_id, _ = table_ids_from_path(transform_path)
-                table_description = telescope.table_descriptions.get(table_id, "")
-
-                bq_load_partition(
-                    schema_path,
-                    telescope.project_id,
-                    release.transform_bucket,
-                    transform_blob,
-                    telescope.dataset_id,
-                    telescope.dataset_location,
-                    table_id,
-                    release.release_date,
-                    telescope.source_format,
-                    bigquery.table.TimePartitioningType.MONTH,
-                    prefix=telescope.schema_prefix,
-                    schema_version=telescope.schema_version,
+                    schema_file_path=self.schema_mock,
+                    project_id=self.project_id_mock,
+                    data_location=self.data_location_mock,
+                    bucket_name=self.bucket_mock,
+                    end_date=release.end_date,
+                    transform_blob=transform_blob,
+                    dataset_id=telescope.dataset_id,
+                    partition_table_id=partition_table_id,
+                    source_format=telescope.source_format,
                     dataset_description=telescope.dataset_description,
                     table_description=table_description,
                     **telescope.load_bigquery_table_kwargs,
                 )
 
-                mock_prepare_bq_load.assert_called_once_with(
-                    schema_path,
-                    telescope.project_id,
+                mock_create_bigquery_dataset.assert_called_once_with(
+                    self.project_id_mock,
                     telescope.dataset_id,
-                    telescope.dataset_location,
-                    table_id,
-                    release.release_date,
-                    telescope.schema_prefix,
-                    telescope.schema_version,
+                    self.data_location_mock,
                     telescope.dataset_description,
                 )
+
+                date_table_id = create_date_table_id(
+                    partition_table_id, release.end_date, bigquery.TimePartitioningType.DAY
+                )
                 mock_load_bigquery_table.assert_called_once_with(
-                    "gs://transform-bucket/telescopes/dag_id/dag_id_2021_03_01/file.txt",
+                    f"gs://{self.bucket_mock}/{transform_blob}",
                     telescope.dataset_id,
-                    telescope.dataset_location,
-                    "file$202103",
-                    "schema.json",
+                    self.data_location_mock,
+                    date_table_id,
+                    self.schema_mock,
                     telescope.source_format,
                     partition=True,
-                    partition_field="release_date",
-                    project_id=telescope.project_id,
-                    partition_type=bigquery.table.TimePartitioningType.MONTH,
+                    partition_type=bigquery.table.TimePartitioningType.DAY,
+                    table_description=table_description,
+                    project_id=self.project_id_mock,
+                )
+
+                mock_load_bigquery_table.return_value = False
+                with self.assertRaises(AirflowException):
+                    bq_load_ingestion_partition(
+                        schema_file_path=self.schema_mock,
+                        project_id=self.project_id_mock,
+                        data_location=self.data_location_mock,
+                        bucket_name=self.bucket_mock,
+                        end_date=release.end_date,
+                        transform_blob=transform_blob,
+                        dataset_id=telescope.dataset_id,
+                        partition_table_id=partition_table_id,
+                        source_format=telescope.source_format,
+                        dataset_description=telescope.dataset_description,
+                        table_description=table_description,
+                        **telescope.load_bigquery_table_kwargs,
+                    )
+
+    @patch("observatory.platform.utils.workflow_utils.create_bigquery_dataset")
+    @patch("observatory.platform.utils.workflow_utils.load_bigquery_table")
+    @patch("observatory.platform.utils.airflow_utils.Variable.get")
+    def test_bq_load_partition(self, mock_variable_get, mock_load_bigquery_table, mock_create_bigquery_dataset):
+        with CliRunner().isolated_filesystem():
+            mock_variable_get.side_effect = side_effect
+            mock_load_bigquery_table.return_value = True
+            telescope, release = setup(MockSnapshotTelescope)
+
+            for transform_path in release.transform_files:
+                transform_blob = blob_name(transform_path)
+                table_id, _ = table_ids_from_path(transform_path)
+                table_description = telescope.table_descriptions.get(table_id, "")
+                partition_field = "release_date"
+                partition_type = bigquery.table.TimePartitioningType.MONTH
+
+                bq_load_partition(
+                    schema_file_path=self.schema_mock,
+                    project_id=self.project_id_mock,
+                    transform_bucket=self.bucket_mock,
+                    data_location=self.data_location_mock,
+                    transform_blob=transform_blob,
+                    dataset_id=telescope.dataset_id,
+                    table_id=table_id,
+                    release_date=release.release_date,
+                    source_format=telescope.source_format,
+                    partition_type=partition_type,
+                    partition_field=partition_field,
+                    dataset_description=telescope.dataset_description,
+                    table_description=table_description,
+                    **telescope.load_bigquery_table_kwargs,
+                )
+
+                mock_create_bigquery_dataset.assert_called_once_with(
+                    self.project_id_mock,
+                    telescope.dataset_id,
+                    self.data_location_mock,
+                    telescope.dataset_description,
+                )
+
+                mock_load_bigquery_table.assert_called_once_with(
+                    f"gs://{self.bucket_mock}/{transform_blob}",
+                    telescope.dataset_id,
+                    self.data_location_mock,
+                    create_date_table_id(table_id, release.release_date, partition_type),
+                    self.schema_mock,
+                    telescope.source_format,
+                    project_id=self.project_id_mock,
+                    partition=True,
+                    partition_field=partition_field,
+                    partition_type=partition_type,
                     table_description=table_description,
                 )
 
                 mock_load_bigquery_table.return_value = False
                 with self.assertRaises(AirflowException):
                     bq_load_partition(
-                        schema_path,
-                        telescope.project_id,
-                        release.transform_bucket,
-                        transform_blob,
-                        telescope.dataset_id,
-                        telescope.dataset_location,
-                        table_id,
-                        release.release_date,
-                        telescope.source_format,
-                        bigquery.table.TimePartitioningType.MONTH,
-                        prefix=telescope.schema_prefix,
-                        schema_version=telescope.schema_version,
+                        schema_file_path=self.schema_mock,
+                        project_id=self.project_id_mock,
+                        transform_bucket=self.bucket_mock,
+                        data_location=self.data_location_mock,
+                        transform_blob=transform_blob,
+                        dataset_id=telescope.dataset_id,
+                        table_id=table_id,
+                        release_date=release.release_date,
+                        source_format=telescope.source_format,
+                        partition_type=partition_type,
+                        partition_field=partition_field,
                         dataset_description=telescope.dataset_description,
                         table_description=table_description,
                         **telescope.load_bigquery_table_kwargs,
@@ -703,7 +516,6 @@ class TestTemplateUtils(unittest.TestCase):
 
             telescope, release = setup(MockStreamTelescope)
             ingestion_date_str = release.end_date.strftime("%Y-%m-%d")
-            project_id = "project_id"
 
             for transform_path in release.transform_files:
                 main_table_id, partition_table_id = table_ids_from_path(transform_path)
@@ -713,7 +525,7 @@ class TestTemplateUtils(unittest.TestCase):
                     main_table_id,
                     partition_table_id,
                     telescope.merge_partition_field,
-                    project_id=project_id,
+                    project_id=self.project_id_mock,
                 )
 
                 expected_query = (
@@ -730,7 +542,7 @@ class TestTemplateUtils(unittest.TestCase):
                         partitioned_table=partition_table_id,
                         merge_condition_field=telescope.merge_partition_field,
                         ingestion_date=ingestion_date_str,
-                        project_id=project_id,
+                        project_id=self.project_id_mock,
                     )
                 )
                 mock_run_bigquery_query.assert_called_once_with(expected_query, bytes_budget=None)
@@ -742,7 +554,7 @@ class TestTemplateUtils(unittest.TestCase):
                     partition_table_id,
                     telescope.merge_partition_field,
                     bytes_budget=10,
-                    project_id=project_id,
+                    project_id=self.project_id_mock,
                 )
                 mock_run_bigquery_query.assert_called_with(expected_query, bytes_budget=10)
 
@@ -784,70 +596,66 @@ class TestTemplateUtils(unittest.TestCase):
                         partition_table_id,
                     )
 
+    @patch("observatory.platform.utils.workflow_utils.create_bigquery_dataset")
     @patch("observatory.platform.utils.workflow_utils.load_bigquery_table")
-    @patch("observatory.platform.utils.workflow_utils.prepare_bq_load")
     @patch("airflow.models.variable.Variable.get")
-    def test_bq_append_from_file(self, mock_variable_get, mock_prepare_bq_load, mock_load_bigquery_table):
+    def test_bq_append_from_file(self, mock_variable_get, mock_load_bigquery_table, mock_create_bigquery_dataset):
         with CliRunner().isolated_filesystem():
             mock_variable_get.side_effect = side_effect
-            mock_prepare_bq_load.return_value = ("project_id", "bucket_name", "data_location", "schema.json")
             mock_load_bigquery_table.return_value = True
-            schema_path = DEFAULT_SCHEMA_PATH
 
             telescope, release = setup(MockStreamTelescope)
 
             for transform_path in release.transform_files:
                 transform_blob = blob_name(transform_path)
-                main_table_id, partition_table_id = table_ids_from_path(transform_path)
+                main_table_id, _ = table_ids_from_path(transform_path)
                 table_description = telescope.table_descriptions.get(main_table_id, "")
 
                 bq_append_from_file(
-                    schema_path,
-                    release.end_date,
-                    transform_blob,
-                    telescope.dataset_id,
-                    main_table_id,
-                    telescope.source_format,
-                    telescope.schema_prefix,
-                    telescope.schema_version,
-                    telescope.dataset_description,
+                    schema_file_path=self.schema_mock,
+                    data_location=self.data_location_mock,
+                    bucket_name=self.bucket_mock,
+                    project_id=self.project_id_mock,
+                    transform_blob=transform_blob,
+                    dataset_id=telescope.dataset_id,
+                    main_table_id=main_table_id,
+                    source_format=telescope.source_format,
+                    dataset_description=telescope.dataset_description,
                     table_description=table_description,
                     **telescope.load_bigquery_table_kwargs,
                 )
 
-                mock_prepare_bq_load.assert_called_once_with(
-                    schema_path,
+                mock_create_bigquery_dataset.assert_called_once_with(
+                    self.project_id_mock,
                     telescope.dataset_id,
-                    main_table_id,
-                    release.end_date,
-                    telescope.schema_prefix,
-                    telescope.schema_version,
+                    self.data_location_mock,
                     telescope.dataset_description,
                 )
+
                 mock_load_bigquery_table.assert_called_once_with(
-                    "gs://bucket_name/telescopes/dag_id/2021_02_01-2021_03_01/file.txt",
+                    f"gs://{self.bucket_mock}/{transform_blob}",
                     telescope.dataset_id,
-                    "data_location",
-                    "file",
-                    "schema.json",
+                    self.data_location_mock,
+                    main_table_id,
+                    self.schema_mock,
                     telescope.source_format,
-                    write_disposition="WRITE_APPEND",
+                    write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
                     table_description=table_description,
-                    project_id=self.project_id,
+                    project_id=self.project_id_mock,
                 )
 
                 mock_load_bigquery_table.return_value = False
                 with self.assertRaises(AirflowException):
                     bq_append_from_file(
-                        schema_path,
-                        release.end_date,
-                        transform_blob,
-                        telescope.dataset_id,
-                        main_table_id,
-                        telescope.source_format,
-                        telescope.schema_prefix,
-                        telescope.schema_version,
-                        telescope.dataset_description,
+                        schema_file_path=self.schema_mock,
+                        data_location=self.data_location_mock,
+                        bucket_name=self.bucket_mock,
+                        project_id=self.project_id_mock,
+                        transform_blob=transform_blob,
+                        dataset_id=telescope.dataset_id,
+                        main_table_id=main_table_id,
+                        source_format=telescope.source_format,
+                        dataset_description=telescope.dataset_description,
                         table_description=table_description,
                         **telescope.load_bigquery_table_kwargs,
                     )
