@@ -27,6 +27,7 @@ from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
 from observatory.platform.docker.platform_runner import DEBUG, HOST_UID
 from observatory.platform.observatory_config import Config, TerraformConfig, ObservatoryConfig
+from observatory.platform.cli.database_command import DatabaseCommand
 from observatory.platform.observatory_config import (
     generate_fernet_key,
     generate_secret_key,
@@ -87,6 +88,7 @@ def cli():
       - platform: start and stop the local Observatory Platform platform.\n
       - generate: generate a variety of outputs.\n
       - terraform: manage Terraform Cloud workspaces.\n
+      - database: manage observatory api database.\n
     """
 
     pass
@@ -580,6 +582,25 @@ def terraform_check_dependencies(
 
     if not terraform_cmd.is_environment_valid:
         exit(os.EX_CONFIG)
+
+
+@cli.group()
+def database():
+    """The Observatory Platform database command.
+
+    COMMAND: the commands to run include:\n
+      - upgrade: run an Alembic database migration to head.\n
+    """
+
+    pass
+
+
+@database.command()
+def upgrade():
+    """Runs an alembic database migration to head for the observatory api database."""
+
+    cmd = DatabaseCommand()
+    cmd.upgrade()
 
 
 if __name__ == "__main__":
