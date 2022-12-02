@@ -70,66 +70,84 @@ class TestConfigUtils(unittest.TestCase):
 
     def test_find_schema(self):
         schemas_path = test_fixtures_path("schemas")
-        test_release_date = pendulum.datetime(2022, 11, 11)
-        previous_release_date = pendulum.datetime(1950, 11, 11)
 
-        # Nonexistent tables test case
-        result = find_schema(schemas_path, "this_table_does_not_exist")
+        # Tests that don't use a prefix
+        table_name = "grid"
+
+        # 2020-09-21
+        release_date = pendulum.datetime(year=2015, month=9, day=21)
+        result = find_schema(schemas_path, table_name, release_date)
         self.assertIsNone(result)
 
-        result = find_schema(schemas_path, "does_not_exist", prefix="this_table")
-        self.assertIsNone(result)
-
-        result = find_schema(schemas_path, "this_table_does_not_exist", release_date=test_release_date)
-        self.assertIsNone(result)
-
-        result = find_schema(schemas_path, "does_not_exist", release_date=test_release_date, prefix="this_table")
-        self.assertIsNone(result)
-
-        # Release date on table name that doesn't end in date
-        result = find_schema(schemas_path, "table_a", release_date=test_release_date)
-        self.assertIsNone(result)
-
-        result = find_schema(schemas_path, "a", release_date=test_release_date, prefix="table_")
-        self.assertIsNone(result)
-
-        # Release date before table date
-        release_date = pendulum.datetime(year=1000, month=1, day=1)
-        result = find_schema(schemas_path, "table_b", release_date=release_date)
-        self.assertIsNone(result)
-
-        # Basic test case - no date
-        expected_schema = "table_a.json"
-        result = find_schema(schemas_path, "table_a")
+        # 2020-09-22
+        expected_schema = "grid_2015-09-22.json"
+        release_date = pendulum.datetime(year=2015, month=9, day=22)
+        result = find_schema(schemas_path, table_name, release_date)
         self.assertIsNotNone(result)
         self.assertTrue(result.endswith(expected_schema))
 
-        # Prefix with no date
-        expected_schema = "table_a.json"
-        result = find_schema(schemas_path, "a", prefix="table_")
+        # 2015-09-23
+        release_date = pendulum.datetime(year=2015, month=9, day=23)
+        result = find_schema(schemas_path, table_name, release_date)
         self.assertIsNotNone(result)
         self.assertTrue(result.endswith(expected_schema))
 
-        # Table with date
-        expected_schema = "table_b_2000-01-01.json"
-        result = find_schema(schemas_path, "table_b", release_date=test_release_date)
+        # 2020-04-28
+        expected_schema = "grid_2016-04-28.json"
+        release_date = pendulum.datetime(year=2016, month=4, day=28)
+        result = find_schema(schemas_path, table_name, release_date)
         self.assertIsNotNone(result)
         self.assertTrue(result.endswith(expected_schema))
 
-        # Table with date and prefix
-        expected_schema = "table_b_2000-01-01.json"
-        result = find_schema(schemas_path, "b", release_date=test_release_date, prefix="table_")
+        # 2016-04-29
+        release_date = pendulum.datetime(year=2016, month=4, day=29)
+        result = find_schema(schemas_path, table_name, release_date)
         self.assertIsNotNone(result)
         self.assertTrue(result.endswith(expected_schema))
 
-        # Table with old date
-        expected_schema = "table_b_1900-01-01.json"
-        result = find_schema(schemas_path, "table_b", release_date=previous_release_date)
+        # Tests that use a prefix
+        table_name = "Papers"
+        prefix = "Mag"
+
+        # 2020-05-20
+        release_date = pendulum.datetime(year=2020, month=5, day=20)
+        result = find_schema(schemas_path, table_name, release_date, prefix=prefix)
+        self.assertIsNone(result)
+
+        # 2020-05-21
+        expected_schema = "MagPapers_2020-05-21.json"
+        release_date = pendulum.datetime(year=2020, month=5, day=21)
+        result = find_schema(schemas_path, table_name, release_date, prefix=prefix)
         self.assertIsNotNone(result)
         self.assertTrue(result.endswith(expected_schema))
 
-        # Table with old date and prefix
-        expected_schema = "table_b_1900-01-01.json"
-        result = find_schema(schemas_path, "b", release_date=previous_release_date, prefix="table_")
+        # 2020-05-22
+        release_date = pendulum.datetime(year=2020, month=5, day=22)
+        result = find_schema(schemas_path, table_name, release_date, prefix=prefix)
         self.assertIsNotNone(result)
         self.assertTrue(result.endswith(expected_schema))
+
+        # 2020-06-05
+        expected_schema = "MagPapers_2020-06-05.json"
+        release_date = pendulum.datetime(year=2020, month=6, day=5)
+        result = find_schema(schemas_path, table_name, release_date, prefix=prefix)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.endswith(expected_schema))
+
+        # 2020-06-06
+        release_date = pendulum.datetime(year=2020, month=6, day=6)
+        result = find_schema(schemas_path, table_name, release_date, prefix=prefix)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.endswith(expected_schema))
+
+        # Versioned example
+        expected_schema = "testschema_v1_2021-04-20.json"
+        release_date = pendulum.datetime(year=2021, month=4, day=20)
+        result = find_schema(schemas_path, "testschema", release_date, prefix="", ver="v1")
+        self.assertIsNotNone(result)
+        self.assertTrue(result.endswith(expected_schema))
+
+        # No schema paths
+        release_date = pendulum.datetime(year=2021, month=4, day=20)
+        result = find_schema(schemas_path, "testschema", release_date, prefix="", ver="v2")
+        self.assertIsNone(result)

@@ -37,7 +37,6 @@ from observatory.api.client.model.workflow import Workflow
 from observatory.api.client.model.workflow_type import WorkflowType
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.utils.release_utils import get_dataset_releases, get_latest_dataset_release
-from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.test_utils import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -56,13 +55,15 @@ from observatory.platform.workflows.stream_telescope import (
     StreamTelescope,
 )
 
+DEFAULT_SCHEMA_PATH = "/path/to/schemas"
+
 
 class MyTestStreamTelescope(StreamTelescope):
     """
     Generic Workflow telescope for running tasks.
     """
 
-    DAG_ID = "stream_telescope_test"
+    DAG_ID = "unit_test_stream"
 
     def __init__(
         self,
@@ -71,9 +72,10 @@ class MyTestStreamTelescope(StreamTelescope):
         schedule_interval: str = "@weekly",
         dataset_id: str = "dataset_id",
         merge_partition_field: str = "id",
-        schema_folder: str = test_fixtures_path("schemas"),
+        schema_folder: str = DEFAULT_SCHEMA_PATH,
         source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
-        schema_prefix: str = "",
+        schema_prefix: str = "prefix",
+        schema_version: str = "1",
         dataset_description: str = "dataset_description",
         batch_load: bool = False,
         workflow_id: int = 1,
@@ -93,6 +95,7 @@ class MyTestStreamTelescope(StreamTelescope):
             schema_folder,
             source_format=source_format,
             schema_prefix=schema_prefix,
+            schema_version=schema_version,
             dataset_description=dataset_description,
             table_descriptions=table_descriptions,
             batch_load=batch_load,
@@ -242,15 +245,14 @@ class TestStreamTelescope(ObservatoryTestCase):
         self.assertIsInstance(result, Dataset)
 
     @patch("observatory.platform.utils.release_utils.make_observatory_api")
-    @patch("observatory.platform.workflows.stream_telescope.find_schema")
-    # @patch("observatory.platform.utils.config_utils.find_schema")
+    @patch("observatory.platform.utils.workflow_utils.find_schema")
     def test_telescope(self, mock_find_schema, m_makeapi):
         """Test the telescope end to end and that all bq load tasks run as expected.
+
         :return: None.
         """
         # Mock find schema, because schema is in fixtures directory
-        telescope = MyTestStreamTelescope()
-        mock_find_schema.return_value = os.path.join(telescope.schema_folder, f"stream_telescope_schema.json")
+        mock_find_schema.return_value = os.path.join(test_fixtures_path("workflows"), "stream_telescope_schema.json")
         m_makeapi.return_value = self.api
 
         # Setup Telescopes, first one without batch_load and second one with batch_load
@@ -532,23 +534,18 @@ class TestStreamTelescope(ObservatoryTestCase):
                                 expected_calls = []
                                 for transform_blob, main_table_id, partition_table_id in bq_load_info:
                                     table_description = telescope.table_descriptions.get(main_table_id, "")
-                                    schema_file_path = find_schema(
-                                        path=telescope.schema_folder,
-                                        table_name=main_table_id,
-                                        prefix=telescope.schema_prefix,
-                                    )
                                     expected_calls.append(
                                         call(
-                                            schema_file_path=schema_file_path,
-                                            project_id=env.project_id,
-                                            bucket_name=env.transform_bucket,
-                                            data_location=env.data_location,
-                                            transform_blob=transform_blob,
-                                            end_date=release.end_date,
-                                            dataset_id=telescope.dataset_id,
-                                            partition_table_id=partition_table_id,
-                                            source_format=telescope.source_format,
-                                            dataset_description=telescope.dataset_description,
+                                            telescope.schema_folder,
+                                            release.end_date,
+                                            transform_blob,
+                                            telescope.dataset_id,
+                                            main_table_id,
+                                            partition_table_id,
+                                            telescope.source_format,
+                                            telescope.schema_prefix,
+                                            telescope.schema_version,
+                                            telescope.dataset_description,
                                             table_description=table_description,
                                             **telescope.load_bigquery_table_kwargs,
                                         )
@@ -587,22 +584,17 @@ class TestStreamTelescope(ObservatoryTestCase):
                                 expected_calls = []
                                 for transform_blob, main_table_id, partition_table_id in bq_load_info:
                                     table_description = telescope.table_descriptions.get(main_table_id, "")
-                                    schema_file_path = find_schema(
-                                        path=telescope.schema_folder,
-                                        table_name=main_table_id,
-                                        prefix=telescope.schema_prefix,
-                                    )
                                     expected_calls.append(
                                         call(
-                                            schema_file_path=schema_file_path,
-                                            transform_blob=transform_blob,
-                                            project_id=env.project_id,
-                                            bucket_name=env.transform_bucket,
-                                            data_location=env.data_location,
-                                            dataset_id=telescope.dataset_id,
-                                            main_table_id=main_table_id,
-                                            source_format=telescope.source_format,
-                                            dataset_description=telescope.dataset_description,
+                                            telescope.schema_folder,
+                                            release.end_date,
+                                            transform_blob,
+                                            telescope.dataset_id,
+                                            main_table_id,
+                                            telescope.source_format,
+                                            telescope.schema_prefix,
+                                            telescope.schema_version,
+                                            telescope.dataset_description,
                                             table_description=table_description,
                                             **telescope.load_bigquery_table_kwargs,
                                         )
@@ -872,15 +864,12 @@ class TestStreamTelescopeTasks(ObservatoryTestCase):
                 self.first_release = True
                 self.transform_bucket = "bucket"
 
-        schema_files = [
-            find_schema(test_fixtures_path("schemas"), table_name="db_merge0"),
-            find_schema(test_fixtures_path("schemas"), table_name="db_merge1"),
-        ]
+        fixtures = glob(os.path.join(test_fixtures_path("workflows"), "db_merge*.json"))
         with CliRunner().isolated_filesystem() as tmpdir:
-            for schema_file in schema_files:
-                filename = os.path.basename(schema_file)
+            for file in fixtures:
+                filename = os.path.basename(file)
                 dst = os.path.join(tmpdir, filename)
-                shutil.copyfile(schema_file, dst)
+                shutil.copyfile(file, dst)
 
             release = MockRelease(tmpdir)
 

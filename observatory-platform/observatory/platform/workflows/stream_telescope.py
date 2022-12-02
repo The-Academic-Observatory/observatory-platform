@@ -27,7 +27,6 @@ from google.cloud.bigquery import SourceFormat
 
 from observatory.platform.utils.airflow_utils import AirflowVars
 from observatory.platform.utils.gc_utils import bigquery_sharded_table_id, create_bigquery_snapshot
-from observatory.platform.utils.config_utils import find_schema
 from observatory.platform.utils.release_utils import (
     get_dataset_releases,
     get_datasets,
@@ -92,6 +91,7 @@ class StreamTelescope(Workflow):
         max_active_runs: int = 1,
         source_format: str = SourceFormat.NEWLINE_DELIMITED_JSON,
         schema_prefix: str = "",
+        schema_version: str = None,
         load_bigquery_table_kwargs: Dict = None,
         dataset_description: str = "",
         table_descriptions: Dict[str, str] = None,
@@ -116,6 +116,7 @@ class StreamTelescope(Workflow):
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
         :param source_format: the format of the data to load into BigQuery.
         :param schema_prefix: the prefix used to find the schema path
+        :param schema_version: the version used to find the schema path
         :param load_bigquery_table_kwargs: the customisation parameters for loading data into a BigQuery table.
         :param dataset_description: description for the BigQuery dataset.
         :param table_descriptions: a dictionary with table ids and corresponding table descriptions
@@ -125,12 +126,10 @@ class StreamTelescope(Workflow):
         :param tags: Optional Airflow DAG tags to add.
         """
 
-        # Set transform_bucket_name, project_id and data_location as required airflow variables
+        # Set transform_bucket_name as required airflow variable
         if not airflow_vars:
             airflow_vars = []
-        airflow_vars = list(
-            set([AirflowVars.TRANSFORM_BUCKET, AirflowVars.PROJECT_ID, AirflowVars.DATA_LOCATION] + airflow_vars)
-        )
+        airflow_vars = list(set([AirflowVars.TRANSFORM_BUCKET] + airflow_vars))
 
         super().__init__(
             dag_id,
@@ -149,6 +148,7 @@ class StreamTelescope(Workflow):
         )
 
         self.schema_prefix = schema_prefix
+        self.schema_version = schema_version
         self.dataset_id = dataset_id
         self.source_format = source_format
         self.merge_partition_field = merge_partition_field
@@ -273,24 +273,17 @@ class StreamTelescope(Workflow):
         bq_load_info = self.get_bq_load_info(release)
         for transform_blob, main_table_id, partition_table_id in bq_load_info:
             table_description = self.table_descriptions.get(main_table_id, "")
-            # Get the schema file path
-            # TODO: Ideally this would be supplied via the function call
-            schema_file_path = find_schema(
-                self.schema_folder, main_table_id, release_date=release.end_date, prefix=self.schema_prefix
-            )
-            if not schema_file_path:  # No table with date exists
-                schema_file_path = find_schema(self.schema_folder, main_table_id, prefix=self.schema_prefix)
             bq_load_ingestion_partition(
-                schema_file_path=schema_file_path,
-                project_id=Variable.get(AirflowVars.PROJECT_ID),
-                bucket_name=Variable.get(AirflowVars.TRANSFORM_BUCKET),
-                data_location=Variable.get(AirflowVars.DATA_LOCATION),
-                transform_blob=transform_blob,
-                end_date=release.end_date,
-                dataset_id=self.dataset_id,
-                partition_table_id=partition_table_id,
-                source_format=self.source_format,
-                dataset_description=self.dataset_description,
+                self.schema_folder,
+                release.end_date,
+                transform_blob,
+                self.dataset_id,
+                main_table_id,
+                partition_table_id,
+                self.source_format,
+                self.schema_prefix,
+                self.schema_version,
+                self.dataset_description,
                 table_description=table_description,
                 **self.load_bigquery_table_kwargs,
             )
@@ -333,22 +326,16 @@ class StreamTelescope(Workflow):
         if release.first_release:
             for transform_blob, main_table_id, partition_table_id in bq_load_info:
                 table_description = self.table_descriptions.get(main_table_id, "")
-                # Get the schema file path
-                schema_file_path = find_schema(
-                    self.schema_folder, main_table_id, release_date=release.end_date, prefix=self.schema_prefix
-                )
-                if not schema_file_path:  # No table with date exists
-                    schema_file_path = find_schema(self.schema_folder, main_table_id, prefix=self.schema_prefix)
                 bq_append_from_file(
-                    schema_file_path=schema_file_path,
-                    transform_blob=transform_blob,
-                    project_id=Variable.get(AirflowVars.PROJECT_ID),
-                    bucket_name=Variable.get(AirflowVars.TRANSFORM_BUCKET),
-                    data_location=Variable.get(AirflowVars.DATA_LOCATION),
-                    dataset_id=self.dataset_id,
-                    main_table_id=main_table_id,
-                    source_format=self.source_format,
-                    dataset_description=self.dataset_description,
+                    self.schema_folder,
+                    release.end_date,
+                    transform_blob,
+                    self.dataset_id,
+                    main_table_id,
+                    self.source_format,
+                    self.schema_prefix,
+                    self.schema_version,
+                    self.dataset_description,
                     table_description=table_description,
                     **self.load_bigquery_table_kwargs,
                 )
