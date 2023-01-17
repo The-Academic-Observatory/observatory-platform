@@ -36,6 +36,7 @@ from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat, CopyJobConfig, CopyJob, dataset
 from google.cloud.bigquery.job import QueryJobConfig
+from google.cloud.bigquery.table import Table
 from google.cloud.exceptions import Conflict, NotFound
 from google.cloud.storage import Blob, bucket
 from googleapiclient import discovery as gcp_api
@@ -496,14 +497,17 @@ def copy_bigquery_table(
     return result.done()
 
 
-def create_bigquery_view(project_id: str, dataset_id: str, view_name: str, query: str) -> None:
+def create_bigquery_view(
+    project_id: str, dataset_id: str, view_name: str, query: str, update_if_exists: bool = True
+) -> Table:
     """Create a BigQuery view.
 
     :param project_id: the Google Cloud project id.
     :param dataset_id: the BigQuery dataset id.
     :param view_name: the name to call the view.
     :param query: the query for the view.
-    :return: None
+    :param update_if_exists: whether to update the view with the input query if it already exists
+    :return: The bigquery table object of the view created/updated
     """
 
     client = bigquery.Client()
@@ -511,7 +515,14 @@ def create_bigquery_view(project_id: str, dataset_id: str, view_name: str, query
     view_ref = dataset.table(view_name)
     view = bigquery.Table(view_ref)
     view.view_query = query
-    view = client.create_table(view, exists_ok=True)
+    try:
+        view = client.create_table(view)
+    except Conflict:
+        if update_if_exists:
+            view = client.update_table(view, ["view_query"])
+        else:
+            raise
+    return view
 
 
 def create_bigquery_table_from_query(
