@@ -24,9 +24,11 @@ from unittest.mock import MagicMock, patch
 import boto3
 from observatory.platform.utils.workflow_utils import delete_old_xcoms
 import pendulum
+
 from azure.storage.blob import BlobClient, BlobServiceClient
 from click.testing import CliRunner
 from google.cloud import bigquery, storage
+from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import SourceFormat
 from google.cloud.bigquery.job import QueryJobConfig
 from observatory.api.client import ApiClient, Configuration
@@ -453,10 +455,18 @@ class TestGoogleCloudUtils(unittest.TestCase):
         try:
             create_bigquery_dataset(self.gc_project_id, dataset_id, data_location)
 
+            # Create a view
             query = "SELECT * FROM `bigquery-public-data.labeled_patents.figures` LIMIT 3"
             create_bigquery_view(self.gc_project_id, dataset_id, view_name, query)
-
             self.assertTrue(bigquery_table_exists(self.gc_project_id, dataset_id, view_name))
+
+            # Attempt to update the view created above
+            query = "SELECT * FROM `bigquery-public-data.labeled_patents.figures` LIMIT 2"
+            view = create_bigquery_view(self.gc_project_id, dataset_id, view_name, query, update_if_exists=True)
+            self.assertEqual(view.view_query, query)
+            with self.assertRaises(Conflict):
+                create_bigquery_view(self.gc_project_id, dataset_id, view_name, query, update_if_exists=False)
+
         finally:
             client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
