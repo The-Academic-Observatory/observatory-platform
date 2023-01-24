@@ -14,69 +14,70 @@
 
 # Author: James Diprose
 
-import hashlib
 import json
 import os
 import time
 import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Tuple, Union
-from urllib.parse import ParseResult, urljoin, urlparse
+import logging
 
 import requests
-import tldextract
 import xmltodict
 from importlib_metadata import metadata
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from tenacity import Retrying, stop_after_attempt, before_sleep_log, wait_exponential_jitter
+from tenacity.wait import wait_base
 
 
-def get_url_domain_suffix(url: str) -> str:
-    """Extract a URL composed of the domain name and the suffix of the URL. For example, library.curtin.edu would
-    become curtin.edu
+def retry_get_url(
+    url: str,
+    num_retries=3,
+    wait: wait_base = wait_exponential_jitter(multipliter=5, max=300),
+    squelch_url: bool = False,
+    **kwargs,
+):
+    """Attempts an HTTP GET request inside a retry loop.
+    The request will be retried the specified number of times if the request fails
 
-    :param url: a URL.
-    :return: the domain + . + suffix of the URL.
+    :param url: The URL to hit for the GET method
+    :param num_retries: The number of times to retry the request before reraising the error
+    :param wait: The Tenacity wait function. If unsupplied, use an exponential jitter wait
+    :param squelch_url: Whether to hide the URL from logs
+    :param kwargs: Keyword args for requests.get()
+    :raises requests.exceptions.RequestException: Raised when the number of retries are exhausted
     """
-
-    result = tldextract.extract(url)
-    return f"{result.domain}.{result.suffix}"
-
-
-def unique_id(string: str) -> str:
-    """Generate a unique identifier from a string.
-
-    :param string: a string.
-    :return: the unique identifier.
-    """
-    return hashlib.md5(string.encode("utf-8")).hexdigest()
-
-
-def is_url_absolute(url: Union[str, ParseResult]) -> bool:
-    """Return whether a URL is absolute or relative.
-
-    :param url: the URL to test.
-    :return: whether the URL is absolute or relative.
-    """
-
-    if not isinstance(url, ParseResult):
-        url = urlparse(url)
-
-    return bool(url.netloc)
-
-
-def strip_query_params(url: str) -> str:
-    """Remove the query parameters from an absolute URL.
-
-    :param url: a URL.
-    :return: the URL with the query parameters removed.
-    """
-    assert is_url_absolute(url), f"strip_query_params: url {url} is not absolute"
-    return urljoin(url, urlparse(url).path)
+    log_url = "***" if squelch_url else url
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO)
+    for attempt in Retrying(
+        stop=stop_after_attempt(num_retries),
+        wait=wait,
+        reraise=True,
+        before_sleep=before_sleep_log(logger, logging.INFO),
+    ):
+        # Set the function that Tenacity thinks it's retrying. This fixes the name in the logs
+        attempt.retry_state.fn = retry_get_url
+        with attempt:
+            try:
+                response = None
+                response = requests.get(url, **kwargs)
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                response_log = f"Error getting url: {log_url} | "
+                if response:  # Timeout error doesn't result in response
+                    response_log += f"Got response code: {response.status_code} | Reason: {response.reason} | "
+                response_log += (
+                    f"Attempt: {attempt.retry_state.attempt_number} | Idle for: {attempt.retry_state.idle_for}"
+                )
+                # Using e.__class__ logs the specific name of the exception
+                raise e.__class__(response_log)
+    return response
 
 
 def retry_session(
-    num_retries: int = 3, backoff_factor: float = 0.5, status_forcelist: Tuple = (500, 502, 503, 50)
+    num_retries: int = 3, backoff_factor: float = 0.5, status_forcelist: Tuple = (500, 502, 503)
 ) -> requests.Session:
     """Create a session object that is able to retry a given number of times.
 

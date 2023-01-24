@@ -55,6 +55,7 @@ timeout-decorator
 validators
 xmltodict
 pandas
+tenacity
 
 # Test utils
 freezegun>=1.1.0,<2
