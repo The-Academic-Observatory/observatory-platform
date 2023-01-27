@@ -34,7 +34,7 @@ from tenacity.wait import wait_base
 def retry_get_url(
     url: str,
     num_retries=3,
-    wait: wait_base = wait_exponential_jitter(multipliter=5, max=300),
+    wait: wait_base = wait_exponential_jitter(initial=5, max=300),
     squelch_url: bool = False,
     **kwargs,
 ):
