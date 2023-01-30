@@ -18,10 +18,12 @@ import unittest
 from datetime import datetime
 from typing import List
 from unittest.mock import patch
+import time
 
 import httpretty
 import requests
 from click.testing import CliRunner
+from tenacity import wait_fixed
 from observatory.platform.utils.test_utils import HttpServer, test_fixtures_path
 from observatory.platform.utils.url_utils import (
     get_filename_from_url,
@@ -29,12 +31,9 @@ from observatory.platform.utils.url_utils import (
     get_http_response_xml_to_dict,
     get_http_text_response,
     get_observatory_http_header,
-    get_url_domain_suffix,
     get_user_agent,
-    is_url_absolute,
+    retry_get_url,
     retry_session,
-    strip_query_params,
-    unique_id,
     wait_for_url,
     get_filename_from_http_header,
 )
@@ -74,61 +73,14 @@ class TestUrlUtils(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def test_get_url_domain_suffix(self):
-        expected = "curtin.edu.au"
-
-        level_one = get_url_domain_suffix("https://www.curtin.edu.au/")
-        self.assertEqual(level_one, expected)
-
-        level_two = get_url_domain_suffix("https://alumniandgive.curtin.edu.au/")
-        self.assertEqual(level_two, expected)
-
-        level_two_with_path = get_url_domain_suffix("https://alumniandgive.curtin.edu.au/giving-to-curtin/")
-        self.assertEqual(level_two_with_path, expected)
-
-        level_two_no_https = get_url_domain_suffix("alumniandgive.curtin.edu.au")
-        self.assertEqual(level_two_no_https, expected)
-
-    def test_unique_id(self):
-        expected_ids = [
-            "5d41402abc4b2a76b9719d911017c592",
-            "7d793037a0760186574b0282f2f435e7",
-            "5eb63bbbe01eeed093cb22bb8f5acdc3",
-        ]
-        ids = [unique_id("hello"), unique_id("world"), unique_id("hello world")]
-        self.assertListEqual(ids, expected_ids)
-
-    def test_is_url_absolute(self):
-        urls = TestUrlUtils.relative_urls + TestUrlUtils.absolute_urls
-        results_expected = [False] * len(TestUrlUtils.relative_urls) + [True] * len(TestUrlUtils.absolute_urls)
-        results_actual = [is_url_absolute(url) for url in urls]
-        self.assertListEqual(results_actual, results_expected)
-
-    def test_strip_query_params(self):
-        # Test absolute URLs
-        results_expected = [
-            "https://www.curtin.edu.au/",
-            "//global.curtin.edu.au/template/css/layoutv3.css",
-            "https://www.curtin.edu.au/",
-            "https://www.curtin.edu.au/test",
-            "https://www.curtin.edu.au/test",
-            "//global.curtin.edu.au/template/css/layoutv3.css/",
-        ]
-        results_actual = [strip_query_params(url) for url in TestUrlUtils.absolute_urls]
-        self.assertListEqual(results_actual, results_expected)
-
-        # Test that passing a non-absolute URL raises an exception
-        for url in TestUrlUtils.relative_urls:
-            with self.assertRaises(Exception):
-                strip_query_params(url)
-
-    def __create_mock_request_sequence(self, url: str, status_codes: List[int], bodies: List[str]):
+    def __create_mock_request_sequence(self, url: str, status_codes: List[int], bodies: List[str], sleep: float = 0):
         self.sequence = 0
 
         def request_callback(request, uri, response_headers):
             status = status_codes[self.sequence]
             body = bodies[self.sequence]
             self.sequence = self.sequence + 1
+            time.sleep(sleep)
             return [status, response_headers, body]
 
         httpretty.register_uri(httpretty.GET, url, body=request_callback)
@@ -153,6 +105,38 @@ class TestUrlUtils(unittest.TestCase):
 
         with self.assertRaises(requests.exceptions.RetryError):
             retry_session(num_retries=3).get(url)
+
+        # Cleanup
+        httpretty.disable()
+        httpretty.reset()
+
+    def test_retry_get_url(self):
+        httpretty.enable()
+
+        # Test that we receive the last response
+        url = "http://test.com/"
+        status_codes = [500, 404, 200]
+        bodies = ["Internal server error", "Page not found", "success"]
+        self.__create_mock_request_sequence(url, status_codes, bodies)
+        response = retry_get_url(url, num_retries=3, wait=wait_fixed(0))
+        self.assertEqual(response.text, "success")
+
+        # Test that an HTTPError is triggered
+        url = "http://fail.com/"
+        status_codes = [500, 500, 500, 500, 200]  # It should fail before getting to status 200, because we only retry
+        # 3 times
+        bodies = ["Internal server error"] * 4 + ["success"]
+        self.__create_mock_request_sequence(url, status_codes, bodies)
+        with self.assertRaises(requests.exceptions.HTTPError):
+            response = retry_get_url(url, num_retries=3, wait=wait_fixed(0))
+
+        # Test that a ReadTimeout is triggered
+        url = "http://timeout.com/"
+        status_codes = [500, 500, 500, 200]
+        bodies = ["Internal server error"] * 4 + ["success"]
+        self.__create_mock_request_sequence(url, status_codes, bodies, sleep=3)
+        with self.assertRaises(requests.exceptions.ReadTimeout):
+            response = retry_get_url(url, num_retries=3, wait=wait_fixed(0), timeout=2)
 
         # Cleanup
         httpretty.disable()
