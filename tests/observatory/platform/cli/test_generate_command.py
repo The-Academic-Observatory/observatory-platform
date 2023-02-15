@@ -37,7 +37,6 @@ from observatory.platform.observatory_config import (
     BackendType,
     CloudSqlDatabase,
     CloudStorageBucket,
-    ElasticSearch,
     Environment,
     GoogleCloud,
     Observatory,
