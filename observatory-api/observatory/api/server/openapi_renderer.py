@@ -20,8 +20,6 @@ from typing import Dict
 import yaml
 from jinja2 import Template
 
-from observatory.api.server.elastic import QUERY_FILTER_PARAMETERS
-
 
 def render_template(template_path: str, **kwargs) -> str:
     """Render a Jinja2 template.
@@ -67,7 +65,6 @@ class OpenApiRenderer:
             self.openapi_template_path,
             cloud_endpoints=self.cloud_endpoints,
             api_client=self.api_client,
-            query_filter_parameters=QUERY_FILTER_PARAMETERS,
         )
 
     def to_dict(self) -> Dict:

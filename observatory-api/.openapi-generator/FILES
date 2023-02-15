@@ -10,7 +10,6 @@ observatory/api/client/docs/DatasetRelease.md
 observatory/api/client/docs/DatasetType.md
 observatory/api/client/docs/ObservatoryApi.md
 observatory/api/client/docs/Organisation.md
-observatory/api/client/docs/QueryResponse.md
 observatory/api/client/docs/TableType.md
 observatory/api/client/docs/Workflow.md
 observatory/api/client/docs/WorkflowType.md
@@ -21,7 +20,6 @@ observatory/api/client/model/dataset.py
 observatory/api/client/model/dataset_release.py
 observatory/api/client/model/dataset_type.py
 observatory/api/client/model/organisation.py
-observatory/api/client/model/query_response.py
 observatory/api/client/model/table_type.py
 observatory/api/client/model/workflow.py
 observatory/api/client/model/workflow_type.py
@@ -34,7 +32,6 @@ observatory/api/client/test/test_dataset_release.py
 observatory/api/client/test/test_dataset_type.py
 observatory/api/client/test/test_observatory_api.py
 observatory/api/client/test/test_organisation.py
-observatory/api/client/test/test_query_response.py
 observatory/api/client/test/test_table_type.py
 observatory/api/client/test/test_workflow.py
 observatory/api/client/test/test_workflow_type.py
