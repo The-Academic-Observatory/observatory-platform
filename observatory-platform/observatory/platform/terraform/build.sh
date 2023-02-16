@@ -1,39 +1,27 @@
 #!/usr/bin/env bash
 
-# Documentation recommends to sleep for 30 seconds first:
+echo " ----- Sleeping for 30 seconds as per Packer documentation ----- "
 sleep 30
 
-echo " ----- Install Docker (using apt-get) ----- "
-
-# Install Docker
+echo " ----- Install Docker and Docker Compose V2 (using apt-get) ----- "
+sudo apt-get -y install ca-certificates curl gnupg lsb-release
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
-sudo apt-get -y install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
-sudo apt-get update
-sudo apt-get -y install docker-ce docker-ce-cli containerd.io
+sudo apt-get -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 sudo service docker restart
 
 echo " ----- Make the airflow user and add it to the docker group ----- "
-
-# Make the airflow user and add it to the docker group
 sudo useradd --home-dir /home/airflow --shell /bin/bash --create-home airflow
 sudo usermod -aG docker airflow
 sudo newgrp docker
 
-echo " ----- Install Docker Compose v1.29.2 and Berlas v0.5.0 ----- "
-
-# Install Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-Linux-x86_64" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-
-# Install berglas v0.5.3
-sudo curl -L "https://storage.googleapis.com/berglas/0.5.0/linux_amd64/berglas" -o /usr/local/bin/berglas
+echo " ----- Install Berglas v1.0.1 ----- "
+sudo curl -L "https://storage.googleapis.com/berglas/1.0.1/linux_amd64/berglas" -o /usr/local/bin/berglas
 sudo chmod +x /usr/local/bin/berglas
 
 echo " ----- Install Google Compute Monitoring agent ----- "
-
-# Install Google Compute Monitoring agent
 curl -sSO https://dl.google.com/cloudagents/add-monitoring-agent-repo.sh
 sudo bash add-monitoring-agent-repo.sh
 sudo apt-get update
@@ -41,8 +29,6 @@ sudo apt-get install -y 'stackdriver-agent=6.*'
 sudo service stackdriver-agent start
 
 echo " ----- Make airflow and docker directories, move packages, and clean up files ----- "
-
-# Make directories
 sudo mkdir -p /opt/airflow/logs
 sudo mkdir /opt/airflow/dags
 sudo mkdir -p /opt/observatory/data
@@ -71,8 +57,6 @@ export HOST_ELASTIC_PORT=9200
 export HOST_KIBANA_PORT=5601
 
 echo " ----- Building docker containers with docker-compose, running as airflow user ----- "
-
-# Pull and build Docker containers
 PRESERVE_ENV="HOST_USER_ID,HOST_REDIS_PORT,HOST_FLOWER_UI_PORT,HOST_AIRFLOW_UI_PORT,HOST_ELASTIC_PORT,HOST_KIBANA_PORT"
-sudo -u airflow --preserve-env=${PRESERVE_ENV} bash -c "docker-compose -f docker-compose.observatory.yml pull"
-sudo -u airflow --preserve-env=${PRESERVE_ENV} bash -c "docker-compose -f docker-compose.observatory.yml build"
+sudo -u airflow --preserve-env=${PRESERVE_ENV} bash -c "docker compose -f docker-compose.observatory.yml pull"
+sudo -u airflow --preserve-env=${PRESERVE_ENV} bash -c "docker compose -f docker-compose.observatory.yml build"

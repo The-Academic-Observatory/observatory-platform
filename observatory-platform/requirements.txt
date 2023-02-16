@@ -24,7 +24,7 @@ google-api-core==1.33.2 # fix TypeError: _blocking_poll() got an unexpected keyw
 elasticsearch>=8.0.0,<9
 
 # Docker
-docker-compose>=1.29.2,<2
+docker>6,<7
 
 # Command line interface, config files and templates
 click>=7.1.2,<8
