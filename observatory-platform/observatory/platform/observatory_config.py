@@ -163,12 +163,9 @@ class Observatory:
         :param redis_port: The host Redis port number.
         :param flower_ui_port: The host's Flower UI port number.
         :param airflow_ui_port: The host's Apache Airflow UI port number.
-        :param elastic_port: The host's Elasticsearch port number.
-        :param kibana_port: The host's Kibana port number.
         :param docker_network_name: The Docker Network name, used to specify a custom Docker Network.
         :param docker_network_is_external: whether the docker network is external or not.
         :param docker_compose_project_name: The namespace for the Docker Compose containers: https://docs.docker.com/compose/reference/envvars/#compose_project_name.
-        :param enable_elk: whether to enable the elk stack or not.
         :param api_port: Port for accessing the API locally (exposed by docker container).
     """
 
@@ -183,12 +180,9 @@ class Observatory:
     redis_port: int = 6379
     flower_ui_port: int = 5555
     airflow_ui_port: int = 8080
-    elastic_port: int = 9200
-    kibana_port: int = 5601
     docker_network_name: str = "observatory-network"
     docker_network_is_external: bool = False
     docker_compose_project_name: str = "observatory"
-    enable_elk: bool = True
     api_package: str = "observatory-api"
     api_package_type: str = "pypi"
     api_port: int = 5002
@@ -227,12 +221,9 @@ class Observatory:
         redis_port = dict_.get("redis_port", Observatory.redis_port)
         flower_ui_port = dict_.get("flower_ui_port", Observatory.flower_ui_port)
         airflow_ui_port = dict_.get("airflow_ui_port", Observatory.airflow_ui_port)
-        elastic_port = dict_.get("elastic_port", Observatory.elastic_port)
-        kibana_port = dict_.get("kibana_port", Observatory.kibana_port)
         docker_network_name = dict_.get("docker_network_name", Observatory.docker_network_name)
         docker_network_is_external = dict_.get("docker_network_is_external", Observatory.docker_network_is_external)
         docker_compose_project_name = dict_.get("docker_compose_project_name", Observatory.docker_compose_project_name)
-        enable_elk = dict_.get("enable_elk", Observatory.enable_elk)
         api_package = dict_.get("api_package", Observatory.api_package)
         api_package_type = dict_.get("api_package_type", Observatory.api_package_type)
         api_port = dict_.get("api_port", Observatory.api_port)
@@ -249,12 +240,9 @@ class Observatory:
             redis_port=redis_port,
             flower_ui_port=flower_ui_port,
             airflow_ui_port=airflow_ui_port,
-            elastic_port=elastic_port,
-            kibana_port=kibana_port,
             docker_network_name=docker_network_name,
             docker_network_is_external=docker_network_is_external,
             docker_compose_project_name=docker_compose_project_name,
-            enable_elk=enable_elk,
             api_package=api_package,
             api_package_type=api_package_type,
             api_port=api_port,
@@ -1424,12 +1412,9 @@ def make_schema(backend_type: BackendType) -> Dict:
             "redis_port": {"required": False, "type": "integer"},
             "flower_ui_port": {"required": False, "type": "integer"},
             "airflow_ui_port": {"required": False, "type": "integer"},
-            "elastic_port": {"required": False, "type": "integer"},
-            "kibana_port": {"required": False, "type": "integer"},
             "docker_network_name": {"required": False, "type": "string"},
             "docker_network_is_external": {"required": False, "type": "boolean"},
             "docker_compose_project_name": {"required": False, "type": "string"},
-            "enable_elk": {"required": False, "type": "boolean"},
             "api_package": {"required": False, "type": "string"},
             "api_package_type": {"required": False, "type": "string", "allowed": package_types},
             "api_port": {"required": False, "type": "integer"},
@@ -1562,12 +1547,9 @@ class ObserveratoryConfigString:
             indent(f"redis_port: {observatory.redis_port}\n", INDENT1),
             indent(f"flower_ui_port: {observatory.flower_ui_port}\n", INDENT1),
             indent(f"airflow_ui_port: {observatory.airflow_ui_port}\n", INDENT1),
-            indent(f"elastic_port: {observatory.elastic_port}\n", INDENT1),
-            indent(f"kibana_port: {observatory.kibana_port}\n", INDENT1),
             indent(f"docker_network_name: {observatory.docker_network_name}\n", INDENT1),
             indent(f"docker_network_is_external: {observatory.docker_network_is_external}\n", INDENT1),
             indent(f"docker_compose_project_name: {observatory.docker_compose_project_name}\n", INDENT1),
-            indent(f"enable_elk: {observatory.enable_elk}\n", INDENT1),
             indent(f"api_package: {observatory.api_package}\n", INDENT1),
             indent(f"api_package_type: {observatory.api_package_type}\n", INDENT1),
             indent(f"api_port: {observatory.api_port}\n", INDENT1),
