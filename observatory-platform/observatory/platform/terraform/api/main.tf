@@ -38,15 +38,7 @@ resource "google_service_account" "api-backend_service_account" {
   description = "The Google Service Account used by the cloud run backend"
 }
 
-# Create Elasticsearch secrets
-module "elasticsearch-logins" {
-  for_each = toset(nonsensitive(keys(var.elasticsearch))) # Make keys of variable nonsensitive.
-  source = "../secret"
-  secret_id = "elasticsearch-${each.key}"
-  secret_data = var.elasticsearch[each.key]
-  service_account_email = google_service_account.api-backend_service_account.email
-}
-
+# Create secrets
 module "observatory_db_uri" {
   source = "../secret"
   secret_id = "observatory_db_uri"
@@ -62,14 +54,6 @@ resource "google_cloud_run_service" "api_backend" {
     spec {
       containers {
         image = var.api.api_image
-        env {
-          name = "ES_API_KEY"
-          value = "sm://${var.google_cloud.project_id}/elasticsearch-api_key"
-        }
-        env {
-          name = "ES_HOST"
-          value = "sm://${var.google_cloud.project_id}/elasticsearch-host"
-        }
         env {
           name = "OBSERVATORY_DB_URI"
           value = "sm://${var.google_cloud.project_id}/observatory_db_uri"
@@ -90,7 +74,7 @@ resource "google_cloud_run_service" "api_backend" {
     percent = 100
     latest_revision = true
   }
-  depends_on = [module.elasticsearch-logins]
+  depends_on = [module.observatory_db_uri]
 }
 
 ########################################################################################################################

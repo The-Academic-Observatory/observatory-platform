@@ -37,7 +37,6 @@ from observatory.platform.observatory_config import (
     BackendType,
     CloudSqlDatabase,
     CloudStorageBucket,
-    ElasticSearch,
     Environment,
     GoogleCloud,
     Observatory,
@@ -156,7 +155,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
 
     @patch("observatory.platform.cli.generate_command.module_file_path")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_api")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_elasticsearch")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_worker_vm")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_main_vm")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_cloud_sql_database")
@@ -179,7 +177,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         m_cloud_sql_database,
         m_airflow_main_vm,
         m_airflow_worker_m,
-        m_elasticsearch,
         m_api,
         m_mfp,
     ):
@@ -235,7 +232,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         self.assertTrue(m_cloud_sql_database.called)
         self.assertTrue(m_airflow_main_vm.called)
         self.assertTrue(m_airflow_worker_m.called)
-        self.assertTrue(m_elasticsearch.called)
         self.assertTrue(m_api.called)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
@@ -763,22 +759,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         config = TerraformConfig()
         InteractiveConfigBuilder.config_airflow_worker_vm(config)
         self.assertEqual(config.airflow_worker_vm, vm)
-
-    @patch("observatory.platform.cli.generate_command.click.prompt")
-    def test_config_elasticsearch(self, m_prompt):
-        es = ElasticSearch(
-            host="https://host:port",
-            api_key="mykey",
-        )
-
-        m_prompt.side_effect = [
-            es.host,
-            es.api_key,
-        ]
-
-        config = TerraformConfig()
-        InteractiveConfigBuilder.config_elasticsearch(config)
-        self.assertEqual(config.elasticsearch, es)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     def test_config_api(self, m_prompt):

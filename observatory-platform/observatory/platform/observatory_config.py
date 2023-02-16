@@ -563,39 +563,6 @@ class VirtualMachine:
 
 
 @dataclass
-class ElasticSearch:
-    """The elasticsearch settings for the Observatory Platform API.
-
-    Attributes:
-        host: the address of the elasticsearch host
-        api_key: the api key to use the elasticsearch API.
-    """
-
-    host: str
-    api_key: str
-
-    def to_hcl(self):
-        return to_hcl(
-            {
-                "host": self.host,
-                "api_key": self.api_key,
-            }
-        )
-
-    @staticmethod
-    def from_dict(dict_: Dict) -> ElasticSearch:
-        """Constructs a CloudSqlDatabase instance from a dictionary.
-
-        :param dict_: the dictionary.
-        :return: the CloudSqlDatabase instance.
-        """
-
-        host = dict_.get("host")
-        api_key = dict_.get("api_key")
-        return ElasticSearch(host, api_key)
-
-
-@dataclass
 class Api:
     """The API domain name for the Observatory Platform API.
 
@@ -1154,7 +1121,6 @@ class TerraformConfig(ObservatoryConfig):
         cloud_sql_database: CloudSqlDatabase = None,
         airflow_main_vm: VirtualMachine = None,
         airflow_worker_vm: VirtualMachine = None,
-        elasticsearch: ElasticSearch = None,
         api: Api = None,
         validator: ObservatoryConfigValidator = None,
     ):
@@ -1189,7 +1155,6 @@ class TerraformConfig(ObservatoryConfig):
         self.cloud_sql_database = cloud_sql_database
         self.airflow_main_vm = airflow_main_vm
         self.airflow_worker_vm = airflow_worker_vm
-        self.elasticsearch = elasticsearch
         self.api = api
 
     @property
@@ -1252,7 +1217,6 @@ class TerraformConfig(ObservatoryConfig):
             TerraformVariable(
                 "airflow_connections", list_to_hcl(self.airflow_connections), hcl=True, sensitive=sensitive
             ),
-            TerraformVariable("elasticsearch", self.elasticsearch.to_hcl(), sensitive=sensitive, hcl=True),
             TerraformVariable("api", self.api.to_hcl(), hcl=True),
         ]
 
@@ -1285,7 +1249,6 @@ class TerraformConfig(ObservatoryConfig):
             cloud_sql_database = CloudSqlDatabase.from_dict(dict_.get("cloud_sql_database", dict()))
             airflow_main_vm = VirtualMachine.from_dict(dict_.get("airflow_main_vm", dict()))
             airflow_worker_vm = VirtualMachine.from_dict(dict_.get("airflow_worker_vm", dict()))
-            elasticsearch = ElasticSearch.from_dict(dict_.get("elasticsearch", dict()))
             api = Api.from_dict(dict_.get("api", dict()))
 
             return TerraformConfig(
@@ -1299,7 +1262,6 @@ class TerraformConfig(ObservatoryConfig):
                 cloud_sql_database=cloud_sql_database,
                 airflow_main_vm=airflow_main_vm,
                 airflow_worker_vm=airflow_worker_vm,
-                elasticsearch=elasticsearch,
                 api=api,
                 validator=validator,
             )
@@ -1320,7 +1282,6 @@ class TerraformConfig(ObservatoryConfig):
             self.save_cloud_sql_database(f)
             self.save_airflow_main_vm(f)
             self.save_airflow_worker_vm(f)
-            self.save_elasticsearch(f)
             self.save_api(f)
 
     def save_cloud_sql_database(self, f: TextIO):
@@ -1356,18 +1317,6 @@ class TerraformConfig(ObservatoryConfig):
         requirement = self.get_requirement_string("airflow_worker_vm")
         f.write(f"# [{requirement}] Settings for the weekly on-demand VM that runs arge tasks\n")
         lines = ObserveratoryConfigString.airflow_worker_vm(self.airflow_worker_vm)
-        f.writelines(lines)
-        f.write("\n")
-
-    def save_elasticsearch(self, f: TextIO):
-        """Write the ElasticSearch configuration section to the config file.
-
-        :param f: File object for the config file.
-        """
-
-        requirement = self.get_requirement_string("elasticsearch")
-        f.write(f"# [{requirement}] Elasticsearch settings\n")
-        lines = ObserveratoryConfigString.elasticsearch(self.elasticsearch)
         f.writelines(lines)
         f.write("\n")
 
@@ -1559,18 +1508,6 @@ def make_schema(backend_type: BackendType) -> Dict:
     }
 
     if is_backend_terraform:
-        schema["elasticsearch"] = {
-            "required": True,
-            "type": "dict",
-            "schema": {
-                "host": {"required": True, "type": "string"},
-                "api_key": {
-                    "required": True,
-                    "type": "string",
-                },
-            },
-        }
-
         schema["api"] = {
             "required": True,
             "type": "dict",
@@ -1856,28 +1793,6 @@ class ObserveratoryConfigString:
             )
 
         lines = ObserveratoryConfigString.airflow_vm_lines_(vm=vm, vm_type="airflow_worker_vm")
-        return lines
-
-    @staticmethod
-    def elasticsearch(elasticsearch: ElasticSearch) -> List[str]:
-        """Constructs the ElasticSearch section string.
-
-        :param elasticsearch: Elastic search configuration object.
-        :return: List of strings for the section, including the section heading."
-        """
-
-        if elasticsearch is None:
-            elasticsearch = ElasticSearch(
-                host="https://address.region.gcp.cloud.es.io:port",
-                api_key="myapikey",
-            )
-
-        lines = [
-            "elasticsearch:\n",
-            indent(f"host: {elasticsearch.host}\n", INDENT1),
-            indent(f"api_key: {elasticsearch.api_key}\n", INDENT1),
-        ]
-
         return lines
 
     @staticmethod

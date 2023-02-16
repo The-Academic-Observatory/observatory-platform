@@ -31,7 +31,6 @@ from observatory.platform.observatory_config import (
     BackendType,
     CloudSqlDatabase,
     CloudStorageBucket,
-    ElasticSearch,
     Environment,
     GoogleCloud,
     Observatory,
@@ -551,7 +550,6 @@ class InteractiveConfigBuilder:
             InteractiveConfigBuilder.config_cloud_sql_database(config)
             InteractiveConfigBuilder.config_airflow_main_vm(config)
             InteractiveConfigBuilder.config_airflow_worker_vm(config)
-            InteractiveConfigBuilder.config_elasticsearch(config)
             InteractiveConfigBuilder.config_api(config)
 
         return config
@@ -985,26 +983,6 @@ class InteractiveConfigBuilder:
             disk_size=disk_size,
             disk_type=disk_type,
             create=create,
-        )
-
-    @staticmethod
-    def config_elasticsearch(config: TerraformConfig):
-        """Configure the ElasticSearch section.
-
-        :param config: Configuration object to edit.
-        """
-
-        click.echo("Configuring ElasticSearch")
-
-        text = "Elasticsearch host url, e.g., https://host:port"
-        host = click.prompt(text=text, type=str)
-
-        text = "API key"
-        api_key = click.prompt(text=text, type=str)
-
-        config.elasticsearch = ElasticSearch(
-            host=host,
-            api_key=api_key,
         )
 
     @staticmethod

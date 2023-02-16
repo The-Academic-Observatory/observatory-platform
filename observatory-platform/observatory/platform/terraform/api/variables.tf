@@ -49,18 +49,3 @@ EOF
     data_location = string
   })
 }
-
-variable "elasticsearch" {
-    description = <<EOF
-Elasticsearch login information
-
-api_key: The elasticsearch api key
-host: The address of the elasticsearch server
-EOF
-  type = object({
-    api_key = string
-    host = string
-  })
-  # needs 'sensitive' mark to use nonsensitive() function. Not recognized as sensitive value even though it is derived from one
-  sensitive = true
-}

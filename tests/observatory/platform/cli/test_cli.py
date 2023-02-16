@@ -554,7 +554,6 @@ class TestObservatoryTerraform(unittest.TestCase):
                         "disk_type": "pd-standard",
                         "create": False,
                     },
-                    "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
                     "api": {
                         "domain_name": "api.custom.domain",
                         "subdomain": "project_id",
@@ -706,7 +705,6 @@ class TestObservatoryTerraform(unittest.TestCase):
                         "disk_type": "pd-standard",
                         "create": False,
                     },
-                    "elasticsearch": {"host": "https://address.region.gcp.cloud.es.io:port", "api_key": "API_KEY"},
                     "api": {
                         "domain_name": "api.custom.domain",
                         "subdomain": "project_id",

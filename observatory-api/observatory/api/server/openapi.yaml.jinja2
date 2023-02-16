@@ -52,7 +52,6 @@ security:
 tags:
 - name: Observatory
   description: the Observatory API
-{%- set reports_tag="Observatory" -%}
 {%- set organisation_tag="Observatory" -%}
 {%- set workflow_tag="Observatory" -%}
 {%- set workflow_type_tag="Observatory" -%}
@@ -63,8 +62,6 @@ tags:
 {%- set bigquery_bytes_processed_tag="Observatory" -%}
 {% else %}
 tags:
-- name: Reports
-  description: Query data to build Open Access reports.
 - name: Organisation
   description: Create, read, update, delete and list information about organisations.
 - name: Workflow
@@ -81,7 +78,6 @@ tags:
   description: Create, read, update, delete and list information about the dataset info.
 - name: BigQueryBytesProcessed
   description: Create, read, update, delete and list information about the number of bytes processed in BigQuery Query jobs.
-{%- set reports_tag="Reports" -%}
 {%- set organisation_tag="Organisation" -%}
 {%- set workflow_tag="Workflow" -%}
 {%- set workflow_type_tag="WorkflowType" -%}
@@ -100,106 +96,6 @@ tags:
 {%- endif %}
 
 paths:
-  /v1/query:
-    get:
-      operationId: {{ operation_id_namespace }}queryv1
-      tags:
-        - {{ reports_tag }}
-      summary: Search the Observatory API
-      description: Search the Observatory API
-      parameters:
-        - in: query
-          name: agg
-          description: The aggregation level
-          required: true
-          enum:
-            - author
-            - country
-            - funder
-            - group
-            - institution
-            - publisher
-          type: string
-        - name: subset
-          in: query
-          description: The required subset
-          required: true
-          enum:
-            - citations
-            - collaborations
-            - disciplines
-            - events
-            - funders
-            - journals
-            - oa-metrics
-            - output-types
-            - publishers
-          type: string
-        - name: index_date
-          in: query
-          description: Index date, defaults to latest
-          required: false
-          format: date
-          type: string
-        - name: from
-          in: query
-          description: Start year (included)
-          required: false
-          type: integer
-          minimum: 4
-          maximum: 4
-        - name: to
-          in: query
-          description: End year (not included)
-          required: false
-          type: integer
-          minimum: 4
-          maximum: 4
-        - name: limit
-          in: query
-          description: Limit number of results (max 10000)
-          required: false
-          type: integer
-          maximum: 10000
-        - name: scroll_id
-          in: query
-          description: The scroll id
-          required: false
-          type: string
-        - name: pit_id
-          in: query
-          description: The PIT id
-          required: false
-          type: string
-        - name: search_after_no
-          in: query
-          description: The search after key
-          required: false
-          type: integer
-        - name: search_after_text
-          in: query
-          description: The search after key
-          required: false
-          type: string
-        {% for param in query_filter_parameters %}
-        - name: {{ param }}
-          in: query
-          type: array
-          items:
-            type: string
-          collectionFormat: multi
-        {% endfor %}
-      responses:
-        200:
-          description: Successfully return query results
-          schema:
-            $ref: '#/definitions/QueryResponse'
-        401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
-      produces:
-        - application/json
-
   /v1/workflow_type:
     get:
       tags:
@@ -1254,39 +1150,6 @@ paths:
 #          description: Successfully return query results
 
 definitions:
-  QueryResponse:
-    type: object
-    properties:
-      version:
-        type: string
-        description: The API version
-        example: 'v1'
-      index:
-        type: string
-        description: The full name of the elasticsearch index that is searched
-        example: 'citations-country-20201212'
-      scroll_id:
-        type: string
-        description: The scroll id that can be used to get the next batch of results (only active for 1min)
-        example: 'FGluY2x1ZGVfY29udGV4dF91dWlkDXF1ZXJ5QW5kRmV0Y2gBFlFkWThoZy1FUTZPQ2JhcXpGSnFjTEEAAAAAALEIyRZYRkVGWmNSRVRqU0VpTFdYbGFPUERR'
-      returned_hits:
-        type: integer
-        description: The number of returned hits (can be less than total_hits if a limit is set)
-        example: 10000
-      total_hits:
-        type: integer
-        description: The number of total hits
-        example: 126538
-      schema:
-        type: object
-        description: The schema for an individual hit
-        example: ''
-      results:
-        type: array
-        description: A list of the actual results (one dictionary per hit)
-        items:
-          type: object
-
   WorkflowType:
     type: object
     properties:
