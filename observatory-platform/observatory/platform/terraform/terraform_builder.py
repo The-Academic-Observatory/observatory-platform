@@ -31,7 +31,7 @@ from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.proc_utils import stream_process
 
 
-def copy_dir(source_path: str, destination_path: str, ignore):
+def copy_dir(source_path: str, destination_path: str):
     distutils.dir_util.copy_tree(source_path, destination_path)
 
 
@@ -89,16 +89,19 @@ class TerraformBuilder:
             shutil.rmtree(self.packages_build_path)
         os.makedirs(self.packages_build_path)
 
-        ignore = shutil.ignore_patterns("__pycache__", "*.eggs", "*.egg-info")
-
         # Copy local packages
         for package in self.config.python_packages:
             if package.type == "editable":
                 destination_path = os.path.join(self.packages_build_path, package.name)
-                copy_dir(package.host_package, destination_path, ignore)
+                copy_dir(package.host_package, destination_path)
 
-        # Copy terraform files into build/terraform: ignore jinja2 templates
-        copy_dir(self.terraform_path, self.terraform_build_path, shutil.ignore_patterns("*.jinja2", "__pycache__"))
+        # Clear terraform/terraform path
+        if os.path.exists(self.terraform_build_path):
+            shutil.rmtree(self.terraform_build_path)
+        os.makedirs(self.terraform_build_path)
+
+        # Copy terraform files into build/terraform
+        copy_dir(self.terraform_path, self.terraform_build_path)
 
         # Make startup scripts
         self.make_startup_script(True, "startup-main.tpl")
