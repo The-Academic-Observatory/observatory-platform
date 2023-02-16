@@ -33,7 +33,6 @@ from observatory.platform.observatory_config import (
     VirtualMachine,
     AirflowVariable,
     AirflowConnection,
-    ElasticSearch,
     Api,
 )
 from observatory.platform.terraform.terraform_builder import TerraformBuilder
@@ -91,7 +90,6 @@ class TestTerraformBuilder(unittest.TestCase):
             ),
             airflow_variables=[AirflowVariable(name="my-variable-name", value="my-variable-value")],
             airflow_connections=[AirflowConnection(name="my-connection", value="http://:my-token-key@")],
-            elasticsearch=ElasticSearch(host="https://address.region.gcp.cloud.es.io:port", api_key="API_KEY"),
             api=Api(
                 domain_name="api.custom.domain",
                 subdomain="project_id",

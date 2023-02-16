@@ -20,8 +20,6 @@ FROM python:3.9-slim
 
 # Environment variables
 ENV PBR_VERSION 0.0.1
-ENV ES_API_KEY ""
-ENV ES_HOST ""
 ENV OBSERVATORY_DB_URI sqlite://
 # Allow statements and log messages to immediately appear in the Knative logs
 ENV PYTHONUNBUFFERED True

@@ -98,19 +98,6 @@ variable "airflow_connections" {
   type = map(string)
 }
 
-variable "elasticsearch" {
-    description = <<EOF
-Elasticsearch login information
-
-api_key: The elasticsearch api-key
-host: The address of the elasticsearch server
-EOF
-  type = object({
-    api_key = string
-    host = string
-  })
-}
-
 variable "api" {
   description = <<EOF
 Settings related to the Observatory API
