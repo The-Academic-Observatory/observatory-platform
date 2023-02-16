@@ -218,11 +218,6 @@ airflow_worker_vm:
   disk_type: pd-standard # the disk type for the virtual machine
   create: false # determines whether virtual machine is created or destroyed
 
-# Elasticsearch
-elasticsearch:
-  host: https://address.region.gcp.cloud.es.io:port <-- # the address of the elasticsearch host
-  api_key: API_KEY <-- # the api key of the elasticsearch account
-
 # API settings
 api:
   domain_name: api.observatory.academy <-- # the custom domain name for the API, used for the google cloud endpoints service
@@ -256,41 +251,6 @@ observatory generate fernet-key
 ### Encoding airflow connections 
 Note that the login and passwords in the 'airflow_connections' variables need to be URL encoded, otherwise they will 
 not be parsed correctly. 
-
-### Elasticsearch
-Note that the host is the hostname for elasticsearch is different than the hostname for kibana.  
-To generate an API key, execute in the Kibana Dev console:
-```yaml
-POST /_security/api_key
-{
-  "name": "my-dev-api-key",
-  "role_descriptors": { 
-    "role-read-access-all": {
-      "cluster": ["all"],
-      "index": [
-        {
-          "names": ["*"],
-          "privileges": ["read", "view_index_metadata", "monitor"]
-        }
-      ]
-    }
-  }
-}
-```  
-
-This returns:
-```yaml
-{
-  "id" : "random_id",
-  "name" : "my-dev-api-key",
-  "api_key" : "random_api_key"
-}
-```
-
-Concat id:api_key and base64 encode (this final value is what you use in the configuration file):
-```bash
-printf 'random_id:random_api_key' | base64
-```
 
 ## Building the Google Compute VM image with Packer
 First, build and deploy the Observatory Platform Google Compute VM image with Packer:
@@ -380,7 +340,6 @@ Terraform Cloud Workspace:
    * airflow: sensitive
    * google_cloud: sensitive
    * cloud_sql_database: sensitive
-   * elasticsearch: sensitive
    * api: {"domain_name"="api.observatory.academy","subdomain"="project_id"}
    * airflow_main_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=true}
    * airflow_worker_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=false}
@@ -416,7 +375,6 @@ Terraform Cloud Workspace:
    * google_cloud: sensitive -> sensitive
    * cloud_sql_database: sensitive -> sensitive
    * airflow_connections: sensitive -> sensitive
-   * elasticsearch: sensitive -> sensitive
   UNCHANGED
    * api: {"domain_name"="api.observatory.academy","subdomain"="project_id"}
    * environment: develop
