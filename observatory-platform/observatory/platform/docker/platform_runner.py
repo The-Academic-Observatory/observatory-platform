@@ -156,8 +156,6 @@ class PlatformRunner(ComposeRunner):
         env["HOST_REDIS_PORT"] = str(self.config.observatory.redis_port)
         env["HOST_FLOWER_UI_PORT"] = str(self.config.observatory.flower_ui_port)
         env["HOST_AIRFLOW_UI_PORT"] = str(self.config.observatory.airflow_ui_port)
-        env["HOST_ELASTIC_PORT"] = str(self.config.observatory.elastic_port)
-        env["HOST_KIBANA_PORT"] = str(self.config.observatory.kibana_port)
         env["HOST_API_PORT"] = str(self.config.observatory.api_port)
 
         # Secrets

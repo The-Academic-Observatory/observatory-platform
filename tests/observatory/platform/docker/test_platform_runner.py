@@ -68,8 +68,6 @@ def make_expected_env(cmd: PlatformRunner) -> Dict:
         "HOST_REDIS_PORT": str(cmd.config.observatory.redis_port),
         "HOST_FLOWER_UI_PORT": str(cmd.config.observatory.flower_ui_port),
         "HOST_AIRFLOW_UI_PORT": str(cmd.config.observatory.airflow_ui_port),
-        "HOST_ELASTIC_PORT": str(cmd.config.observatory.elastic_port),
-        "HOST_KIBANA_PORT": str(cmd.config.observatory.kibana_port),
         "HOST_API_PORT": str(cmd.config.observatory.api_port),
         "AIRFLOW_FERNET_KEY": cmd.config.observatory.airflow_fernet_key,
         "AIRFLOW_SECRET_KEY": cmd.config.observatory.airflow_secret_key,
