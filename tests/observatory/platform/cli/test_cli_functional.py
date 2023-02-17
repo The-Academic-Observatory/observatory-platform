@@ -142,12 +142,9 @@ class TestCliFunctional(unittest.TestCase):
                 redis_port=find_free_port(),
                 flower_ui_port=find_free_port(),
                 airflow_ui_port=find_free_port(),
-                elastic_port=find_free_port(),
-                kibana_port=find_free_port(),
                 api_port=find_free_port(),
                 docker_network_name=self.docker_network_name,
                 docker_compose_project_name=self.docker_compose_project_name,
-                enable_elk=False,
                 api_package_type="editable",
                 api_package=os.path.join(temp_dir, self.observatory_api_package_name),
             ),
@@ -201,11 +198,6 @@ class TestCliFunctional(unittest.TestCase):
 
         # Expected values
         expected_ports = [observatory.airflow_ui_port, observatory.flower_ui_port]
-        if observatory.enable_elk:
-            expected_ports += [
-                observatory.elastic_port,
-                observatory.kibana_port,
-            ]
 
         # Verify that ports are active
         urls = []
@@ -336,12 +328,9 @@ class TestCliFunctional(unittest.TestCase):
                 redis_port=find_free_port(),
                 flower_ui_port=find_free_port(),
                 airflow_ui_port=find_free_port(),
-                elastic_port=find_free_port(),
-                kibana_port=find_free_port(),
                 api_port=find_free_port(),
                 docker_network_name=self.docker_network_name,
                 docker_compose_project_name=self.docker_compose_project_name,
-                enable_elk=False,
                 api_package=observatory_api_sdist_path,
                 api_package_type="sdist",
             ),

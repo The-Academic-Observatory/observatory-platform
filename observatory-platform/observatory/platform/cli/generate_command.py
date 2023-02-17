@@ -647,16 +647,6 @@ class InteractiveConfigBuilder:
         airflow_ui_port = click.prompt(text=text, type=int, default=default, show_default=True)
         config.observatory.airflow_ui_port = airflow_ui_port
 
-        text = "Elastic port"
-        default = config.observatory.elastic_port
-        elastic_port = click.prompt(text=text, type=int, default=default, show_default=True)
-        config.observatory.elastic_port = elastic_port
-
-        text = "Kibana port"
-        default = config.observatory.kibana_port
-        kibana_port = click.prompt(text=text, type=int, default=default, show_default=True)
-        config.observatory.kibana_port = kibana_port
-
         text = "API port"
         default = config.observatory.api_port
         api_port = click.prompt(text=text, type=int, default=default, show_default=True)
