@@ -66,7 +66,7 @@ def retry_get_url(
                 response.raise_for_status()
             except requests.exceptions.RequestException as e:
                 response_log = f"Error getting url: {log_url} | "
-                if response:  # Timeout error doesn't result in response
+                if response is not None:  # Timeout error doesn't result in response
                     response_log += f"Got response code: {response.status_code} | Reason: {response.reason} | "
                 response_log += (
                     f"Attempt: {attempt.retry_state.attempt_number} | Idle for: {attempt.retry_state.idle_for}"
