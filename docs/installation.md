@@ -5,6 +5,7 @@ Observatory Platform supports Python 3.8, Ubuntu Linux 20.04 and MacOS 10.14, on
 * Python 3.8
 * Pip
 * Docker
+* Docker Compose V2
 * virtualenv
 * curl
 

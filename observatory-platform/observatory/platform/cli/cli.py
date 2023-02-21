@@ -15,8 +15,6 @@
 # Author: James Diprose, Aniek Roelofs, Tuan Chien
 
 import os
-import subprocess
-import sys
 from typing import ClassVar
 
 import click
@@ -35,7 +33,6 @@ from observatory.platform.utils.config_utils import observatory_home
 from observatory.platform.utils.config_utils import (
     terraform_credentials_path as default_terraform_credentials_path,
 )
-from observatory.platform.utils.proc_utils import stream_process
 
 PLATFORM_NAME = "Observatory Platform"
 TERRAFORM_NAME = "Observatory Terraform"
@@ -160,9 +157,9 @@ def platform_check_dependencies(platform_cmd: PlatformCommand, min_line_chars: i
     else:
         print(indent("- not installed, please install https://docs.docker.com/get-docker/", INDENT2))
 
-    print(indent("Docker Compose:", INDENT1))
-    if platform_cmd.docker_compose_path is not None:
-        print(indent(f"- path: {platform_cmd.docker_compose_path}", INDENT2))
+    print(indent("Docker Compose V2:", INDENT1))
+    if platform_cmd.docker_compose:
+        print(indent(f"- installed", INDENT2))
     else:
         print(indent("- not installed, please install https://docs.docker.com/compose/install/", INDENT2))
 

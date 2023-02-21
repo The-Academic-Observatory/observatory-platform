@@ -39,7 +39,7 @@ class ProcessOutput:
 
 
 class ComposeRunner(Builder):
-    COMPOSE_ARGS_PREFIX = ["docker-compose", "-f"]
+    COMPOSE_ARGS_PREFIX = ["docker", "compose", "-f"]
     COMPOSE_BUILD_ARGS = ["build"]
     COMPOSE_START_ARGS = ["up", "-d"]
     COMPOSE_STOP_ARGS = ["down"]

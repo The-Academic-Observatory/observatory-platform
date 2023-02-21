@@ -212,7 +212,7 @@ class MockPlatformCommand(Mock):
         is_environment_valid: bool,
         docker_exe_path: str,
         is_docker_running: bool,
-        docker_compose_path: str,
+        docker_compose: bool,
         build_return_code: int,
         start_return_code: int,
         stop_return_code: int,
@@ -225,7 +225,7 @@ class MockPlatformCommand(Mock):
         self.is_environment_valid = is_environment_valid
         self.docker_exe_path = docker_exe_path
         self.is_docker_running = is_docker_running
-        self.docker_compose_path = docker_compose_path
+        self.docker_compose = docker_compose
         self.host_uid = HOST_UID
         self.debug = DEBUG
         self.dags_path = dags_path
@@ -269,7 +269,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             is_environment_valid = True
             docker_exe_path = "/path/to/docker"
             is_docker_running = True
-            docker_compose_path = "/path/to/docker-compose"
+            docker_compose = True
             config = MockConfig(is_valid=True)
             mock_config.return_value = config
             build_return_code = 0
@@ -282,7 +282,7 @@ class TestObservatoryPlatform(unittest.TestCase):
                 is_environment_valid=is_environment_valid,
                 docker_exe_path=docker_exe_path,
                 is_docker_running=is_docker_running,
-                docker_compose_path=docker_compose_path,
+                docker_compose=docker_compose,
                 build_return_code=build_return_code,
                 start_return_code=start_return_code,
                 stop_return_code=stop_return_code,
@@ -312,7 +312,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             is_environment_valid = False
             docker_exe_path = None
             is_docker_running = False
-            docker_compose_path = None
+            docker_compose = False
             config = None
             build_return_code = 0
             start_return_code = 0
@@ -324,7 +324,7 @@ class TestObservatoryPlatform(unittest.TestCase):
                 is_environment_valid=is_environment_valid,
                 docker_exe_path=docker_exe_path,
                 is_docker_running=is_docker_running,
-                docker_compose_path=docker_compose_path,
+                docker_compose=docker_compose,
                 build_return_code=build_return_code,
                 start_return_code=start_return_code,
                 stop_return_code=stop_return_code,
@@ -355,7 +355,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             is_environment_valid = False
             docker_exe_path = None
             is_docker_running = False
-            docker_compose_path = None
+            docker_compose = False
             config = MockConfig(is_valid=True)
             mock_config.return_value = config
             build_return_code = 0
@@ -368,7 +368,7 @@ class TestObservatoryPlatform(unittest.TestCase):
                 is_environment_valid=is_environment_valid,
                 docker_exe_path=docker_exe_path,
                 is_docker_running=is_docker_running,
-                docker_compose_path=docker_compose_path,
+                docker_compose=docker_compose,
                 build_return_code=build_return_code,
                 start_return_code=start_return_code,
                 stop_return_code=stop_return_code,
@@ -404,7 +404,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             is_environment_valid = False
             docker_exe_path = "/path/to/docker"
             is_docker_running = False
-            docker_compose_path = "/path/to/docker-compose"
+            docker_compose = True
             config = MockConfig(is_valid=True)
             mock_config.return_value = config
             build_return_code = 0
@@ -417,7 +417,7 @@ class TestObservatoryPlatform(unittest.TestCase):
                 is_environment_valid=is_environment_valid,
                 docker_exe_path=docker_exe_path,
                 is_docker_running=is_docker_running,
-                docker_compose_path=docker_compose_path,
+                docker_compose=docker_compose,
                 build_return_code=build_return_code,
                 start_return_code=start_return_code,
                 stop_return_code=stop_return_code,
@@ -450,7 +450,7 @@ class TestObservatoryPlatform(unittest.TestCase):
             is_environment_valid = False
             docker_exe_path = "/path/to/docker"
             is_docker_running = False
-            docker_compose_path = "/path/to/docker-compose"
+            docker_compose = True
             validation_error = ValidationError("google_cloud.credentials", "required field")
             config = MockConfig(is_valid=False, errors=[validation_error])
             mock_config.return_value = config
@@ -464,7 +464,7 @@ class TestObservatoryPlatform(unittest.TestCase):
                 is_environment_valid=is_environment_valid,
                 docker_exe_path=docker_exe_path,
                 is_docker_running=is_docker_running,
-                docker_compose_path=docker_compose_path,
+                docker_compose=docker_compose,
                 build_return_code=build_return_code,
                 start_return_code=start_return_code,
                 stop_return_code=stop_return_code,

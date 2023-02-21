@@ -121,15 +121,13 @@ class TestPlatformRunner(unittest.TestCase):
             self.assertIsNotNone(result)
             self.assertTrue(result.endswith("docker"))
 
-    def test_docker_compose_path(self):
+    def test_docker_compose(self):
         """Test that the path to the Docker Compose executable is found"""
 
         with CliRunner().isolated_filesystem() as t:
             cfg = self.get_config(t)
             cmd = PlatformRunner(config=cfg)
-            result = cmd.docker_compose_path
-            self.assertIsNotNone(result)
-            self.assertTrue(result.endswith("docker-compose"))
+            self.assertTrue(cmd.docker_compose)
 
     @patch("observatory.platform.docker.platform_runner.docker.from_env")
     def test_is_docker_running_true(self, mock_from_env):
