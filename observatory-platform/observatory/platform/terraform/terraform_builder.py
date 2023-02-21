@@ -100,10 +100,10 @@ class TerraformBuilder:
             terraform_files = os.listdir(self.terraform_build_path)
             terraform_files_to_delete = [file for file in terraform_files if not file.startswith(".")]
             for file in terraform_files_to_delete:
-                if os.path.isfile(f"{self.terraform_build_path}/{file}"):
-                    os.remove(f"{self.terraform_build_path}/{file}")
+                if os.path.isfile(os.path.join(self.terraform_build_path, file)):
+                    os.remove(os.path.join(self.terraform_build_path, file))
                 else:
-                    shutil.rmtree(f"{self.terraform_build_path}/{file}")
+                    shutil.rmtree(os.path.join(self.terraform_build_path, file))
         else:
             os.makedirs(self.terraform_build_path)
 
