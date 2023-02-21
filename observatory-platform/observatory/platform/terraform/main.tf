@@ -303,32 +303,6 @@ data "google_compute_subnetwork" "observatory_subnetwork" {
   depends_on = [google_compute_network.observatory_network] # necessary to force reading of data
 }
 
-resource "google_compute_firewall" "allow_http" {
-  name = "allow-http"
-  description = "Allow HTTP ingress"
-  network = google_compute_network.observatory_network.name
-
-  allow {
-    protocol = "tcp"
-    ports = ["80"]
-  }
-  target_tags = ["http-server"]
-  priority = 1000
-}
-
-resource "google_compute_firewall" "allow_https" {
-  name = "allow-https"
-  description = "Allow HTTPS ingress"
-  network = google_compute_network.observatory_network.name
-
-  allow {
-    protocol = "tcp"
-    ports = ["443"]
-  }
-  target_tags = ["https-server"]
-  priority = 1000
-}
-
 resource "google_compute_firewall" "allow_internal" {
   name = "allow-internal"
   description = "Allow internal connections"
@@ -336,8 +310,9 @@ resource "google_compute_firewall" "allow_internal" {
   source_ranges = ["10.128.0.0/9"]
   allow {
     protocol = "tcp"
-    ports = ["0-65535"]
+    ports = ["6379"] # Open redis port to the internal network which is used by Airflow
   }
+  source_tags = [google_compute_network.observatory_network.name]
   priority = 65534
 }
 
@@ -345,6 +320,8 @@ resource "google_compute_firewall" "allow_ssh" {
   name = "allow-ssh"
   description = "Allow SSH from anywhere"
   network = google_compute_network.observatory_network.name
+  target_tags   = ["allow-ssh"]
+  source_ranges = ["0.0.0.0/0"]
 
   allow {
     protocol = "tcp"

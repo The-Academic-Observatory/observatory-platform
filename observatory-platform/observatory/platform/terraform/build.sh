@@ -18,7 +18,8 @@ sudo usermod -aG docker airflow
 sudo newgrp docker
 
 echo " ----- Install Berglas v1.0.1 ----- "
-sudo curl -L "https://storage.googleapis.com/berglas/1.0.1/linux_amd64/berglas" -o /usr/local/bin/berglas
+# See here for a list of releases: https://github.com/GoogleCloudPlatform/berglas/releases
+curl -L "https://github.com/GoogleCloudPlatform/berglas/releases/download/v1.0.1/berglas_1.0.1_linux_amd64.tar.gz" | sudo tar -xz -C /usr/local/bin berglas
 sudo chmod +x /usr/local/bin/berglas
 
 echo " ----- Install Google Compute Monitoring agent ----- "
