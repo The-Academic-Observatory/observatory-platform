@@ -95,7 +95,7 @@ class PlatformRunner(ComposeRunner):
         :return: whether the environment for building the Observatory Platform is valid.
         """
 
-        return all([self.docker_exe_path is not None, self.docker_compose_path is not None, self.is_docker_running])
+        return all([self.docker_exe_path is not None, self.docker_compose, self.is_docker_running])
 
     @property
     def docker_module_path(self) -> str:
@@ -116,13 +116,14 @@ class PlatformRunner(ComposeRunner):
         return shutil.which("docker")
 
     @property
-    def docker_compose_path(self) -> str:
-        """The path to the Docker Compose executable.
+    def docker_compose(self) -> bool:
+        """Whether Docker Compose is installed.
 
-        :return: the path or None.
+        :return: true or false.
         """
 
-        return shutil.which("docker-compose")
+        stream = os.popen("docker info")
+        return "compose: Docker Compose" in stream.read()
 
     @property
     def is_docker_running(self) -> bool:

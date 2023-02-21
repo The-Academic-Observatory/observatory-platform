@@ -268,7 +268,7 @@ function install_ubuntu_system_deps() {
     echo "Installing docker"
     echo "-----------------"
 
-    sudo apt-get install -y docker.io
+    sudo apt-get install -y docker.io docker-compose-plugin
 
     echo "Adding $(id -nu) to the docker group"
     sudo usermod -aG docker $(id -nu)
