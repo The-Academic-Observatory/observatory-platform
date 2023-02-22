@@ -95,10 +95,17 @@ class TerraformBuilder:
                 destination_path = os.path.join(self.packages_build_path, package.name)
                 copy_dir(package.host_package, destination_path)
 
-        # Clear terraform/terraform path
+        # Clear terraform/terraform path, but keep the .terraform folder and other hidden files necessary for terraform.
         if os.path.exists(self.terraform_build_path):
-            shutil.rmtree(self.terraform_build_path)
-        os.makedirs(self.terraform_build_path)
+            terraform_files = os.listdir(self.terraform_build_path)
+            terraform_files_to_delete = [file for file in terraform_files if not file.startswith(".")]
+            for file in terraform_files_to_delete:
+                if os.path.isfile(os.path.join(self.terraform_build_path, file)):
+                    os.remove(os.path.join(self.terraform_build_path, file))
+                else:
+                    shutil.rmtree(os.path.join(self.terraform_build_path, file))
+        else:
+            os.makedirs(self.terraform_build_path)
 
         # Copy terraform files into build/terraform
         copy_dir(self.terraform_path, self.terraform_build_path)
