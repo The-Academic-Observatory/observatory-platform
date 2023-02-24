@@ -15,29 +15,29 @@
 # Author: Tuan Chien
 
 import datetime
-import os
 from unittest.mock import patch
 
 import pendulum
 from airflow.models import XCom
 from airflow.models.connection import Connection
-from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 
-from observatory.platform.observatory_config import VirtualMachine
-from observatory.platform.terraform.terraform_api import TerraformVariable
-from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.test_utils import (
+from observatory.platform.config import AirflowConns
+from observatory.platform.observatory_config import Workflow, VirtualMachine
+from observatory.platform.observatory_environment import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
-    module_file_path,
 )
+from observatory.platform.terraform.terraform_api import TerraformVariable
 from observatory.platform.workflows.vm_workflow import (
-    TerraformRelease,
     VmCreateWorkflow,
     VmDestroyWorkflow,
     parse_datetime,
+    XCOM_START_TIME_VM,
+    XCOM_PREV_START_TIME_VM,
+    XCOM_DESTROY_TIME_VM,
+    XCOM_WARNING_TIME,
 )
 
 
@@ -68,21 +68,18 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.dag_id = "vm_destroy"
+        self.terraform_organisation = "terraform-org"
+        self.terraform_workspace = "my-terraform-workspace-develop"
+        self.vm_create_dag_id = "vm_create"
 
-    def setup_env(self, env, watch_list):
-        var = Variable(key=AirflowVars.PROJECT_ID, val="project")
-        env.add_variable(var)
+    def setup_env(self, env):
+        conn = Connection(
+            conn_id=AirflowConns.SLACK, uri="https://:my-slack-token@https%3A%2F%2Fhooks.slack.com%2Fservices"
+        )
+        env.add_connection(conn)
 
-        var = Variable(key=AirflowVars.TERRAFORM_ORGANIZATION, val="terraform_org")
-        env.add_variable(var)
-
-        var = Variable(key=AirflowVars.ENVIRONMENT, val="environment")
-        env.add_variable(var)
-
-        var = Variable(key=AirflowVars.VM_DAGS_WATCH_LIST, val=watch_list)
-        env.add_variable(var)
-
-        conn = Connection(conn_id=AirflowConns.TERRAFORM, uri="http://localhost")
+        conn = Connection(conn_id=AirflowConns.TERRAFORM, uri="http://:apikey@")
         env.add_connection(conn)
 
     def test_dag_structure(self):
@@ -90,7 +87,12 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
         :return: None
         """
 
-        dag = VmDestroyWorkflow().make_dag()
+        dag = VmDestroyWorkflow(
+            dag_id=self.dag_id,
+            terraform_organisation=self.terraform_organisation,
+            terraform_workspace=self.terraform_workspace,
+            dags_watch_list=[],
+        ).make_dag()
         self.assert_dag_structure(
             {
                 "check_dependencies": ["check_vm_state"],
@@ -109,9 +111,29 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
         :return: None
         """
 
-        with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.platform.dags"), "vm_destroy.py")
-            self.assert_dag_load("vm_destroy", dag_file)
+        env = ObservatoryEnvironment(
+            workflows=[
+                Workflow(
+                    dag_id="vm_destroy",
+                    name="VM Destroy Workflow",
+                    class_name="observatory.platform.workflows.vm_workflow.VmDestroyWorkflow",
+                    kwargs=dict(
+                        terraform_organisation="terraform_organisation",
+                        terraform_workspace="terraform_workspace",
+                        dags_watch_list=[
+                            "crossref_events",
+                            "crossref_metadata",
+                            "open_citations",
+                            "unpaywall",
+                            "openalex",
+                        ],
+                    ),
+                )
+            ]
+        )
+
+        with env.create():
+            self.assert_dag_load_from_config("vm_destroy")
 
     def test_parse_datetime(self):
         expected = pendulum.datetime(2021, 1, 1)
@@ -120,7 +142,12 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
     @patch("observatory.platform.workflows.vm_workflow.DagRun.find")
     def test_get_last_execution_prev(self, m_drfind):
-        workflow = VmDestroyWorkflow()
+        workflow = VmDestroyWorkflow(
+            dag_id=self.dag_id,
+            terraform_organisation=self.terraform_organisation,
+            terraform_workspace=self.terraform_workspace,
+            dags_watch_list=[],
+        )
 
         class MockDagRun:
             def __init__(self, *, start_date, execution_date, state):
@@ -200,7 +227,12 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
     @patch("observatory.platform.workflows.vm_workflow.DagRun.find")
     def test_check_success_run(self, m_drfind):
-        workflow = VmDestroyWorkflow()
+        workflow = VmDestroyWorkflow(
+            dag_id=self.dag_id,
+            terraform_organisation=self.terraform_organisation,
+            terraform_workspace=self.terraform_workspace,
+            dags_watch_list=[],
+        )
 
         class MockDagRun:
             def __init__(self, *, start_date, execution_date, state):
@@ -263,10 +295,15 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment()
         with env.create():
-            workflow = VmDestroyWorkflow()
+            workflow = VmDestroyWorkflow(
+                dag_id=self.dag_id,
+                terraform_organisation=self.terraform_organisation,
+                terraform_workspace=self.terraform_workspace,
+                dags_watch_list=[],
+            )
             dag = workflow.make_dag()
             execution_date = pendulum.datetime(2021, 1, 1)
-            self.setup_env(env, "[]")
+            self.setup_env(env)
 
             with env.create_dag_run(dag, execution_date):
                 # check dependencies
@@ -299,10 +336,15 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment()
         with env.create():
-            workflow = VmDestroyWorkflow()
+            workflow = VmDestroyWorkflow(
+                dag_id=self.dag_id,
+                terraform_organisation=self.terraform_organisation,
+                terraform_workspace=self.terraform_workspace,
+                dags_watch_list=[],
+            )
             dag = workflow.make_dag()
             execution_date = pendulum.datetime(2021, 1, 1)
-            self.setup_env(env, "[]")
+            self.setup_env(env)
 
             with env.create_dag_run(dag, execution_date):
                 # check dependencies
@@ -319,7 +361,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # update terraform variable
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.update_terraform_vm_create_variable"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
                 ) as m_update:
                     ti = env.run_task(workflow.update_terraform_variable.__name__)
                     m_update.assert_called_once_with(False)
@@ -373,10 +415,15 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment()
         with env.create():
-            workflow = VmDestroyWorkflow()
+            workflow = VmDestroyWorkflow(
+                dag_id=self.dag_id,
+                terraform_organisation=self.terraform_organisation,
+                terraform_workspace=self.terraform_workspace,
+                dags_watch_list=["vm_destroy"],
+            )
             dag = workflow.make_dag()
             execution_date = pendulum.datetime(2021, 1, 1)
-            self.setup_env(env, '["vm_destroy"]')
+            self.setup_env(env)
 
             with env.create_dag_run(dag, execution_date):
                 # check dependencies
@@ -413,10 +460,15 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment()
         with env.create():
-            workflow = VmDestroyWorkflow()
+            workflow = VmDestroyWorkflow(
+                dag_id=self.dag_id,
+                terraform_organisation=self.terraform_organisation,
+                terraform_workspace=self.terraform_workspace,
+                dags_watch_list=["vm_destroy"],
+            )
             dag = workflow.make_dag()
             execution_date = pendulum.datetime(2021, 1, 1)
-            self.setup_env(env, '["vm_destroy"]')
+            self.setup_env(env)
 
             with env.create_dag_run(dag, execution_date):
                 # check dependencies
@@ -429,18 +481,18 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # check dags status
                 xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
+                    dag_id=self.vm_create_dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=TerraformRelease.XCOM_START_TIME_VM,
+                    key=XCOM_START_TIME_VM,
                     value="2021-01-01",
                 )
 
                 xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
+                    dag_id=self.vm_create_dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=TerraformRelease.XCOM_PREV_START_TIME_VM,
+                    key=XCOM_PREV_START_TIME_VM,
                     value="2021-01-01",
                 )
 
@@ -472,7 +524,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # update terraform variable
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.update_terraform_vm_create_variable"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
                 ) as m_update:
                     ti = env.run_task(workflow.update_terraform_variable.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
@@ -480,7 +532,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # update terraform variable
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.create_terraform_run"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.create_terraform_run"
                 ) as m_runterraform:
                     m_runterraform.return_value = "run_id"
                     ti = env.run_task(workflow.run_terraform.__name__)
@@ -489,7 +541,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # check run status
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.check_terraform_run_status"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.check_terraform_run_status"
                 ) as m_checkrun:
                     ti = env.run_task(workflow.check_run_status.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
@@ -524,10 +576,15 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment()
         with env.create():
-            workflow = VmDestroyWorkflow()
+            workflow = VmDestroyWorkflow(
+                dag_id=self.dag_id,
+                terraform_organisation=self.terraform_organisation,
+                terraform_workspace=self.terraform_workspace,
+                dags_watch_list=["vm_destroy"],
+            )
             dag = workflow.make_dag()
             execution_date = pendulum.datetime(2021, 1, 1)
-            self.setup_env(env, '["vm_destroy"]')
+            self.setup_env(env)
 
             with env.create_dag_run(dag, execution_date):
                 # check dependencies
@@ -540,26 +597,26 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # check dags status
                 xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
+                    dag_id=self.vm_create_dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=TerraformRelease.XCOM_START_TIME_VM,
+                    key=XCOM_START_TIME_VM,
                     value="2021-01-01",
                 )
 
                 xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
+                    dag_id=self.vm_create_dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=TerraformRelease.XCOM_PREV_START_TIME_VM,
+                    key=XCOM_PREV_START_TIME_VM,
                     value="2021-01-01",
                 )
 
                 xcom_push(
-                    dag_id=VmDestroyWorkflow.DAG_ID,
+                    dag_id=self.dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=VmDestroyWorkflow.XCOM_DESTROY_TIME_VM,
+                    key=XCOM_DESTROY_TIME_VM,
                     value="2021-01-01",
                 )
 
@@ -591,7 +648,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # update terraform variable
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.update_terraform_vm_create_variable"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
                 ) as m_update:
                     ti = env.run_task(workflow.update_terraform_variable.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
@@ -599,7 +656,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # update terraform variable
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.create_terraform_run"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.create_terraform_run"
                 ) as m_runterraform:
                     m_runterraform.return_value = "run_id"
                     ti = env.run_task(workflow.run_terraform.__name__)
@@ -608,7 +665,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # check run status
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.check_terraform_run_status"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.check_terraform_run_status"
                 ) as m_checkrun:
                     ti = env.run_task(workflow.check_run_status.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
@@ -643,10 +700,15 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment()
         with env.create():
-            workflow = VmDestroyWorkflow()
+            workflow = VmDestroyWorkflow(
+                dag_id=self.dag_id,
+                terraform_organisation=self.terraform_organisation,
+                terraform_workspace=self.terraform_workspace,
+                dags_watch_list=["vm_destroy"],
+            )
             dag = workflow.make_dag()
             execution_date = pendulum.datetime(2021, 1, 1)
-            self.setup_env(env, '["vm_destroy"]')
+            self.setup_env(env)
 
             with env.create_dag_run(dag, execution_date):
                 # check dependencies
@@ -659,26 +721,26 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # check dags status
                 xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
+                    dag_id=self.vm_create_dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=TerraformRelease.XCOM_START_TIME_VM,
+                    key=XCOM_START_TIME_VM,
                     value="2020-01-01",
                 )
 
                 xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
+                    dag_id=self.vm_create_dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=TerraformRelease.XCOM_PREV_START_TIME_VM,
+                    key=XCOM_PREV_START_TIME_VM,
                     value="2021-01-01",
                 )
 
                 xcom_push(
-                    dag_id=VmDestroyWorkflow.DAG_ID,
+                    dag_id=self.dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=VmDestroyWorkflow.XCOM_DESTROY_TIME_VM,
+                    key=XCOM_DESTROY_TIME_VM,
                     value="2021-01-01",
                 )
 
@@ -710,7 +772,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # update terraform variable
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.update_terraform_vm_create_variable"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
                 ) as m_update:
                     ti = env.run_task(workflow.update_terraform_variable.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
@@ -718,7 +780,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # update terraform variable
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.create_terraform_run"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.create_terraform_run"
                 ) as m_runterraform:
                     m_runterraform.return_value = "run_id"
                     ti = env.run_task(workflow.run_terraform.__name__)
@@ -727,7 +789,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # check run status
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.check_terraform_run_status"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.check_terraform_run_status"
                 ) as m_checkrun:
                     ti = env.run_task(workflow.check_run_status.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
@@ -762,10 +824,15 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment()
         with env.create():
-            workflow = VmDestroyWorkflow()
+            workflow = VmDestroyWorkflow(
+                dag_id=self.dag_id,
+                terraform_organisation=self.terraform_organisation,
+                terraform_workspace=self.terraform_workspace,
+                dags_watch_list=["vm_destroy"],
+            )
             dag = workflow.make_dag()
             execution_date = pendulum.datetime(2021, 1, 1)
-            self.setup_env(env, '["vm_destroy"]')
+            self.setup_env(env)
 
             with env.create_dag_run(dag, execution_date):
                 # check dependencies
@@ -778,26 +845,26 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # check dags status
                 xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
+                    dag_id=self.vm_create_dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=TerraformRelease.XCOM_START_TIME_VM,
+                    key=XCOM_START_TIME_VM,
                     value="2020-01-01",
                 )
 
                 xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
+                    dag_id=self.vm_create_dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=TerraformRelease.XCOM_PREV_START_TIME_VM,
+                    key=XCOM_PREV_START_TIME_VM,
                     value="2021-01-01",
                 )
 
                 xcom_push(
-                    dag_id=VmDestroyWorkflow.DAG_ID,
+                    dag_id=self.dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=VmDestroyWorkflow.XCOM_DESTROY_TIME_VM,
+                    key=XCOM_DESTROY_TIME_VM,
                     value="2021-01-01",
                 )
 
@@ -829,7 +896,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # update terraform variable
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.update_terraform_vm_create_variable"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
                 ) as m_update:
                     ti = env.run_task(workflow.update_terraform_variable.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
@@ -837,7 +904,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # update terraform variable
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.create_terraform_run"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.create_terraform_run"
                 ) as m_runterraform:
                     m_runterraform.return_value = "run_id"
                     ti = env.run_task(workflow.run_terraform.__name__)
@@ -846,7 +913,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # check run status
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.check_terraform_run_status"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.check_terraform_run_status"
                 ) as m_checkrun:
                     ti = env.run_task(workflow.check_run_status.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
@@ -881,10 +948,15 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment()
         with env.create():
-            workflow = VmDestroyWorkflow()
+            workflow = VmDestroyWorkflow(
+                dag_id=self.dag_id,
+                terraform_organisation=self.terraform_organisation,
+                terraform_workspace=self.terraform_workspace,
+                dags_watch_list=["vm_destroy"],
+            )
             dag = workflow.make_dag()
             execution_date = pendulum.datetime(2021, 1, 1)
-            self.setup_env(env, '["vm_destroy"]')
+            self.setup_env(env)
 
             with env.create_dag_run(dag, execution_date):
                 # check dependencies
@@ -897,10 +969,10 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # check dags status
                 xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
+                    dag_id=self.vm_create_dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=TerraformRelease.XCOM_START_TIME_VM,
+                    key=XCOM_START_TIME_VM,
                     value="2021-01-01",
                 )
 
@@ -933,7 +1005,7 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # update terraform variable
                 with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformRelease.update_terraform_vm_create_variable"
+                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
                 ) as m_update:
                     ti = env.run_task(workflow.update_terraform_variable.__name__)
                     self.assertEqual(ti.state, State.SKIPPED)
@@ -956,10 +1028,15 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment()
         with env.create():
-            workflow = VmDestroyWorkflow()
+            workflow = VmDestroyWorkflow(
+                dag_id=self.dag_id,
+                terraform_organisation=self.terraform_organisation,
+                terraform_workspace=self.terraform_workspace,
+                dags_watch_list=["vm_destroy"],
+            )
             dag = workflow.make_dag()
             execution_date = pendulum.datetime(2021, 1, 1)
-            self.setup_env(env, '["vm_destroy"]')
+            self.setup_env(env)
 
             with env.create_dag_run(dag, execution_date):
                 # check dependencies
@@ -972,26 +1049,26 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
                 # check dags status
                 xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
+                    dag_id=self.vm_create_dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=TerraformRelease.XCOM_START_TIME_VM,
+                    key=XCOM_START_TIME_VM,
                     value="2020-12-31",
                 )
 
                 xcom_push(
-                    dag_id=VmCreateWorkflow.DAG_ID,
+                    dag_id=self.vm_create_dag_id,
                     task_id=VmCreateWorkflow.run_terraform.__name__,
                     execution_date=execution_date,
-                    key=TerraformRelease.XCOM_PREV_START_TIME_VM,
+                    key=XCOM_PREV_START_TIME_VM,
                     value="2021-01-01",
                 )
 
                 xcom_push(
-                    dag_id=VmDestroyWorkflow.DAG_ID,
+                    dag_id=self.dag_id,
                     task_id=VmDestroyWorkflow.check_runtime_vm.__name__,
                     execution_date=execution_date,
-                    key=VmDestroyWorkflow.XCOM_WARNING_TIME,
+                    key=XCOM_WARNING_TIME,
                     value="2020-01-01",
                 )
 
@@ -1046,10 +1123,15 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment()
         with env.create():
-            workflow = VmDestroyWorkflow()
+            workflow = VmDestroyWorkflow(
+                dag_id=self.dag_id,
+                terraform_organisation=self.terraform_organisation,
+                terraform_workspace=self.terraform_workspace,
+                dags_watch_list=["vm_destroy"],
+            )
             dag = workflow.make_dag()
             execution_date = pendulum.datetime(2021, 1, 1)
-            self.setup_env(env, '["vm_destroy"]')
+            self.setup_env(env)
 
             with env.create_dag_run(dag, execution_date):
                 # check dependencies

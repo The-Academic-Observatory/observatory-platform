@@ -25,7 +25,7 @@ from observatory.platform.utils.jinja2_utils import render_template, make_jinja2
 class TestJinja2Utils(unittest.TestCase):
     def test_render_template(self):
         template_path = "query.sql.jinja2"
-        template = "{# Test comment #}SELECT * FROM `{{ project_id }}.{{ dataset_id }}.Affiliations{{ release_date.strftime('%Y%m%d') }}` LIMIT 1000"
+        template = "{# Test comment #}SELECT * FROM `{{ project_id }}.{{ dataset_id }}.Affiliations{{ snapshot_date.strftime('%Y%m%d') }}` LIMIT 1000"
         expected_render = "SELECT * FROM `academic-observatory.mag.Affiliations20200810` LIMIT 1000"
 
         with CliRunner().isolated_filesystem():
@@ -38,7 +38,7 @@ class TestJinja2Utils(unittest.TestCase):
                 template_path,
                 project_id="academic-observatory",
                 dataset_id="mag",
-                release_date=pendulum.datetime(year=2020, month=8, day=10),
+                snapshot_date=pendulum.datetime(year=2020, month=8, day=10),
             )
             self.assertEqual(render, expected_render)
 

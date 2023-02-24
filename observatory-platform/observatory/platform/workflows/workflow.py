@@ -22,30 +22,210 @@ from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Callable, Dict, List, Union, Optional
 
+from airflow.models.dagrun import DagRun
+
 try:
     from typing import Protocol
 except ImportError:
     from typing_extensions import Protocol
-
+import os
 import pendulum
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import chain
-from airflow.models.variable import Variable
 from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.operators.bash import BaseOperator
-from observatory.platform.utils.airflow_utils import (
-    AirflowVars,
+from observatory.platform.airflow import (
     check_connections,
     check_variables,
+    on_failure_callback,
+    delete_old_xcoms,
 )
-from observatory.platform.utils.file_utils import list_files
-from observatory.platform.utils.workflow_utils import SubFolder, on_failure_callback, workflow_path
-from observatory.platform.utils.release_utils import get_start_end_date, get_datasets, add_dataset_release
+from observatory.platform.airflow import get_data_path
+
+
+DATE_TIME_FORMAT = "YYYY-MM-DD_HH:mm:ss"
+
+
+def make_release_date(**kwargs) -> pendulum.DateTime:
+    """Make a release date"""
+
+    return kwargs["next_execution_date"].subtract(days=1).start_of("day")
+
+
+def is_first_dag_run(dag_run: DagRun) -> bool:
+    """Whether the DAG Run is the first run or not
+
+    :param dag_run: A Dag Run instance
+    :return: Whether the DAG run is the first run or not
+    """
+
+    return dag_run.get_previous_dagrun() is None
+
+
+def make_workflow_folder(dag_id: str, run_id: str, *subdirs: str) -> str:
+    """Return the path to this dag release's workflow folder. Will also create it if it doesn't exist
+
+    :param dag_id: The ID of the dag. This is used to find/create the workflow folder
+    :param run_id: The Airflow DAGs run ID. Examples: "scheduled__2023-03-26T00:00:00+00:00" or "manual__2023-03-26T00:00:00+00:00".
+    :param subdirs: The folder path structure (if any) to create inside the workspace. e.g. 'download' or 'transform'
+    :return: the path of the workflow folder
+    """
+
+    path = os.path.join(get_data_path(), dag_id, run_id, *subdirs)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def cleanup(dag_id: str, execution_date: str, workflow_folder: str = None, retention_days=31) -> None:
+    """Delete all files, folders and XComs associated from a release.
+
+    :param dag_id: The ID of the DAG to remove XComs
+    :param execution_date: The execution date of the DAG run
+    :param workflow_folder: The top-level workflow folder to clean up
+    :param retention_days: How many days of Xcom messages to retain
+    """
+    if workflow_folder:
+        try:
+            shutil.rmtree(workflow_folder)
+        except FileNotFoundError as e:
+            logging.warning(f"No such file or directory {workflow_folder}: {e}")
+
+    delete_old_xcoms(dag_id=dag_id, execution_date=execution_date, retention_days=retention_days)
+
+
+class Release:
+    def __init__(self, *, dag_id: str, run_id: str):
+        """Construct a Release instance
+
+        :param dag_id: the DAG ID.
+        :param run_id: the DAG's run ID.
+        """
+
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.workflow_folder = make_workflow_folder(self.dag_id, run_id)
+
+    def __str__(self):
+        return f"Release(dag_id={self.dag_id}, run_id={self.run_id})"
+
+
+class SnapshotRelease(Release):
+    def __init__(
+        self,
+        *,
+        dag_id: str,
+        run_id: str,
+        snapshot_date: pendulum.DateTime,
+    ):
+        """Construct a SnapshotRelease instance
+
+        :param dag_id: the DAG ID.
+        :param run_id: the DAG's run ID.
+        :param snapshot_date: the release date of the snapshot.
+        """
+
+        super().__init__(dag_id=dag_id, run_id=run_id)
+        self.snapshot_date = snapshot_date
+
+        snapshot = f"snapshot_{snapshot_date.format(DATE_TIME_FORMAT)}"
+        self.download_folder = make_workflow_folder(self.dag_id, run_id, snapshot, "download")
+        self.extract_folder = make_workflow_folder(self.dag_id, run_id, snapshot, "extract")
+        self.transform_folder = make_workflow_folder(self.dag_id, run_id, snapshot, "transform")
+
+    def __str__(self):
+        return f"SnapshotRelease(dag_id={self.dag_id}, run_id={self.run_id}, snapshot_date={self.snapshot_date})"
+
+
+class PartitionRelease(Release):
+    def __init__(
+        self,
+        *,
+        dag_id: str,
+        run_id: str,
+        partition_date: pendulum.DateTime,
+    ):
+        """Construct a PartitionRelease instance
+
+        :param dag_id: the DAG ID.
+        :param run_id: the DAG's run ID.
+        :param partition_date: the release date of the partition.
+        """
+
+        super().__init__(dag_id=dag_id, run_id=run_id)
+        self.partition_date = partition_date
+
+        partition = f"partition_{partition_date.format(DATE_TIME_FORMAT)}"
+        self.download_folder = make_workflow_folder(self.dag_id, run_id, partition, "download")
+        self.extract_folder = make_workflow_folder(self.dag_id, run_id, partition, "extract")
+        self.transform_folder = make_workflow_folder(self.dag_id, run_id, partition, "transform")
+
+    def __str__(self):
+        return f"PartitionRelease(dag_id={self.dag_id}, run_id={self.run_id}, partition_date={self.partition_date})"
+
+
+class ChangefileRelease(Release):
+    def __init__(
+        self,
+        *,
+        dag_id: str,
+        run_id: str,
+        changefile_start_date: pendulum.DateTime = None,
+        changefile_end_date: pendulum.DateTime = None,
+        sequence_start: int = None,
+        sequence_end: int = None,
+    ):
+        """Construct a ChangefileRelease instance
+
+        :param dag_id: the DAG ID.
+        :param run_id: the DAG's run ID.
+        :param changefile_start_date: the date of the first changefile processed in this release.
+        :param changefile_end_date: the date of the last changefile processed in this release.
+        :param sequence_start: the starting sequence number of files that make up this release.
+        :param sequence_end: the end sequence number of files that make up this release.
+        """
+
+        super().__init__(dag_id=dag_id, run_id=run_id)
+        self.changefile_start_date = changefile_start_date
+        self.changefile_end_date = changefile_end_date
+        self.sequence_start = sequence_start
+        self.sequence_end = sequence_end
+
+        changefile = f"changefile_{changefile_start_date.format(DATE_TIME_FORMAT)}_to_{changefile_end_date.format(DATE_TIME_FORMAT)}"
+        self.download_folder = make_workflow_folder(self.dag_id, run_id, changefile, "download")
+        self.extract_folder = make_workflow_folder(self.dag_id, run_id, changefile, "extract")
+        self.transform_folder = make_workflow_folder(self.dag_id, run_id, changefile, "transform")
+
+    def __str__(self):
+        return (
+            f"Release(dag_id={self.dag_id}, run_id={self.run_id}, changefile_start_date={self.changefile_start_date}, "
+            f"changefile_end_date={self.changefile_end_date}, sequence_start={self.sequence_start}, sequence_end={self.sequence_end})"
+        )
+
+
+def set_task_state(success: bool, task_id: str, release: Release = None):
+    """Update the state of the Airflow task.
+    :param success: whether the task was successful or not.
+    :param task_id: the task id.
+    :param release: the release being processed. Optional.
+    :return: None.
+    """
+
+    if success:
+        msg = f"{task_id}: success"
+        if release is not None:
+            msg += f" {release}"
+        logging.info(msg)
+    else:
+        msg_failed = f"{task_id}: failed"
+        if release is not None:
+            msg_failed += f" {release}"
+        logging.error(msg_failed)
+        raise AirflowException(msg_failed)
 
 
 class ReleaseFunction(Protocol):
-    def __call__(self, release: "AbstractRelease", **kwargs: Any) -> Any:
+    def __call__(self, release: Release, **kwargs: Any) -> Any:
         ...
 
     """ 
@@ -58,7 +238,7 @@ class ReleaseFunction(Protocol):
 
 
 class ListReleaseFunction(Protocol):
-    def __call__(self, releases: List["AbstractRelease"], **kwargs: Any) -> Any:
+    def __call__(self, releases: List[Release], **kwargs: Any) -> Any:
         ...
 
     """ 
@@ -93,28 +273,10 @@ class AbstractWorkflow(ABC):
         pass
 
     @abstractmethod
-    def add_setup_task_chain(self, funcs: List[Callable]):
-        """Add a list of setup tasks, which are used to run tasks before 'Release' objects are created, e.g. checking
-        dependencies, fetching available releases etc. (See add_setup_task for more info.)
-
-        :param funcs: The list of functions that will be called by the ShortCircuitOperator task.
-        :return: None.
-        """
-        pass
-
-    @abstractmethod
     def add_operator(self, operator: BaseOperator):
         """Add an Apache Airflow operator.
 
         :param operator: the Apache Airflow operator.
-        """
-        pass
-
-    @abstractmethod
-    def add_operator_chain(self, operators: List[BaseOperator]):
-        """Add a list of Apache Airflow operators.
-
-        :param operators: the list of Apache Airflow operator.
         """
         pass
 
@@ -132,15 +294,6 @@ class AbstractWorkflow(ABC):
         pass
 
     @abstractmethod
-    def add_task_chain(self, funcs: List[Callable]):
-        """Add a list of tasks, which are used to process releases. (See add_task for more info.)
-
-        :param funcs: The list of functions that will be called by the PythonOperator task.
-        :return: None.
-        """
-        pass
-
-    @abstractmethod
     def task_callable(self, func: WorkflowFunction, **kwargs) -> Any:
         """Invoke a task callable. Creates a Release instance or Release instances and calls the given task method.
 
@@ -153,7 +306,7 @@ class AbstractWorkflow(ABC):
         pass
 
     @abstractmethod
-    def make_release(self, **kwargs) -> Union["AbstractRelease", List["AbstractRelease"]]:
+    def make_release(self, **kwargs) -> Union[Release, List[Release]]:
         """Make a release instance. The release is passed as an argument to the function (WorkflowFunction) that is
         called in 'task_callable'.
 
@@ -205,8 +358,6 @@ class Workflow(AbstractWorkflow):
         max_active_runs: int = 1,
         airflow_vars: list = None,
         airflow_conns: list = None,
-        workflow_id: int = None,
-        dataset_type_id: str = None,
         tags: Optional[List[str]] = None,
     ):
         """Construct a Workflow instance.
@@ -220,7 +371,6 @@ class Workflow(AbstractWorkflow):
         :param max_active_runs: the maximum number of DAG runs that can be run at once.
         :param airflow_vars: list of airflow variable keys, for each variable it is checked if it exists in airflow
         :param airflow_conns: list of airflow connection keys, for each connection it is checked if it exists in airflow
-        :param workflow_id: api workflow id.
         :param tags: Optional Airflow DAG tags to add.
         """
 
@@ -234,8 +384,6 @@ class Workflow(AbstractWorkflow):
         self.airflow_vars = airflow_vars
         self.airflow_conns = airflow_conns
         self._parallel_tasks = False
-        self.workflow_id = workflow_id
-        self.dataset_type_id = dataset_type_id
 
         self.operators = []
         self.default_args = {
@@ -278,15 +426,6 @@ class Workflow(AbstractWorkflow):
         else:
             self.operators.append(operator)
 
-    def add_operator_chain(self, operators: List[BaseOperator]):
-        """Add a list of Apache Airflow operators.
-
-        :param operators: the list of Apache Airflow operator.
-        """
-
-        for operator in operators:
-            self.add_operator(operator)
-
     def add_setup_task(self, func: Callable, **kwargs):
         """Add a setup task, which is used to run tasks before 'Release' objects are created, e.g. checking
         dependencies, fetching available releases etc.
@@ -307,17 +446,6 @@ class Workflow(AbstractWorkflow):
         kwargs_["task_id"] = make_task_id(func, kwargs)
         op = ShortCircuitOperator(python_callable=func, **kwargs_)
         self.add_operator(op)
-
-    def add_setup_task_chain(self, funcs: List[Callable], **kwargs):
-        """Add a list of setup tasks, which are used to run tasks before 'Release' objects are created, e.g. checking
-        dependencies, fetching available releases etc. (See add_setup_task for more info.)
-
-        :param funcs: The list of functions that will be called by the ShortCircuitOperator task.
-        :return: None.
-        """
-
-        for func in funcs:
-            self.add_setup_task(func, **copy.copy(kwargs))
 
     def add_task(
         self,
@@ -341,20 +469,10 @@ class Workflow(AbstractWorkflow):
         op = PythonOperator(python_callable=partial(self.task_callable, func), **kwargs_)
         self.add_operator(op)
 
-    def add_task_chain(self, funcs: List[Callable], **kwargs):
-        """Add a list of tasks, which are used to process releases. (See add_task for more info.)
-
-        :param funcs: The list of functions that will be called by the PythonOperator task.
-        :return: None.
-        """
-
-        for func in funcs:
-            self.add_task(func, **copy.copy(kwargs))
-
     @contextlib.contextmanager
     def parallel_tasks(self):
         """When called, all tasks added to the workflow within the `with` block will run in parallel.
-        add_task and add_task_chain can be used with this function.
+        add_task can be used with this function.
 
         :return: None.
         """
@@ -409,218 +527,3 @@ class Workflow(AbstractWorkflow):
             raise AirflowException("Required variables or connections are missing")
 
         return True
-
-    def add_new_dataset_releases(self, releases, **kwargs):
-        """Task to add a new DatasetRelease record in the API after the workflow is done.
-
-        :param releases: Release(s) passed to workflow tasks.
-        :param kwargs: kwargs passed to PythonOperator functions.
-        """
-
-        if self.workflow_id is None:
-            raise Exception("workflow_id must be set")
-
-        if not isinstance(releases, list):
-            releases = [releases]
-
-        for release in releases:
-            start_date, end_date = get_start_end_date(release)
-            datasets = get_datasets(workflow_id=self.workflow_id)
-
-            if len(datasets) == 0:
-                raise AirflowException(
-                    f"Workflow (workflow_id={self.workflow_id}) has no associated dataset. Check the api db is correctly populated."
-                )
-
-            for dataset in datasets:
-                add_dataset_release(
-                    start_date=start_date,
-                    end_date=end_date,
-                    dataset_id=dataset.id,
-                )
-
-
-class AbstractRelease(ABC):
-    """The abstract release interface"""
-
-    @property
-    @abstractmethod
-    def download_bucket(self):
-        """The download bucket name.
-
-        :return: the download bucket name.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def transform_bucket(self):
-        """The transform bucket name.
-
-        :return: the transform bucket name.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def download_folder(self) -> str:
-        """The download folder path for the release, e.g. /path/to/workflows/download/{dag_id}/{release_id}/
-
-        :return: the download folder path.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def extract_folder(self) -> str:
-        """The extract folder path for the release, e.g. /path/to/workflows/extract/{dag_id}/{release_id}/
-
-        :return: the extract folder path.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def transform_folder(self) -> str:
-        """The transform folder path for the release, e.g. /path/to/workflows/transform/{dag_id}/{release_id}/
-
-        :return: the transform folder path.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def download_files(self) -> List[str]:
-        """List all files downloaded as a part of this release.
-
-        :return: list of downloaded files.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def extract_files(self) -> List[str]:
-        """List all files extracted as a part of this release.
-
-        :return: list of extracted files.
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def transform_files(self) -> List[str]:
-        """List all files transformed as a part of this release.
-
-        :return: list of transformed files.
-        """
-        pass
-
-    @abstractmethod
-    def cleanup(self) -> None:
-        """Delete all files and folders associated with this release.
-
-        :return: None.
-        """
-
-        pass
-
-
-class Release(AbstractRelease):
-    """Used to store info on a given release"""
-
-    def __init__(
-        self,
-        dag_id: str,
-        release_id: str,
-        download_files_regex: str = None,
-        extract_files_regex: str = None,
-        transform_files_regex: str = None,
-    ):
-        """Construct a Release instance
-
-        :param dag_id: the id of the DAG.
-        :param release_id: the id of the release.
-        :param download_files_regex: regex pattern that is used to find files in download folder
-        :param extract_files_regex: regex pattern that is used to find files in extract folder
-        :param transform_files_regex: regex pattern that is used to find files in transform folder
-        """
-        self.dag_id = dag_id
-        self.release_id = release_id
-        self.download_files_regex = download_files_regex
-        self.extract_files_regex = extract_files_regex
-        self.transform_files_regex = transform_files_regex
-
-    @property
-    def download_folder(self) -> str:
-        """The download folder path for the release, e.g. /path/to/workflows/download/{dag_id}/{release_id}/
-
-        :return: the download folder path.
-        """
-        return workflow_path(SubFolder.downloaded.value, self.dag_id, self.release_id)
-
-    @property
-    def extract_folder(self) -> str:
-        """The extract folder path for the release, e.g. /path/to/workflows/extract/{dag_id}/{release_id}/
-
-        :return: the extract folder path.
-        """
-        return workflow_path(SubFolder.extracted.value, self.dag_id, self.release_id)
-
-    @property
-    def transform_folder(self) -> str:
-        """The transform folder path for the release, e.g. /path/to/workflows/transform/{dag_id}/{release_id}/
-
-        :return: the transform folder path.
-        """
-        return workflow_path(SubFolder.transformed.value, self.dag_id, self.release_id)
-
-    @property
-    def download_files(self) -> List[str]:
-        """List all files downloaded as a part of this release.
-
-        :return: list of downloaded files.
-        """
-        return list_files(self.download_folder, self.download_files_regex)
-
-    @property
-    def extract_files(self) -> List[str]:
-        """List all files extracted as a part of this release.
-
-        :return: list of extracted files.
-        """
-        return list_files(self.extract_folder, self.extract_files_regex)
-
-    @property
-    def transform_files(self) -> List[str]:
-        """List all files transformed as a part of this release.
-
-        :return: list of transformed files.
-        """
-        return list_files(self.transform_folder, self.transform_files_regex)
-
-    @property
-    def download_bucket(self):
-        """The download bucket name.
-
-        :return: the download bucket name.
-        """
-        return Variable.get(AirflowVars.DOWNLOAD_BUCKET)
-
-    @property
-    def transform_bucket(self):
-        """The transform bucket name.
-
-        :return: the transform bucket name.
-        """
-        return Variable.get(AirflowVars.TRANSFORM_BUCKET)
-
-    def cleanup(self) -> None:
-        """Delete all files and folders associated with this release.
-
-        :return: None.
-        """
-        for path in [self.download_folder, self.extract_folder, self.transform_folder]:
-            try:
-                shutil.rmtree(path)
-            except FileNotFoundError as e:
-                logging.warning(f"No such file or directory {path}: {e}")

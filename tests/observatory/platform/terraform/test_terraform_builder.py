@@ -30,12 +30,9 @@ from observatory.platform.observatory_config import (
     GoogleCloud,
     CloudSqlDatabase,
     VirtualMachine,
-    AirflowVariable,
-    AirflowConnection,
 )
+from observatory.platform.observatory_environment import module_file_path
 from observatory.platform.terraform.terraform_builder import TerraformBuilder
-from observatory.platform.utils.proc_utils import stream_process
-from observatory.platform.utils.test_utils import module_file_path
 
 
 class Popen(Mock):
@@ -86,8 +83,6 @@ class TestTerraformBuilder(unittest.TestCase):
                 disk_type="pd-standard",
                 create=False,
             ),
-            airflow_variables=[AirflowVariable(name="my-variable-name", value="my-variable-value")],
-            airflow_connections=[AirflowConnection(name="my-connection", value="http://:my-token-key@")],
         )
 
     def test_is_environment_valid(self):

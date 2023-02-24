@@ -14,17 +14,19 @@
 
 # Author: James Diprose
 
+import time
 import unittest
 from datetime import datetime
 from typing import List
 from unittest.mock import patch
-import time
 
 import httpretty
 import requests
+from airflow.exceptions import AirflowException
 from click.testing import CliRunner
 from tenacity import wait_fixed
-from observatory.platform.utils.test_utils import HttpServer, test_fixtures_path
+
+from observatory.platform.observatory_environment import HttpServer, test_fixtures_path
 from observatory.platform.utils.url_utils import (
     get_filename_from_url,
     get_http_response_json,
@@ -41,25 +43,6 @@ from tests.observatory.platform.cli.test_platform_command import MockUrlOpen
 
 
 class TestUrlUtils(unittest.TestCase):
-    relative_urls = [
-        "#skip-to-content",
-        "#",
-        "/local/assets/css/tipso.css",
-        "acknowledgements/rogers.html",
-        "acknowledgements/staff.html#lwallace",
-        "?residentType=INT",
-        "hello/?p=2036",
-    ]
-
-    absolute_urls = [
-        "https://www.curtin.edu.au/",
-        "//global.curtin.edu.au/template/css/layoutv3.css",
-        "https://www.curtin.edu.au/?p=1000",
-        "https://www.curtin.edu.au/test#",
-        "https://www.curtin.edu.au/test#lwallace",
-        "//global.curtin.edu.au/template/css/layoutv3.css/?a=1",
-    ]
-
     class MockMetadata:
         @classmethod
         def get(self, attribute):
@@ -234,11 +217,24 @@ class TestUrlUtils(unittest.TestCase):
 
     @patch("observatory.platform.utils.url_utils.requests.head")
     def test_get_filename_from_http_header(self, m_head):
+        url = "http://someurl"
+
         class MockResponse:
             def __init__(self):
-                self.headers = {"Content-Disposition": "filename"}
+                self.url = url
+                self.headers = {
+                    "Content-Disposition": 'attachment; filename="unpaywall_snapshot_2023-03-23T083001.jsonl.gz"'
+                }
+                self.status_code = 200
 
+        # Assert correct filename
         m_head.return_value = MockResponse()
+        filename = get_filename_from_http_header(url)
+        self.assertEqual("unpaywall_snapshot_2023-03-23T083001.jsonl.gz", filename)
 
-        filename = get_filename_from_http_header("someurl")
-        self.assertEqual(filename, "filename")
+        # Assert AirflowException when status code is invalid (not 200)
+        with self.assertRaises(AirflowException):
+            response = MockResponse()
+            response.status_code = 403
+            m_head.return_value = response
+            get_filename_from_http_header(url)

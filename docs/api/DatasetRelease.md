@@ -24,20 +24,62 @@
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>start_date</strong></td>
-    <td><strong>datetime</strong></td>
+    <td><strong>dag_id</strong></td>
+    <td><strong>str</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>end_date</strong></td>
+    <td><strong>dataset_id</strong></td>
+    <td><strong>str</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>dag_run_id</strong></td>
+    <td><strong>str</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>data_interval_start</strong></td>
     <td><strong>datetime, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
 <tr>
-    <td><strong>dataset</strong></td>
-    <td><a href="Dataset.html"><strong>Dataset</strong></a></td>
+    <td><strong>data_interval_end</strong></td>
+    <td><strong>datetime, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>snapshot_date</strong></td>
+    <td><strong>datetime, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>changefile_start_date</strong></td>
+    <td><strong>datetime, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>changefile_end_date</strong></td>
+    <td><strong>datetime, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>sequence_start</strong></td>
+    <td><strong>int, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
+    <td><strong>sequence_end</strong></td>
+    <td><strong>int, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
@@ -52,6 +94,12 @@
     <td><strong>datetime</strong></td>
     <td></td>
     <td>[optional] [readonly] </td>
+</tr>
+<tr>
+    <td><strong>extra</strong></td>
+    <td><strong>bool, date, datetime, dict, float, int, list, str, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
 </tr>
 
 

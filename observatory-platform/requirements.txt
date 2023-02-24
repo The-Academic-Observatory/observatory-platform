@@ -14,7 +14,7 @@ alembic<=1.9.4 # prevent alembic errors
 
 # Google Cloud
 google-crc32c>=1.1.0,<2
-google-cloud-bigquery==2.1.*
+google-cloud-bigquery==3.3.*
 google-api-python-client==2.0.*
 google-cloud-storage==1.35.*
 google-auth-oauthlib>=0.4.5,<1
@@ -72,3 +72,7 @@ six>=1.16.0,<2
 
 oauth2client==4.1.*
 importlib-metadata==3.7.3
+
+deprecation>2,<3
+
+virtualenv

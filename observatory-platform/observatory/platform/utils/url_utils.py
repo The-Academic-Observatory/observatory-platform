@@ -14,21 +14,23 @@
 
 # Author: James Diprose
 
+import cgi
 import json
+import logging
 import os
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, List, Tuple, Union
-import logging
+from typing import Dict, List, Tuple, Union
 
 import requests
 import xmltodict
+from airflow import AirflowException
 from importlib_metadata import metadata
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from tenacity import Retrying, stop_after_attempt, before_sleep_log, wait_exponential_jitter
 from tenacity.wait import wait_base
+from urllib3.util.retry import Retry
 
 
 def retry_get_url(
@@ -223,5 +225,8 @@ def get_filename_from_http_header(url: str) -> str:
     """
 
     response = requests.head(url)
-    cd = response.headers["Content-Disposition"]
-    return cd
+    if response.status_code != 200:
+        raise AirflowException(f"get_filename_from_http_header: url={response.url}, status_code={response.status_code}")
+    header = response.headers["Content-Disposition"]
+    value, params = cgi.parse_header(header)
+    return params.get("filename")

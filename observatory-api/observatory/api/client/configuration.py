@@ -114,7 +114,7 @@ conf = observatory.api.client.Configuration(
                  ):
         """Constructor
         """
-        self._base_path = "https://api.observatory.academy" if host is None else host
+        self._base_path = "https://localhost:5002" if host is None else host
         """Default Base url
         """
         self.server_index = 0 if server_index is None and host is None else server_index
@@ -418,7 +418,7 @@ conf = observatory.api.client.Configuration(
         """
         return [
             {
-                'url': "https://api.observatory.academy",
+                'url': "https://localhost:5002",
                 'description': "No description provided",
             }
         ]

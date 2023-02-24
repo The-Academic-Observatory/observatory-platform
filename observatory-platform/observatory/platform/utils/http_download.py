@@ -41,13 +41,12 @@ import logging
 import os
 from cgi import parse_header
 from dataclasses import dataclass
-from queue import Queue
-from typing import Any, Dict, List, Union
+from typing import Dict, List, Union, Tuple
 
 import aiohttp
 import backoff
-import validators
-from observatory.platform.utils.file_utils import validate_file_hash
+
+from observatory.platform.files import validate_file_hash
 from observatory.platform.utils.url_utils import get_filename_from_url
 
 
@@ -61,17 +60,17 @@ class DownloadInfo:
     hash_algorithm: Union[str, None] = None  # Hash algorithm for the hash
     prefix_dir: str = ""  # Prefix the filename path with this
     retry: bool = False  # Whether to retry download
+    file_path: Union[str, None] = None
 
 
-@backoff.on_exception(backoff.expo, aiohttp.ClientError, max_tries=11, max_time=60)
-async def download_http_file_(*, download_info: DownloadInfo, headers=None):
+@backoff.on_exception(backoff.expo, aiohttp.ClientError, max_tries=11, max_time=360)
+async def download_http_file_(*, download_info: DownloadInfo, headers=None, read_buffer_size: int = 2**16):
     """Download a single file from a HTTP GET request.
 
     :param download_info: Download information.
     :param headers: Optional headers to use when making get request, e.g., if providing custom User Agent.
+    :param read_buffer_size: read buffer size. Defaults to 64 KB
     """
-
-    READ_BUFFER_SIZE = 2 ** 16  # 64 KiB
 
     url = download_info.url
     dst_file = download_info.filename
@@ -86,13 +85,16 @@ async def download_http_file_(*, download_info: DownloadInfo, headers=None):
                     dst_file = get_filename_from_url(url=url)
 
                 download_info.filename = dst_file
+
+            # Update download_info with dst_file path so that caller can find out what the final file path is
             dst_file = os.path.join(download_info.prefix_dir, dst_file)
+            download_info.file_path = dst_file
 
             logging.info(f"downloading {url} to {dst_file}")
 
             with open(dst_file, "wb") as f:
                 while True:
-                    chunk = await resp.content.read(READ_BUFFER_SIZE)
+                    chunk = await resp.content.read(read_buffer_size)
                     if not chunk:
                         break
                     f.write(chunk)
@@ -168,13 +170,16 @@ def requeue_once_if_bad_hash(
             errors.append(Exception(error_msg))
 
 
-async def worker_(name: str, downloads: asyncio.Queue, errors: List[Exception], headers: Union[None, Dict]):
+async def worker_(
+    name: str, downloads: asyncio.Queue, errors: List[Exception], headers: Union[None, Dict], read_buffer_size
+):
     """Worker that fetches download jobs and executes downloads.
 
     :param name: Name of the worker.
     :param downloads: Download queue of jobs.
     :param errors: List of encountered download errors.
     :param headers: Custom HTTP headers to use.
+    :param read_buffer_size: read buffer size. Defaults to 64 KB.
     """
 
     logging.info(f"Starting worker {name}")
@@ -196,7 +201,7 @@ async def worker_(name: str, downloads: asyncio.Queue, errors: List[Exception], 
 
         exception = None
         try:
-            await download_http_file_(download_info=download_info, headers=headers)
+            await download_http_file_(download_info=download_info, headers=headers, read_buffer_size=read_buffer_size)
         except Exception as e:
             errors.append(e)
             exception = e
@@ -212,6 +217,7 @@ async def download_http_files_(
     download_list: List[DownloadInfo],
     num_connections: str = 8,
     headers: Dict = None,
+    read_buffer_size: int = 2**16,
 ) -> bool:
     """Download a list of files via HTTP asynchronously.  Supports multiple connections
     and custom headers.
@@ -219,6 +225,7 @@ async def download_http_files_(
     :param download_list: List of files to download.
     :param num_connections: Maximum number of concurrent connections to use.
     :param headers: Custom headers to use in HTTP GET request.
+    :param read_buffer_size: read buffer size. Defaults to 64 KB.
     :return: True on success, False on failure.
     """
 
@@ -234,7 +241,7 @@ async def download_http_files_(
     num_workers = min(num_connections, len(download_list))
     for i in range(num_workers):
         name = f"{i}"
-        worker = asyncio.create_task(worker_(name, downloads, errors, headers))
+        worker = asyncio.create_task(worker_(name, downloads, errors, headers, read_buffer_size))
         workers.append(worker)
 
     # Block until all jobs done
@@ -260,6 +267,7 @@ def download_files(
     num_connections: int = 8,
     headers: Dict = None,
     prefix_dir: str = "",
+    read_buffer_size: int = 2**16,
 ) -> bool:
     """Download a list of files. Can support simultaneous connections and custom HTTP headers.
 
@@ -268,6 +276,7 @@ def download_files(
     :param num_connections: Maximum number of concurrent connections.
     :param headers: Custom HTTP header to use for downloading.
     :param prefix_dir: A directory to prefix the filename path with. If specified and the download_list is a list of DownloadInfo, it overrides the prefix_dir in each DownloadInfo.
+    :param read_buffer_size: read buffer size. Defaults to 64 KB.
     :return: True on sucess, False on failure.
     """
 
@@ -286,7 +295,12 @@ def download_files(
             raise Exception(f"Expecting a DownloadInfo object. Received a {type(info)}.")
 
     success = asyncio.run(
-        download_http_files_(download_list=download_list, num_connections=num_connections, headers=headers),
+        download_http_files_(
+            download_list=download_list,
+            num_connections=num_connections,
+            headers=headers,
+            read_buffer_size=read_buffer_size,
+        ),
         debug=True,
     )
     return success
@@ -300,14 +314,16 @@ def download_file(
     hash: str = None,
     hash_algorithm: str = None,
     prefix_dir: str = "",
-) -> bool:
+    read_buffer_size: int = 2**16,
+) -> Tuple[bool, DownloadInfo]:
     """Download a single file from a url.
 
     :param url: URL to download file from.
     :param filename: Destination file.
     :param headers: Any custom header you want to use in HTTP session.
     :param prefix_dir: A directory to prefix the filename path with.
-    :return: True on sucess, False on failure.
+    :param read_buffer_size: read buffer size. Defaults to 64 KB.
+    :return: True on success, False on failure.
     """
 
     download_info = DownloadInfo(
@@ -320,5 +336,8 @@ def download_file(
         download_info.hash = hash
         download_info.hash_algorithm = hash_algorithm
 
-    success = download_files(download_list=[download_info], num_connections=1, headers=headers)
-    return success
+    success = download_files(
+        download_list=[download_info], num_connections=1, headers=headers, read_buffer_size=read_buffer_size
+    )
+
+    return success, download_info

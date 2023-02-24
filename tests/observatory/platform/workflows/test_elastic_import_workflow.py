@@ -19,21 +19,22 @@ from __future__ import annotations
 import copy
 import os
 import random
-import unittest
 from typing import Dict, List
-from unittest.mock import PropertyMock, patch
+from unittest.mock import patch
 
 import pendulum
 from airflow import DAG
 from airflow.models import Connection
 from airflow.operators.dummy import DummyOperator
 from faker import Faker
+
+from observatory.platform.bigquery import bq_find_schema, bq_sharded_table_id
 from observatory.platform.elastic.elastic import Elastic
 from observatory.platform.elastic.kibana import Kibana, TimeField
-from observatory.platform.utils.file_utils import load_jsonl
-from observatory.platform.utils.gc_utils import bigquery_sharded_table_id
-from observatory.platform.utils.config_utils import find_schema
-from observatory.platform.utils.test_utils import (
+from observatory.platform.files import load_jsonl
+from observatory.platform.gcs import gcs_blob_name_from_path
+from observatory.platform.observatory_config import Workflow, CloudWorkspace
+from observatory.platform.observatory_environment import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     Table,
@@ -42,11 +43,15 @@ from observatory.platform.utils.test_utils import (
     find_free_port,
 )
 from observatory.platform.workflows.elastic_import_workflow import (
-    ElasticImportRelease,
     ElasticImportWorkflow,
     KeepInfo,
     KeepOrder,
     load_elastic_mappings_simple,
+    get_keep_info,
+    ELASTIC_CONN_ID,
+    KIBANA_CONN_ID,
+    ElasticImportConfig,
+    ElasticImportRelease,
 )
 
 TEST_FIXTURES_PATH = test_fixtures_path("schemas")
@@ -108,57 +113,6 @@ def author_records_to_bq(author_records: List[Dict]):
     return records
 
 
-class TestElasticImportRelease(unittest.TestCase):
-    @patch(
-        "observatory.platform.workflows.elastic_import_workflow.ElasticImportRelease.extract_folder",
-        new_callable=PropertyMock,
-    )
-    def test_get_keep_info(self, m_extract_folder):
-        m_extract_folder.return_value = "test"
-        self.release = ElasticImportRelease(
-            dag_id="dag",
-            release_date=pendulum.now(),
-            dataset_id="dataset",
-            file_type="",
-            table_ids=list(),
-            project_id=os.environ["TEST_GCP_PROJECT_ID"],
-            bucket_name="bucket",
-            data_location=os.environ["TEST_GCP_DATA_LOCATION"],
-            elastic_host="",
-            elastic_api_key_id="",
-            elastic_api_key="",
-            elastic_mappings_folder="",
-            elastic_mappings_func=None,
-            kibana_host="",
-            kibana_api_key_id="",
-            kibana_api_key="",
-            kibana_spaces=list(),
-            kibana_time_fields=list(),
-        )
-
-        index_keep_info = {}
-        keep_info = self.release.get_keep_info(index="something", index_keep_info=index_keep_info)
-        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=2))
-
-        index_keep_info = {"": KeepInfo(ordering=KeepOrder.newest, num=1)}
-        keep_info = self.release.get_keep_info(index="something", index_keep_info=index_keep_info)
-        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=1))
-
-        index_keep_info = {
-            "test-very-specific": KeepInfo(ordering=KeepOrder.newest, num=5),
-            "test": KeepInfo(ordering=KeepOrder.newest, num=3),
-        }
-
-        keep_info = self.release.get_keep_info(index="test-very-different", index_keep_info=index_keep_info)
-        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=3))
-
-        keep_info = self.release.get_keep_info(index="test-very-specific", index_keep_info=index_keep_info)
-        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=5))
-
-        keep_info = self.release.get_keep_info(index="nomatch", index_keep_info=index_keep_info)
-        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=2))
-
-
 class TestElasticImportWorkflow(ObservatoryTestCase):
     """Tests for the Elastic Import Workflow"""
 
@@ -170,23 +124,30 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
         self.table_name = "ao_author"
+        self.kibana_time_fields = [TimeField("^.*$", "dob")]
 
-    def test_ctor(self):
-        workflow_default_index_keep_info = ElasticImportWorkflow(
-            dag_id="elastic_import",
-            project_id="project-id",
-            dataset_id="dataset-id",
-            bucket_name="bucket-name",
-            elastic_conn_key="elastic_main",
-            kibana_conn_key="kibana_main",
-            data_location="us",
-            file_type="jsonl.gz",
-            sensor_dag_ids=["doi"],
-            kibana_spaces=[],
-            airflow_conns=[],
-        )
+    def test_get_keep_info(self):
+        index_keep_info = {}
+        keep_info = get_keep_info(index="something", index_keep_info=index_keep_info)
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=2))
 
-        self.assertTrue(workflow_default_index_keep_info.index_keep_info is not None)
+        index_keep_info = {"": KeepInfo(ordering=KeepOrder.newest, num=1)}
+        keep_info = get_keep_info(index="something", index_keep_info=index_keep_info)
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=1))
+
+        index_keep_info = {
+            "test-very-specific": KeepInfo(ordering=KeepOrder.newest, num=5),
+            "test": KeepInfo(ordering=KeepOrder.newest, num=3),
+        }
+
+        keep_info = get_keep_info(index="test-very-different", index_keep_info=index_keep_info)
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=3))
+
+        keep_info = get_keep_info(index="test-very-specific", index_keep_info=index_keep_info)
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=5))
+
+        keep_info = get_keep_info(index="nomatch", index_keep_info=index_keep_info)
+        self.assertEqual(keep_info, KeepInfo(ordering=KeepOrder.newest, num=2))
 
     def test_load_elastic_mappings_simple(self):
         """Test load_elastic_mappings_simple"""
@@ -194,24 +155,102 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         mappings = load_elastic_mappings_simple(TEST_FIXTURES_PATH, self.table_name)
         self.assertIsInstance(mappings, Dict)
 
+    def test_dag_load(self):
+        """Test that vm_create can be loaded from a DAG bag.
+        :return: None
+        """
+
+        env = ObservatoryEnvironment(
+            workflows=[
+                Workflow(
+                    dag_id="elastic_import",
+                    name="My Elastic Import Workflow",
+                    class_name="observatory.platform.workflows.elastic_import_workflow.ElasticImportWorkflow",
+                    cloud_workspace=CloudWorkspace(
+                        project_id="project-id",
+                        download_bucket="download_bucket",
+                        transform_bucket="transform_bucket",
+                        data_location="us",
+                    ),
+                    kwargs=dict(
+                        sensor_dag_ids=["doi"],
+                        kibana_spaces=["test-space"],
+                        elastic_import_config="tests.observatory.platform.workflows.elastic_config.ELASTIC_IMPORT_CONFIG",
+                        tags=["academic-observatory"],
+                    ),
+                )
+            ]
+        )
+
+        with env.create():
+            self.assert_dag_load_from_config("elastic_import")
+
+    def test_constructor(self):
+        config = self.config = ElasticImportConfig(
+            elastic_mappings_path=TEST_FIXTURES_PATH,
+            elastic_mappings_func=load_elastic_mappings_simple,
+            kibana_time_fields=self.kibana_time_fields,
+        )
+
+        # Can create ElasticImportWorkflow
+        workflow = ElasticImportWorkflow(
+            dag_id="elastic_import",
+            cloud_workspace=CloudWorkspace(
+                project_id="project-id",
+                download_bucket="download_bucket",
+                transform_bucket="transform_bucket",
+                data_location="us",
+            ),
+            sensor_dag_ids=["doi"],
+            kibana_spaces=[],
+            elastic_import_config=config,
+        )
+        self.assertTrue(workflow.index_keep_info is not None)
+        self.assertIsInstance(workflow.elastic_import_config, ElasticImportConfig)
+        self.assertEqual(config, workflow.elastic_import_config)
+
+        # Can create elastic_import_config from string
+        workflow = ElasticImportWorkflow(
+            dag_id="elastic_import",
+            cloud_workspace=CloudWorkspace(
+                project_id="project-id",
+                download_bucket="download_bucket",
+                transform_bucket="transform_bucket",
+                data_location="us",
+            ),
+            sensor_dag_ids=["doi"],
+            kibana_spaces=[],
+            elastic_import_config="tests.observatory.platform.workflows.elastic_config.ELASTIC_IMPORT_CONFIG",
+        )
+        self.assertIsInstance(workflow.elastic_import_config, ElasticImportConfig)
+        self.assertEqual(config, workflow.elastic_import_config)
+
     def test_dag_structure(self):
         """Test that the DAG has the correct structure.
 
         :return: None
         """
 
-        dag = ElasticImportWorkflow(
+        config = self.config = ElasticImportConfig(
+            elastic_mappings_path=TEST_FIXTURES_PATH,
+            elastic_mappings_func=load_elastic_mappings_simple,
+            kibana_time_fields=self.kibana_time_fields,
+        )
+        workflow = ElasticImportWorkflow(
             dag_id="elastic_import",
-            project_id="project-id",
-            dataset_id="dataset-id",
-            bucket_name="bucket-name",
-            elastic_conn_key="elastic_main",
-            kibana_conn_key="kibana_main",
-            data_location="us",
-            file_type="jsonl.gz",
+            cloud_workspace=CloudWorkspace(
+                project_id="project-id",
+                download_bucket="download_bucket",
+                transform_bucket="transform_bucket",
+                data_location="us",
+            ),
             sensor_dag_ids=["doi"],
             kibana_spaces=[],
-        ).make_dag()
+            elastic_import_config=config,
+        )
+        self.assertTrue(workflow.index_keep_info is not None)
+
+        dag = workflow.make_dag()
         self.assert_dag_structure(
             {
                 "doi_sensor": ["check_dependencies"],
@@ -234,7 +273,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         author_records: List[Dict],
         dataset_id: str,
         bucket_name: str,
-        release_date: pendulum.DateTime,
+        snapshot_date: pendulum.DateTime,
         schema_file_path: str,
     ):
         """Setup the fake dataset in BigQuery.
@@ -243,7 +282,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         :param author_records: the author records.
         :param dataset_id: the BigQuery dataset id.
         :param bucket_name: the Google Cloud Storage bucket name.
-        :param release_date: the dataset release date.
+        :param snapshot_date: the dataset release date.
         :paran schema_file_path: The location of the schema file to use
         :return: None.
         """
@@ -261,8 +300,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         bq_load_tables(
             tables=tables,
             bucket_name=bucket_name,
-            release_date=release_date,
-            data_location=self.data_location,
+            snapshot_date=snapshot_date,
             project_id=self.project_id,
         )
 
@@ -286,27 +324,30 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             kibana_port=self.kibana_port,
         )
 
-        dataset_id = env.add_dataset(prefix="data_export")
+        bq_dataset_id = env.add_dataset(prefix="data_export")
         with env.create() as t:
             # Create settings
             start_date = pendulum.datetime(year=2021, month=5, day=9)
             dag_id_sensor = "doi"
             space_id = "spce"
-            kibana_time_fields = [TimeField("^.*$", "dob")]
+
+            config = self.config = ElasticImportConfig(
+                elastic_mappings_path=TEST_FIXTURES_PATH,
+                elastic_mappings_func=load_elastic_mappings_simple,
+                kibana_time_fields=self.kibana_time_fields,
+            )
             workflow = ElasticImportWorkflow(
                 dag_id="elastic_import",
-                project_id=self.project_id,
-                dataset_id=dataset_id,
-                bucket_name=env.download_bucket,
-                elastic_conn_key="elastic_main",
-                kibana_conn_key="kibana_main",
-                data_location=self.data_location,
-                file_type="jsonl.gz",
+                cloud_workspace=CloudWorkspace(
+                    project_id=self.project_id,
+                    download_bucket=env.download_bucket,
+                    transform_bucket=env.download_bucket,
+                    data_location=self.data_location,
+                ),
                 sensor_dag_ids=[dag_id_sensor],
-                elastic_mappings_folder=TEST_FIXTURES_PATH,
-                elastic_mappings_func=load_elastic_mappings_simple,
                 kibana_spaces=[space_id],
-                kibana_time_fields=kibana_time_fields,
+                elastic_import_config=config,
+                bq_dataset_id=bq_dataset_id,  # Need to set the custom dataset ID that is used for tests
                 start_date=start_date,
             )
             es_dag = workflow.make_dag()
@@ -316,8 +357,8 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
             kibana = Kibana(host=env.elastic_env.kibana_uri, username="elastic", password="observatory")
 
             # Create connections
-            env.add_connection(Connection(conn_id=workflow.elastic_conn_key, uri=env.elastic_env.elastic_uri))
-            env.add_connection(Connection(conn_id=workflow.kibana_conn_key, uri=env.elastic_env.kibana_uri))
+            env.add_connection(Connection(conn_id=ELASTIC_CONN_ID, uri=env.elastic_env.elastic_uri))
+            env.add_connection(Connection(conn_id=KIBANA_CONN_ID, uri=env.elastic_env.kibana_uri))
 
             # Mock kibana inside workflow, using username/password instead of api key
             mock_kibana.return_value = kibana
@@ -335,7 +376,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
 
             # Run Dummy Dags
             execution_date = pendulum.datetime(year=2021, month=5, day=16)
-            release_date = pendulum.datetime(year=2021, month=5, day=22)
+            snapshot_date = pendulum.datetime(year=2021, month=5, day=22)
             expected_state = "success"
             doi_dag = make_dummy_dag(dag_id_sensor, execution_date)
             with env.create_dag_run(doi_dag, execution_date):
@@ -344,39 +385,20 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 self.assertEqual(expected_state, ti.state)
 
             # Make dataset with a small number of tables
-            schema_file_path = find_schema(TEST_FIXTURES_PATH, self.table_name, release_date=release_date)
+            schema_file_path = bq_find_schema(
+                path=TEST_FIXTURES_PATH, table_name=self.table_name, release_date=snapshot_date
+            )
             self.setup_data_export(
-                self.table_name, author_records, dataset_id, env.transform_bucket, release_date, schema_file_path
+                self.table_name, author_records, bq_dataset_id, env.transform_bucket, snapshot_date, schema_file_path
             )
 
             # Run end to end tests for DOI DAG
             expected_state = "success"
-            with env.create_dag_run(es_dag, execution_date):
-                # Data folders
-                release_id = f"{workflow.dag_id}_{release_date.strftime('%Y_%m_%d')}"
-                download_folder = os.path.join(
-                    t,
-                    "data",
-                    "telescopes",
-                    "download",
-                    workflow.dag_id,
-                    release_id,
-                )
-                extract_folder = os.path.join(
-                    t,
-                    "data",
-                    "telescopes",
-                    "extract",
-                    workflow.dag_id,
-                    release_id,
-                )
-                transform_folder = os.path.join(
-                    t,
-                    "data",
-                    "telescopes",
-                    "transform",
-                    workflow.dag_id,
-                    release_id,
+            with env.create_dag_run(es_dag, execution_date) as dag_run:
+                # Make release object for testing paths
+                run_id = dag_run.run_id
+                release = ElasticImportRelease(
+                    dag_id=workflow.dag_id, run_id=run_id, snapshot_date=snapshot_date, table_ids=[]
                 )
 
                 # Test that sensor goes into 'success' state as the DAGs that they are waiting for have finished
@@ -388,11 +410,10 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 self.assertEqual(expected_state, ti.state)
 
                 # Test list_release_info task
-                with patch("observatory.platform.utils.gc_utils.bq_query_bytes_daily_limit_check"):
-                    ti = env.run_task(workflow.list_release_info.__name__)
+                ti = env.run_task(workflow.list_release_info.__name__)
                 self.assertEqual(expected_state, ti.state)
-                table_id = bigquery_sharded_table_id(self.table_name, release_date)
-                expected_msg = {"release_date": release_date.format("YYYYMMDD"), "table_ids": [table_id]}
+                table_id = bq_sharded_table_id(self.project_id, bq_dataset_id, self.table_name, snapshot_date)
+                expected_msg = {"snapshot_date": snapshot_date.format("YYYYMMDD"), "table_ids": [table_id]}
                 actual_msg = ti.xcom_pull(
                     key="releases", task_ids=workflow.list_release_info.__name__, include_prior_dates=False
                 )
@@ -401,14 +422,14 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 # Test export_bigquery_tables info task
                 ti = env.run_task(workflow.export_bigquery_tables.__name__)
                 self.assertEqual(expected_state, ti.state)
-                blob_suffix = f"{table_id}_000000000000.jsonl.gz"
-                blob_name = f"telescopes/{es_dag.dag_id}/{release_id}/{blob_suffix}"
+                file_name = f"{table_id}_000000000000.jsonl.gz"
+                blob_name = gcs_blob_name_from_path(os.path.join(release.download_folder, file_name))
                 self.assert_blob_exists(env.download_bucket, blob_name)
 
                 # Test list download_exported_data info task
                 ti = env.run_task(workflow.download_exported_data.__name__)
                 self.assertEqual(expected_state, ti.state)
-                file_path = os.path.join(download_folder, blob_suffix)
+                file_path = os.path.join(release.download_folder, file_name)
                 self.assertTrue(os.path.isfile(file_path))  # Check that file exists
                 expected_rows = author_records_to_bq(author_records)
                 actual_rows = load_jsonl(file_path)
@@ -418,7 +439,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 self.assertListEqual(expected_rows, actual_rows)  # Check that exported rows match
 
                 # Test list import_to_elastic info task
-                index_id = f"ao-author-{release_date.strftime('%Y%m%d')}"
+                index_id = f"ao-author-{snapshot_date.strftime('%Y%m%d')}"
                 ti = env.run_task(workflow.import_to_elastic.__name__)
                 self.assertEqual(expected_state, ti.state)
                 self.assertTrue(elastic.es.indices.exists(index=index_id))  # Check that index exists
@@ -458,4 +479,4 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
                 # Test list cleanup info task
                 ti = env.run_task(workflow.cleanup.__name__)
                 self.assertEqual(expected_state, ti.state)
-                self.assert_cleanup(download_folder, extract_folder, transform_folder)
+                self.assertFalse(os.path.exists(release.workflow_folder))

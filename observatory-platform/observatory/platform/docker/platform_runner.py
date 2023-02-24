@@ -21,9 +21,9 @@ import shutil
 import docker
 import requests
 
+from observatory.platform.config import module_file_path
 from observatory.platform.docker.compose_runner import ComposeRunner
 from observatory.platform.observatory_config import Config
-from observatory.platform.utils.config_utils import module_file_path
 
 HOST_UID = os.getuid()
 DEBUG = False
@@ -168,14 +168,11 @@ class PlatformRunner(ComposeRunner):
         env["AIRFLOW_UI_USER_PASSWORD"] = self.config.observatory.airflow_ui_user_password
         env["POSTGRES_PASSWORD"] = self.config.observatory.postgres_password
 
-        # Create Airflow variables
-        airflow_variables = self.config.make_airflow_variables()
-        for variable in airflow_variables:
-            env[variable.env_var_name] = str(variable.value)
+        # AIRFLOW_VAR_WORKFLOWS is used to decide what workflows to run and what their settings are
+        env["AIRFLOW_VAR_WORKFLOWS"] = self.config.airflow_var_workflows
 
-        # Airflow connections
-        for conn in self.config.airflow_connections:
-            env[conn.conn_name] = conn.value
+        # AIRFLOW_VAR_DAGS_MODULE_NAMES is used to decide what dags modules to load DAGS from
+        env["AIRFLOW_VAR_DAGS_MODULE_NAMES"] = self.config.airflow_var_dags_module_names
 
         return env
 

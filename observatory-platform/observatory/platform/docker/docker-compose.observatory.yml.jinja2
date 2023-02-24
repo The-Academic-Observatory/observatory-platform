@@ -31,10 +31,8 @@ x-environment: &environment
   AIRFLOW__API__AUTH_BACKEND: airflow.api.auth.backend.basic_auth
   {%- if config.backend.type.value == 'terraform' %}
   AIRFLOW__LOGGING__REMOTE_LOGGING: "True"
-  AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: "gs://${AIRFLOW_VAR_AIRFLOW_BUCKET}/logs"
+  AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: "gs://${AIRFLOW_LOGGING_BUCKET}/logs"
   AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: "google_cloud_observatory"
-  AIRFLOW__SECRETS__BACKEND: "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
-  AIRFLOW__SECRETS__BACKEND_KWARGS: "{'connections_prefix': 'airflow-connections', 'variables_prefix': 'airflow-variables', 'sep': '-'}"
   {%- endif %}
   # Set Airflow DAGs folder to installed observatory platform dags
   {%- if config.observatory.package_type != 'editable' %}
@@ -44,23 +42,10 @@ x-environment: &environment
   # Paths to google credentials and UI user settings
   GOOGLE_APPLICATION_CREDENTIALS: "/run/secrets/google_application_credentials.json"
 
-  {%- if config.backend.type.value == 'local' %}
-  # Connections
-  {%- for conn in config.airflow_connections %}
-  {{ conn.conn_name }}: {{ '${' + conn.conn_name + '}' }}
-  {%- endfor %}
-
-  {%- endif %}
-
   # Variables
   AIRFLOW_VAR_DATA_PATH: "/opt/observatory/data"
-  {%- for var in config.make_airflow_variables() %}
-  {%- if config.backend.type.value == 'local' %}
-  {{ var.env_var_name }}: '{{ var.value }}'
-  {%- else %}
-  {{ var.env_var_name }}: {{ '${' + var.env_var_name + '}' }}
-  {%- endif %}
-  {%- endfor %}
+  AIRFLOW_VAR_WORKFLOWS: ${AIRFLOW_VAR_WORKFLOWS}
+  AIRFLOW_VAR_DAGS_MODULE_NAMES: ${AIRFLOW_VAR_DAGS_MODULE_NAMES}
 
 x-volumes: &volumes
   - "${HOST_LOGS_PATH}:/opt/airflow/logs"
@@ -260,8 +245,7 @@ services:
     command: apiserver
     entrypoint: /entrypoint-api.sh
 
-{% if config.backend.type.value == 'local' %} 
-
+{% if config.backend.type.value == 'local' %}
   postgres:
     image: postgres:12.2
     environment:
@@ -277,20 +261,6 @@ services:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "airflow"]
       interval: 5s
       retries: 5
-
-  seed_db:
-    build:
-      context: .
-      dockerfile: Dockerfile.seed_db
-      args:
-        - HOST_USER_ID=${HOST_USER_ID}
-    environment:
-      - API_URI="http://apiserver:5002"
-    volumes: *volumes
-    <<: *networks
-    depends_on:
-      apiserver:
-        condition: service_healthy
 {%- endif %}
 
 

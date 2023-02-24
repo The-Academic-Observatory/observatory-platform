@@ -22,8 +22,8 @@ from click.testing import CliRunner
 from observatory.platform.elastic.elastic import Elastic
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.elastic.kibana import Kibana, ObjectType
-from observatory.platform.utils.test_utils import find_free_port
-from observatory.platform.utils.test_utils import random_id
+from observatory.platform.observatory_environment import find_free_port
+from observatory.platform.observatory_environment import random_id
 
 
 class TestKibana(unittest.TestCase):

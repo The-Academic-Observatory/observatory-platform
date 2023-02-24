@@ -23,15 +23,15 @@ from observatory.platform.cli.cli_utils import INDENT1, INDENT2, INDENT3, indent
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
+from observatory.platform.config import observatory_home
+from observatory.platform.config import (
+    terraform_credentials_path as default_terraform_credentials_path,
+)
 from observatory.platform.docker.platform_runner import DEBUG, HOST_UID
 from observatory.platform.observatory_config import Config, TerraformConfig, ObservatoryConfig
 from observatory.platform.observatory_config import (
     generate_fernet_key,
     generate_secret_key,
-)
-from observatory.platform.utils.config_utils import observatory_home
-from observatory.platform.utils.config_utils import (
-    terraform_credentials_path as default_terraform_credentials_path,
 )
 
 PLATFORM_NAME = "Observatory Platform"

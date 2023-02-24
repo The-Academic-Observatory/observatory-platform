@@ -25,12 +25,9 @@ import yaml
 from click.testing import CliRunner
 
 from observatory.platform.observatory_config import (
-    AirflowConnection,
-    AirflowVariable,
     Backend,
     BackendType,
     CloudSqlDatabase,
-    CloudStorageBucket,
     Environment,
     GoogleCloud,
     Observatory,
@@ -110,10 +107,6 @@ class TestObservatoryConfig(unittest.TestCase):
                     "project_id": "my-project-id",
                     "credentials": credentials_path,
                     "data_location": "us",
-                    "buckets": {
-                        "download_bucket": "my-download-bucket-1234",
-                        "transform_bucket": "my-transform-bucket-1234",
-                    },
                 },
                 "observatory": {
                     "package": "observatory-platform",
@@ -121,8 +114,6 @@ class TestObservatoryConfig(unittest.TestCase):
                     "airflow_fernet_key": "IWt5jFGSw2MD1shTdwzLPTFO16G8iEAU3A6mGo_vJTY=",
                     "airflow_secret_key": "a" * 16,
                 },
-                "airflow_variables": {"my-variable-name": "my-variable-value"},
-                "airflow_connections": {"my-connection": "http://:my-token-key@"},
                 "workflows_projects": [
                     {
                         "package_name": "academic-observatory-workflows",
@@ -135,6 +126,30 @@ class TestObservatoryConfig(unittest.TestCase):
                         "package": "/path/to/oaebu-workflows/dist/oaebu-workflows.tar.gz",
                         "package_type": "sdist",
                         "dags_module": "oaebu_workflows.dags",
+                    },
+                ],
+                "cloud_workspaces": [
+                    {
+                        "workspace": {
+                            "project_id": "my-project-id",
+                            "download_bucket": "my-download-bucket",
+                            "transform_bucket": "my-transform-bucket",
+                            "data_location": "us",
+                        }
+                    },
+                ],
+                "workflows": [
+                    {
+                        "dag_id": "my_dag",
+                        "name": "My DAG",
+                        "cloud_workspace": {
+                            "project_id": "my-project-id",
+                            "download_bucket": "my-download-bucket",
+                            "transform_bucket": "my-transform-bucket",
+                            "data_location": "us",
+                        },
+                        "class_name": "path.to.my_workflow.Workflow",
+                        "kwargs": {"hello": "world"},
                     },
                 ],
             }
@@ -156,21 +171,15 @@ class TestObservatoryConfig(unittest.TestCase):
             self.assertIsInstance(config, ObservatoryConfig)
             self.assertFalse(config.is_valid)
 
-        # Test that an invalid typical config works
+        # Test that an invalid typical config is loaded by invalid
         dict_ = {
             "backend": {"type": "terraform", "environment": "my-env"},
             "google_cloud": {
                 "project_id": "my-project-id",
                 "credentials": "/path/to/creds.json",
                 "data_location": 1,
-                "buckets": {
-                    "download_bucket": "my-download-bucket-1234",
-                    "transform_bucket": "my-transform-bucket-1234",
-                },
             },
             "observatory": {"airflow_fernet_key": "bad", "airflow_secret_key": "bad"},
-            "airflow_variables": {"my-variable-name": 1},
-            "airflow_connections": {"my-connection": "token-key"},
             "workflows_projects": [
                 {
                     "package_name": "academic-observatory-workflows",
@@ -184,6 +193,28 @@ class TestObservatoryConfig(unittest.TestCase):
                     "dags_module": False,
                 },
             ],
+            "cloud_workspaces": [
+                {
+                    "workspace": {
+                        "download_bucket": "my-download-bucket",
+                        "transform_bucket": "my-transform-bucket",
+                        "data_location": "us",
+                    }
+                },
+            ],
+            "workflows": [
+                {
+                    "name": "My DAG",
+                    "cloud_workspace": {
+                        "project_id": "my-project-id",
+                        "download_bucket": "my-download-bucket",
+                        "transform_bucket": "my-transform-bucket",
+                        "data_location": "us",
+                    },
+                    "class_name": "path.to.my_workflow.Workflow",
+                    "kwargs": {"hello": "world"},
+                },
+            ],
         }
 
         file_path = "config-invalid-typical.yaml"
@@ -193,6 +224,7 @@ class TestObservatoryConfig(unittest.TestCase):
             config = ObservatoryConfig.load(file_path)
             self.assertIsInstance(config, ObservatoryConfig)
             self.assertFalse(config.is_valid)
+            self.assertEqual(12, len(config.errors))
 
 
 class TestTerraformConfig(unittest.TestCase):
@@ -236,6 +268,30 @@ class TestTerraformConfig(unittest.TestCase):
                     "disk_type": "pd-standard",
                     "create": False,
                 },
+                "cloud_workspaces": [
+                    {
+                        "workspace": {
+                            "project_id": "my-project-id",
+                            "download_bucket": "my-download-bucket",
+                            "transform_bucket": "my-transform-bucket",
+                            "data_location": "us",
+                        }
+                    },
+                ],
+                "workflows": [
+                    {
+                        "dag_id": "my_dag",
+                        "name": "My DAG",
+                        "cloud_workspace": {
+                            "project_id": "my-project-id",
+                            "download_bucket": "my-download-bucket",
+                            "transform_bucket": "my-transform-bucket",
+                            "data_location": "us",
+                        },
+                        "class_name": "path.to.my_workflow.Workflow",
+                        "kwargs": {"hello": "world"},
+                    },
+                ],
             }
 
             save_yaml(file_path, dict_)
@@ -282,8 +338,6 @@ class TestTerraformConfig(unittest.TestCase):
                     "disk_type": "pd-standard",
                     "create": False,
                 },
-                "airflow_variables": {"my-variable-name": "my-variable-value"},
-                "airflow_connections": {"my-connection": "http://:my-token-key@"},
                 "workflows_projects": [
                     {
                         "package_name": "academic-observatory-workflows",
@@ -306,7 +360,7 @@ class TestTerraformConfig(unittest.TestCase):
             self.assertIsInstance(config, TerraformConfig)
             self.assertTrue(config.is_valid)
 
-        # Test that an invalid minimal config works
+        # Test that an invalid minimal config is loaded and invalid
         dict_ = {
             "backend": {"type": "local", "environment": "develop"},
             "airflow": {
@@ -347,7 +401,7 @@ class TestTerraformConfig(unittest.TestCase):
             self.assertIsInstance(config, TerraformConfig)
             self.assertFalse(config.is_valid)
 
-        # Test that an invalid typical config is loaded
+        # Test that an invalid typical config is loaded and invalid
         dict_ = {
             "backend": {"type": "terraform", "environment": "develop"},
             "airflow": {
@@ -393,6 +447,28 @@ class TestTerraformConfig(unittest.TestCase):
                     "dags_module": False,
                 },
             ],
+            "cloud_workspaces": [
+                {
+                    "workspace": {
+                        "download_bucket": "my-download-bucket",
+                        "transform_bucket": "my-transform-bucket",
+                        "data_location": "us",
+                    }
+                },
+            ],
+            "workflows": [
+                {
+                    "name": "My DAG",
+                    "cloud_workspace": {
+                        "project_id": "my-project-id",
+                        "download_bucket": "my-download-bucket",
+                        "transform_bucket": "my-transform-bucket",
+                        "data_location": "us",
+                    },
+                    "class_name": "path.to.my_workflow.Workflow",
+                    "kwargs": {"hello": "world"},
+                },
+            ],
         }
 
         file_path = "config-invalid-typical.yaml"
@@ -402,6 +478,7 @@ class TestTerraformConfig(unittest.TestCase):
             config = TerraformConfig.load(file_path)
             self.assertIsInstance(config, TerraformConfig)
             self.assertFalse(config.is_valid)
+            self.assertEqual(10, len(config.errors))
 
 
 class TestSchema(unittest.TestCase):
@@ -440,9 +517,9 @@ class TestSchema(unittest.TestCase):
             "terraform",
             "google_cloud",
             "observatory",
-            "airflow_variables",
-            "airflow_connections",
             "workflows_projects",
+            "cloud_workspaces",
+            "workflows",
         ]
         not_contains = ["cloud_sql_database", "airflow_main_vm", "airflow_worker_vm"]
         self.assert_schema_keys(schema, contains, not_contains)
@@ -455,12 +532,12 @@ class TestSchema(unittest.TestCase):
             "terraform",
             "google_cloud",
             "observatory",
-            "airflow_variables",
-            "airflow_connections",
-            "workflows_projects",
             "cloud_sql_database",
             "airflow_main_vm",
             "airflow_worker_vm",
+            "workflows_projects",
+            "cloud_workspaces",
+            "workflows",
         ]
         not_contains = []
         self.assert_schema_keys(schema, contains, not_contains)
@@ -510,10 +587,6 @@ class TestSchema(unittest.TestCase):
                         "region": "us-west1",
                         "zone": "us-west1-c",
                         "data_location": "us",
-                        "buckets": {
-                            "download_bucket": "my-download-bucket-1234",
-                            "transform_bucket": "my-transform-bucket-1234",
-                        },
                     }
                 },
             ]
@@ -525,7 +598,6 @@ class TestSchema(unittest.TestCase):
                         "region": "us-west",
                         "zone": "us-west1",
                         "data_location": list(),
-                        "buckets": {1: 2, "download_bucket": list()},
                     }
                 }
             ]
@@ -534,17 +606,11 @@ class TestSchema(unittest.TestCase):
                 {
                     "google_cloud": [
                         {
-                            "buckets": [
-                                {
-                                    1: ["must be of string type", "must be of string type"],
-                                    "download_bucket": ["must be of string type"],
-                                }
-                            ],
                             "credentials": [
                                 "the file /path/to/creds.json does not exist. See https://cloud.google.com/docs/authentication/getting-started for instructions on how to create a service account and save the JSON key to your workstation."
                             ],
-                            "data_location": ["must be of string type"],
                             "project_id": ["must be of string type"],
+                            "data_location": ["must be of string type"],
                             "region": ["value does not match regex '^\\w+\\-\\w+\\d+$'"],
                             "zone": ["value does not match regex '^\\w+\\-\\w+\\d+\\-[a-z]{1}$'"],
                         }
@@ -597,16 +663,6 @@ class TestSchema(unittest.TestCase):
         ]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
-    def test_local_schema_airflow_variables(self):
-        schema = make_schema(BackendType.local)
-        schema_key = "airflow_variables"
-
-        valid_docs = [{}, {"airflow_variables": {"key1": "value", "key2": "value"}}]
-        invalid_docs = [{"airflow_variables": {"key1": 1, 1: "value"}}]
-
-        expected_errors = [{"airflow_variables": [{1: ["must be of string type"], "key1": ["must be of string type"]}]}]
-        self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
-
     def test_local_schema_workflows_projects(self):
         schema = make_schema(BackendType.local)
         schema_key = "workflows_projects"
@@ -643,43 +699,6 @@ class TestSchema(unittest.TestCase):
 
         expected_errors = [
             {"workflows_projects": [{0: [{"package_type": ["required field"], "dags_module": ["required field"]}]}]}
-        ]
-        self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
-
-    def test_local_schema_airflow_connections(self):
-        schema = make_schema(BackendType.local)
-        schema_key = "airflow_connections"
-
-        valid_docs = [
-            {},
-            {
-                "airflow_connections": {
-                    "terraform": "mysql://:terraform-token@",
-                    "slack": "https://:T00000000%2FB00000000%2FXXXXXXXXXXXXXXXXXXXXXXXX@https%3A%2F%2Fhooks.slack.com%2Fservices",
-                    "crossref": "http://myname:mypassword@myhost.com",
-                    "mag_releases_table": "http://myname:mypassword@myhost.com",
-                    "mag_snapshots_container": "http://myname:mypassword@myhost.com",
-                }
-            },
-        ]
-        invalid_docs = [{"airflow_connections": {"key1": 1, 1: "value", "terraform": "not-a-connection-string"}}]
-
-        expected_errors = [
-            {
-                "airflow_connections": [
-                    {
-                        1: [
-                            "must be of string type",
-                            "value does not match regex "
-                            "'\\S*:\\/\\/\\S*:\\S*@\\S*$|google-cloud-platform:\\/\\/\\S*$'",
-                        ],
-                        "key1": ["must be of string type"],
-                        "terraform": [
-                            "value does not match regex '\\S*:\\/\\/\\S*:\\S*@\\S*$|google-cloud-platform:\\/\\/\\S*$'"
-                        ],
-                    }
-                ]
-            }
         ]
         self.assert_sub_schema_valid(valid_docs, invalid_docs, schema, schema_key, expected_errors)
 
@@ -903,10 +922,7 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
                 project_id="myproject",
                 credentials="config.yaml",
                 data_location="us",
-                buckets=[CloudStorageBucket(id="id", name="name")],
             ),
-            airflow_variables=[AirflowVariable(name="var", value="val")],
-            airflow_connections=[AirflowConnection(name="conn", value="https://login:pass@host:port/schema")],
             workflows_projects=[
                 WorkflowsProject(package_name="myname", package="path", package_type="editable", dags_module="module")
             ],
@@ -923,8 +939,6 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
             self.assertEqual(loaded.observatory, config.observatory)
             self.assertEqual(loaded.terraform, config.terraform)
             self.assertEqual(loaded.google_cloud, config.google_cloud)
-            self.assertEqual(loaded.airflow_connections, config.airflow_connections)
-            self.assertEqual(loaded.airflow_variables, config.airflow_variables)
             self.assertEqual(loaded.workflows_projects, config.workflows_projects)
 
     def test_save_terraform_config(self):
