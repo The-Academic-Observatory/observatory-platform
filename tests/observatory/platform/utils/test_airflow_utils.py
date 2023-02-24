@@ -14,9 +14,11 @@
 
 # Author: James Diprose, Aniek Roelofs
 
+import os
 import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+from tempfile import TemporaryDirectory
 
 import pendulum
 from airflow.exceptions import AirflowException
@@ -28,6 +30,8 @@ from observatory.platform.utils.airflow_utils import (
     get_airflow_connection_url,
     send_slack_msg,
     set_task_state,
+    get_data_path,
+    make_workflow_folder,
 )
 
 
@@ -128,3 +132,32 @@ class TestAirflowUtils(unittest.TestCase):
             m_basehook.get_connection = MagicMock(return_value=MockConnection(""))
             login = get_airflow_connection_login("")
             self.assertEqual(login, "login")
+
+    @patch("observatory.platform.utils.airflow_utils.EnvironmentVariablesBackend.get_variable")
+    @patch("observatory.platform.utils.airflow_utils.Variable.get")
+    def test_get_data_path(self, mock_variable_get, mock_env_variable_get):
+        """Tests the function that retrieves the data_path airflow variable"""
+        # 1 - no variable available
+        mock_env_variable_get.return_value = None
+        mock_variable_get.return_value = None
+        self.assertRaises(AirflowException, get_data_path)
+        # 2 - available in environment backend
+        mock_env_variable_get.return_value = "env_return"
+        self.assertEqual("env_return", get_data_path())
+        # 3 - available in google secrets
+        mock_env_variable_get.return_value = None
+        mock_variable_get.return_value = "google_return"
+        self.assertEqual("google_return", get_data_path())
+        # 4 - available in environment and google secrets. We prefer the environment backend usage
+        mock_env_variable_get.return_value = "env_return"
+        self.assertEqual("env_return", get_data_path())
+
+    @patch("observatory.platform.utils.airflow_utils.EnvironmentVariablesBackend.get_variable")
+    def test_make_workflow_folder(self, mock_get_variable):
+        """Tests the make_workflow_folder function"""
+        with TemporaryDirectory() as tempdir:
+            mock_get_variable.return_value = tempdir
+            path = make_workflow_folder(
+                "test_dag", pendulum.datetime(year=1000, month=6, day=14), "sub_folder", "subsub_folder"
+            )
+            self.assertEqual(path, os.path.join(tempdir, f"test_dag/test_dag_1000_06_14/sub_folder/subsub_folder"))

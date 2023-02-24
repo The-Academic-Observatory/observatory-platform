@@ -23,6 +23,7 @@ import unittest
 from functools import partial
 from unittest.mock import Mock, patch
 from urllib.parse import quote
+from tempfile import TemporaryDirectory
 
 import paramiko
 import pendulum
@@ -79,6 +80,7 @@ from observatory.platform.utils.workflow_utils import (
     table_ids_from_path,
     upload_files_from_list,
     workflow_path,
+    cleanup,
 )
 from observatory.platform.workflows.snapshot_telescope import (
     SnapshotRelease,
@@ -1076,3 +1078,44 @@ class TestWorkflowUtils(unittest.TestCase):
                 self.assertEqual(len(xcoms), 1)
                 msg = XCom.deserialize_value(xcoms[0])
                 self.assertEqual(msg["release_date"], second_execution_date.format("YYYYMMDD"))
+
+    def test_cleanup(self):
+        """
+        Tests the cleanup function.
+        Creates a task and pushes and Xcom. Also creates a fake workflow directory.
+        Both the Xcom and the directory should be deleted by the cleanup() function
+        """
+
+        def create_xcom(**kwargs):
+            ti = kwargs["ti"]
+            execution_date = kwargs["execution_date"]
+            ti.xcom_push("topic", {"release_date": execution_date.format("YYYYMMDD"), "something": "info"})
+
+        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        with env.create():
+            execution_date = pendulum.datetime(2023, 1, 1)
+            with DAG(
+                dag_id="test_dag",
+                schedule_interval="@daily",
+                default_args={"owner": "airflow", "start_date": execution_date},
+                catchup=True,
+            ) as dag:
+                kwargs = {"task_id": "create_xcom"}
+                op = PythonOperator(python_callable=create_xcom, **kwargs)
+
+            with TemporaryDirectory() as workflow_dir:
+                # Create some files in the workflow folder
+                subdir = os.path.join(workflow_dir, "test_directory")
+                os.mkdir(subdir)
+
+                # DAG Run
+                with env.create_dag_run(dag=dag, execution_date=execution_date):
+                    ti = env.run_task("create_xcom")
+                    self.assertEqual("success", ti.state)
+                    msgs = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
+                    self.assertIsInstance(msgs, dict)
+                    cleanup("test_dag", execution_date, workflow_folder=workflow_dir, retention_days=0)
+                    msgs = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
+                    self.assertEqual(msgs, None)
+                    self.assertEqual(os.path.isdir(subdir), False)
+                    self.assertEqual(os.path.isdir(workflow_dir), False)

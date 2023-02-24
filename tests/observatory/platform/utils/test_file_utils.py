@@ -17,8 +17,10 @@
 
 import os
 import shutil
+from tempfile import TemporaryDirectory
 import unittest
 from typing import Generator
+from unittest.mock import patch
 
 from _hashlib import HASH
 from click.testing import CliRunner
@@ -33,6 +35,7 @@ from observatory.platform.utils.file_utils import (
     validate_file_hash,
     yield_csv,
     yield_jsonl,
+    blob_name_from_path,
 )
 from observatory.platform.utils.test_utils import test_fixtures_path
 
@@ -162,3 +165,15 @@ class TestFileUtils(unittest.TestCase):
         with CliRunner().isolated_filesystem():
             find_replace_file(src=src, dst="output", pattern="authenticated-orcid", replacement="authenticated_orcid")
             validate_file_hash(file_path="output", expected_hash=expected_hash)
+
+    @patch("observatory.platform.utils.airflow_utils.EnvironmentVariablesBackend.get_variable")
+    def test_blob_name_from_path(self, mock_get_variable):
+        """Tests the blob_name from_path function"""
+        with TemporaryDirectory() as tempdir:
+            mock_get_variable.return_value = tempdir
+            invalid_path = os.path.join("some", "fake", "invalid", "path", "file.txt")
+            valid_path_1 = os.path.join(tempdir, "some", "fake", "valid", "path", "file.txt")
+            valid_path_2 = os.path.join(valid_path_1, "")  # Trailing slash
+            self.assertRaises(Exception, blob_name_from_path, invalid_path)
+            self.assertEqual(blob_name_from_path(valid_path_1), "some/fake/valid/path/file.txt")
+            self.assertEqual(blob_name_from_path(valid_path_2), "some/fake/valid/path/file.txt")
