@@ -39,6 +39,7 @@ import pandas as pd
 from _hashlib import HASH
 from google_crc32c import Checksum as Crc32cChecksum
 from observatory.platform.utils.proc_utils import wait_for_process
+from observatory.platform.utils.airflow_utils import get_data_path
 
 
 def list_files(path: str, regex: str = None) -> List[str]:
@@ -83,7 +84,7 @@ def get_file_hash(*, file_path: str, algorithm: str = "md5") -> str:
 
     hasher = get_hasher_(algorithm)
 
-    BUFFER_SIZE = 2 ** 16  # 64 KiB
+    BUFFER_SIZE = 2**16  # 64 KiB
     with open(file_path, "rb") as f:
         for chunk in iter(lambda: f.read(BUFFER_SIZE), b""):
             hasher.update(chunk)
@@ -299,3 +300,18 @@ def find_replace_file(*, src: str, dst: str, pattern: str, replacement: str):
             for line in f_in:
                 output = re.sub(pattern=pattern, repl=replacement, string=line)
                 f_out.write(output)
+
+
+def blob_name_from_path(local_filepath: str) -> str:
+    """Creates a blob name from a local file path.
+
+    :param local_filepath: The local filepath
+    :return: The name of the blob on cloud storage
+    """
+    # Get the workflow folder for this file and find where the data path starts
+    data_path = get_data_path()
+    if not local_filepath.startswith(data_path):
+        raise Exception("Provided local path does not begin with the DATA PATH variable")
+    blob = local_filepath[len(data_path) :]
+    blob = blob.strip(os.path.sep)  # Remove leading/trailing slashes
+    return blob

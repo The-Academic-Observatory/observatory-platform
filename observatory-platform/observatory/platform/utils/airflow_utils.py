@@ -18,6 +18,7 @@
 Airflow utility functions (independent of telescope or google cloud usage)
 """
 
+import os
 import logging
 from typing import List, Union
 
@@ -27,6 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import TaskInstance, Variable
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookHook
+from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 
 
 class AirflowVars:
@@ -208,3 +210,32 @@ def get_airflow_connection_password(conn_id: str) -> str:
     conn = BaseHook.get_connection(conn_id)
     password = conn.get_password()
     return password
+
+
+def get_data_path() -> str:
+    """Grabs the DATA_PATH airflow vairable
+
+    :raises AirflowException: Raised if the variable does not exist
+    :return: DATA_PATH variable contents
+    """
+    # Try to get value from env variable first, saving costs from GC secret usage
+    data_path = EnvironmentVariablesBackend().get_variable(AirflowVars.DATA_PATH)
+    if not data_path:
+        data_path = Variable.get(AirflowVars.DATA_PATH)
+    if not data_path:
+        raise AirflowException("DATA_PATH variable could not be found.")
+    return data_path
+
+
+def make_workflow_folder(dag_id: str, release_date: pendulum.DateTime, *subdirs: str) -> str:
+    """Return the path to this dag release's workflow folder. Will also create it if it doesn't exist
+
+    :param dag_id: The ID of the dag. This is used to find/create the workflow folder
+    :param release_date: The release date
+    :param subdirs: The folder path structure (if any) to create inside the workspace. e.g. 'download' or 'transform'
+    :return: the path of the workflow folder
+    """
+    release_string = release_date.format("YYYY_MM_DD")
+    path = os.path.join(get_data_path(), dag_id, f"{dag_id}_{release_string}", *subdirs)
+    os.makedirs(path, exist_ok=True)
+    return path
