@@ -1179,13 +1179,13 @@ def aws_to_google_cloud_storage_transfer(
 
 
 def select_table_shard_dates(
-    project_id: str, dataset_id: str, table_id: str, end_date: Union[pendulum.DateTime, pendulum.Date], limit: int = 1
+    project_id: str, dataset_id: str, table_name: str, end_date: Union[pendulum.DateTime, pendulum.Date], limit: int = 1
 ) -> List[pendulum.Date]:
     """Returns a list of table shard dates, sorted from the most recent to the oldest date. By default it returns
     the first result.
     :param project_id: the Google Cloud project id.
     :param dataset_id: the BigQuery dataset id.
-    :param table_id: the table id (without the date suffix on the end).
+    :param table_name: the table id (without the date suffix on the end).
     :param end_date: the end date of the table suffixes to search for (most recent date).
     :param limit: the number of results to return.
     :return:
@@ -1196,7 +1196,7 @@ def select_table_shard_dates(
         template_path,
         project_id=project_id,
         dataset_id=dataset_id,
-        table_id=table_id,
+        table_name=table_name,
         end_date=end_date.strftime("%Y-%m-%d"),
         limit=limit,
     )
