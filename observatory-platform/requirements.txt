@@ -10,6 +10,7 @@ apache-airflow-providers-http==2.0.0
 WTForms<3 # Fix ModuleNotFoundError: No module named 'wtforms.compat' error
 Markdown==3.3.4 # prevent error: INSTALLED_EXTENSIONS = metadata.entry_points(group='markdown.extensions') TypeError: entry_points() got an unexpected keyword argument 'group'
 SQLAlchemy==1.3.24 # https://github.com/apache/airflow/issues/21661
+alembic<=1.9.4 # prevent alembic errors
 
 # Google Cloud
 google-crc32c>=1.1.0,<2
