@@ -559,13 +559,11 @@ class Api:
         subdomain: the subdomain of the API, can be either based on the google project id or the environment. When
         based on the environment, there is no subdomain for the production environment.
         api_image: the path to the Observatory API image on Google Cloud Artifact Registry.
-        er_image: the path to the Google Cloud Endpoints Runtime image.
     """
 
     domain_name: str
     subdomain: str
     api_image: str
-    er_image: str = "gcr.io/endpoints-release/endpoints-runtime-serverless:2"
 
     def to_hcl(self):
         return to_hcl(
@@ -573,7 +571,6 @@ class Api:
                 "domain_name": self.domain_name,
                 "subdomain": self.subdomain,
                 "api_image": self.api_image,
-                "er_image": self.er_image,
             }
         )
 
@@ -588,8 +585,7 @@ class Api:
         domain_name = dict_.get("domain_name")
         subdomain = dict_.get("subdomain")
         api_image = dict_.get("api_image")
-        er_image = dict_.get("er_image", Api.er_image)
-        return Api(domain_name, subdomain, api_image, er_image=er_image)
+        return Api(domain_name, subdomain, api_image)
 
 
 def is_base64(text: bytes) -> bool:
@@ -1500,7 +1496,6 @@ def make_schema(backend_type: BackendType) -> Dict:
                 "domain_name": {"required": True, "type": "string"},
                 "subdomain": {"required": True, "type": "string", "allowed": ["project_id", "environment"]},
                 "api_image": {"required": True, "type": "string"},
-                "er_image": {"required": False, "type": "string"},
             },
         }
 
@@ -1787,17 +1782,14 @@ class ObserveratoryConfigString:
 
         if api is None:
             api = Api(
-                domain_name="api.observatory.academy",
+                domain_name="localhost:5002",
                 subdomain="project_id",
-                api_image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
             )
 
         lines = [
             "api:\n",
             indent(f"domain_name: {api.domain_name}\n", INDENT1),
             indent(f"subdomain: {api.subdomain}\n", INDENT1),
-            indent(f"api_image: {api.api_image}\n", INDENT1),
-            indent(f"er_image: {api.er_image}\n", INDENT1),
         ]
 
         return lines

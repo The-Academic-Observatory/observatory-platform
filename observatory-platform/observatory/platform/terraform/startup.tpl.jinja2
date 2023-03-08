@@ -29,14 +29,15 @@ export HOST_AIRFLOW_UI_PORT=8080
 export HOST_DATA_PATH=/opt/observatory/data
 export HOST_LOGS_PATH=/opt/airflow/logs
 export HOST_GOOGLE_APPLICATION_CREDENTIALS=/opt/observatory/google_application_credentials.json
+export HOST_API_SERVER_PORT=5002
 
 # Set environment variables and docker container names based on whether this is the main or worker vm
 {%- if is_airflow_main_vm %}
 export AIRFLOW_UI_USER_PASSWORD="sm://${project_id}/airflow_ui_user_password"
 export AIRFLOW_UI_USER_EMAIL="sm://${project_id}/airflow_ui_user_email"
-{% set docker_containers="redis flower webserver scheduler worker_local airflow_init"%}
+{% set docker_containers="redis flower webserver scheduler worker_local airflow_init apiserver"%}
 {%- else %}
-{% set docker_containers="worker_remote"%}
+{% set docker_containers="worker_remote apiserver"%}
 {%- endif %}
 
 # Export environment variables for all Airflow variables
@@ -48,7 +49,8 @@ done
 
 # Hardcoded list of environment variables that need to be preserved
 PRESERVE_ENV="HOST_USER_ID,POSTGRES_USER,POSTGRES_HOSTNAME,POSTGRES_PASSWORD,AIRFLOW_FERNET_KEY,AIRFLOW_SECRET_KEY,\
-REDIS_HOSTNAME,AIRFLOW_UI_USER_PASSWORD,AIRFLOW_UI_USER_EMAIL,HOST_FLOWER_UI_PORT,HOST_REDIS_PORT,HOST_AIRFLOW_UI_PORT,\
+REDIS_HOSTNAME,AIRFLOW_UI_USER_PASSWORD,AIRFLOW_UI_USER_EMAIL,HOST_FLOWER_UI_PORT,HOST_REDIS_PORT,\
+HOST_API_SERVER_PORT,HOST_AIRFLOW_UI_PORT,\
 HOST_DATA_PATH,HOST_LOGS_PATH,HOST_GOOGLE_APPLICATION_CREDENTIALS"
 
 # Preserve all environment variables that begin with AIRFLOW_VAR or AIRFLOW_CONN

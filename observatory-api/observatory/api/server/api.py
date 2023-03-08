@@ -643,7 +643,7 @@ def create_app() -> connexion.App:
 
     # Add the OpenAPI specification
     specification_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "openapi.yaml.jinja2")
-    builder = OpenApiRenderer(specification_path, cloud_endpoints=False)
+    builder = OpenApiRenderer(specification_path)
     specification = builder.to_dict()
     conn_app.add_api(specification)
 

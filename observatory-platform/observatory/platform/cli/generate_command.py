@@ -984,8 +984,8 @@ class InteractiveConfigBuilder:
 
         click.echo("Configuring the Observatory API")
 
-        text = "Custom domain name for the API, used for the Google Cloud Endpoints service"
-        default = "api.observatory.academy"
+        text = "Custom domain name for the API"
+        default = "localhost:5002"
         domain_name = click.prompt(text=text, type=str, default=default, show_default=True)
 
         text = "Subdomain scheme"
@@ -997,13 +997,8 @@ class InteractiveConfigBuilder:
         default = "us-docker.pkg.dev/academic-observatory/observatory-platform/observatory-api:latest"
         api_image = click.prompt(text=text, type=str, default=default, show_default=True)
 
-        text = "Endpoints Runtime Docker Image"
-        default = "gcr.io/endpoints-release/endpoints-runtime-serverless:2"
-        er_image = click.prompt(text=text, type=str, default=default, show_default=True)
-
         config.api = Api(
             domain_name=domain_name,
             subdomain=subdomain,
             api_image=api_image,
-            er_image=er_image,
         )

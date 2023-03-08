@@ -57,8 +57,9 @@ export HOST_KIBANA_PORT=5601
 export HOST_DATA_PATH=/opt/observatory/data
 export HOST_LOGS_PATH=/opt/airflow/logs
 export HOST_GOOGLE_APPLICATION_CREDENTIALS=/opt/observatory/google_application_credentials.json
+export HOST_API_SERVER_PORT=5002
 
 echo " ----- Building docker containers with docker-compose, running as airflow user ----- "
-PRESERVE_ENV="HOST_USER_ID,HOST_REDIS_PORT,HOST_FLOWER_UI_PORT,HOST_AIRFLOW_UI_PORT,HOST_ELASTIC_PORT,HOST_KIBANA_PORT,HOST_DATA_PATH,HOST_LOGS_PATH,HOST_GOOGLE_APPLICATION_CREDENTIALS"
+PRESERVE_ENV="HOST_USER_ID,HOST_REDIS_PORT,HOST_FLOWER_UI_PORT,HOST_AIRFLOW_UI_PORT,HOST_ELASTIC_PORT,HOST_KIBANA_PORT,HOST_API_SERVER_PORT,HOST_DATA_PATH,HOST_LOGS_PATH,HOST_GOOGLE_APPLICATION_CREDENTIALS"
 sudo -u airflow --preserve-env=${PRESERVE_ENV} bash -c "docker compose -f docker-compose.observatory.yml pull"
 sudo -u airflow --preserve-env=${PRESERVE_ENV} bash -c "docker compose -f docker-compose.observatory.yml build"

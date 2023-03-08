@@ -748,12 +748,7 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             api_image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
         )
 
-        m_prompt.side_effect = [
-            api.domain_name,
-            api.subdomain,
-            api.api_image,
-            api.er_image,
-        ]
+        m_prompt.side_effect = [api.domain_name, api.subdomain, api.api_image]
 
         config = TerraformConfig()
         InteractiveConfigBuilder.config_api(config)

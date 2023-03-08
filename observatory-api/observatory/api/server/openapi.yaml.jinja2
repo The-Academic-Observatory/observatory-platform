@@ -12,27 +12,7 @@ info:
 
 {# API Client specific settings #}
 {%- if api_client %}
-host: api.observatory.academy
-schemes:
-  - https
-produces:
-  - application/json
-securityDefinitions:
-  # This section configures basic authentication with an API key.
-  api_key:
-    type: "apiKey"
-    name: "key"
-    in: "query"
-security:
-  - api_key: []
-{%- endif %}
-
-{# Cloud Endpoints specific settings #}
-{%- if cloud_endpoints %}
-host: ${host}
-x-google-backend:
-  address: ${backend_address}
-  protocol: h2
+host: localhost:5002
 schemes:
   - https
 produces:

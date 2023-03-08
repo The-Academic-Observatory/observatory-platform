@@ -130,7 +130,7 @@ class TerraformBuilder:
     def make_open_api_template(self):
         # Load and render template
         specification_path = os.path.join(self.api_path, "openapi.yaml.jinja2")
-        renderer = OpenApiRenderer(specification_path, cloud_endpoints=True)
+        renderer = OpenApiRenderer(specification_path)
         render = renderer.render()
 
         # Save file

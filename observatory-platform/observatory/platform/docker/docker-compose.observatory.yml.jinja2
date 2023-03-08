@@ -16,6 +16,7 @@
 version: '3.8'
 
 x-environment: &environment
+
   # Airflow settings
   AIRFLOW__CORE__EXECUTOR: CeleryExecutor
   AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
@@ -83,27 +84,9 @@ x-volumes: &volumes
   {%- endif -%}
   {%- endfor %}
 
-x-depends-on: &depends-on
-  redis:
-    condition: service_healthy
-  {% if config.backend.type.value == 'local' -%}
-  postgres:
-    condition: service_healthy
-  {%- endif %}
-
-{% if config.backend.type.value == 'local' %}
-{# Local network #}
 x-network-mode: &networks
   networks:
     - {{ config.observatory.docker_network_name }}
-
-{%- else %}
-
-{#- Cloud network -#}
-x-network-mode: &networks
-  network_mode: "host"
-
-{%- endif -%}
 
 {%- if config.backend.type.value == 'terraform' or not config.observatory.docker_network_is_external %}
 {# Cloud network or not external network #}
@@ -149,7 +132,7 @@ services:
     command: celery flower
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
-      interval: 10s
+      interval: 30s
       timeout: 10s
       retries: 5
     {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
@@ -232,24 +215,6 @@ services:
     {%- endif %}
     command: celery worker -q remote_queue
 
-  {% if config.backend.type.value == 'local' -%}
-
-  postgres:
-    image: postgres:12.2
-    environment:
-      - POSTGRES_DB=airflow
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    volumes:
-      - ${HOST_POSTGRES_PATH}:/var/lib/postgresql/data
-    restart: always
-    networks:
-      - {{ config.observatory.docker_network_name }}
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "airflow"]
-      interval: 5s
-      retries: 5
-
   apiserver:
     build:
       context: .
@@ -264,9 +229,11 @@ services:
     volumes: *volumes
     restart: always
     <<: *networks
+    {% if config.backend.type.value == 'local' %} 
     depends_on:
       postgres:
         condition: service_healthy
+    {% endif %}
     healthcheck:
       test: ["CMD", "nc", "-z", "-v", "apiserver", "5002"]
       interval: 30s
@@ -275,6 +242,23 @@ services:
     ports:
       - ${HOST_API_PORT}:5002
     entrypoint: /entrypoint-api.sh
+
+{% if config.backend.type.value == 'local' %} 
+  postgres:
+    image: postgres:12.2
+    environment:
+      - POSTGRES_DB={{ airflow_db_name }}
+      - POSTGRES_USER={{ postgres_user }}
+      - POSTGRES_PASSWORD={{ postgres_password }}
+    volumes:
+      - {{ host_postgres_path }}:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - {{ config.observatory.docker_network_name }}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ postgres_user }}", "-d", "{{ airflow_db_name }}"]
+      interval: 5s
+      retries: 5
 
   seed_db:
     build:
@@ -289,7 +273,7 @@ services:
     depends_on:
       apiserver:
         condition: service_healthy
-  {%- endif %}
+{%- endif %}
 
 
 {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}

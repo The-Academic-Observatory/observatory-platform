@@ -62,15 +62,9 @@ class PlatformRunner(ComposeRunner):
         self.add_template(
             path=os.path.join(self.docker_module_path, "entrypoint-airflow.sh.jinja2"), config=self.config
         )
-        self.add_template(
-            path=os.path.join(self.docker_module_path, "Dockerfile.apiserver.jinja2"), config=self.config
-        )
-        self.add_template(
-            path=os.path.join(self.docker_module_path, "Dockerfile.seed_db.jinja2"), config=self.config
-        )
-        self.add_template(
-            path=os.path.join(self.docker_module_path, "entrypoint-api.sh.jinja2"), config=self.config
-        )
+        self.add_template(path=os.path.join(self.docker_module_path, "Dockerfile.apiserver.jinja2"), config=self.config)
+        self.add_template(path=os.path.join(self.docker_module_path, "Dockerfile.seed_db.jinja2"), config=self.config)
+        self.add_template(path=os.path.join(self.docker_module_path, "entrypoint-api.sh.jinja2"), config=self.config)
         self.add_file(
             path=os.path.join(self.docker_module_path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh"
         )
@@ -163,7 +157,7 @@ class PlatformRunner(ComposeRunner):
         env["HOST_REDIS_PORT"] = str(self.config.observatory.redis_port)
         env["HOST_FLOWER_UI_PORT"] = str(self.config.observatory.flower_ui_port)
         env["HOST_AIRFLOW_UI_PORT"] = str(self.config.observatory.airflow_ui_port)
-        env["HOST_API_PORT"] = str(self.config.observatory.api_port)
+        env["HOST_API_SERVER_PORT"] = str(self.config.observatory.api_port)
 
         # Secrets
         if self.config.google_cloud is not None and self.config.google_cloud.credentials is not None:
