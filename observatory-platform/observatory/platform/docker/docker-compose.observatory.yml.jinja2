@@ -19,8 +19,6 @@ version: '3.8'
 {%- set postgres_user="observatory" -%}
 {%- set airflow_db_name="airflow" -%}
 {%- set postgres_password="${POSTGRES_PASSWORD}" -%}
-{%- set airflow_ui_user_email="${AIRFLOW_UI_USER_EMAIL}" -%}
-{%- set airflow_ui_user_password="${AIRFLOW_UI_USER_PASSWORD}" -%}
 
 {# Values different in different environments #}
 {%- if config.backend.type.value == 'local' -%}
@@ -74,8 +72,6 @@ x-environment: &environment
 
   # Paths to google credentials and UI user settings
   GOOGLE_APPLICATION_CREDENTIALS: "/run/secrets/google_application_credentials.json"
-  AIRFLOW_UI_USER_EMAIL: "{{ airflow_ui_user_email }}"
-  AIRFLOW_UI_USER_PASSWORD: "{{ airflow_ui_user_password }}"
 
   {%- if config.backend.type.value == 'local' %}
   # Connections
@@ -115,6 +111,14 @@ x-volumes: &volumes
   - "/opt/{{ package.name }}:/opt/{{ package.name }}"
   {%- endif -%}
   {%- endfor %}
+
+x-depends-on: &depends-on
+  redis:
+    condition: service_healthy
+  {% if config.backend.type.value == 'local' -%}
+  postgres:
+    condition: service_healthy
+  {%- endif %}
 
 {% if config.backend.type.value == 'local' %}
 {# Local network #}
@@ -168,13 +172,7 @@ services:
     restart: always
     networks:
       - {{ config.observatory.docker_network_name }}
-    depends_on:
-      redis:
-        condition: service_healthy
-      {% if config.backend.type.value == 'local' -%}
-      postgres:
-        condition: service_healthy
-      {%- endif %}
+    depends_on: *depends-on
     ports:
       - ${HOST_FLOWER_UI_PORT}:5555
     command: celery flower
@@ -194,13 +192,7 @@ services:
     restart: always
     networks:
       - {{ config.observatory.docker_network_name }}
-    depends_on:
-      redis:
-        condition: service_healthy
-      {% if config.backend.type.value == 'local' -%}
-      postgres:
-        condition: service_healthy
-      {%- endif %}
+    depends_on: *depends-on
     {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
@@ -214,6 +206,19 @@ services:
       timeout: 30s
       retries: 30
 
+  airflow-init:
+    image: apache/airflow:2.2.1-python3.8
+    environment:
+      <<: *environment
+      _AIRFLOW_DB_UPGRADE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_UI_USER_EMAIL}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_UI_USER_PASSWORD}
+    networks:
+      - {{ config.observatory.docker_network_name }}
+    depends_on: *depends-on
+    command: version
+
   scheduler:
     build: *build
     environment: *environment
@@ -224,10 +229,6 @@ services:
     depends_on:
       webserver:
         condition: service_healthy
-    {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
-    secrets:
-      - google_application_credentials.json
-    {%- endif %}
     command: scheduler
 
   worker_local:
