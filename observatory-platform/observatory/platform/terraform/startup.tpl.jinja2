@@ -54,7 +54,7 @@ HOST_DATA_PATH,HOST_LOGS_PATH,HOST_GOOGLE_APPLICATION_CREDENTIALS"
 PRESERVE_ENV=$(printenv | awk -v tmp="$PRESERVE_ENV" -F'=' '$0 ~ /AIRFLOW_VAR|AIRFLOW_CONN/ {printf "%s,", $1} END {print tmp}')
 
 # Save google application credentials to file
-sudo -u airflow bash -c "berglas access sm://${project_id}/google_application_credentials > ${HOST_GOOGLE_APPLICATION_CREDENTIALS}"
+sudo -u airflow bash -c "berglas access sm://${project_id}/google_application_credentials > /opt/observatory/google_application_credentials.json"
 
 # Navigate to docker directory which contains all Docker and Docker Compose files
 cd /opt/observatory/build/docker

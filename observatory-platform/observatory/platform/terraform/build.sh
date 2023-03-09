@@ -22,12 +22,10 @@ echo " ----- Install Berglas v1.0.1 ----- "
 curl -L "https://github.com/GoogleCloudPlatform/berglas/releases/download/v1.0.1/berglas_1.0.1_linux_amd64.tar.gz" | sudo tar -xz -C /usr/local/bin berglas
 sudo chmod +x /usr/local/bin/berglas
 
-echo " ----- Install Google Compute Monitoring agent ----- "
-curl -sSO https://dl.google.com/cloudagents/add-monitoring-agent-repo.sh
-sudo bash add-monitoring-agent-repo.sh
-sudo apt-get update
-sudo apt-get install -y 'stackdriver-agent=6.*'
-sudo service stackdriver-agent start
+echo " ----- Install Google Compute Ops Agent ----- "
+curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+sudo bash add-google-cloud-ops-agent-repo.sh --also-install --version=2.*.*
+sudo systemctl status google-cloud-ops-agent"*"
 
 echo " ----- Make airflow and docker directories, move packages, and clean up files ----- "
 sudo mkdir -p /opt/airflow/logs
@@ -56,8 +54,11 @@ export HOST_FLOWER_UI_PORT=5555
 export HOST_AIRFLOW_UI_PORT=8080
 export HOST_ELASTIC_PORT=9200
 export HOST_KIBANA_PORT=5601
+export HOST_DATA_PATH=/opt/observatory/data
+export HOST_LOGS_PATH=/opt/airflow/logs
+export HOST_GOOGLE_APPLICATION_CREDENTIALS=/opt/observatory/google_application_credentials.json
 
 echo " ----- Building docker containers with docker-compose, running as airflow user ----- "
-PRESERVE_ENV="HOST_USER_ID,HOST_REDIS_PORT,HOST_FLOWER_UI_PORT,HOST_AIRFLOW_UI_PORT,HOST_ELASTIC_PORT,HOST_KIBANA_PORT"
+PRESERVE_ENV="HOST_USER_ID,HOST_REDIS_PORT,HOST_FLOWER_UI_PORT,HOST_AIRFLOW_UI_PORT,HOST_ELASTIC_PORT,HOST_KIBANA_PORT,HOST_DATA_PATH,HOST_LOGS_PATH,HOST_GOOGLE_APPLICATION_CREDENTIALS"
 sudo -u airflow --preserve-env=${PRESERVE_ENV} bash -c "docker compose -f docker-compose.observatory.yml pull"
 sudo -u airflow --preserve-env=${PRESERVE_ENV} bash -c "docker compose -f docker-compose.observatory.yml build"
