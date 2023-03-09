@@ -163,9 +163,8 @@ services:
       retries: 50
 
   flower:
-    build: *build
+    image: apache/airflow:2.2.1-python3.8
     environment: *environment
-    volumes: *volumes
     restart: always
     networks:
       - {{ config.observatory.docker_network_name }}
@@ -190,9 +189,8 @@ services:
     {%- endif %}
 
   webserver:
-    build: *build
+    image: apache/airflow:2.2.1-python3.8
     environment: *environment
-    volumes: *volumes
     restart: always
     networks:
       - {{ config.observatory.docker_network_name }}
