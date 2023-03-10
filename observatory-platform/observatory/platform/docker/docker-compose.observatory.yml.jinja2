@@ -15,49 +15,18 @@
 # Author: James Diprose -#}
 version: '3.8'
 
-{# Values same for different environments #}
-{%- set postgres_user="observatory" -%}
-{%- set airflow_db_name="airflow" -%}
-{%- set postgres_password="${POSTGRES_PASSWORD}" -%}
-{%- set airflow_ui_user_email="${AIRFLOW_UI_USER_EMAIL}" -%}
-{%- set airflow_ui_user_password="${AIRFLOW_UI_USER_PASSWORD}" -%}
-
-{# Values different in different environments #}
-{%- if config.backend.type.value == 'local' -%}
-
-{%- set host_data_path="${HOST_OBSERVATORY_HOME}/data" -%}
-{%- set host_logs_path="${HOST_OBSERVATORY_HOME}/logs" -%}
-{%- set host_postgres_path="${HOST_OBSERVATORY_HOME}/postgres" -%}
-{%- set google_application_credentials="${HOST_GOOGLE_APPLICATION_CREDENTIALS}" -%}
-{%- set postgres_hostname="postgres" -%}
-{%- set redis_hostname="redis" -%}
-{%- set api_server_db="observatory" -%}
-{%- set api_server_port="5002" -%}
-{%- set api_uri="http://apiserver:5002" -%}
-{%- else -%}
-
-{%- set host_data_path="/opt/observatory/data" -%}
-{%- set host_logs_path="/opt/airflow/logs" -%}
-{%- set google_application_credentials="/opt/observatory/google_application_credentials.json" -%}
-{%- set postgres_hostname="${POSTGRES_HOSTNAME}" -%}
-{%- set redis_hostname="${REDIS_HOSTNAME}" -%}
-{%- set api_uri="${API_URI}" -%}
-
-{%- endif -%}
-
-{# Local settings -#}
 x-environment: &environment
   # Airflow settings
   AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
+  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
   AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
   AIRFLOW__CORE__LOAD_EXAMPLES: "False"
   AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
   AIRFLOW__CORE__EXECUTE_TASKS_NEW_PYTHON_INTERPRETER: "True"
   AIRFLOW__WEBSERVER__RBAC: "True"
   AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
-  AIRFLOW__CELERY__BROKER_URL: "redis://:@{{ redis_hostname }}:6379/0"
-  AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_hostname }}:5432/{{ airflow_db_name }}"
+  AIRFLOW__CELERY__BROKER_URL: "redis://:@${REDIS_HOSTNAME}:6379/0"
+  AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
   AIRFLOW__CELERY_BROKER_TRANSPORT_OPTIONS__VISIBILITY_TIMEOUT: 259200
   AIRFLOW__API__AUTH_BACKEND: airflow.api.auth.backend.basic_auth
   {%- if config.backend.type.value == 'terraform' %}
@@ -74,8 +43,6 @@ x-environment: &environment
 
   # Paths to google credentials and UI user settings
   GOOGLE_APPLICATION_CREDENTIALS: "/run/secrets/google_application_credentials.json"
-  AIRFLOW_UI_USER_EMAIL: "{{ airflow_ui_user_email }}"
-  AIRFLOW_UI_USER_PASSWORD: "{{ airflow_ui_user_password }}"
 
   {%- if config.backend.type.value == 'local' %}
   # Connections
@@ -97,8 +64,8 @@ x-environment: &environment
   {%- endfor %}
 
 x-volumes: &volumes
-  - "{{ host_logs_path }}:/opt/airflow/logs"
-  - "{{ host_data_path }}:/opt/observatory/data"
+  - "${HOST_LOGS_PATH}:/opt/airflow/logs"
+  - "${HOST_DATA_PATH}:/opt/observatory/data"
 
   # Volume mapping when observatory installed in editable mode
   {%- if config.backend.type.value == 'local' and config.observatory.package_type == 'editable' %}
@@ -115,6 +82,14 @@ x-volumes: &volumes
   - "/opt/{{ package.name }}:/opt/{{ package.name }}"
   {%- endif -%}
   {%- endfor %}
+
+x-depends-on: &depends-on
+  redis:
+    condition: service_healthy
+  {% if config.backend.type.value == 'local' -%}
+  postgres:
+    condition: service_healthy
+  {%- endif %}
 
 {% if config.backend.type.value == 'local' %}
 {# Local network #}
@@ -163,19 +138,12 @@ services:
       retries: 50
 
   flower:
-    build: *build
+    image: apache/airflow:2.2.1-python3.8
     environment: *environment
-    volumes: *volumes
     restart: always
     networks:
       - {{ config.observatory.docker_network_name }}
-    depends_on:
-      redis:
-        condition: service_healthy
-      {% if config.backend.type.value == 'local' -%}
-      postgres:
-        condition: service_healthy
-      {%- endif %}
+    depends_on: *depends-on
     ports:
       - ${HOST_FLOWER_UI_PORT}:5555
     command: celery flower
@@ -190,19 +158,12 @@ services:
     {%- endif %}
 
   webserver:
-    build: *build
+    image: apache/airflow:2.2.1-python3.8
     environment: *environment
-    volumes: *volumes
     restart: always
     networks:
       - {{ config.observatory.docker_network_name }}
-    depends_on:
-      redis:
-        condition: service_healthy
-      {% if config.backend.type.value == 'local' -%}
-      postgres:
-        condition: service_healthy
-      {%- endif %}
+    depends_on: *depends-on
     {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
@@ -215,6 +176,19 @@ services:
       interval: 30s
       timeout: 30s
       retries: 30
+
+  airflow_init:
+    image: apache/airflow:2.2.1-python3.8
+    environment:
+      <<: *environment
+      _AIRFLOW_DB_UPGRADE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_UI_USER_EMAIL}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_UI_USER_PASSWORD}
+    networks:
+      - {{ config.observatory.docker_network_name }}
+    depends_on: *depends-on
+    command: version
 
   scheduler:
     build: *build
@@ -263,16 +237,16 @@ services:
   postgres:
     image: postgres:12.2
     environment:
-      - POSTGRES_DB={{ airflow_db_name }}
-      - POSTGRES_USER={{ postgres_user }}
-      - POSTGRES_PASSWORD={{ postgres_password }}
+      - POSTGRES_DB=airflow
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
-      - {{ host_postgres_path }}:/var/lib/postgresql/data
+      - ${HOST_POSTGRES_PATH}:/var/lib/postgresql/data
     restart: always
     networks:
       - {{ config.observatory.docker_network_name }}
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "{{ postgres_user }}", "-d", "{{ airflow_db_name }}"]
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "airflow"]
       interval: 5s
       retries: 5
 
@@ -283,10 +257,10 @@ services:
       args:
         - HOST_USER_ID=${HOST_USER_ID}
     environment:
-      - API_SERVER_DB={{api_server_db}}
-      - BASE_DB_URI=postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/postgres
-      - OBSERVATORY_DB_URI=postgresql://{{postgres_user}}:{{postgres_password}}@{{postgres_hostname}}/{{api_server_db}}
-      - OBSERVATORY_API_PORT={{api_server_port}}
+      - API_SERVER_DB=observatory
+      - BASE_DB_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}/postgres
+      - OBSERVATORY_DB_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}/observatory
+      - OBSERVATORY_API_PORT=5002
     volumes: *volumes
     restart: always
     <<: *networks
@@ -294,12 +268,12 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "nc", "-z", "-v", "apiserver", "{{api_server_port}}"]
+      test: ["CMD", "nc", "-z", "-v", "apiserver", "5002"]
       interval: 30s
       retries: 20
     command: apiserver
     ports:
-      - ${HOST_API_PORT}:{{api_server_port}}
+      - ${HOST_API_PORT}:5002
     entrypoint: /entrypoint-api.sh
 
   seed_db:
@@ -309,7 +283,7 @@ services:
       args:
         - HOST_USER_ID=${HOST_USER_ID}
     environment:
-      - API_URI={{api_uri}}
+      - API_URI="http://apiserver:5002"
     volumes: *volumes
     <<: *networks
     depends_on:
@@ -321,5 +295,5 @@ services:
 {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
 secrets:
   google_application_credentials.json:
-    file: {{ google_application_credentials }}
+    file: ${HOST_GOOGLE_APPLICATION_CREDENTIALS}
 {%- endif %}

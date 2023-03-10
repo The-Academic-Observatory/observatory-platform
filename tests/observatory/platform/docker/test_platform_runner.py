@@ -61,10 +61,16 @@ def make_expected_env(cmd: PlatformRunner) -> Dict:
     :return: the environment.
     """
 
+    observatory_home = os.path.normpath(cmd.config.observatory.observatory_home)
     return {
         "COMPOSE_PROJECT_NAME": cmd.config.observatory.docker_compose_project_name,
+        "POSTGRES_USER": "observatory",
+        "POSTGRES_HOSTNAME": "postgres",
+        "REDIS_HOSTNAME": "redis",
         "HOST_USER_ID": str(HOST_UID),
-        "HOST_OBSERVATORY_HOME": cmd.config.observatory.observatory_home,
+        "HOST_DATA_PATH": os.path.join(observatory_home, "data"),
+        "HOST_LOGS_PATH": os.path.join(observatory_home, "logs"),
+        "HOST_POSTGRES_PATH": os.path.join(observatory_home, "postgres"),
         "HOST_REDIS_PORT": str(cmd.config.observatory.redis_port),
         "HOST_FLOWER_UI_PORT": str(cmd.config.observatory.flower_ui_port),
         "HOST_AIRFLOW_UI_PORT": str(cmd.config.observatory.airflow_ui_port),
