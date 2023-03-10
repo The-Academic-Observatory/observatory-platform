@@ -148,12 +148,18 @@ class PlatformRunner(ComposeRunner):
 
         env = os.environ.copy()
 
-        # Sets the name
+        # Settings for Docker Compose
         env["COMPOSE_PROJECT_NAME"] = self.config.observatory.docker_compose_project_name
+        env["POSTGRES_USER"] = "observatory"
+        env["POSTGRES_HOSTNAME"] = "postgres"
+        env["REDIS_HOSTNAME"] = "redis"
 
         # Host settings
         env["HOST_USER_ID"] = str(self.host_uid)
-        env["HOST_OBSERVATORY_HOME"] = os.path.normpath(self.config.observatory.observatory_home)
+        observatory_home = os.path.normpath(self.config.observatory.observatory_home)
+        env["HOST_DATA_PATH"] = os.path.join(observatory_home, "data")
+        env["HOST_LOGS_PATH"] = os.path.join(observatory_home, "logs")
+        env["HOST_POSTGRES_PATH"] = os.path.join(observatory_home, "postgres")
         env["HOST_REDIS_PORT"] = str(self.config.observatory.redis_port)
         env["HOST_FLOWER_UI_PORT"] = str(self.config.observatory.flower_ui_port)
         env["HOST_AIRFLOW_UI_PORT"] = str(self.config.observatory.airflow_ui_port)
