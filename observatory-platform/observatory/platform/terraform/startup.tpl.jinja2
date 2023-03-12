@@ -17,6 +17,7 @@
 
 # Set environment variables for Docker
 export HOST_USER_ID=$(id -u airflow)
+export POSTGRES_USER="observatory"
 export POSTGRES_HOSTNAME="${postgres_hostname}"
 export POSTGRES_PASSWORD="sm://${project_id}/postgres_password"
 export AIRFLOW_FERNET_KEY="sm://${project_id}/airflow_fernet_key"
@@ -46,7 +47,7 @@ do export AIRFLOW_VAR_$${names[$index]^^}="$${values[$index]}";
 done
 
 # Hardcoded list of environment variables that need to be preserved
-PRESERVE_ENV="HOST_USER_ID,POSTGRES_HOSTNAME,POSTGRES_PASSWORD,AIRFLOW_FERNET_KEY,AIRFLOW_SECRET_KEY,\
+PRESERVE_ENV="HOST_USER_ID,POSTGRES_USER,POSTGRES_HOSTNAME,POSTGRES_PASSWORD,AIRFLOW_FERNET_KEY,AIRFLOW_SECRET_KEY,\
 REDIS_HOSTNAME,AIRFLOW_UI_USER_PASSWORD,AIRFLOW_UI_USER_EMAIL,HOST_FLOWER_UI_PORT,HOST_REDIS_PORT,HOST_AIRFLOW_UI_PORT,\
 HOST_DATA_PATH,HOST_LOGS_PATH,HOST_GOOGLE_APPLICATION_CREDENTIALS"
 
