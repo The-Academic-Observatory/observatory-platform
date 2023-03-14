@@ -288,9 +288,10 @@ resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observat
 # Observatory Platform VPC Network
 ########################################################################################################################
 
+# Necessary to define the network so that the VMs can talk to the Cloud SQL database. 
 locals {
   network_name =  "ao-network"
-  vpc_connector_name = "observatory-vpc-connector" # This is the serverless VPC access, for cloud run to the observatory instance
+  vpc_connector_name = "observatory-vpc-connector" 
 }
 
 resource "google_compute_network" "observatory_network" {
