@@ -95,14 +95,6 @@ class TerraformCommand:
 
         self.terraform_builder.build_image()
 
-    def build_google_container_image(self):
-        """Build a Docker image stored in the Google Container registry using gcloud builds.
-
-        :return: None.
-        """
-        self.terraform_builder.gcloud_activate_service_account()
-        self.terraform_builder.gcloud_builds_submit()
-
     @property
     def verbosity(self):
         """Convert debug switch into Terraform API verbosity.

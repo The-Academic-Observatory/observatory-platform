@@ -550,44 +550,6 @@ class VirtualMachine:
         return VirtualMachine(machine_type, disk_size, disk_type, create)
 
 
-@dataclass
-class Api:
-    """The API domain name for the Observatory Platform API.
-
-    Attributes:
-        domain_name: the custom domain name of the API
-        subdomain: the subdomain of the API, can be either based on the google project id or the environment. When
-        based on the environment, there is no subdomain for the production environment.
-        api_image: the path to the Observatory API image on Google Cloud Artifact Registry.
-    """
-
-    domain_name: str
-    subdomain: str
-    api_image: str
-
-    def to_hcl(self):
-        return to_hcl(
-            {
-                "domain_name": self.domain_name,
-                "subdomain": self.subdomain,
-                "api_image": self.api_image,
-            }
-        )
-
-    @staticmethod
-    def from_dict(dict_: Dict) -> Api:
-        """Constructs a CloudSqlDatabase instance from a dictionary.
-
-        :param dict_: the dictionary.
-        :return: the CloudSqlDatabase instance.
-        """
-
-        domain_name = dict_.get("domain_name")
-        subdomain = dict_.get("subdomain")
-        api_image = dict_.get("api_image")
-        return Api(domain_name, subdomain, api_image)
-
-
 def is_base64(text: bytes) -> bool:
     """Check if the string is base64.
     :param text: Text to check.
@@ -1105,7 +1067,6 @@ class TerraformConfig(ObservatoryConfig):
         cloud_sql_database: CloudSqlDatabase = None,
         airflow_main_vm: VirtualMachine = None,
         airflow_worker_vm: VirtualMachine = None,
-        api: Api = None,
         validator: ObservatoryConfigValidator = None,
     ):
         """Create a TerraformConfig instance.
@@ -1139,7 +1100,6 @@ class TerraformConfig(ObservatoryConfig):
         self.cloud_sql_database = cloud_sql_database
         self.airflow_main_vm = airflow_main_vm
         self.airflow_worker_vm = airflow_worker_vm
-        self.api = api
 
     @property
     def terraform_workspace_id(self):
@@ -1201,7 +1161,6 @@ class TerraformConfig(ObservatoryConfig):
             TerraformVariable(
                 "airflow_connections", list_to_hcl(self.airflow_connections), hcl=True, sensitive=sensitive
             ),
-            TerraformVariable("api", self.api.to_hcl(), hcl=True),
         ]
 
     @classmethod
@@ -1233,7 +1192,6 @@ class TerraformConfig(ObservatoryConfig):
             cloud_sql_database = CloudSqlDatabase.from_dict(dict_.get("cloud_sql_database", dict()))
             airflow_main_vm = VirtualMachine.from_dict(dict_.get("airflow_main_vm", dict()))
             airflow_worker_vm = VirtualMachine.from_dict(dict_.get("airflow_worker_vm", dict()))
-            api = Api.from_dict(dict_.get("api", dict()))
 
             return TerraformConfig(
                 backend,
@@ -1246,7 +1204,6 @@ class TerraformConfig(ObservatoryConfig):
                 cloud_sql_database=cloud_sql_database,
                 airflow_main_vm=airflow_main_vm,
                 airflow_worker_vm=airflow_worker_vm,
-                api=api,
                 validator=validator,
             )
         else:
@@ -1266,7 +1223,6 @@ class TerraformConfig(ObservatoryConfig):
             self.save_cloud_sql_database(f)
             self.save_airflow_main_vm(f)
             self.save_airflow_worker_vm(f)
-            self.save_api(f)
 
     def save_cloud_sql_database(self, f: TextIO):
         """Write the cloud SQL database configuration section to the config file.
@@ -1301,26 +1257,6 @@ class TerraformConfig(ObservatoryConfig):
         requirement = self.get_requirement_string("airflow_worker_vm")
         f.write(f"# [{requirement}] Settings for the weekly on-demand VM that runs arge tasks\n")
         lines = ObserveratoryConfigString.airflow_worker_vm(self.airflow_worker_vm)
-        f.writelines(lines)
-        f.write("\n")
-
-    def save_api(self, f: TextIO):
-        """Write the API configuration section to the config file.
-
-        :param f: File object for the config file.
-        """
-
-        requirement = self.get_requirement_string("api")
-        f.write(
-            (
-                f"# [{requirement}] API settings\n"
-                "# The subdomain type determines what kind of subdomains will be created for access."
-                "# The options are: project_id, environment"
-                "# If project_id is selected, the project_id will be used for API access for that project, e.g., project_id.domain_name"
-                "# If environment is selected, the environment parameter will be used, e.g., production.domain_name\n"
-            )
-        )
-        lines = ObserveratoryConfigString.api(self.api)
         f.writelines(lines)
         f.write("\n")
 
@@ -1487,17 +1423,6 @@ def make_schema(backend_type: BackendType) -> Dict:
             },
         },
     }
-
-    if is_backend_terraform:
-        schema["api"] = {
-            "required": True,
-            "type": "dict",
-            "schema": {
-                "domain_name": {"required": True, "type": "string"},
-                "subdomain": {"required": True, "type": "string", "allowed": ["project_id", "environment"]},
-                "api_image": {"required": True, "type": "string"},
-            },
-        }
 
     return schema
 
@@ -1770,26 +1695,4 @@ class ObserveratoryConfigString:
             )
 
         lines = ObserveratoryConfigString.airflow_vm_lines_(vm=vm, vm_type="airflow_worker_vm")
-        return lines
-
-    @staticmethod
-    def api(api: Api) -> List[str]:
-        """Constructs the Observatory API section string.
-
-        :param api: API configuration object.
-        :return: List of strings for the section, including the section heading."
-        """
-
-        if api is None:
-            api = Api(
-                domain_name="localhost:5002",
-                subdomain="project_id",
-            )
-
-        lines = [
-            "api:\n",
-            indent(f"domain_name: {api.domain_name}\n", INDENT1),
-            indent(f"subdomain: {api.subdomain}\n", INDENT1),
-        ]
-
         return lines

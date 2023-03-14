@@ -333,7 +333,7 @@ def config(command: str, config_path: str, interactive: bool, ao_wf: bool, oaebu
 @cli.command(context_settings=dict(max_content_width=120))
 @click.argument(
     "command",
-    type=click.Choice(["build-terraform", "build-image", "build-api-image", "create-workspace", "update-workspace"]),
+    type=click.Choice(["build-terraform", "build-image", "create-workspace", "update-workspace"]),
 )
 # The path to the config-terraform.yaml configuration file.
 @click.argument("config-path", type=click.Path(exists=True, file_okay=True, dir_okay=False))
@@ -369,9 +369,6 @@ def terraform(command, config_path, terraform_credentials_path, debug):
     elif command == "build-image":
         # Build image with packer
         terraform_cmd.build_image()
-    elif command == "build-api-image":
-        # Build docker image stored in google container registry
-        terraform_cmd.build_google_container_image()
     else:
         # Create a new workspace
         if command == "create-workspace":

@@ -740,20 +740,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         InteractiveConfigBuilder.config_airflow_worker_vm(config)
         self.assertEqual(config.airflow_worker_vm, vm)
 
-    @patch("observatory.platform.cli.generate_command.click.prompt")
-    def test_config_api(self, m_prompt):
-        api = Api(
-            domain_name="api.something",
-            subdomain="project_id",
-            api_image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
-        )
-
-        m_prompt.side_effect = [api.domain_name, api.subdomain, api.api_image]
-
-        config = TerraformConfig()
-        InteractiveConfigBuilder.config_api(config)
-        self.assertEqual(config.api, api)
-
 
 class TestFernetKeyParamType(unittest.TestCase):
     def test_fernet_key_convert_fail(self):
