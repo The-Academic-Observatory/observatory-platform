@@ -32,7 +32,6 @@ from observatory.platform.observatory_config import (
     VirtualMachine,
     AirflowVariable,
     AirflowConnection,
-    Api,
 )
 from observatory.platform.terraform.terraform_builder import TerraformBuilder
 from observatory.platform.utils.proc_utils import stream_process

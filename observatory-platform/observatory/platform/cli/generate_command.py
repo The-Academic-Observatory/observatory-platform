@@ -549,7 +549,6 @@ class InteractiveConfigBuilder:
             InteractiveConfigBuilder.config_cloud_sql_database(config)
             InteractiveConfigBuilder.config_airflow_main_vm(config)
             InteractiveConfigBuilder.config_airflow_worker_vm(config)
-            InteractiveConfigBuilder.config_api(config)
 
         return config
 
