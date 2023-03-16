@@ -197,7 +197,7 @@ class TestCliFunctional(unittest.TestCase):
         """
 
         # Expected values
-        expected_ports = [observatory.airflow_ui_port, observatory.flower_ui_port, observatory.api_port]
+        expected_ports = [observatory.airflow_ui_port, observatory.flower_ui_port, f'{observatory.api_port}/swagger.json']
 
         # Verify that ports are active
         urls = []

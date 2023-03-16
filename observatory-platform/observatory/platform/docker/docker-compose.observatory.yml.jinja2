@@ -84,9 +84,27 @@ x-volumes: &volumes
   {%- endif -%}
   {%- endfor %}
 
+x-depends-on: &depends-on
+  redis:
+    condition: service_healthy
+  {% if config.backend.type.value == 'local' -%}
+  postgres:
+    condition: service_healthy
+  {%- endif %}
+
+{% if config.backend.type.value == 'local' %}
+{# Local network #}
 x-network-mode: &networks
   networks:
     - {{ config.observatory.docker_network_name }}
+
+{%- else %}
+
+{#- Cloud network -#}
+x-network-mode: &networks
+  network_mode: "host"
+
+{%- endif -%}
 
 {%- if config.backend.type.value == 'terraform' or not config.observatory.docker_network_is_external %}
 {# Cloud network or not external network #}
@@ -240,23 +258,24 @@ services:
       retries: 20
     command: apiserver
     ports:
-      - ${HOST_API_PORT}:5002
+      - ${HOST_API_SERVER_PORT}:5002
     entrypoint: /entrypoint-api.sh
 
 {% if config.backend.type.value == 'local' %} 
+
   postgres:
     image: postgres:12.2
     environment:
-      - POSTGRES_DB={{ airflow_db_name }}
-      - POSTGRES_USER={{ postgres_user }}
-      - POSTGRES_PASSWORD={{ postgres_password }}
+      - POSTGRES_DB=airflow
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
-      - {{ host_postgres_path }}:/var/lib/postgresql/data
+      - ${HOST_POSTGRES_PATH}:/var/lib/postgresql/data
     restart: always
     networks:
       - {{ config.observatory.docker_network_name }}
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "{{ postgres_user }}", "-d", "{{ airflow_db_name }}"]
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "airflow"]
       interval: 5s
       retries: 5
 
