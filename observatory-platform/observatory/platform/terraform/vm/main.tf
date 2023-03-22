@@ -1,3 +1,4 @@
+# TODO: Attempt to move this out of the VM part to the main terraform file. 
 resource "google_compute_address" "vm_private_ip" {
   name = "${var.name}-private-ip"
   address_type = "INTERNAL"

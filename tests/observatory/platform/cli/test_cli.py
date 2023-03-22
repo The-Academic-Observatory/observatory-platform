@@ -554,11 +554,6 @@ class TestObservatoryTerraform(unittest.TestCase):
                         "disk_type": "pd-standard",
                         "create": False,
                     },
-                    "api": {
-                        "domain_name": "api.custom.domain",
-                        "subdomain": "project_id",
-                        "api_image": "us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
-                    },
                 }
             )
 
@@ -704,11 +699,6 @@ class TestObservatoryTerraform(unittest.TestCase):
                         "disk_size": 1,
                         "disk_type": "pd-standard",
                         "create": False,
-                    },
-                    "api": {
-                        "domain_name": "api.custom.domain",
-                        "subdomain": "project_id",
-                        "api_image": "us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
                     },
                 }
             )

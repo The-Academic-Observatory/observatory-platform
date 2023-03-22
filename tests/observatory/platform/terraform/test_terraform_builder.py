@@ -15,7 +15,6 @@
 # Author: James Diprose, Aniek Roelofs
 
 import os
-import subprocess
 import unittest
 from unittest.mock import Mock, patch
 
@@ -33,7 +32,6 @@ from observatory.platform.observatory_config import (
     VirtualMachine,
     AirflowVariable,
     AirflowConnection,
-    Api,
 )
 from observatory.platform.terraform.terraform_builder import TerraformBuilder
 from observatory.platform.utils.proc_utils import stream_process
@@ -90,11 +88,6 @@ class TestTerraformBuilder(unittest.TestCase):
             ),
             airflow_variables=[AirflowVariable(name="my-variable-name", value="my-variable-value")],
             airflow_connections=[AirflowConnection(name="my-connection", value="http://:my-token-key@")],
-            api=Api(
-                domain_name="api.custom.domain",
-                subdomain="project_id",
-                api_image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
-            ),
         )
 
     def test_is_environment_valid(self):
@@ -206,43 +199,3 @@ class TestTerraformBuilder(unittest.TestCase):
             # Assert that account was activated
             expected_return_code = 0
             self.assertEqual(expected_return_code, return_code)
-
-    @patch("subprocess.Popen")
-    @patch("observatory.platform.terraform.terraform_builder.stream_process")
-    def test_gcloud_builds_submit(self, mock_stream_process, mock_subprocess):
-        """Test gcloud builds submit command"""
-
-        # Check that the environment variables are set properly for the default config
-        with CliRunner().isolated_filesystem() as t:
-            mock_subprocess.return_value = Popen()
-            mock_stream_process.return_value = ("", "")
-
-            cfg = self.get_terraform_config(t)
-            cmd = TerraformBuilder(config=cfg)
-
-            # Build the image
-            output, error, return_code = cmd.gcloud_builds_submit()
-
-            # Assert that the image built
-            expected_return_code = 0
-            self.assertEqual(expected_return_code, return_code)
-
-    def test_build_api_image(self):
-        """Test building API image using Docker"""
-
-        # Check that the environment variables are set properly for the default config
-        with CliRunner().isolated_filesystem() as t:
-            cfg = self.get_terraform_config(t)
-            cmd = TerraformBuilder(config=cfg)
-
-            args = ["docker", "build", "."]
-            print("Executing subprocess:")
-
-            proc: Popen = subprocess.Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cmd.api_package_path
-            )
-            output, error = stream_process(proc, True)
-
-            # Assert that the image built
-            expected_return_code = 0
-            self.assertEqual(expected_return_code, proc.returncode)

@@ -12,27 +12,7 @@ info:
 
 {# API Client specific settings #}
 {%- if api_client %}
-host: api.observatory.academy
-schemes:
-  - https
-produces:
-  - application/json
-securityDefinitions:
-  # This section configures basic authentication with an API key.
-  api_key:
-    type: "apiKey"
-    name: "key"
-    in: "query"
-security:
-  - api_key: []
-{%- endif %}
-
-{# Cloud Endpoints specific settings #}
-{%- if cloud_endpoints %}
-host: ${host}
-x-google-backend:
-  address: ${backend_address}
-  protocol: h2
+host: localhost:5002
 schemes:
   - https
 produces:
@@ -1105,7 +1085,6 @@ paths:
           schema:
             type: integer
             description: The total number of BigQuery bytes used for the project in the last 24 hours
-            example: 126538
         400:
           description: bad input parameter
         401:
@@ -1155,49 +1134,44 @@ definitions:
     properties:
       id:
         type: integer
-        example: 1
       type_id:
         type: string
-        example: onix
         minLength: 1
         maxLength: 250
       name:
         type: string
-        example: Scopus
         minLength: 1
         maxLength: 250
       created:
         type: string
         format: date-time
-        example: 2020-01-01T20:01:05Z
         readOnly: true
       modified:
         type: string
         format: date-time
-        example: 2020-01-02T20:01:05Z
         readOnly: true
-
+    example:
+      id: {{ 1 | int }}
+      type_id: onix
+      name: Scopus
+      
   Workflow:
     type: object
     properties:
       id:
         type: integer
-        example: 1
       name:
         type: string
-        example: Curtin University ONIX Workflow
         minLength: 1
         maxLength: 250
         x-nullable: true
       extra:
         type: object
-        example: {'view-id': '830'}
         minLength: 1
         maxLength: 512
         x-nullable: true
       tags:
         type: string
-        example: oaebu
         minLength: 1
         maxLength: 250
         x-nullable: true
@@ -1212,13 +1186,26 @@ definitions:
       created:
         type: string
         format: date-time
-        example: 2020-01-01T20:01:05Z
         readOnly: true  
       modified:
         type: string
         format: date-time
-        example: 2020-01-02T20:01:05Z
         readOnly: true
+    example:
+      id: {{ 1 | int }}
+      name: Curtin University ONIX Workflow
+      extra: {'view-id': '830'}
+      tags: oaebu
+      organisation:
+        id: {{ 1 | int }}
+        name: 'Curtin University'
+        project_id: 'curtin_dev'
+        download_bucket: 'curtin-dev-download'
+        transform_bucket: 'curtin-dev-transform'
+      workflow_type: 
+        id: {{ 1 | int }}
+        type_id: onix
+        name: Scopus
 
   Organisation:
     type: object
@@ -1226,27 +1213,22 @@ definitions:
     properties:
       id:
         type: integer
-        example: 1
       name:
         type: string
-        example: Curtin University
         minLength: 1
         maxLength: 250
       project_id:
         type: string
-        example: curtin-dev
         minLength: 6
         maxLength: 30
         x-nullable: true
       download_bucket:
         type: string
-        example: curtin-dev-download
         minLength: 3
         maxLength: 222
         x-nullable: true
       transform_bucket:
         type: string
-        example: curtin-dev-transform
         minLength: 3
         maxLength: 222
         x-nullable: true
@@ -1258,60 +1240,59 @@ definitions:
       created:
         type: string
         format: date-time
-        example: 2020-01-01T20:01:05Z
         readOnly: true
       modified:
         type: string
         format: date-time
-        example: 2020-01-02T20:01:05Z
         readOnly: true
+    example:
+      id: {{ 1 | int }}
+      name: 'Curtin University'
+      project_id: 'curtin_dev'
+      download_bucket: 'curtin-dev-download'
+      transform_bucket: 'curtin-dev-transform'
 
   TableType:
     type: object
     properties:
       id:
         type: integer
-        example: 1
       type_id:
         type: string
-        example: bq_partitioned
         minLength: 1
         maxLength: 250
       name:
         type: string
-        example: BigQuery partitioned table
         minLength: 1
         maxLength: 250
       created:
         type: string
         format: date-time
-        example: 2020-01-01T20:01:05Z
         readOnly: true
       modified:
         type: string
         format: date-time
-        example: 2020-01-02T20:01:05Z
         readOnly: true
+    example:
+      id: {{ 1 | int }}
+      type_id: 'bq_partitioned'
+      name: 'BigQuery partitioned table'
 
   DatasetType:
     type: object
     properties:
       id:
         type: integer
-        example: 1
       type_id:
         type: string
-        example: onix
         minLength: 1
         maxLength: 250
       name:
         type: string
-        example: ONIX dataset
         minLength: 1
         maxLength: 250
       extra:
         type: object
-        example: {'isbn_field': 'ISBN', 'type': 'snapshot'}
         minLength: 1
         maxLength: 512
         x-nullable: true
@@ -1320,102 +1301,160 @@ definitions:
       created:
         type: string
         format: date-time
-        example: 2020-01-01T20:01:05Z
         readOnly: true
       modified:
         type: string
         format: date-time
-        example: 2020-01-02T20:01:05Z
         readOnly: true
+    example:
+      id: {{ 1 | int }}
+      type_id: 'onix'
+      name: 'ONIX dataset'
+      table_type:
+        id: {{ 1 | int }}
+        type_id: 'bq_partitioned'
+        name: 'BigQuery partitioned table'
+      extra: {'isbn_field': 'ISBN', 'type': 'snapshot'}
 
   DatasetRelease:
     type: object
     properties:
       id:
         type: integer
-        example: 1
       start_date:
         type: string
         format: date-time
-        example: 2020-01-02T20:01:05Z
       end_date:
         type: string
         format: date-time
-        example: 2020-01-02T20:01:05Z
         x-nullable: true
       dataset:
         $ref: '#/definitions/Dataset'
       created:
         type: string
         format: date-time
-        example: 2020-01-01T20:01:05Z
         readOnly: true
       modified:
         type: string
         format: date-time
-        example: 2020-01-02T20:01:05Z
         readOnly: true
+    example:
+      id: {{ 1 | int }}
+      start_date: "2020-01-02T20:01:05Z"
+      end_date: "2020-02-02T20:01:05Z"
+      dataset: 
+        id: {{ 1 | int }}
+        name: RoR
+        service: google
+        address: curtin_gcp_project_id.my_dataset_id.my_table
+        workflow:
+          id: {{ 1 | int }}
+          name: Curtin University ONIX Workflow
+          extra: {'view-id': '830'} 
+          tags: oaebu
+          organisation:
+            id: {{ 1 | int }}
+            name: 'Curtin University'
+            project_id: 'curtin_dev'
+            download_bucket: 'curtin-dev-download'
+            transform_bucket: 'curtin-dev-transform'
+          workflow_type: 
+            id: {{ 1 | int }}
+            type_id: onix
+            name: Scopus
+        dataset_type:
+          id: {{ 1 | int }}
+          type_id: 'onix'
+          name: 'ONIX dataset'
+          table_type:
+            id: {{ 1 | int }}
+            type_id: 'bq_partitioned'
+            name: 'BigQuery partitioned table'
+          extra: {'isbn_field': 'ISBN', 'type': 'snapshot'}
+
 
   Dataset:
     type: object
     properties:
       id:
         type: integer
-        example: 1
       name:
         type: string
-        example: RoR
         minLength: 1
         maxLength: 250
       workflow:
         $ref: '#/definitions/Workflow'
       service:
         type: string
-        example: google
         minLength: 1
         maxLength: 250
       address:
         type: string
-        example: curtin_gcp_project_id.my_dataset_id.my_table
         minLength: 1
         maxLength: 250
       created:
         type: string
         format: date-time
-        example: 2020-01-01T20:01:05Z
         readOnly: true
       modified:
         type: string
         format: date-time
-        example: 2020-01-02T20:01:05Z
         readOnly: true
       dataset_type:
         $ref: '#/definitions/DatasetType'
+    example:
+      id: {{ 1 | int }}
+      name: RoR
+      service: google
+      address: curtin_gcp_project_id.my_dataset_id.my_table
+      workflow:
+        id: {{ 1 | int }}
+        name: Curtin University ONIX Workflow
+        extra: {{ {'view-id': '830'} | string }}
+        tags: oaebu
+        organisation:
+          id: {{ 1 | int }}
+          name: 'Curtin University'
+          project_id: 'curtin_dev'
+          download_bucket: 'curtin-dev-download'
+          transform_bucket: 'curtin-dev-transform'
+        workflow_type: 
+          id: {{ 1 | int }}
+          type_id: onix
+          name: Scopus
+      dataset_type:
+        id: {{ 1 | int }}
+        type_id: 'onix'
+        name: 'ONIX dataset'
+        table_type:
+          id: {{ 1 | int }}
+          type_id: 'bq_partitioned'
+          name: 'BigQuery partitioned table'
+        extra: {'isbn_field': 'ISBN', 'type': 'snapshot'}
 
   BigQueryBytesProcessed:
     type: object
     properties:
       id:
         type: integer
-        example: 1
       project:
         type: string
-        example: coki
         minLength: 3
         maxLength: 222
       total:
         type: integer
-        example: 0
       created:
         type: string
         format: date-time
-        example: 2020-01-01T20:01:05Z
         readOnly: true
       modified:
         type: string
         format: date-time
-        example: 2020-01-02T20:01:05Z
         readOnly: true
+    example: 
+      id: {{ 1 | int }}
+      project: coki
+      total: {{ 0 | int }}
 
 responses:
   UnauthorizedError:
