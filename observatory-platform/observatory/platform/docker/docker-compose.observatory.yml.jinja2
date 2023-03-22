@@ -149,7 +149,7 @@ services:
     command: celery flower
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
-      interval: 10s
+      interval: 30s
       timeout: 10s
       retries: 5
     {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
@@ -232,7 +232,35 @@ services:
     {%- endif %}
     command: celery worker -q remote_queue
 
-  {% if config.backend.type.value == 'local' -%}
+  apiserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.apiserver
+      args:
+        - HOST_USER_ID=${HOST_USER_ID}
+    environment:
+      - API_SERVER_DB=observatory
+      - BASE_DB_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}/postgres
+      - OBSERVATORY_DB_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}/observatory
+      - OBSERVATORY_API_PORT=5002
+    volumes: *volumes
+    restart: always
+    <<: *networks
+    {% if config.backend.type.value == 'local' %} 
+    depends_on:
+      postgres:
+        condition: service_healthy
+    {% endif %}
+    healthcheck:
+      test: ["CMD", "nc", "-z", "-v", "apiserver", "5002"]
+      interval: 30s
+      retries: 20
+    command: apiserver
+    ports:
+      - ${HOST_API_SERVER_PORT}:5002
+    entrypoint: /entrypoint-api.sh
+
+{% if config.backend.type.value == 'local' %} 
 
   postgres:
     image: postgres:12.2
@@ -250,32 +278,6 @@ services:
       interval: 5s
       retries: 5
 
-  apiserver:
-    build:
-      context: .
-      dockerfile: Dockerfile.apiserver
-      args:
-        - HOST_USER_ID=${HOST_USER_ID}
-    environment:
-      - API_SERVER_DB=observatory
-      - BASE_DB_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}/postgres
-      - OBSERVATORY_DB_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}/observatory
-      - OBSERVATORY_API_PORT=5002
-    volumes: *volumes
-    restart: always
-    <<: *networks
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "nc", "-z", "-v", "apiserver", "5002"]
-      interval: 30s
-      retries: 20
-    command: apiserver
-    ports:
-      - ${HOST_API_PORT}:5002
-    entrypoint: /entrypoint-api.sh
-
   seed_db:
     build:
       context: .
@@ -289,7 +291,7 @@ services:
     depends_on:
       apiserver:
         condition: service_healthy
-  {%- endif %}
+{%- endif %}
 
 
 {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}

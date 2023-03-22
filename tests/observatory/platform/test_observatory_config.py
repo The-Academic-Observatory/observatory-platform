@@ -27,7 +27,6 @@ from click.testing import CliRunner
 from observatory.platform.observatory_config import (
     AirflowConnection,
     AirflowVariable,
-    Api,
     Backend,
     BackendType,
     CloudSqlDatabase,
@@ -237,11 +236,6 @@ class TestTerraformConfig(unittest.TestCase):
                     "disk_type": "pd-standard",
                     "create": False,
                 },
-                "api": {
-                    "domain_name": "api.custom.domain",
-                    "subdomain": "project_id",
-                    "api_image": "us-docker.pkg.dev/academic-observatory/observatory-platform/observatory-api:latest",
-                },
             }
 
             save_yaml(file_path, dict_)
@@ -304,11 +298,6 @@ class TestTerraformConfig(unittest.TestCase):
                         "dags_module": "oaebu_workflows.dags",
                     },
                 ],
-                "api": {
-                    "domain_name": "api.custom.domain",
-                    "subdomain": "project_id",
-                    "api_image": "us-docker.pkg.dev/academic-observatory/observatory-platform/observatory-api:latest",
-                },
             }
 
             save_yaml(file_path, dict_)
@@ -953,11 +942,6 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
             cloud_sql_database=CloudSqlDatabase(tier="test", backup_start_time="12:00"),
             airflow_main_vm=VirtualMachine(machine_type="aa", disk_size=1, disk_type="pd-standard", create=False),
             airflow_worker_vm=VirtualMachine(machine_type="bb", disk_size=1, disk_type="pd-ssd", create=True),
-            api=Api(
-                domain_name="api.something",
-                subdomain="project_id",
-                api_image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
-            ),
         )
 
         file = "config.yaml"
@@ -974,7 +958,6 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
             self.assertEqual(loaded.cloud_sql_database, config.cloud_sql_database)
             self.assertEqual(loaded.airflow_main_vm, config.airflow_main_vm)
             self.assertEqual(loaded.airflow_worker_vm, config.airflow_worker_vm)
-            self.assertEqual(loaded.api, config.api)
 
     def test_save_observatory_config_defaults(self):
         config = ObservatoryConfig(
@@ -1043,15 +1026,6 @@ class TestObservatoryConfigGeneration(unittest.TestCase):
                     disk_size=3000,
                     disk_type="pd-standard",
                     create=False,
-                ),
-            )
-
-            self.assertEqual(
-                loaded.api,
-                Api(
-                    domain_name="api.observatory.academy",
-                    subdomain="project_id",
-                    api_image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
                 ),
             )
 

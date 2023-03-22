@@ -273,13 +273,6 @@ Terraform config file: in this case you will need to update the Terraform worksp
 * You have changed any other settings in the Observatory Terraform config file (apart from `backend.environment`): 
 in this case you will need to update the Terraform workspace variables and run `terraform apply`.
 
-## Building the Cloud Run image
-The Docker image for the API needs to be uploaded to the Google Cloud container registry. This is used to create the 
-Cloud Run backend service, to build the Docker image run the following command:
-```bash
-observatory terraform build-api-image ~/.observatory/config-terraform.yaml
-```
-
 Use this command if:
  * This is the first time you are deploying the Terraform resources
  * You have updated any files in the API directory (`/home/user/workspace/observatory-platform/observatory-platform/observatory/platform/api`)
@@ -340,7 +333,6 @@ Terraform Cloud Workspace:
    * airflow: sensitive
    * google_cloud: sensitive
    * cloud_sql_database: sensitive
-   * api: {"domain_name"="api.observatory.academy","subdomain"="project_id"}
    * airflow_main_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=true}
    * airflow_worker_vm: {"machine_type"="n2-standard-2","disk_size"=20,"disk_type"="pd-standard","create"=false}
    * airflow_variables: {}

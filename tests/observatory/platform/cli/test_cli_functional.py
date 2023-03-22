@@ -188,7 +188,7 @@ class TestCliFunctional(unittest.TestCase):
                 break
         self.assertSetEqual(expected_dag_ids, actual_dag_ids)
 
-    def assert_ports_open(self, observatory: Observatory, timeout: int = 120):
+    def assert_ports_open(self, observatory: Observatory, timeout: int = 180):
         """Check that the ports given in the observatory object are accepting connections.
 
         :param observatory: the observatory object.
@@ -197,7 +197,7 @@ class TestCliFunctional(unittest.TestCase):
         """
 
         # Expected values
-        expected_ports = [observatory.airflow_ui_port, observatory.flower_ui_port]
+        expected_ports = [observatory.airflow_ui_port, observatory.flower_ui_port, f'{observatory.api_port}/swagger.json']
 
         # Verify that ports are active
         urls = []

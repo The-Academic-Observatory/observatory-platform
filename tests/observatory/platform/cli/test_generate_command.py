@@ -32,7 +32,6 @@ from observatory.platform.cli.generate_command import (
 from observatory.platform.observatory_config import (
     AirflowConnection,
     AirflowVariable,
-    Api,
     Backend,
     BackendType,
     CloudSqlDatabase,
@@ -154,7 +153,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         self.assertEqual(m_set_edit.call_count, 1)
 
     @patch("observatory.platform.cli.generate_command.module_file_path")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_api")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_worker_vm")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_main_vm")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_cloud_sql_database")
@@ -177,7 +175,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         m_cloud_sql_database,
         m_airflow_main_vm,
         m_airflow_worker_m,
-        m_api,
         m_mfp,
     ):
         def mock_mfp(*arg, **kwargs):
@@ -232,7 +229,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         self.assertTrue(m_cloud_sql_database.called)
         self.assertTrue(m_airflow_main_vm.called)
         self.assertTrue(m_airflow_worker_m.called)
-        self.assertTrue(m_api.called)
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     def test_config_backend(self, m_prompt):
@@ -739,25 +735,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         config = TerraformConfig()
         InteractiveConfigBuilder.config_airflow_worker_vm(config)
         self.assertEqual(config.airflow_worker_vm, vm)
-
-    @patch("observatory.platform.cli.generate_command.click.prompt")
-    def test_config_api(self, m_prompt):
-        api = Api(
-            domain_name="api.something",
-            subdomain="project_id",
-            api_image="us-docker.pkg.dev/gcp-project-id/observatory-platform/observatory-api:latest",
-        )
-
-        m_prompt.side_effect = [
-            api.domain_name,
-            api.subdomain,
-            api.api_image,
-            api.er_image,
-        ]
-
-        config = TerraformConfig()
-        InteractiveConfigBuilder.config_api(config)
-        self.assertEqual(config.api, api)
 
 
 class TestFernetKeyParamType(unittest.TestCase):

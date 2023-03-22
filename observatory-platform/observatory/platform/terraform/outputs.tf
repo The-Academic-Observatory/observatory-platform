@@ -31,14 +31,3 @@ output "project_number" {
 output "default_transfer_service_account" {
   value = data.google_storage_transfer_project_service_account.default.email
 }
-
-output "api-domain-name" {
-  value = module.observatory_api.api-domain-name
-  description = "Custom domain name for the API"
-  sensitive = true # explicitly mark as sensitive so it can be exported
-}
-
-output "api-gateway-url" {
-  value = module.observatory_api.api-gateway-url
-  description = "Cloud run gateway URL for the API"
-}

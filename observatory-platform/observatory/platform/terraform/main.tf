@@ -288,9 +288,10 @@ resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observat
 # Observatory Platform VPC Network
 ########################################################################################################################
 
+# Necessary to define the network so that the VMs can talk to the Cloud SQL database. 
 locals {
   network_name =  "ao-network"
-  vpc_connector_name = "observatory-vpc-connector"
+  vpc_connector_name = "observatory-vpc-connector" 
 }
 
 resource "google_compute_network" "observatory_network" {
@@ -328,15 +329,6 @@ resource "google_compute_firewall" "allow_ssh" {
     ports = ["22"]
   }
   priority = 65534
-}
-
-# The VPC Access Connector is required to enable the Cloud Run backend to connect to the CloudSQL database with
-# the CloudSQL private IP address.
-resource "google_vpc_access_connector" "observatory_vpc_connector" {
-  name = local.vpc_connector_name
-  ip_cidr_range = "10.8.0.0/28"
-  network = local.network_name
-  region = var.google_cloud.region
 }
 
 ########################################################################################################################
@@ -599,19 +591,4 @@ module "airflow_worker_vm" {
   startup_script_path = "./startup-worker.tpl"
   metadata_variables = local.metadata_variables
   static_external_ip_address = local.worker_vm_static_external_ip_address
-}
-
-########################################################################################################################
-# Observatory Platform API
-########################################################################################################################
-
-module "observatory_api" {
-  source = "./api"
-  environment = var.environment
-  google_cloud = var.google_cloud
-  vpc_connector_name = local.vpc_connector_name
-  observatory_db_uri = "postgresql://observatory:${urlencode(var.observatory.postgres_password)}@${google_sql_database_instance.observatory_db_instance.private_ip_address}:5432/observatory"
-  api = var.api
-  # necessary for api-endpoint_service_account, api-backend_service_account
-  depends_on = [google_project_service.services, google_sql_database.observatory_db, google_vpc_access_connector.observatory_vpc_connector]
 }

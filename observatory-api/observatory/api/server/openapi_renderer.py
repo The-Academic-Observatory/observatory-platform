@@ -43,16 +43,14 @@ def render_template(template_path: str, **kwargs) -> str:
 
 
 class OpenApiRenderer:
-    def __init__(self, openapi_template_path: str, cloud_endpoints: bool = False, api_client: bool = False):
+    def __init__(self, openapi_template_path: str, api_client: bool = False):
         """Construct an object that renders an OpenAPI 2 Jinja2 file.
 
         :param openapi_template_path: the path to the OpenAPI 2 Jinja2 template.
-        :param cloud_endpoints: whether to render the file for the backend (default) or Cloud Endpoints.
         :param api_client: whether to render the file for the Server (default) or the Client.
         """
 
         self.openapi_template_path = openapi_template_path
-        self.cloud_endpoints = cloud_endpoints
         self.api_client = api_client
 
     def render(self) -> str:
@@ -63,7 +61,6 @@ class OpenApiRenderer:
 
         return render_template(
             self.openapi_template_path,
-            cloud_endpoints=self.cloud_endpoints,
             api_client=self.api_client,
         )
 
@@ -73,7 +70,4 @@ class OpenApiRenderer:
         :return: the dictionary.
         """
 
-        assert not self.cloud_endpoints and not self.api_client, (
-            "Only supported where self.cloud_endpoints is False " "and self.api_client is False"
-        )
         return yaml.safe_load(self.render())

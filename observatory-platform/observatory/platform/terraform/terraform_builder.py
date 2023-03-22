@@ -21,8 +21,6 @@ import shutil
 import subprocess
 from subprocess import Popen
 from typing import Tuple
-
-from observatory.api.server.openapi_renderer import OpenApiRenderer
 from observatory.platform.cli.cli_utils import indent, INDENT1
 from observatory.platform.docker.platform_runner import PlatformRunner
 from observatory.platform.observatory_config import TerraformConfig
@@ -114,9 +112,6 @@ class TerraformBuilder:
         self.make_startup_script(True, "startup-main.tpl")
         self.make_startup_script(False, "startup-worker.tpl")
 
-        # Make OpenAPI specification
-        self.make_open_api_template()
-
     def make_startup_script(self, is_airflow_main_vm: bool, file_name: str):
         # Load and render template
         template_path = os.path.join(self.terraform_path, "startup.tpl.jinja2")
@@ -124,17 +119,6 @@ class TerraformBuilder:
 
         # Save file
         output_path = os.path.join(self.terraform_build_path, file_name)
-        with open(output_path, "w") as f:
-            f.write(render)
-
-    def make_open_api_template(self):
-        # Load and render template
-        specification_path = os.path.join(self.api_path, "openapi.yaml.jinja2")
-        renderer = OpenApiRenderer(specification_path, cloud_endpoints=True)
-        render = renderer.render()
-
-        # Save file
-        output_path = os.path.join(self.terraform_build_path, "openapi.yaml.tpl")
         with open(output_path, "w") as f:
             f.write(render)
 
@@ -200,38 +184,4 @@ class TerraformBuilder:
         # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
         # image building is
         output, error = stream_process(proc, True)
-        return output, error, proc.returncode
-
-    def gcloud_builds_submit(self) -> Tuple[str, str, int]:
-        # Build the google container image
-        project_id = self.config.google_cloud.project_id
-        # --gcs-logs-dir is specified to avoid storage.objects.get access error, see:
-        # https://github.com/google-github-actions/setup-gcloud/issues/105
-        # the _cloudbuild bucket is created already to store the build image
-        args = [
-            "gcloud",
-            "builds",
-            "submit",
-            "--tag",
-            f"gcr.io/{project_id}/observatory-api",
-            "--project",
-            project_id,
-            "--gcs-log-dir",
-            f"gs://{project_id}_cloudbuild/logs",
-        ]
-        if self.debug:
-            print("Executing subprocess:")
-            print(indent(f"Command: {subprocess.list2cmdline(args)}", INDENT1))
-            print(indent(f"Cwd: {self.api_package_path}", INDENT1))
-
-        proc: Popen = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.api_package_path)
-
-        # Wait for results
-        # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
-        # image building is
-        output, error = stream_process(proc, True)
-
-        info_filepath = os.path.join(self.terraform_build_path, "api_image_build.txt")
-        with open(info_filepath, "w") as f:
-            f.writelines(line + "\n" for line in output.splitlines()[-2:])
         return output, error, proc.returncode
