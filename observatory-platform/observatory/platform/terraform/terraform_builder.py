@@ -21,8 +21,6 @@ import shutil
 import subprocess
 from subprocess import Popen
 from typing import Tuple
-
-from observatory.api.server.openapi_renderer import OpenApiRenderer
 from observatory.platform.cli.cli_utils import indent, INDENT1
 from observatory.platform.docker.platform_runner import PlatformRunner
 from observatory.platform.observatory_config import TerraformConfig
@@ -114,9 +112,6 @@ class TerraformBuilder:
         self.make_startup_script(True, "startup-main.tpl")
         self.make_startup_script(False, "startup-worker.tpl")
 
-        # Make OpenAPI specification
-        self.make_open_api_template()
-
     def make_startup_script(self, is_airflow_main_vm: bool, file_name: str):
         # Load and render template
         template_path = os.path.join(self.terraform_path, "startup.tpl.jinja2")
@@ -124,17 +119,6 @@ class TerraformBuilder:
 
         # Save file
         output_path = os.path.join(self.terraform_build_path, file_name)
-        with open(output_path, "w") as f:
-            f.write(render)
-
-    def make_open_api_template(self):
-        # Load and render template
-        specification_path = os.path.join(self.api_path, "openapi.yaml.jinja2")
-        renderer = OpenApiRenderer(specification_path)
-        render = renderer.render()
-
-        # Save file
-        output_path = os.path.join(self.terraform_build_path, "openapi.yaml.tpl")
         with open(output_path, "w") as f:
             f.write(render)
 

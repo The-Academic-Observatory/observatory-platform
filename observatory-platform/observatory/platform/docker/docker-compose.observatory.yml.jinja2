@@ -16,7 +16,6 @@
 version: '3.8'
 
 x-environment: &environment
-
   # Airflow settings
   AIRFLOW__CORE__EXECUTOR: CeleryExecutor
   AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
