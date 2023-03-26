@@ -245,7 +245,8 @@ services:
       - OBSERVATORY_API_PORT=5002
     volumes: *volumes
     restart: always
-    <<: *networks
+    networks:
+      - {{ config.observatory.docker_network_name }}
     {% if config.backend.type.value == 'local' %} 
     depends_on:
       postgres:
