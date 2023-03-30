@@ -54,7 +54,6 @@ x-environment: &environment
 
   # Variables
   AIRFLOW_VAR_DATA_PATH: "/opt/observatory/data"
-  AIRFLOW_VAR_DAGS_MODULE_NAMES: {{ config.dags_module_names  }}
   {%- for var in config.make_airflow_variables() %}
   {%- if config.backend.type.value == 'local' %}
   {{ var.env_var_name }}: '{{ var.value }}'
@@ -211,6 +210,8 @@ services:
     environment: *environment
     volumes: *volumes
     restart: always
+    ports:
+      - 8793:8793
     <<: *networks
     depends_on:
       - scheduler
@@ -225,6 +226,8 @@ services:
     environment: *environment
     volumes: *volumes
     restart: always
+    ports:
+      - 8793:8793
     <<: *networks
     {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
@@ -245,8 +248,9 @@ services:
       - OBSERVATORY_API_PORT=5002
     volumes: *volumes
     restart: always
-    networks:
-      - {{ config.observatory.docker_network_name }}
+    ports:
+      - ${HOST_API_SERVER_PORT}:5002
+    <<: *networks
     {% if config.backend.type.value == 'local' %} 
     depends_on:
       postgres:
@@ -257,8 +261,6 @@ services:
       interval: 30s
       retries: 20
     command: apiserver
-    ports:
-      - ${HOST_API_SERVER_PORT}:5002
     entrypoint: /entrypoint-api.sh
 
 {% if config.backend.type.value == 'local' %} 
