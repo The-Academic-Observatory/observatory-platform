@@ -17,6 +17,13 @@ provider "google" {
   zone = var.google_cloud.zone
 }
 
+provider "google-beta" {
+  credentials = var.google_cloud.credentials
+  project = var.google_cloud.project_id
+  region = var.google_cloud.region
+  zone = var.google_cloud.zone
+}
+
 data "google_project" "project" {
   project_id = var.google_cloud.project_id
   depends_on = [google_project_service.cloud_resource_manager]
@@ -103,6 +110,28 @@ resource "google_project_iam_member" "observatory_service_account_storage_iam" {
   project = var.google_cloud.project_id
   role    = "roles/storagetransfer.admin"
   member  = "serviceAccount:${google_service_account.observatory_service_account.email}"
+}
+
+# Add BQ limit for per user per day
+resource "google_service_usage_consumer_quota_override" "bq_usage_per_user_per_day" {
+  provider = google-beta
+  project = var.google_cloud.project_id
+  service = "bigquery.googleapis.com"
+  metric = urlencode("bigquery.googleapis.com/quota/query/usage")
+  limit = urlencode("/d/project/user")
+  override_value = 10485760 # in megabytes, so 10 TiB 
+  force = true
+}
+
+# Add BQ limit for per day for entire project
+resource "google_service_usage_consumer_quota_override" "bq_usage_per_day" {
+  provider = google-beta
+  project = var.google_cloud.project_id
+  service = "bigquery.googleapis.com"
+  metric = urlencode("bigquery.googleapis.com/quota/query/usage")
+  limit = urlencode("/d/project")
+  override_value = 15728640 # in megabytes, so 15 TiB
+  force = true
 }
 
 ########################################################################################################################
