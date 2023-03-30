@@ -210,8 +210,6 @@ services:
     environment: *environment
     volumes: *volumes
     restart: always
-    ports:
-      - 8793:8793
     <<: *networks
     depends_on:
       - scheduler
@@ -226,8 +224,6 @@ services:
     environment: *environment
     volumes: *volumes
     restart: always
-    ports:
-      - 8793:8793
     <<: *networks
     {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
@@ -250,7 +246,8 @@ services:
     restart: always
     ports:
       - ${HOST_API_SERVER_PORT}:5002
-    <<: *networks
+    networks:
+      - {{ config.observatory.docker_network_name }}
     {% if config.backend.type.value == 'local' %} 
     depends_on:
       postgres:
