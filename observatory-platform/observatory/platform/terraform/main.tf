@@ -333,16 +333,17 @@ data "google_compute_subnetwork" "observatory_subnetwork" {
   depends_on = [google_compute_network.observatory_network] # necessary to force reading of data
 }
 
-resource "google_compute_firewall" "allow_internal" {
-  name = "allow-internal"
-  description = "Allow internal connections"
+resource "google_compute_firewall" "allow_internal_airflow" {
+  name = "allow-internal-airflow"
+  description = "Allow internal Airflow connections"
   network = google_compute_network.observatory_network.name
   source_ranges = ["10.128.0.0/9"]
+  target_tags   = ["allow-internal-airflow"]
+
   allow {
     protocol = "tcp"
-    ports = ["6379"] # Open redis port to the internal network which is used by Airflow
+    ports = ["5002", "6379", "8793"] # Open apiserver, redis and Airflow worker ports to the internal network
   }
-  source_tags = [google_compute_network.observatory_network.name]
   priority = 65534
 }
 
@@ -350,8 +351,8 @@ resource "google_compute_firewall" "allow_ssh" {
   name = "allow-ssh"
   description = "Allow SSH from anywhere"
   network = google_compute_network.observatory_network.name
-  target_tags   = ["allow-ssh"]
   source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["allow-ssh"]
 
   allow {
     protocol = "tcp"
@@ -532,7 +533,7 @@ locals {
   metadata_variables = {
     project_id = var.google_cloud.project_id
     postgres_hostname = google_sql_database_instance.observatory_db_instance.private_ip_address
-    redis_hostname = module.airflow_main_vm.private_ip_address
+    redis_hostname = local.main_vm_name # this becomes the hostname of the main vm
     data_location = var.google_cloud.data_location
     download_bucket = google_storage_bucket.observatory_download_bucket.name
     transform_bucket = google_storage_bucket.observatory_transform_bucket.name
@@ -542,10 +543,8 @@ locals {
     airflow_variables = local.airflow_variables
   }
 
-  worker_vm_static_external_ip_address = try(google_compute_address.airflow_worker_vm_static_external_ip[0].address,
-  null)
+  worker_vm_static_external_ip_address = try(google_compute_address.airflow_worker_vm_static_external_ip[0].address, null)
   main_vm_static_external_ip_address = try(google_compute_address.airflow_main_vm_static_external_ip[0].address, null)
-
 }
 
 ########################################################################################################################
