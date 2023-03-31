@@ -9,7 +9,7 @@ resource "google_compute_address" "vm_private_ip" {
 resource "google_compute_instance" "vm_instance" {
   name = var.name
   machine_type = var.machine_type
-  tags = ["allow-ssh"]
+  tags = ["allow-ssh", "allow-internal-airflow"]
   allow_stopping_for_update = true
 
   boot_disk {

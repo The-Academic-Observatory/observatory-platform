@@ -37,7 +37,7 @@ export AIRFLOW_UI_USER_PASSWORD="sm://${project_id}/airflow_ui_user_password"
 export AIRFLOW_UI_USER_EMAIL="sm://${project_id}/airflow_ui_user_email"
 {% set docker_containers="redis flower webserver scheduler worker_local airflow_init apiserver"%}
 {%- else %}
-{% set docker_containers="worker_remote apiserver"%}
+{% set docker_containers="worker_remote"%}
 {%- endif %}
 
 # Export environment variables for all Airflow variables

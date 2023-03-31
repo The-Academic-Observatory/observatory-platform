@@ -712,7 +712,7 @@ class ObservatoryConfig:
             self.airflow_variables = []
 
         self.airflow_connections = airflow_connections
-        if airflow_variables is None:
+        if airflow_connections is None:
             self.airflow_connections = []
 
         self.workflows_projects = workflows_projects
@@ -816,6 +816,13 @@ class ObservatoryConfig:
         if self.terraform is not None:
             if self.terraform.organization is not None:
                 variables.append(AirflowVariable(AirflowVars.TERRAFORM_ORGANIZATION, self.terraform.organization))
+
+        # Add dags module names
+        variables.append(
+            AirflowVariable(
+                AirflowVars.DAGS_MODULE_NAMES, json.dumps([proj.dags_module for proj in self.workflows_projects])
+            )
+        )
 
         # Add user defined variables to list
         variables += self.airflow_variables
