@@ -22,13 +22,13 @@ import pysftp
 from airflow.hooks.base import BaseHook
 
 
-def make_sftp_connection(stfp_conn_id: str) -> pysftp.Connection:
-    """Create a SFTP connection using credentials from the Airflow stfp_conn_id connection.
+def make_sftp_connection(sftp_conn_id: str) -> pysftp.Connection:
+    """Create a SFTP connection using credentials from the Airflow sftp_conn_id connection.
 
-    :param stfp_conn_id: the SFTP Airflow Connection ID.
+    :param sftp_conn_id: the SFTP Airflow Connection ID.
     :return: SFTP connection
     """
-    conn = BaseHook.get_connection(stfp_conn_id)
+    conn = BaseHook.get_connection(sftp_conn_id)
     host = conn.host
 
     # Add public host key
@@ -103,7 +103,7 @@ class SftpFolders:
         if isinstance(upload_files, str):
             upload_files = [upload_files]
 
-        with make_sftp_connection(self.stfp_conn_id) as sftp:
+        with make_sftp_connection(self.sftp_conn_id) as sftp:
             sftp.makedirs(self.in_progress)
             for file in upload_files:
                 file_name = os.path.basename(file)
@@ -121,7 +121,7 @@ class SftpFolders:
         if isinstance(in_progress_files, str):
             in_progress_files = [in_progress_files]
 
-        with make_sftp_connection(self.stfp_conn_id) as sftp:
+        with make_sftp_connection(self.sftp_conn_id) as sftp:
             sftp.makedirs(self.finished)
             for file in in_progress_files:
                 file_name = os.path.basename(file)
