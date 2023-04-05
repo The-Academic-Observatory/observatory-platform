@@ -40,7 +40,6 @@ from sqlalchemy.orm import Session
 
 from observatory.platform.config import AirflowConns, AirflowVars
 from observatory.platform.observatory_config import Workflow
-from observatory.platform.workflows.workflow import is_first_dag_run
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -363,6 +362,16 @@ def delete_old_xcoms(
             XCom.execution_date <= cut_off_date,
         )
     ).delete()
+
+
+def is_first_dag_run(dag_run: DagRun) -> bool:
+    """Whether the DAG Run is the first run or not
+
+    :param dag_run: A Dag Run instance
+    :return: Whether the DAG run is the first run or not
+    """
+
+    return dag_run.get_previous_dagrun() is None
 
 
 class PreviousDagRunSensor(ExternalTaskSensor):

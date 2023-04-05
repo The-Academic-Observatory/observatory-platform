@@ -15,6 +15,7 @@
 import copy
 import datetime
 import glob
+import gzip
 import os
 import pathlib
 import unittest
@@ -82,11 +83,12 @@ class TestTransform(unittest.TestCase):
         self.assertEqual(len(chunks[4]), 1)
 
     def test_split_and_compress(self):
+        # Check that files are split and compressed properly
         with CliRunner().isolated_filesystem() as tmp:
             # Make a random file
-            file_path = os.path.join(tmp, "output.jsonl")
             n_lines = 1000
             expected_data = [{"name": str(uuid.uuid4()), "country": str(uuid.uuid4())} for _ in range(n_lines)]
+            file_path = os.path.join(tmp, "output.jsonl")
             with open(file_path, mode="w") as f:
                 with jsonlines.Writer(f) as writer:
                     writer.write_all(expected_data)
@@ -107,4 +109,45 @@ class TestTransform(unittest.TestCase):
             data = []
             for file_path in file_paths:
                 data += load_jsonl(file_path)
+            self.assertEqual(expected_data, data)
+
+        # Test that one file produced when under limit
+        with CliRunner().isolated_filesystem() as tmp:
+            expected_data = ["hello", "world"]
+            file_path = os.path.join(tmp, "test.txt")
+            with open(file_path, mode="w") as f:
+                f.writelines("\n".join(expected_data))
+            split_and_compress(
+                pathlib.Path(file_path),
+                pathlib.Path(tmp),
+                max_output_size=max_output_size,
+                input_buffer_size=input_buffer_size,
+            )
+            file_paths = sorted(glob.glob(os.path.join(tmp, "*.txt.gz")))
+            self.assertEqual(1, len(file_paths))
+            data = []
+            for file_path in file_paths:
+                with gzip.open(file_path, "rt", encoding="utf-8") as f:
+                    data += [line.strip() for line in f.readlines()]
+            self.assertEqual(expected_data, data)
+
+        # Test that only one file is produced when we just exceed the limit but there are no bytes to be written into
+        # second file
+        with CliRunner().isolated_filesystem() as tmp:
+            expected_data = [str(uuid.uuid4()) for _ in range(98)]
+            file_path = os.path.join(tmp, "test.txt")
+            with open(file_path, mode="w") as f:
+                f.writelines("\n".join(expected_data))
+            split_and_compress(
+                pathlib.Path(file_path),
+                pathlib.Path(tmp),
+                max_output_size=max_output_size,
+                input_buffer_size=input_buffer_size,
+            )
+            file_paths = sorted(glob.glob(os.path.join(tmp, "*.txt.gz")))
+            self.assertEqual(1, len(file_paths))
+            data = []
+            for file_path in file_paths:
+                with gzip.open(file_path, "rt", encoding="utf-8") as f:
+                    data += [line.strip() for line in f.readlines()]
             self.assertEqual(expected_data, data)

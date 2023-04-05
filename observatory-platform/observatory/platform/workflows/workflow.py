@@ -22,8 +22,6 @@ from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Callable, Dict, List, Union, Optional
 
-from airflow.models.dagrun import DagRun
-
 try:
     from typing import Protocol
 except ImportError:
@@ -51,16 +49,6 @@ def make_release_date(**kwargs) -> pendulum.DateTime:
     """Make a release date"""
 
     return kwargs["next_execution_date"].subtract(days=1).start_of("day")
-
-
-def is_first_dag_run(dag_run: DagRun) -> bool:
-    """Whether the DAG Run is the first run or not
-
-    :param dag_run: A Dag Run instance
-    :return: Whether the DAG run is the first run or not
-    """
-
-    return dag_run.get_previous_dagrun() is None
 
 
 def make_workflow_folder(dag_id: str, run_id: str, *subdirs: str) -> str:

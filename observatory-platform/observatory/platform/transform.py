@@ -218,16 +218,22 @@ def split_and_compress(
     with open(input_file, "rb") as in_file:
         part_num = 0
         compressor = zlib.compressobj(wbits=zlib.MAX_WBITS | 16)  # Set gzip format
-        file_path = part_file_path(input_file, output_path, part_num)
-        out_file = open(file_path, "wb")
+        # file_path = part_file_path(input_file, output_path, part_num)
+        # out_file = open(file_path, "wb")
         total_output_size = 0
+        out_file = None
 
         while True:
             chunk = in_file.read(input_buffer_size)
             if not chunk:
                 break
-
             chunk += read_line_boundary(in_file)
+
+            # If out_file None then create
+            if out_file is None:
+                file_path = part_file_path(input_file, output_path, part_num)
+                out_file = open(file_path, "wb")
+
             compressed_size = compress_chunk(chunk, compressor, out_file)
             total_output_size += compressed_size
 
@@ -239,12 +245,13 @@ def split_and_compress(
 
                 # Start a new output file
                 part_num += 1
-                file_path = part_file_path(input_file, output_path, part_num)
-                out_file = open(file_path, "wb")
                 total_output_size = 0
+                out_file = None
 
-        out_file.write(compressor.flush(zlib.Z_FINISH))
-        out_file.close()
+        # If out_file not None then we must have exited and not exceeded the max_output_size, so write and close file
+        if out_file is not None:
+            out_file.write(compressor.flush(zlib.Z_FINISH))
+            out_file.close()
 
 
 def read_line_boundary(file: BinaryIO) -> bytes:
