@@ -14,6 +14,7 @@
 
 # Author: Author: Aniek Roelofs, Tuan Chien
 
+from __future__ import annotations
 
 import json
 import logging
@@ -30,13 +31,16 @@ from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import TaskInstance, DagBag, Variable, XCom
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookHook
+from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.utils.db import provide_session
+from airflow.utils.state import State
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from observatory.platform.config import AirflowConns, AirflowVars
 from observatory.platform.observatory_config import Workflow
+from observatory.platform.workflows.workflow import is_first_dag_run
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -157,9 +161,7 @@ def get_airflow_connection_login(conn_id: str) -> str:
     login = conn.login
 
     if login is None:
-        raise AirflowException(
-            f"get_airflow_connection_login: login for Airflow Connection {conn_id} is set to None"
-        )
+        raise AirflowException(f"get_airflow_connection_login: login for Airflow Connection {conn_id} is set to None")
 
     return login
 
@@ -361,3 +363,60 @@ def delete_old_xcoms(
             XCom.execution_date <= cut_off_date,
         )
     ).delete()
+
+
+class PreviousDagRunSensor(ExternalTaskSensor):
+    def __init__(
+        self,
+        dag_id: str,
+        task_id: str = "wait_for_prev_dag_run",
+        external_task_id: str = "dag_run_complete",
+        allowed_states: List[str] = None,
+        *args,
+        **kwargs,
+    ):
+        """Custom ExternalTaskSensor designed to wait for a previous DAG run of the same DAG. This sensor also
+        skips on the first DAG run, as the DAG hasn't run before.
+
+        Add the following as the last tag of your DAG:
+            DummyOperator(
+                task_id=external_task_id,
+            )
+
+        :param dag_id: the DAG id of the DAG to wait for.
+        :param task_id: the task id for this sensor.
+        :param external_task_id: the task id to wait for.
+        :param allowed_states: to override allowed_states.
+        :param args: args for ExternalTaskSensor.
+        :param kwargs: kwargs for ExternalTaskSensor.
+        """
+
+        if allowed_states is None:
+            # sensor can skip a run if previous dag run skipped for some reason
+            allowed_states = [
+                State.SUCCESS,
+                State.SKIPPED,
+            ]
+
+        super().__init__(
+            task_id=task_id,
+            external_dag_id=dag_id,
+            external_task_id=external_task_id,
+            allowed_states=allowed_states,
+            *args,
+            **kwargs,
+        )
+
+    @provide_session
+    def poke(self, context, session=None):
+        # Custom poke to allow the sensor to skip on the first DAG run
+
+        ti = context["task_instance"]
+        dag_run = context["dag_run"]
+
+        if is_first_dag_run(dag_run):
+            self.log.info("Skipping the sensor check on the first DAG run")
+            ti.set_state(State.SKIPPED)
+            return True
+
+        return super().poke(context, session=session)
