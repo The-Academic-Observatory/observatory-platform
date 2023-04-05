@@ -321,7 +321,7 @@ resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observat
 
 # Necessary to define the network so that the VMs can talk to the Cloud SQL database.
 locals {
-  network_name       = "ao-network"
+  network_name       = "observatory-network"
 }
 
 resource "google_compute_network" "observatory_network" {
