@@ -281,3 +281,24 @@ def gunzip_files(*, file_list: List[str], output_dir: str = None):
         with gzip.open(file_path, "rb") as f_in:
             with open(dst, "wb") as f_out:
                 shutil.copyfileobj(f_in, f_out)
+
+
+def clean_dir(directory: str):
+    """Remove all files and folders within a directory, but not the directory itself.
+
+    :param directory: the path to the directory.
+    :return: None
+    """
+
+    # loop through all files and directories in the directory
+    for item in os.listdir(directory):
+        # construct the full path to the file or directory
+        item_path = os.path.join(directory, item)
+
+        # check if the item is a file (not a directory) and if so, delete it
+        if os.path.isfile(item_path):
+            os.remove(item_path)
+
+        # if the item is a directory, use shutil.rmtree to remove it and its contents
+        elif os.path.isdir(item_path):
+            shutil.rmtree(item_path)
