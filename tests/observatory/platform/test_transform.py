@@ -14,15 +14,19 @@
 
 import copy
 import datetime
+import glob
 import os
+import pathlib
 import unittest
+import uuid
 
+import jsonlines
 from click.testing import CliRunner
 from google.cloud import bigquery
 
-from observatory.platform.files import validate_file_hash
+from observatory.platform.files import validate_file_hash, load_jsonl
 from observatory.platform.observatory_environment import test_fixtures_path
-from observatory.platform.transform import add_partition_date, find_replace_file, get_chunks
+from observatory.platform.transform import add_partition_date, find_replace_file, get_chunks, split_and_compress
 
 
 class TestTransform(unittest.TestCase):
@@ -76,3 +80,31 @@ class TestTransform(unittest.TestCase):
         self.assertEqual(len(chunks), 5)
         self.assertEqual(len(chunks[0]), 2)
         self.assertEqual(len(chunks[4]), 1)
+
+    def test_split_and_compress(self):
+        with CliRunner().isolated_filesystem() as tmp:
+            # Make a random file
+            file_path = os.path.join(tmp, "output.jsonl")
+            n_lines = 1000
+            expected_data = [{"name": str(uuid.uuid4()), "country": str(uuid.uuid4())} for _ in range(n_lines)]
+            with open(file_path, mode="w") as f:
+                with jsonlines.Writer(f) as writer:
+                    writer.write_all(expected_data)
+
+            # Split compress file
+            max_output_size = 1024 * 2
+            input_buffer_size = 512
+            split_and_compress(
+                pathlib.Path(file_path),
+                pathlib.Path(tmp),
+                max_output_size=max_output_size,
+                input_buffer_size=input_buffer_size,
+            )
+
+            # Read files and check that it matches expected_data
+            file_paths = sorted(glob.glob(os.path.join(tmp, "*.jsonl.gz")))
+            self.assertEqual(24, len(file_paths))
+            data = []
+            for file_path in file_paths:
+                data += load_jsonl(file_path)
+            self.assertEqual(expected_data, data)
