@@ -29,10 +29,11 @@ except ImportError:
 import os
 import pendulum
 from airflow import DAG
+
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import chain
 from airflow.operators.python import PythonOperator, ShortCircuitOperator
-from airflow.operators.bash import BaseOperator
+from airflow.operators.bash import BaseOperator, BashOperator
 from observatory.platform.airflow import (
     check_connections,
     check_variables,
@@ -80,6 +81,26 @@ def cleanup(dag_id: str, execution_date: str, workflow_folder: str = None, reten
             logging.warning(f"No such file or directory {workflow_folder}: {e}")
 
     delete_old_xcoms(dag_id=dag_id, execution_date=execution_date, retention_days=retention_days)
+
+
+class WorkflowBashOperator(BashOperator):
+    def __init__(self, make_release: Callable, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.make_release = make_release
+
+    def render_template(self, content, context, *args, **kwargs):
+        # Make release and set in context
+        obj = self.make_release(**context)
+        if isinstance(obj, list):
+            context["releases"] = obj
+        elif isinstance(obj, Release):
+            context["release"] = obj
+        else:
+            raise AirflowException(
+                f"WorkflowBashOperator.render_template: self.make_release returned an object of an invalid type (should be a list of Releases, or a single Release object): {type(obj)}"
+            )
+
+        return super().render_template(content, context, *args, **kwargs)
 
 
 class Release:
