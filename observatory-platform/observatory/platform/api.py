@@ -17,7 +17,7 @@
 import calendar
 import datetime
 import logging
-from typing import List
+from typing import List, Optional
 
 import pendulum
 from airflow.hooks.base import BaseHook
@@ -81,13 +81,16 @@ def get_dataset_releases(*, dag_id: str, dataset_id: str) -> List[DatasetRelease
     return dataset_releases
 
 
-def get_latest_dataset_release(releases: List[DatasetRelease], date_key: str) -> DatasetRelease:
+def get_latest_dataset_release(releases: List[DatasetRelease], date_key: str) -> Optional[DatasetRelease]:
     """Get the dataset release from the list with the most recent end date.
 
     :param releases: List of releases.
     :param date_key: the key for accessing dates.
     :return: Latest release (by end_date)
     """
+
+    if len(releases) == 0:
+        return None
 
     latest = releases[0]
     for release in releases:

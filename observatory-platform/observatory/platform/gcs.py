@@ -14,19 +14,21 @@
 
 # Author: James Diprose, Aniek Roelofs
 
+import csv
 import datetime
 import json
 import logging
 import multiprocessing
 import os
 import pathlib
-import time
+import tempfile
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
 from typing import List, Tuple
 
 import pendulum
+import time
 from airflow import AirflowException
 from google.api_core.exceptions import Conflict
 from google.cloud import storage
@@ -59,6 +61,23 @@ def gcs_blob_uri(bucket_name: str, blob_name: str) -> str:
     :return: The GCS URI
     """
     return f"gs://{bucket_name}/{blob_name}"
+
+
+def gcs_uri_parts(blob_uri: str) -> Tuple[str, str]:
+    """Extracts the GCS bucket name and blob path from the given GCS URI.
+
+    :param blob_uri: the blob URI.
+    :return:
+    """
+
+    if not blob_uri.startswith("gs://"):
+        raise ValueError("Invalid GCS uri, it should start with 'gs://'")
+
+    parts = blob_uri[5:].split("/", 1)  # Remove 'gs://' and split the remaining string
+    bucket_name = parts[0]
+    blob_path = parts[1] if len(parts) > 1 else None
+
+    return bucket_name, blob_path
 
 
 def gcs_blob_name_from_path(local_filepath: str) -> str:
@@ -588,14 +607,12 @@ def gcs_create_azure_transfer(
 
 def gcs_create_aws_transfer(
     *,
-    aws_access_key_id: str,
-    aws_secret_key: str,
+    aws_key: Tuple[str, str],
     aws_bucket: str,
     include_prefixes: List[str],
     gc_project_id: str,
-    gc_bucket: str,
+    gc_bucket_dst_uri: str,
     description: str,
-    gc_bucket_path: str = None,
     last_modified_since: pendulum.DateTime = None,
     last_modified_before: pendulum.DateTime = None,
     transfer_manifest: str = None,
@@ -603,17 +620,15 @@ def gcs_create_aws_transfer(
 ) -> Tuple[bool, int]:
     """Transfer files from an AWS bucket to a Google Cloud Storage bucket.
 
-    :param aws_access_key_id: the id of the key for the aws S3 bucket.
-    :param aws_secret_key: the secret key for the aws S3 bucket.
+    :param aws_key: a tuple containing the AWS Access Key ID and the Secret Key for the AWS S3 bucket.
     :param aws_bucket: the name of the aws S3 bucket where files will be copied from.
     :param include_prefixes: the prefixes of blobs to download from the Azure blob container.
     :param gc_project_id: the Google Cloud project id that holds the Google Cloud Storage bucket.
-    :param gc_bucket: the Google Cloud bucket name.
+    :param gc_bucket_dst_uri: the full path to destination folder inside the Google Cloud bucket (incl gs://). If no path is specified after the bucket name, then the data will be transferred to the root of the bucket.
     :param description: a description for the transfer job.
-    :param gc_bucket_path: the destination folder inside the Google Cloud bucket.
     :param last_modified_since:
     :param last_modified_before:
-    :param transfer_manifest: Path to manifest file in Google Cloud bucket (incl gs://)
+    :param transfer_manifest: Path to manifest file in Google Cloud bucket (incl gs://).
     :param start_date: the date that the transfer job will start.
     :return: whether the transfer was a success or not.
     """
@@ -621,6 +636,8 @@ def gcs_create_aws_transfer(
     # Leave out scheduleStartTime to make sure that the job starts immediately
     # Make sure to specify scheduleEndDate as today otherwise the job will repeat
     func_name = gcs_create_aws_transfer.__name__
+    aws_access_key_id, aws_secret_key = aws_key
+    bucket_name, blob_path = gcs_uri_parts(gc_bucket_dst_uri)
 
     job = {
         "description": description,
@@ -636,11 +653,11 @@ def gcs_create_aws_transfer(
                 "awsAccessKey": {"accessKeyId": aws_access_key_id, "secretAccessKey": aws_secret_key},
             },
             "objectConditions": {"includePrefixes": include_prefixes},
-            "gcsDataSink": {"bucketName": gc_bucket},
+            "gcsDataSink": {"bucketName": bucket_name},
         },
     }
-    if gc_bucket_path:
-        job["transferSpec"]["gcsDataSink"]["path"] = gc_bucket_path
+    if blob_path:
+        job["transferSpec"]["gcsDataSink"]["path"] = blob_path
 
     if last_modified_since:
         job["transferSpec"]["objectConditions"]["lastModifiedSince"] = last_modified_since.isoformat().replace(
@@ -656,6 +673,44 @@ def gcs_create_aws_transfer(
 
     success, objects_count = gcs_create_transfer_job(job=job, func_name=func_name, gc_project_id=gc_project_id)
     return success, objects_count
+
+
+def _is_utf8_str(s: str) -> bool:
+    try:
+        s.encode("utf-8").decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
+def gcs_upload_transfer_manifest(object_paths: List[str], blob_uri: str):
+    """Save a GCS transfer manifest CSV file.
+
+    :param object_paths: the object paths excluding bucket name.
+    :param blob_uri: the full URI on GCS where the manifest should be uploaded to.
+    :return: None.
+    """
+
+    # Write temp file
+    with tempfile.NamedTemporaryFile(mode="w", delete=True) as file:
+        writer = csv.writer(file, quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        for object_path in object_paths:
+            # Check that object_path is UTF-8
+            assert _is_utf8_str(object_path), f"gcs_save_transfer_manifest: {object_path} is not a UTF-8 string"
+            writer.writerow([object_path])
+
+        # Flush the buffer
+        file.flush()
+
+        # Check under 1 GiB: https://cloud.google.com/storage-transfer/docs/manifest#create_a_manifest
+        file_path = file.name
+        gib_size = os.path.getsize(file_path) / (1024**3)
+        assert gib_size <= 1, f"gcs_save_transfer_manifest: {file_path} is {gib_size}GiB, but must be <= 1GiB."
+
+        # Upload to cloud storage
+        bucket_name, blob_path = gcs_uri_parts(blob_uri)
+        success = gcs_upload_file(bucket_name=bucket_name, blob_name=blob_path, file_path=file_path)
+        assert success, f"gcs_upload_transfer_manifest: error uploading manifest to {blob_uri}"
 
 
 def gcs_delete_bucket_dir(*, bucket_name: str, prefix: str):

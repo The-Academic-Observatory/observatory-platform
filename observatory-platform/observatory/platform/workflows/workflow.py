@@ -14,6 +14,8 @@
 
 # Author: Aniek Roelofs, James Diprose, Tuan Chien
 
+from __future__ import annotations
+
 import contextlib
 import copy
 import logging
@@ -84,17 +86,22 @@ def cleanup(dag_id: str, execution_date: str, workflow_folder: str = None, reten
 
 
 class WorkflowBashOperator(BashOperator):
-    def __init__(self, make_release: Callable, *args, **kwargs):
+    def __init__(self, workflow: Workflow, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.make_release = make_release
+        self.workflow = workflow
 
     def render_template(self, content, context, *args, **kwargs):
         # Make release and set in context
-        obj = self.make_release(**context)
+        obj = self.workflow.make_release(**context)
         if isinstance(obj, list):
             context["releases"] = obj
         elif isinstance(obj, Release):
             context["release"] = obj
+
+        # Add workflow to context
+        if self.workflow is not None:
+            context["workflow"] = self.workflow
+
         else:
             raise AirflowException(
                 f"WorkflowBashOperator.render_template: self.make_release returned an object of an invalid type (should be a list of Releases, or a single Release object): {type(obj)}"

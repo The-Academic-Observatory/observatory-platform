@@ -29,7 +29,7 @@ import six
 import validators
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import TaskInstance, DagBag, Variable, XCom
+from airflow.models import TaskInstance, DagBag, Variable, XCom, DagRun
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookHook
 from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.utils.db import provide_session

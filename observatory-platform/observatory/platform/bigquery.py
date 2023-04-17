@@ -913,15 +913,21 @@ def bq_delete_records(
     *,
     main_table_id: str,
     delete_table_id: str,
-    primary_key: str,
+    main_table_primary_key: str,
+    delete_table_primary_key: str,
+    main_table_primary_key_prefix: str = "",
+    delete_table_primary_key_prefix: str = "",
     bytes_budget: Optional[int] = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT,
 ):
     """Deletes records from a main_table based on records in a delete_table.
 
     :param main_table_id: the fully qualified table identifier for the main BigQuery table where records will be deleted from.
     :param delete_table_id: the fully qualified table identifier for the BigQuery table containing the records to delete.
-    :param primary_key: the primary key to use to determine which records to upsert.
-    :param bytes_budget:
+    :param main_table_primary_key: the primary key to use in the main table.
+    :param delete_table_primary_key: the primary key to use in the delete table.
+    :param main_table_primary_key_prefix: an optional prefix to add to the primary key main table cells.
+    :param delete_table_primary_key_prefix: an optional prefix to add to the primary key delete table cells.
+    :param bytes_budget: the bytes budget.
     :return:
     """
 
@@ -929,21 +935,30 @@ def bq_delete_records(
     assert_table_id(delete_table_id)
 
     # Fetch column names in main and delete table to check if primary keys match
-    main_columns = {item["column_name"]: item["data_type"] for item in bq_select_columns(table_id=main_table_id)}
-    delete_columns = {item["column_name"]: item["data_type"] for item in bq_select_columns(table_id=delete_table_id)}
+    main_column_index = {item["column_name"]: item["data_type"] for item in bq_select_columns(table_id=main_table_id)}
+    delete_column_index = {
+        item["column_name"]: item["data_type"] for item in bq_select_columns(table_id=delete_table_id)
+    }
 
-    # Check that primary_key is in both datasets and that data_types match
+    # Check that primary_keys are in tables and that data types match
     assert (
-        primary_key in main_columns
-        and primary_key in delete_columns
-        and (main_columns[primary_key] == delete_columns[primary_key])
-    ), f"bq_delete_records: primary_key={primary_key} not in {main_table_id} or {delete_table_id}, or data_types for primary_key do not match"
+        main_table_primary_key in main_column_index
+    ), f"bq_delete_records: main_table_primary_key={main_table_primary_key} not in {main_table_id}"
+    assert (
+        delete_table_primary_key in delete_column_index
+    ), f"bq_delete_records: delete_table_primary_key={delete_table_primary_key} not in {delete_table_id}"
+    assert (
+        main_column_index[main_table_primary_key] == delete_column_index[delete_table_primary_key]
+    ), f"bq_delete_records: data types for main_table_primary_key ({main_column_index[main_table_primary_key]}) and delete_table_primary_key ({main_column_index[delete_table_primary_key]}) do not match"
 
     template_path = os.path.join(sql_templates_path(), "delete_records.sql.jinja2")
     query = render_template(
         template_path,
         delete_table_id=delete_table_id,
         main_table_id=main_table_id,
-        primary_key=primary_key,
+        main_table_primary_key=main_table_primary_key,
+        delete_table_primary_key=delete_table_primary_key,
+        main_table_primary_key_prefix=main_table_primary_key_prefix,
+        delete_table_primary_key_prefix=delete_table_primary_key_prefix,
     )
     bq_run_query(query, bytes_budget=bytes_budget)
