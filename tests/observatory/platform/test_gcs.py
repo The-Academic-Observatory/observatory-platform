@@ -284,6 +284,7 @@ class TestGoogleCloudStorage(unittest.TestCase):
                 if blob.exists():
                     blob.delete()
 
+    @unittest.skip("We are not using Azure to GCS transfer")
     def test_gcs_create_azure_transfer(self):
         blob_name = f"mag/2021-09-27/{random_id()}.txt"
         az_blob: Optional[BlobClient] = None
@@ -350,12 +351,11 @@ class TestGoogleCloudStorage(unittest.TestCase):
 
             # Test transfer where no data is found, because modified date is not between dates
             success, objects_count = gcs_create_aws_transfer(
-                aws_access_key_id=self.aws_key_id,
-                aws_secret_key=self.aws_secret_key,
+                aws_key=(self.aws_key_id, self.aws_secret_key),
                 aws_bucket=self.aws_bucket_name,
                 include_prefixes=[blob_name],
                 gc_project_id=self.gc_project_id,
-                gc_bucket=self.gc_bucket_name,
+                gc_bucket_dst_uri=f"gs://{self.gc_bucket_name}",
                 description=f"Test AWS to Google Cloud Storage Transfer " f"{pendulum.now('UTC').to_datetime_string()}",
                 last_modified_before=pendulum.datetime(2021, 1, 1),
             )
@@ -365,12 +365,11 @@ class TestGoogleCloudStorage(unittest.TestCase):
 
             # Transfer data
             success, objects_count = gcs_create_aws_transfer(
-                aws_access_key_id=self.aws_key_id,
-                aws_secret_key=self.aws_secret_key,
+                aws_key=(self.aws_key_id, self.aws_secret_key),
                 aws_bucket=self.aws_bucket_name,
                 include_prefixes=[blob_name],
                 gc_project_id=self.gc_project_id,
-                gc_bucket=self.gc_bucket_name,
+                gc_bucket_dst_uri=f"gs://{self.gc_bucket_name}",
                 description=f"Test AWS to Google Cloud Storage Transfer " f"{pendulum.now('UTC').to_datetime_string()}",
                 last_modified_since=pendulum.datetime(2021, 1, 1),
                 last_modified_before=pendulum.now("UTC") + timedelta(days=1),

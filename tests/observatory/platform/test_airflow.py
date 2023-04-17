@@ -18,8 +18,8 @@ import datetime
 import os
 import shutil
 import unittest
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pendulum
 from airflow.exceptions import AirflowException
@@ -27,8 +27,10 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCom
+from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.session import provide_session
+from airflow.utils.state import State
 
 from observatory.platform.airflow import (
     get_airflow_connection_login,
@@ -41,6 +43,7 @@ from observatory.platform.airflow import (
     on_failure_callback,
     get_data_path,
     normalized_schedule_interval,
+    is_first_dag_run,
 )
 from observatory.platform.observatory_environment import (
     ObservatoryEnvironment,
@@ -194,17 +197,13 @@ class TestAirflow(unittest.TestCase):
         with env.create():
             # Assert that we can get a connection password
             conn_id = "conn_1"
-            env.add_connection(Connection(
-                conn_id=conn_id, conn_type="http", password="password", login="login"
-            ))
+            env.add_connection(Connection(conn_id=conn_id, conn_type="http", password="password", login="login"))
             password = get_airflow_connection_password(conn_id)
             self.assertEqual("password", password)
 
             # Assert that an AirflowException is raised when the password is None
             conn_id = "conn_2"
-            env.add_connection(Connection(
-                conn_id=conn_id, conn_type="http", password=None, login="login"
-            ))
+            env.add_connection(Connection(conn_id=conn_id, conn_type="http", password=None, login="login"))
             with self.assertRaises(AirflowException):
                 get_airflow_connection_password(conn_id)
 
@@ -213,17 +212,13 @@ class TestAirflow(unittest.TestCase):
         with env.create():
             # Assert that we can get a connection login
             conn_id = "conn_1"
-            env.add_connection(Connection(
-                conn_id=conn_id, conn_type="http", password="password", login="login"
-            ))
+            env.add_connection(Connection(conn_id=conn_id, conn_type="http", password="password", login="login"))
             login = get_airflow_connection_login(conn_id)
             self.assertEqual("login", login)
 
             # Assert that an AirflowException is raised when the login is None
             conn_id = "conn_2"
-            env.add_connection(Connection(
-                conn_id=conn_id, conn_type="http", password="password", login=None
-            ))
+            env.add_connection(Connection(conn_id=conn_id, conn_type="http", password="password", login=None))
             with self.assertRaises(AirflowException):
                 get_airflow_connection_login(conn_id)
 
@@ -363,5 +358,44 @@ class TestAirflow(unittest.TestCase):
             ti=ti,
             execution_date=execution_date,
             comments="Task failed, exception:\n" "airflow.exceptions.AirflowException: Exception message",
-            slack_conn_id='slack'
+            slack_conn_id="slack",
         )
+
+    def test_is_first_dag_run(self):
+        """Test is_first_dag_run"""
+
+        env = ObservatoryEnvironment(enable_api=False)
+        with env.create():
+            first_execution_date = pendulum.datetime(2021, 9, 5)
+            with DAG(
+                dag_id="hello_world_dag",
+                schedule_interval="@daily",
+                default_args={"owner": "airflow", "start_date": first_execution_date},
+                catchup=True,
+            ) as dag:
+                task = BashOperator(task_id="task", bash_command="echo 'hello'")
+
+            # First DAG Run
+            with env.create_dag_run(dag=dag, execution_date=first_execution_date) as first_dag_run:
+                # Should be true the first DAG run. Check before and after a task.
+                is_first = is_first_dag_run(first_dag_run)
+                self.assertTrue(is_first)
+
+                ti = env.run_task("task")
+                self.assertEqual(ti.state, State.SUCCESS)
+
+                is_first = is_first_dag_run(first_dag_run)
+                self.assertTrue(is_first)
+
+            # Second DAG Run
+            second_execution_date = pendulum.datetime(2021, 9, 12)
+            with env.create_dag_run(dag=dag, execution_date=second_execution_date) as second_dag_run:
+                # Should be false on second DAG Run, check before and after a task.
+                is_first = is_first_dag_run(second_dag_run)
+                self.assertFalse(is_first)
+
+                ti = env.run_task("task")
+                self.assertEqual(ti.state, State.SUCCESS)
+
+                is_first = is_first_dag_run(second_dag_run)
+                self.assertFalse(is_first)

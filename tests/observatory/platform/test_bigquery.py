@@ -629,15 +629,21 @@ class TestBigQuery(unittest.TestCase):
             self.assertEqual(expected, results)
 
     def test_bq_delete_records(self):
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
-            main_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents")
-            sql = """
+        def insert_data(
+            main_table_id: str,
+            delete_table_id: str,
+            main_key: str = "name",
+            delete_key: str = "name",
+            main_prefix: str = "",
+            delete_prefix: str = "",
+        ):
+            sql = f"""
             WITH presidents AS
-            (SELECT 'Washington' as name, DATE('1789-04-30') as date UNION ALL
-            SELECT 'Adams', DATE('1797-03-04') UNION ALL
-            SELECT 'Jefferson', DATE('1801-03-04') UNION ALL
-            SELECT 'Madison', DATE('1809-03-04') UNION ALL
-            SELECT 'Monroe', DATE('1817-03-04'))
+            (SELECT '{main_prefix}Washington' as {main_key}, DATE('1789-04-30') as date UNION ALL
+            SELECT '{main_prefix}Adams', DATE('1797-03-04') UNION ALL
+            SELECT '{main_prefix}Jefferson', DATE('1801-03-04') UNION ALL
+            SELECT '{main_prefix}Madison', DATE('1809-03-04') UNION ALL
+            SELECT '{main_prefix}Monroe', DATE('1817-03-04'))
             SELECT * FROM presidents
             """
             success = bq_create_table_from_query(
@@ -648,11 +654,10 @@ class TestBigQuery(unittest.TestCase):
 
             # Create upsert table
             # Delete Madison and Monroe
-            delete_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents_deletes")
-            sql = """
+            sql = f"""
             WITH presidents AS
-            (SELECT 'Madison' as name UNION ALL
-            SELECT 'Monroe')
+            (SELECT '{delete_prefix}Madison' as {delete_key} UNION ALL
+            SELECT '{delete_prefix}Monroe')
             SELECT * FROM presidents
             """
             success = bq_create_table_from_query(
@@ -661,14 +666,74 @@ class TestBigQuery(unittest.TestCase):
             )
             self.assertTrue(success)
 
-            # Delete records
-            bq_delete_records(main_table_id=main_table_id, delete_table_id=delete_table_id, primary_key="name")
+        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+            main_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents")
+            delete_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents_deletes")
+            insert_data(main_table_id, delete_table_id)
+
+            # Delete records: same primary key
+            bq_delete_records(
+                main_table_id=main_table_id,
+                delete_table_id=delete_table_id,
+                main_table_primary_key="name",
+                delete_table_primary_key="name",
+            )
 
             # Check that main_table is in correct state
             expected = [
                 dict(name="Adams", date=datetime.date(1797, 3, 4)),
                 dict(name="Jefferson", date=datetime.date(1801, 3, 4)),
                 dict(name="Washington", date=datetime.date(1789, 4, 30)),
+            ]
+            results = bq_run_query(f"SELECT * FROM {main_table_id} ORDER BY name ASC")
+            results = [dict(row) for row in results]
+            self.assertEqual(expected, results)
+
+        # Delete records: different primary key
+        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+            main_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents")
+            delete_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents_deletes")
+            insert_data(main_table_id, delete_table_id, delete_key="hello")
+
+            # Delete records: same primary key
+            bq_delete_records(
+                main_table_id=main_table_id,
+                delete_table_id=delete_table_id,
+                main_table_primary_key="name",
+                delete_table_primary_key="hello",
+            )
+
+            # Check that main_table is in correct state
+            expected = [
+                dict(name="Adams", date=datetime.date(1797, 3, 4)),
+                dict(name="Jefferson", date=datetime.date(1801, 3, 4)),
+                dict(name="Washington", date=datetime.date(1789, 4, 30)),
+            ]
+            results = bq_run_query(f"SELECT * FROM {main_table_id} ORDER BY name ASC")
+            results = [dict(row) for row in results]
+            self.assertEqual(expected, results)
+
+        # Delete records: add a prefix
+        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+            main_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents")
+            delete_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents_deletes")
+            insert_data(main_table_id, delete_table_id, main_prefix="President", delete_prefix="")
+
+            # Delete records: same primary key
+            bq_delete_records(
+                main_table_id=main_table_id,
+                delete_table_id=delete_table_id,
+                main_table_primary_key="name",
+                delete_table_primary_key="name",
+                main_table_primary_key_prefix="",
+                delete_table_primary_key_prefix="President",
+            )
+
+            # Check that main_table is in correct state
+            expected = [
+                dict(name="PresidentAdams", date=datetime.date(1797, 3, 4)),
+                dict(name="PresidentJefferson", date=datetime.date(1801, 3, 4)),
+                dict(name="PresidentWashington", date=datetime.date(1789, 4, 30)),
             ]
             results = bq_run_query(f"SELECT * FROM {main_table_id} ORDER BY name ASC")
             results = [dict(row) for row in results]

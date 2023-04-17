@@ -28,7 +28,6 @@ from airflow.models.connection import Connection
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.sensors.external_task import ExternalTaskSensor
-from airflow.utils.state import State
 
 from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
@@ -43,7 +42,6 @@ from observatory.platform.workflows.workflow import (
     Workflow,
     make_task_id,
     make_workflow_folder,
-    is_first_dag_run,
     make_release_date,
     cleanup,
     set_task_state,
@@ -113,45 +111,6 @@ class TestWorkflowFunctions(ObservatoryTestCase):
         expected_release_date = pendulum.datetime(2021, 11, 10)
         actual_release_date = make_release_date(**{"next_execution_date": next_execution_date})
         self.assertEqual(expected_release_date, actual_release_date)
-
-    def test_is_first_dag_run(self):
-        """Test is_first_dag_run"""
-
-        env = ObservatoryEnvironment(enable_api=False)
-        with env.create():
-            first_execution_date = pendulum.datetime(2021, 9, 5)
-            with DAG(
-                dag_id="hello_world_dag",
-                schedule_interval="@daily",
-                default_args={"owner": "airflow", "start_date": first_execution_date},
-                catchup=True,
-            ) as dag:
-                task = BashOperator(task_id="task", bash_command="echo 'hello'")
-
-            # First DAG Run
-            with env.create_dag_run(dag=dag, execution_date=first_execution_date) as first_dag_run:
-                # Should be true the first DAG run. Check before and after a task.
-                is_first = is_first_dag_run(first_dag_run)
-                self.assertTrue(is_first)
-
-                ti = env.run_task("task")
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                is_first = is_first_dag_run(first_dag_run)
-                self.assertTrue(is_first)
-
-            # Second DAG Run
-            second_execution_date = pendulum.datetime(2021, 9, 12)
-            with env.create_dag_run(dag=dag, execution_date=second_execution_date) as second_dag_run:
-                # Should be false on second DAG Run, check before and after a task.
-                is_first = is_first_dag_run(second_dag_run)
-                self.assertFalse(is_first)
-
-                ti = env.run_task("task")
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                is_first = is_first_dag_run(second_dag_run)
-                self.assertFalse(is_first)
 
     def test_cleanup(self):
         """

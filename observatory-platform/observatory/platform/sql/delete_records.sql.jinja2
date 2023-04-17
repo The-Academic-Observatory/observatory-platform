@@ -17,6 +17,5 @@
 
 MERGE `{{ main_table_id }}` main_table
 USING `{{ delete_table_id }}` delete_table
-ON main_table.{{ main_table_primary_key }} = delete_table.{{ delete_table_primary_key }}
-ON IF('{{ main_table_primary_key_prefix }}' = '', main_table.{{ main_table_primary_key }}, CONCAT('{{ main_table_primary_key_prefix }}', main_table.{{ main_table_primary_key }})) = IF('{{ delete_table_primary_key_prefix }}' = '', delete_table.{{ delete_table_primary_key }}, CONCAT('{{ delete_table_primary_key_prefix }}', delete_table.{{ delete_table_primary_key }}))
+ON CONCAT('{{ main_table_primary_key_prefix }}', main_table.{{ main_table_primary_key }}) = CONCAT('{{ delete_table_primary_key_prefix }}', delete_table.{{ delete_table_primary_key }})
 WHEN MATCHED THEN DELETE;
