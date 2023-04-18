@@ -587,6 +587,15 @@ class ObservatoryTestCase(unittest.TestCase):
         vcr_log = logging.getLogger("vcr")
         vcr_log.setLevel(logging.WARNING)
 
+    @property
+    def fake_cloud_workspace(self):
+        return CloudWorkspace(
+            project_id="project-id",
+            download_bucket="download_bucket",
+            transform_bucket="transform_bucket",
+            data_location="us",
+        )
+
     def assert_dag_structure(self, expected: Dict, dag: DAG):
         """Assert the DAG structure.
 
@@ -1014,7 +1023,7 @@ def bq_load_tables(
 class HttpServer:
     """Simple HTTP server for testing. Serves files from a directory to http://locahost:port/filename"""
 
-    def __init__(self, directory: str):
+    def __init__(self, directory: str, host: str = "localhost", port: int = None):
         """Initialises the server.
 
         :param directory: Directory to serve.
@@ -1023,8 +1032,10 @@ class HttpServer:
         self.directory = directory
         self.process = None
 
-        self.host = "localhost"
-        self.port = find_free_port(host=self.host)
+        self.host = host
+        if port is None:
+            port = find_free_port(host=self.host)
+        self.port = port
         self.address = (self.host, self.port)
         self.url = f"http://{self.host}:{self.port}/"
 
