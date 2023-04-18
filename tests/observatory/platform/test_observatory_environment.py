@@ -607,27 +607,21 @@ class TestObservatoryTestCase(unittest.TestCase):
         """Test assert_cleanup"""
 
         with CliRunner().isolated_filesystem() as temp_dir:
-            download = os.path.join(temp_dir, "download")
-            extract = os.path.join(temp_dir, "extract")
-            transform = os.path.join(temp_dir, "transform")
+            workflow = os.path.join(temp_dir, "workflow")
 
             # Make download, extract and transform folders
-            os.makedirs(download)
-            os.makedirs(extract)
-            os.makedirs(transform)
+            os.makedirs(workflow)
 
             # Check that assertion is raised when folders exist
             test_case = ObservatoryTestCase()
             with self.assertRaises(AssertionError):
-                test_case.assert_cleanup(download, extract, transform)
+                test_case.assert_cleanup(workflow)
 
             # Delete folders
-            os.rmdir(download)
-            os.rmdir(extract)
-            os.rmdir(transform)
+            os.rmdir(workflow)
 
             # No error when folders deleted
-            test_case.assert_cleanup(download, extract, transform)
+            test_case.assert_cleanup(workflow)
 
     def test_setup_mock_file_download(self):
         """Test mocking a file download"""
