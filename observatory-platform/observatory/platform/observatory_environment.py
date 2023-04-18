@@ -67,7 +67,6 @@ import shutil
 import socket
 import socketserver
 import threading
-import time
 import unittest
 import uuid
 from dataclasses import dataclass
@@ -84,6 +83,7 @@ import httpretty
 import paramiko
 import pendulum
 import requests
+import time
 from airflow import DAG, settings
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
@@ -113,6 +113,7 @@ from observatory.platform.bigquery import (
     SourceFormat,
     bq_delete_old_datasets_with_prefix,
 )
+from observatory.platform.config import AirflowConns
 from observatory.platform.config import module_file_path, AirflowVars
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.files import crc32c_base64_hash, get_file_hash, gzip_file_crc, save_jsonl_gz
@@ -517,6 +518,13 @@ class ObservatoryEnvironment:
 
                 # Create ObservatoryApiEnvironment
                 if self.enable_api:
+                    # Add Observatory API connection
+                    conn = Connection(
+                        conn_id=AirflowConns.OBSERVATORY_API, uri=f"http://:@{self.api_host}:{self.api_port}"
+                    )
+                    self.add_connection(conn)
+
+                    # Create API environment
                     self.api_env = ObservatoryApiEnvironment(host=self.api_host, port=self.api_port)
                     with self.api_env.create():
                         self.api_session = self.api_env.session
@@ -743,18 +751,14 @@ class ObservatoryTestCase(unittest.TestCase):
 
         self.assertEqual(expected_hash, actual_hash)
 
-    def assert_cleanup(self, download_folder: str, extract_folder: str, transform_folder: str):
+    def assert_cleanup(self, workflow_folder: str):
         """Assert that the download, extracted and transformed folders were cleaned up.
 
-        :param download_folder: the path to the DAGs download folder.
-        :param extract_folder: the path to the DAGs extract folder.
-        :param transform_folder: the path to the DAGs transform folder.
+        :param workflow_folder: the path to the DAGs download folder.
         :return: None.
         """
 
-        self.assertFalse(os.path.exists(download_folder))
-        self.assertFalse(os.path.exists(extract_folder))
-        self.assertFalse(os.path.exists(transform_folder))
+        self.assertFalse(os.path.exists(workflow_folder))
 
     def setup_mock_file_download(
         self, uri: str, file_path: str, headers: Dict = None, method: str = httpretty.GET

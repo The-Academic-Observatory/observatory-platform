@@ -231,7 +231,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         :return: None
         """
 
-        config = self.config = ElasticImportConfig(
+        config = ElasticImportConfig(
             elastic_mappings_path=TEST_FIXTURES_PATH,
             elastic_mappings_func=load_elastic_mappings_simple,
             kibana_time_fields=self.kibana_time_fields,
