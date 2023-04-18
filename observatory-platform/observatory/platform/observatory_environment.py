@@ -94,6 +94,7 @@ from airflow.models.variable import Variable
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import db
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from click.testing import CliRunner
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -113,8 +114,7 @@ from observatory.platform.bigquery import (
     SourceFormat,
     bq_delete_old_datasets_with_prefix,
 )
-from observatory.platform.config import AirflowConns
-from observatory.platform.config import module_file_path, AirflowVars
+from observatory.platform.config import module_file_path, AirflowVars, AirflowConns
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.files import crc32c_base64_hash, get_file_hash, gzip_file_crc, save_jsonl_gz
 from observatory.platform.gcs import (
@@ -122,7 +122,7 @@ from observatory.platform.gcs import (
     gcs_upload_files,
     gcs_delete_old_buckets_with_prefix,
 )
-from observatory.platform.observatory_config import Workflow
+from observatory.platform.observatory_config import Workflow, CloudWorkspace
 
 
 def random_id():
@@ -240,6 +240,15 @@ class ObservatoryEnvironment:
             self.transform_bucket = None
             self.storage_client = None
             self.bigquery_client = None
+
+    @property
+    def cloud_workspace(self) -> CloudWorkspace:
+        return CloudWorkspace(
+            project_id=self.project_id,
+            download_bucket=self.download_bucket,
+            transform_bucket=self.transform_bucket,
+            data_location=self.data_location,
+        )
 
     @property
     def create_gcp_env(self) -> bool:
@@ -399,15 +408,23 @@ class ObservatoryEnvironment:
         return ti
 
     @contextlib.contextmanager
-    def create_dag_run(self, dag: DAG, execution_date: pendulum.DateTime, freeze: bool = True):
+    def create_dag_run(
+        self,
+        dag: DAG,
+        execution_date: pendulum.DateTime,
+        freeze: bool = True,
+        run_type: DagRunType = DagRunType.SCHEDULED,
+    ):
         """Create a DagRun that can be used when running tasks.
         During cleanup the DAG run state is updated.
 
         :param dag: the Airflow DAG instance.
         :param execution_date: the execution date of the DAG.
         :param freeze: whether to freeze time to the start date of the DAG run.
+        :param run_type: what run_type to use when running the DAG run.
         :return: None.
         """
+
         # Get start date, which is one schedule interval after execution date
         if isinstance(dag.normalized_schedule_interval, (timedelta, relativedelta)):
             start_date = (
@@ -420,19 +437,16 @@ class ObservatoryEnvironment:
         freezegun.configure(extend_ignore_list=["observatory.api.client"])
         frozen_time = freeze_time(start_date, tick=True)
 
-        run_id = "manual__{0}".format(execution_date.isoformat())
-
         # Make sure google auth uses real DateTime and not freezegun fake time
         with patch("google.auth._helpers.utcnow", wraps=datetime.utcnow) as mock_utc_now:
             try:
                 if freeze:
                     frozen_time.start()
-                state = State.RUNNING
                 self.dag_run = dag.create_dagrun(
-                    run_id=run_id,
-                    state=state,
+                    state=State.RUNNING,
                     execution_date=execution_date,
                     start_date=pendulum.now("UTC"),
+                    run_type=run_type,
                 )
                 yield self.dag_run
             finally:
