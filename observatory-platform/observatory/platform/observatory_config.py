@@ -518,13 +518,6 @@ class PendulumDateTimeEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-# class PendulumDateTimeDecoder(json.JSONDecoder):
-#     def decode(self, s: str, _w: Any = None) -> Any:
-#
-#
-#         return super().decode(s, object_hook=parse_datetime)
-#
-
 def workflows_to_json_string(workflows: List[Workflow]) -> str:
     """Covnert a list of Workflow instances to a JSON string.
 
