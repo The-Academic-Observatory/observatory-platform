@@ -122,7 +122,7 @@ from observatory.platform.gcs import (
     gcs_upload_files,
     gcs_delete_old_buckets_with_prefix,
 )
-from observatory.platform.observatory_config import Workflow, CloudWorkspace
+from observatory.platform.observatory_config import Workflow, CloudWorkspace, workflows_to_json_string
 
 
 def random_id():
@@ -518,7 +518,7 @@ class ObservatoryEnvironment:
                 self.add_variable(Variable(key=AirflowVars.DATA_PATH, val=self.data_path))
 
                 if self.workflows is not None:
-                    var = json.dumps([workflow.to_dict() for workflow in self.workflows])
+                    var = workflows_to_json_string(self.workflows)
                     self.add_variable(Variable(key=AirflowVars.WORKFLOWS, val=var))
 
                 # Start elastic

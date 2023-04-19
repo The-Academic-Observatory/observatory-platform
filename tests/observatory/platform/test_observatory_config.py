@@ -14,6 +14,7 @@
 
 # Author: James Diprose, Aniek Roelofs
 
+import datetime
 import os
 import pathlib
 import random
@@ -21,6 +22,7 @@ import string
 import unittest
 from typing import Dict, List
 
+import pendulum
 import yaml
 from click.testing import CliRunner
 
@@ -42,6 +44,9 @@ from observatory.platform.observatory_config import (
     is_secret_key,
     make_schema,
     save_yaml,
+    Workflow,
+    workflows_to_json_string,
+    json_string_to_workflows,
 )
 
 
@@ -53,6 +58,36 @@ class TestObservatoryConfigValidator(unittest.TestCase):
             "type": "dict",
             "schema": {"credentials": {"required": True, "type": "string", "google_application_credentials": True}},
         }
+
+    def test_workflows_to_json_string(self):
+        workflows = [
+            Workflow(
+                dag_id="my_dag",
+                name="My DAG",
+                class_name="observatory.platform.workflows.vm_workflow.VmCreateWorkflow",
+                kwargs=dict(dt=pendulum.datetime(2021, 1, 1)),
+            )
+        ]
+        json_string = workflows_to_json_string(workflows)
+        self.assertEqual(
+            '[{"dag_id": "my_dag", "name": "My DAG", "class_name": "observatory.platform.workflows.vm_workflow.VmCreateWorkflow", "cloud_workspace": null, "kwargs": {"dt": "2021-01-01T00:00:00+00:00"}}]',
+            json_string,
+        )
+
+    def test_json_string_to_workflows(self):
+        json_string = '[{"dag_id": "my_dag", "name": "My DAG", "class_name": "observatory.platform.workflows.vm_workflow.VmCreateWorkflow", "cloud_workspace": null, "kwargs": {"dt": "2021-01-01T00:00:00+00:00"}}]'
+        actual_workflows = json_string_to_workflows(json_string)
+        self.assertEqual(
+            [
+                Workflow(
+                    dag_id="my_dag",
+                    name="My DAG",
+                    class_name="observatory.platform.workflows.vm_workflow.VmCreateWorkflow",
+                    kwargs=dict(dt=pendulum.datetime(2021, 1, 1)),
+                )
+            ],
+            actual_workflows,
+        )
 
     def test_validate_google_application_credentials(self):
         """Check if an error occurs for pointing to a file that does not exist when the
@@ -149,7 +184,13 @@ class TestObservatoryConfig(unittest.TestCase):
                             "data_location": "us",
                         },
                         "class_name": "path.to.my_workflow.Workflow",
-                        "kwargs": {"hello": "world"},
+                        "kwargs": {
+                            "hello": "world",
+                            "hello_date": datetime.date(2021, 1, 1),
+                            "hello_datetime": datetime.datetime(2021, 1, 1),
+                        },
+                        # datetime.date gets converted into 2021-01-01 in yaml, which can be read as a date
+                        # same for datetime.datetime
                     },
                 ],
             }
@@ -159,6 +200,16 @@ class TestObservatoryConfig(unittest.TestCase):
             config = ObservatoryConfig.load(file_path)
             self.assertIsInstance(config, ObservatoryConfig)
             self.assertTrue(config.is_valid)
+
+            # Test that date value are parsed into pendulums
+            workflow: Workflow = config.workflows[0]
+            hello_date = workflow.kwargs["hello_date"]
+            self.assertIsInstance(hello_date, pendulum.DateTime)
+            self.assertEqual(pendulum.datetime(2021, 1, 1), hello_date)
+
+            hello_datetime = workflow.kwargs["hello_datetime"]
+            self.assertIsInstance(hello_datetime, pendulum.DateTime)
+            self.assertEqual(pendulum.datetime(2021, 1, 1), hello_datetime)
 
         # Test that an invalid minimal config works
         dict_ = {"backend": {"type": "terraform", "environment": "my-env"}, "airflow": {"fernet_key": False}}

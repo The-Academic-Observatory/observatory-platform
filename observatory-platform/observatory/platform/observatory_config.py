@@ -18,17 +18,20 @@
 from __future__ import annotations
 
 import base64
-import binascii
+import datetime
 import json
 import os
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, ClassVar, Dict, List, TextIO, Tuple, Union, Optional
 
+import binascii
 import cerberus.validator
+import pendulum
 import yaml
 from cerberus import Validator
 from cryptography.fernet import Fernet
+from yaml.constructor import SafeConstructor
 
 from observatory.platform.cli.cli_utils import (
     INDENT1,
@@ -508,6 +511,50 @@ class Workflow:
         return [Workflow.from_dict(dict_) for dict_ in list]
 
 
+class PendulumDateTimeEncoder(json.JSONEncoder):
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, pendulum.DateTime):
+            return obj.isoformat()
+        return super().default(obj)
+
+
+# class PendulumDateTimeDecoder(json.JSONDecoder):
+#     def decode(self, s: str, _w: Any = None) -> Any:
+#
+#
+#         return super().decode(s, object_hook=parse_datetime)
+#
+
+def workflows_to_json_string(workflows: List[Workflow]) -> str:
+    """Covnert a list of Workflow instances to a JSON string.
+
+    :param workflows: the Workflow instances.
+    :return: a JSON string.
+    """
+
+    data = [workflow.to_dict() for workflow in workflows]
+    return json.dumps(data, cls=PendulumDateTimeEncoder)
+
+
+def json_string_to_workflows(json_string: str) -> List[Workflow]:
+    """Convert a JSON string into a list of Workflow instances.
+
+    :param json_string: a JSON string version of a list of Workflow instances.
+    :return: a list of Workflow instances.
+    """
+
+    def parse_datetime(obj):
+        for key, value in obj.items():
+            try:
+                obj[key] = pendulum.parse(value)
+            except (ValueError, TypeError):
+                pass
+        return obj
+
+    data = json.loads(json_string, object_hook=parse_datetime)
+    return Workflow.parse_workflows(data)
+
+
 def parse_dict_to_list(dict_: Dict, cls: ClassVar) -> List[Any]:
     """Parse the key, value pairs in a dictionary into a list of class instances.
 
@@ -892,7 +939,7 @@ class ObservatoryConfig:
         :return: the workflows Airflow variable.
         """
 
-        return json.dumps([workflow.to_dict() for workflow in self.workflows])
+        return workflows_to_json_string(self.workflows)
 
     @property
     def airflow_var_dags_module_names(self):
@@ -970,8 +1017,17 @@ class ObservatoryConfig:
         :return: the ObservatoryConfig instance (or a subclass of ObservatoryConfig)
         """
 
-        dict_ = dict()
+        # Make sure that dates and datetimes are returned as pendulum.DateTime instances
+        # We let yaml parse the date / datetime and then convert to pendulum
+        def date_constructor(loader, node):
+            value = SafeConstructor.construct_yaml_timestamp(loader, node)
+            if isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+                value = datetime.datetime(value.year, value.month, value.day)
+            return pendulum.instance(value)
 
+        yaml.SafeLoader.add_constructor("tag:yaml.org,2002:timestamp", date_constructor)
+
+        dict_ = dict()
         try:
             with open(path, "r") as f:
                 dict_ = yaml.safe_load(f)

@@ -39,7 +39,7 @@ from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from observatory.platform.config import AirflowConns, AirflowVars
-from observatory.platform.observatory_config import Workflow
+from observatory.platform.observatory_config import Workflow, json_string_to_workflows
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -274,8 +274,7 @@ def fetch_workflows() -> List[Workflow]:
     logging.info(f"workflows_str: {workflows_str}")
 
     try:
-        workflows = json.loads(workflows_str)
-        workflows = Workflow.parse_workflows(workflows)
+        workflows = json_string_to_workflows(workflows_str)
         logging.info(f"workflows: {workflows}")
     except json.decoder.JSONDecodeError as e:
         e.msg = f"workflows_str: {workflows_str}\n\n{e.msg}"
