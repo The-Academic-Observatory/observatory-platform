@@ -108,7 +108,7 @@ class TestWorkflowFunctions(ObservatoryTestCase):
         """Test make_table_name"""
 
         data_interval_end = pendulum.datetime(2021, 11, 11)
-        expected_date = pendulum.datetime(2021, 11, 10)
+        expected_date = pendulum.datetime(2021, 11, 11)
         actual_date = make_snapshot_date(**{"data_interval_end": data_interval_end})
         self.assertEqual(expected_date, actual_date)
 

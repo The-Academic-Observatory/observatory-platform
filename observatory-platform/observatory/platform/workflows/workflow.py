@@ -51,10 +51,7 @@ DATE_TIME_FORMAT = "YYYY-MM-DD_HH:mm:ss"
 def make_snapshot_date(**kwargs) -> pendulum.DateTime:
     """Make a snapshot date"""
 
-    data_interval_end = kwargs["data_interval_end"]
-    snapshot_date = data_interval_end.subtract(days=1).start_of("day")
-    assert data_interval_end != snapshot_date, "make_snapshot_date: data_interval_end and snapshot_date are the same"
-    return snapshot_date
+    return kwargs["data_interval_end"]
 
 
 def make_workflow_folder(dag_id: str, run_id: str, *subdirs: str) -> str:
