@@ -963,17 +963,17 @@ class Table:
 
 def bq_load_tables(
     *,
+    project_id: str,
     tables: List[Table],
     bucket_name: str,
     snapshot_date: DateTime,
-    project_id: str = None,
 ):
     """Load the fake Observatory Dataset in BigQuery.
 
+    :param project_id: GCP project id.
     :param tables: the list of tables and records to load.
     :param bucket_name: the Google Cloud Storage bucket name.
     :param snapshot_date: the release date for the observatory dataset.
-    :param project_id: GCP project id.
     :return: None.
     """
 
