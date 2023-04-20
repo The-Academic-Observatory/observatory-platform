@@ -631,7 +631,7 @@ class ObservatoryTestCase(unittest.TestCase):
 
             if dag_bag.import_errors != {}:
                 logging.error(f"DagBag errors: {dag_bag.import_errors}")
-            self.assertEqual({}, dag_bag.import_errors)
+            self.assertEqual({}, dag_bag.import_errors, dag_bag.import_errors)
 
             dag = dag_bag.get_dag(dag_id=dag_id)
 

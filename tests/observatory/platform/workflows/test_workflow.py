@@ -42,7 +42,7 @@ from observatory.platform.workflows.workflow import (
     Workflow,
     make_task_id,
     make_workflow_folder,
-    make_release_date,
+    make_snapshot_date,
     cleanup,
     set_task_state,
 )
@@ -104,13 +104,13 @@ class TestWorkflowFunctions(ObservatoryTestCase):
                 os.path.join(tempdir, f"test_dag/scheduled__2023-03-26T00:00:00+00:00/sub_folder/subsub_folder"),
             )
 
-    def test_make_release_date(self):
+    def test_make_snapshot_date(self):
         """Test make_table_name"""
 
-        next_execution_date = pendulum.datetime(2021, 11, 11)
-        expected_release_date = pendulum.datetime(2021, 11, 10)
-        actual_release_date = make_release_date(**{"next_execution_date": next_execution_date})
-        self.assertEqual(expected_release_date, actual_release_date)
+        data_interval_end = pendulum.datetime(2021, 11, 11)
+        expected_date = pendulum.datetime(2021, 11, 10)
+        actual_date = make_snapshot_date(**{"data_interval_end": data_interval_end})
+        self.assertEqual(expected_date, actual_date)
 
     def test_cleanup(self):
         """
