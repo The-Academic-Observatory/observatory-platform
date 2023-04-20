@@ -14,7 +14,6 @@
 
 # Author: Author: Tuan Chien, James Diprose
 
-import calendar
 import datetime
 import logging
 from typing import List, Optional
@@ -128,7 +127,7 @@ def is_first_release(dag_id: str, dataset_id: str) -> bool:
     return len(releases) == 0
 
 
-def build_schedule(sched_start_date: pendulum.Date, sched_end_date: pendulum.Date):
+def build_schedule(sched_start_date: pendulum.DateTime, sched_end_date: pendulum.DateTime):
     """Useful for API based data sources.
 
     Create a fetch schedule to specify what date ranges to use for each API call. Will default to once a month
@@ -140,10 +139,12 @@ def build_schedule(sched_start_date: pendulum.Date, sched_end_date: pendulum.Dat
     """
 
     schedule = []
+
     for start_date in pendulum.Period(start=sched_start_date, end=sched_end_date).range("months"):
-        last_day = calendar.monthrange(start_date.year, start_date.month)[1]
-        end_date = pendulum.datetime(start_date.year, start_date.month, last_day)
-        period = pendulum.Period(start_date, end_date)
-        schedule.append(period)
+        if start_date >= sched_end_date:
+            break
+        end_date = start_date.add(months=1).subtract(days=1).end_of("day")
+        end_date = min(sched_end_date, end_date)
+        schedule.append(pendulum.Period(start_date.date(), end_date.date()))
 
     return schedule

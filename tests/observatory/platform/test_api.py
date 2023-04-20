@@ -15,12 +15,13 @@
 
 from unittest.mock import patch
 
+import pendulum
 from airflow.models.connection import Connection
 
 from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
 from observatory.api.testing import ObservatoryApiEnvironment
-from observatory.platform.api import make_observatory_api
+from observatory.platform.api import make_observatory_api, build_schedule
 from observatory.platform.observatory_environment import ObservatoryTestCase, find_free_port
 
 
@@ -87,3 +88,25 @@ class TestObservatoryAPI(ObservatoryTestCase):
         with self.assertRaises(AssertionError):
             mock_get_connection.return_value = Connection(host=host, password=api_key)
             make_observatory_api()
+
+    def test_build_schedule(self):
+        start_date = pendulum.datetime(2021, 1, 1)
+        end_date = pendulum.datetime(2021, 2, 1)
+        schedule = build_schedule(start_date, end_date)
+        self.assertEqual([pendulum.Period(pendulum.date(2021, 1, 1), pendulum.date(2021, 1, 31))], schedule)
+
+        start_date = pendulum.datetime(2021, 1, 1)
+        end_date = pendulum.datetime(2021, 3, 1)
+        schedule = build_schedule(start_date, end_date)
+        self.assertEqual(
+            [
+                pendulum.Period(pendulum.date(2021, 1, 1), pendulum.date(2021, 1, 31)),
+                pendulum.Period(pendulum.date(2021, 2, 1), pendulum.date(2021, 2, 28)),
+            ],
+            schedule,
+        )
+
+        start_date = pendulum.datetime(2021, 1, 7)
+        end_date = pendulum.datetime(2021, 2, 7)
+        schedule = build_schedule(start_date, end_date)
+        self.assertEqual([pendulum.Period(pendulum.date(2021, 1, 7), pendulum.date(2021, 2, 6))], schedule)
