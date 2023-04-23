@@ -16,14 +16,15 @@
 
 import datetime
 import glob
+import gzip
+import io
 import logging
 import os
 import re
 from copy import deepcopy
-from typing import Dict, Tuple, Union
-from typing import List
-from typing import Optional
+from typing import Dict, Tuple, Union, List, Optional
 
+import jsonlines
 import pendulum
 from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud import bigquery
@@ -409,6 +410,40 @@ def bq_load_table(
         state = False
 
     return state
+
+
+def bq_load_from_memory(table_id: str, records: List[Dict]) -> bool:
+    """Load data into BigQuery from memory.
+
+    :param table_id: the full table_id, including project id, dataset id and table name.
+    :param records: the records to load.
+    :return: whether the table loaded or not.
+    """
+
+    # Save as JSON Lines in memory
+    with io.BytesIO() as bytes_io:
+        with gzip.GzipFile(fileobj=bytes_io, mode="w") as gzip_file:
+            with jsonlines.Writer(gzip_file) as writer:
+                writer.write_all(records)
+
+        # Load into BigQuery
+        client = bigquery.Client()
+        job_config = LoadJobConfig(
+            source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+            write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+            autodetect=True,
+        )
+
+        try:
+            load_job: LoadJob = client.load_table_from_file(bytes_io, table_id, job_config=job_config, rewind=True)
+            success = load_job.result().state == "DONE"
+        except BadRequest as e:
+            logging.error(f"Load bigquery table {table_id} failed: {e}.")
+            if load_job:
+                logging.error(f"Errors:\n{load_job.errors}")
+            success = False
+
+    return success
 
 
 def bq_query_bytes_estimate(query: str, *args, **kwargs) -> int:
