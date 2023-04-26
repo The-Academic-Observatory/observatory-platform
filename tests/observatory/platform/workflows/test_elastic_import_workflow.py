@@ -119,6 +119,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.dag_id = "elastic_import"
         self.elastic_port = find_free_port()
         self.kibana_port = find_free_port()
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
@@ -163,15 +164,10 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         env = ObservatoryEnvironment(
             workflows=[
                 Workflow(
-                    dag_id="elastic_import",
+                    dag_id=self.dag_id,
                     name="My Elastic Import Workflow",
                     class_name="observatory.platform.workflows.elastic_import_workflow.ElasticImportWorkflow",
-                    cloud_workspace=CloudWorkspace(
-                        project_id="project-id",
-                        download_bucket="download_bucket",
-                        transform_bucket="transform_bucket",
-                        data_location="us",
-                    ),
+                    cloud_workspace=self.fake_cloud_workspace,
                     kwargs=dict(
                         sensor_dag_ids=["doi"],
                         kibana_spaces=["test-space"],
@@ -183,7 +179,28 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
         )
 
         with env.create():
-            self.assert_dag_load_from_config("elastic_import")
+            self.assert_dag_load_from_config(self.dag_id)
+
+        # Failure to load caused by missing kwargs
+        env = ObservatoryEnvironment(
+            workflows=[
+                Workflow(
+                    dag_id=self.dag_id,
+                    name="My Elastic Import Workflow",
+                    class_name="observatory.platform.workflows.elastic_import_workflow.ElasticImportWorkflow",
+                    cloud_workspace=self.fake_cloud_workspace,
+                )
+            ]
+        )
+
+        with env.create():
+            with self.assertRaises(AssertionError) as cm:
+                self.assert_dag_load_from_config(self.dag_id)
+            msg = cm.exception.args[0]
+            self.assertTrue("missing 3 required keyword-only arguments" in msg)
+            self.assertTrue("sensor_dag_ids" in msg)
+            self.assertTrue("kibana_spaces" in msg)
+            self.assertTrue("elastic_import_config" in msg)
 
     def test_constructor(self):
         config = self.config = ElasticImportConfig(
