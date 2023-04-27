@@ -18,7 +18,8 @@ import os
 from datetime import datetime, timezone
 from functools import partial
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
+from copy import deepcopy
 
 import pendulum
 from airflow import DAG
@@ -29,9 +30,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.sensors.external_task import ExternalTaskSensor
 
-from observatory.api.client import ApiClient, Configuration
-from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
-from observatory.api.testing import ObservatoryApiEnvironment
+from observatory.platform.observatory_config import CloudWorkspace
 from observatory.platform.observatory_environment import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
@@ -45,6 +44,7 @@ from observatory.platform.workflows.workflow import (
     make_snapshot_date,
     cleanup,
     set_task_state,
+    check_workflow_inputs,
 )
 
 
@@ -103,6 +103,48 @@ class TestWorkflowFunctions(ObservatoryTestCase):
                 path,
                 os.path.join(tempdir, f"test_dag/scheduled__2023-03-26T00:00:00+00:00/sub_folder/subsub_folder"),
             )
+
+    def test_check_workflow_inputs(self):
+        """Test check_workflow_inputs"""
+        # Test Dag ID validity
+        wf = MagicMock(dag_id="valid")
+        check_workflow_inputs(wf, check_cloud_workspace=False)  # Should pass
+        for dag_id in ["", None, 42]:  # Should all fail
+            wf.dag_id = dag_id
+            with self.assertRaises(AirflowException) as cm:
+                check_workflow_inputs(wf, check_cloud_workspace=False)
+            msg = cm.exception.args[0]
+            self.assertIn("dag_id", msg)
+
+        # Test when cloud workspace is of wrong type
+        wf = MagicMock(dag_id="valid", cloud_workspace="invalid")
+        with self.assertRaisesRegex(AirflowException, "cloud_workspace"):
+            check_workflow_inputs(wf)
+
+        # Test validity of each part of the cloud workspace
+        valid_cloud_workspace = CloudWorkspace(
+            project_id="project_id",
+            download_bucket="download_bucket",
+            transform_bucket="transform_bucket",
+            data_location="data_location",
+            output_project_id="output_project_id",
+        )
+        wf = MagicMock(dag_id="valid", cloud_workspace=deepcopy(valid_cloud_workspace))
+        check_workflow_inputs(wf)  # Should pass
+        for attr, invalid_val in [
+            ("project_id", ""),
+            ("download_bucket", None),
+            ("transform_bucket", 42),
+            ("data_location", MagicMock()),
+            ("output_project_id", ""),
+        ]:
+            wf = MagicMock(dag_id="valid", cloud_workspace=deepcopy(valid_cloud_workspace))
+            setattr(wf.cloud_workspace, attr, invalid_val)
+            with self.assertRaisesRegex(AirflowException, f"cloud_workspace.{attr}"):
+                check_workflow_inputs(wf)
+        wf = MagicMock(dag_id="valid", cloud_workspace=deepcopy(valid_cloud_workspace))
+        wf.cloud_workspace.output_project_id = None
+        check_workflow_inputs(wf)  # This one should pass
 
     def test_make_snapshot_date(self):
         """Test make_table_name"""
@@ -173,11 +215,6 @@ class TestWorkflow(ObservatoryTestCase):
 
         self.host = "localhost"
         self.port = find_free_port()
-        configuration = Configuration(host=f"http://{self.host}:{self.port}")
-        api_client = ApiClient(configuration)
-        self.api = ObservatoryApi(api_client=api_client)  # noqa: E501
-        self.env = ObservatoryApiEnvironment(host=self.host, port=self.port)
-        self.org_name = "Curtin University"
 
     def test_make_task_id(self):
         """Test make_task_id"""
@@ -317,14 +354,8 @@ class TestWorkflow(ObservatoryTestCase):
             self.assertTrue(telescope._parallel_tasks)
         self.assertFalse(telescope._parallel_tasks)
 
-    @patch("observatory.platform.api.make_observatory_api")
-    def test_telescope(self, m_makeapi):
-        """Basic test to make sure that the Workflow class can execute in an Airflow environment.
-        :return: None.
-        """
-
-        m_makeapi.return_value = self.api
-
+    def test_telescope(self):
+        """Basic test to make sure that the Workflow class can execute in an Airflow environment."""
         # Setup Observatory environment
         env = ObservatoryEnvironment(self.project_id, self.data_location, api_host=self.host, api_port=self.port)
 

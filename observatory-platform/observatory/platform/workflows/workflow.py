@@ -43,6 +43,7 @@ from observatory.platform.airflow import (
     delete_old_xcoms,
 )
 from observatory.platform.airflow import get_data_path
+from observatory.platform.observatory_config import CloudWorkspace
 
 
 DATE_TIME_FORMAT = "YYYY-MM-DD_HH:mm:ss"
@@ -66,6 +67,36 @@ def make_workflow_folder(dag_id: str, run_id: str, *subdirs: str) -> str:
     path = os.path.join(get_data_path(), dag_id, run_id, *subdirs)
     os.makedirs(path, exist_ok=True)
     return path
+
+
+def check_workflow_inputs(workflow: Workflow, check_cloud_workspace=True) -> None:
+    """Checks a Workflow object for validity
+
+    :param workflow: The Workflow object
+    :param check_cloud_workspace: Whether to check the CloudWorkspace field, defaults to True
+    :raises AirflowException: Raised if there are invalid fields
+    """
+    invalid_fields = []
+    if not workflow.dag_id or not isinstance(workflow.dag_id, str):
+        invalid_fields.append("dag_id")
+
+    if check_cloud_workspace:
+        cloud_workspace = workflow.cloud_workspace
+        if not isinstance(cloud_workspace, CloudWorkspace):
+            invalid_fields.append("cloud_workspace")
+        else:
+            required_fields = {"project_id": str, "data_location": str, "download_bucket": str, "transform_bucket": str}
+            for field_name, field_type in required_fields.items():
+                field_value = getattr(cloud_workspace, field_name, None)
+                if not isinstance(field_value, field_type) or not field_value:
+                    invalid_fields.append(f"cloud_workspace.{field_name}")
+
+            if cloud_workspace.output_project_id is not None:
+                if not isinstance(cloud_workspace.output_project_id, str) or not cloud_workspace.output_project_id:
+                    invalid_fields.append("cloud_workspace.output_project_id")
+
+    if invalid_fields:
+        raise AirflowException(f"Workflow input fields invalid: {invalid_fields}")
 
 
 def cleanup(dag_id: str, execution_date: str, workflow_folder: str = None, retention_days=31) -> None:
