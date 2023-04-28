@@ -76,3 +76,4 @@ importlib-metadata==3.7.3
 deprecation>2,<3
 
 virtualenv
+deepdiff
