@@ -74,8 +74,10 @@ from datetime import datetime, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from multiprocessing import Process
 from typing import Dict, List, Optional
+from typing import Tuple
 from unittest.mock import patch
 
+import boto3
 import croniter
 import freezegun
 import google
@@ -108,6 +110,7 @@ from pendulum import DateTime
 from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 from observatory.api.testing import ObservatoryApiEnvironment
+from observatory.platform.bigquery import bq_create_dataset
 from observatory.platform.bigquery import (
     bq_sharded_table_id,
     bq_load_table,
@@ -172,6 +175,59 @@ def save_empty_file(path: str, file_name: str) -> str:
     open(file_path, "a").close()
 
     return file_path
+
+
+@contextlib.contextmanager
+def bq_dataset_test_env(*, project_id: str, location: str, prefix: str):
+    client = bigquery.Client()
+    dataset_id = prefix + "_" + random_id()
+    try:
+        bq_create_dataset(project_id=project_id, dataset_id=dataset_id, location=location)
+        yield dataset_id
+    finally:
+        client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+
+
+@contextlib.contextmanager
+def aws_bucket_test_env(
+    *, aws_key: Tuple[str, str], prefix: str, expiration_days=1, region_name: str = "ap-southeast-2"
+) -> str:
+    # Create an S3 client
+    aws_access_key_id, aws_secret_access_key = aws_key
+    session = boto3.Session(
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        region_name=region_name,
+    )
+    s3 = session.client("s3", region_name=region_name)
+    bucket_name = prefix + "-" + random_id()
+    try:
+        s3.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": region_name})
+        # Set up the lifecycle configuration
+        lifecycle_configuration = {
+            "Rules": [
+                {"ID": "ExpireObjects", "Status": "Enabled", "Filter": {}, "Expiration": {"Days": expiration_days}}
+            ]
+        }
+
+        # Apply the lifecycle configuration to the bucket
+        s3.put_bucket_lifecycle_configuration(Bucket=bucket_name, LifecycleConfiguration=lifecycle_configuration)
+        yield bucket_name
+    except Exception as e:
+        raise e
+    finally:
+        # Get a reference to the bucket
+        s3_resource = session.resource("s3")
+        bucket = s3_resource.Bucket(bucket_name)
+
+        # Delete all objects and versions in the bucket
+        bucket.objects.all().delete()
+        bucket.object_versions.all().delete()
+
+        # Delete the bucket
+        bucket.delete()
+
+        print(f"Bucket {bucket_name} deleted")
 
 
 class ObservatoryEnvironment:

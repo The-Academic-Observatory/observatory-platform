@@ -14,7 +14,6 @@
 
 # Author: James Diprose, Aniek Roelofs
 
-import contextlib
 import datetime
 import json
 import os
@@ -53,10 +52,7 @@ from observatory.platform.bigquery import (
     bq_query_bytes_budget_check,
 )
 from observatory.platform.gcs import gcs_delete_old_buckets_with_prefix, gcs_upload_file
-from observatory.platform.observatory_environment import (
-    random_id,
-    test_fixtures_path,
-)
+from observatory.platform.observatory_environment import random_id, test_fixtures_path, bq_dataset_test_env
 
 
 class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
@@ -66,17 +62,6 @@ class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
             "project_id", "dataset_id", "my_table", pendulum.datetime(year=2020, month=3, day=15)
         )
         self.assertEqual(expected, actual)
-
-
-@contextlib.contextmanager
-def bq_test_env(*, project_id: str, location: str, prefix: str):
-    client = bigquery.Client()
-    dataset_id = prefix + "_" + random_id()
-    try:
-        bq_create_dataset(project_id=project_id, dataset_id=dataset_id, location=location)
-        yield dataset_id
-    finally:
-        client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
 
 
 class TestBigQuery(unittest.TestCase):
@@ -116,7 +101,7 @@ class TestBigQuery(unittest.TestCase):
         self.assertEqual(table_id, actual_table_id)
 
     def test_bq_create_dataset(self):
-        # This test doesn't use bq_test_env as it is testing bq_create_dataset
+        # This test doesn't use bq_dataset_test_env as it is testing bq_create_dataset
         dataset_id = self.prefix + "_" + random_id()
         client = bigquery.Client()
         try:
@@ -131,7 +116,9 @@ class TestBigQuery(unittest.TestCase):
         test_data_path = test_fixtures_path("utils")
         schema_file_path = os.path.join(test_data_path, "people_schema.json")
 
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             # Create table with all parameters set
             table_id = bq_table_id(self.gc_project_id, dataset_id, "with_schema")
             table = bq_create_empty_table(
@@ -228,7 +215,9 @@ class TestBigQuery(unittest.TestCase):
         self.assertRaises(Exception, bq_run_query, query, bytes_budget=1000)
 
     def test_bq_copy_table(self):
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             src_table_id = self.patents_table_id
             dst_table_id = bq_table_id(self.gc_project_id, dataset_id, "figures")
             success = bq_copy_table(src_table_id=src_table_id, dst_table_id=dst_table_id)
@@ -236,7 +225,9 @@ class TestBigQuery(unittest.TestCase):
             self.assertTrue(bq_table_exists(table_id=dst_table_id))
 
     def test_bq_create_view(self):
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             # Create a view
             query = f"SELECT * FROM `{self.patents_table_id}` LIMIT 3"
             view_id = bq_table_id(self.gc_project_id, dataset_id, "test_view")
@@ -261,7 +252,9 @@ class TestBigQuery(unittest.TestCase):
         SELECT * FROM presidents
         """
 
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             # Test with clustering fields
             table_id = bq_table_id(self.gc_project_id, dataset_id, "clustered")
             success = bq_create_table_from_query(
@@ -292,7 +285,9 @@ class TestBigQuery(unittest.TestCase):
         SELECT * FROM presidents
         """
 
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             with CliRunner().isolated_filesystem():
                 schema = [
                     {"mode": "NULLABLE", "name": "name", "type": "STRING", "description": "Foo Bar"},
@@ -334,7 +329,9 @@ class TestBigQuery(unittest.TestCase):
         SELECT * FROM presidents
         """
 
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents")
             success = bq_create_table_from_query(
                 sql=query,
@@ -356,7 +353,9 @@ class TestBigQuery(unittest.TestCase):
         SELECT * FROM presidents
         """
 
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents")
             self.assertRaises(
                 Exception,
@@ -368,7 +367,9 @@ class TestBigQuery(unittest.TestCase):
             )
 
     def test_bq_list_datasets_with_prefix(self):
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             # Get list of datasets under project
             dataset_list = bq_list_datasets_with_prefix()
             dataset_names = [dataset.dataset_id for dataset in dataset_list]
@@ -410,7 +411,9 @@ class TestBigQuery(unittest.TestCase):
         release_3 = pendulum.date(year=2019, month=7, day=1)
         query = f"SELECT * FROM `{self.patents_table_id}` LIMIT 1"
 
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             bq_create_table_from_query(
                 sql=query,
                 table_id=bq_sharded_table_id(self.gc_project_id, dataset_id, "fundref", release_1),
@@ -489,7 +492,9 @@ class TestBigQuery(unittest.TestCase):
         json_file_path = os.path.join(test_data_path, "people.jsonl")
         json_blob_name = f"people_{random_id()}.jsonl"
 
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             try:
                 # Upload CSV to storage bucket
                 result, upload = gcs_upload_file(
@@ -578,7 +583,9 @@ class TestBigQuery(unittest.TestCase):
         )
 
     def test_bq_upsert_records(self):
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             # Create main table
             main_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents")
             sql = """
@@ -666,7 +673,9 @@ class TestBigQuery(unittest.TestCase):
             )
             self.assertTrue(success)
 
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             main_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents")
             delete_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents_deletes")
             insert_data(main_table_id, delete_table_id)
@@ -690,7 +699,9 @@ class TestBigQuery(unittest.TestCase):
             self.assertEqual(expected, results)
 
         # Delete records: different primary key
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             main_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents")
             delete_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents_deletes")
             insert_data(main_table_id, delete_table_id, delete_key="hello")
@@ -714,7 +725,9 @@ class TestBigQuery(unittest.TestCase):
             self.assertEqual(expected, results)
 
         # Delete records: add a prefix
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             main_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents")
             delete_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents_deletes")
             insert_data(main_table_id, delete_table_id, main_prefix="President", delete_prefix="")
@@ -740,7 +753,9 @@ class TestBigQuery(unittest.TestCase):
             self.assertEqual(expected, results)
 
     def test_bq_snapshot(self):
-        with bq_test_env(project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix) as dataset_id:
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
             # First copy data to src_table_id
             src_table_id = bq_table_id(self.gc_project_id, dataset_id, "figures")
             success = bq_copy_table(
