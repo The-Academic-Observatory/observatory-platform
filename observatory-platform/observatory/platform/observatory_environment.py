@@ -74,12 +74,9 @@ from datetime import datetime, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from multiprocessing import Process
 from typing import Dict, List, Optional
-from typing import Tuple
-from unittest.mock import patch
 
 import boto3
 import croniter
-import freezegun
 import google
 import httpretty
 import paramiko
@@ -103,7 +100,6 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from dateutil.relativedelta import relativedelta
 from deepdiff import DeepDiff
-from freezegun import freeze_time
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
 from pendulum import DateTime
@@ -189,27 +185,18 @@ def bq_dataset_test_env(*, project_id: str, location: str, prefix: str):
 
 
 @contextlib.contextmanager
-def aws_bucket_test_env(
-    *, aws_key: Tuple[str, str], prefix: str, expiration_days=1, region_name: str = "ap-southeast-2"
-) -> str:
+def aws_bucket_test_env(*, prefix: str, region_name: str, expiration_days=1) -> str:
     # Create an S3 client
-    aws_access_key_id, aws_secret_access_key = aws_key
-    session = boto3.Session(
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
-        region_name=region_name,
-    )
-    s3 = session.client("s3", region_name=region_name)
-    bucket_name = prefix + "-" + random_id()
+    s3 = boto3.Session().client("s3", region_name=region_name)
+    bucket_name = f"obs-test-{prefix}-{random_id()}"
     try:
-        s3.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": region_name})
+        s3.create_bucket(Bucket=bucket_name)  # CreateBucketConfiguration={"LocationConstraint": region_name}
         # Set up the lifecycle configuration
         lifecycle_configuration = {
             "Rules": [
                 {"ID": "ExpireObjects", "Status": "Enabled", "Filter": {}, "Expiration": {"Days": expiration_days}}
             ]
         }
-
         # Apply the lifecycle configuration to the bucket
         s3.put_bucket_lifecycle_configuration(Bucket=bucket_name, LifecycleConfiguration=lifecycle_configuration)
         yield bucket_name
@@ -217,7 +204,7 @@ def aws_bucket_test_env(
         raise e
     finally:
         # Get a reference to the bucket
-        s3_resource = session.resource("s3")
+        s3_resource = boto3.Session().resource("s3")
         bucket = s3_resource.Bucket(bucket_name)
 
         # Delete all objects and versions in the bucket
@@ -490,26 +477,16 @@ class ObservatoryEnvironment:
         else:
             start_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(pendulum.DateTime)
 
-        # Disable freezegun for the observatory api client. OpenAPI client generated code does not like FakeDateTime
-        freezegun.configure(extend_ignore_list=["observatory.api.client"])
-        frozen_time = freeze_time(start_date, tick=True)
-
-        # Make sure google auth uses real DateTime and not freezegun fake time
-        with patch("google.auth._helpers.utcnow", wraps=datetime.utcnow) as mock_utc_now:
-            try:
-                if freeze:
-                    frozen_time.start()
-                self.dag_run = dag.create_dagrun(
-                    state=State.RUNNING,
-                    execution_date=execution_date,
-                    start_date=pendulum.now("UTC"),
-                    run_type=run_type,
-                )
-                yield self.dag_run
-            finally:
-                self.dag_run.update_state()
-                if freeze:
-                    frozen_time.stop()
+        try:
+            self.dag_run = dag.create_dagrun(
+                state=State.RUNNING,
+                execution_date=execution_date,
+                start_date=start_date,
+                run_type=run_type,
+            )
+            yield self.dag_run
+        finally:
+            self.dag_run.update_state()
 
     @contextlib.contextmanager
     def create(self, task_logging: bool = False):
