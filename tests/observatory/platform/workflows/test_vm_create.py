@@ -1,6 +1,7 @@
 from unittest.mock import PropertyMock, patch
 
 import pendulum
+import time_machine
 from airflow.models import XCom
 from airflow.models.connection import Connection
 from airflow.utils.session import provide_session
@@ -158,30 +159,31 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # update terraform variable
-                ti = env.run_task(workflow.update_terraform_variable.__name__)
-                self.assertEqual(ti.state, State.SKIPPED)
+                    # update terraform variable
+                    ti = env.run_task(workflow.update_terraform_variable.__name__)
+                    self.assertEqual(ti.state, State.SKIPPED)
 
-                # run terraform
-                ti = env.run_task(workflow.run_terraform.__name__)
-                self.assertEqual(ti.state, State.SKIPPED)
+                    # run terraform
+                    ti = env.run_task(workflow.run_terraform.__name__)
+                    self.assertEqual(ti.state, State.SKIPPED)
 
-                # check run status
-                ti = env.run_task(workflow.check_run_status.__name__)
-                self.assertEqual(ti.state, State.SKIPPED)
+                    # check run status
+                    ti = env.run_task(workflow.check_run_status.__name__)
+                    self.assertEqual(ti.state, State.SKIPPED)
 
-                # cleanup
-                ti = env.run_task(workflow.cleanup.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # cleanup
+                    ti = env.run_task(workflow.cleanup.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
     @patch("observatory.platform.workflows.vm_workflow.send_slack_msg")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.get_run_details")
@@ -217,40 +219,41 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # update terraform variable
-                ti = env.run_task(workflow.update_terraform_variable.__name__)
-                self.assertEqual(m_update.call_count, 1)
-                call_args, _ = m_update.call_args
-                self.assertEqual(call_args[0], vm_tf)
-                self.assertEqual(call_args[1], "workspace")
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # update terraform variable
+                    ti = env.run_task(workflow.update_terraform_variable.__name__)
+                    self.assertEqual(m_update.call_count, 1)
+                    call_args, _ = m_update.call_args
+                    self.assertEqual(call_args[0], vm_tf)
+                    self.assertEqual(call_args[1], "workspace")
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # run terraform
-                ti = env.run_task(workflow.run_terraform.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-                self.assertEqual(m_create_run.call_count, 1)
+                    # run terraform
+                    ti = env.run_task(workflow.run_terraform.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(m_create_run.call_count, 1)
 
-                # check run status
-                ti = env.run_task(workflow.check_run_status.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-                self.assertEqual(m_send_slack_msg.call_count, 1)
+                    # check run status
+                    ti = env.run_task(workflow.check_run_status.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(m_send_slack_msg.call_count, 1)
 
-                # cleanup
-                ti = env.run_task(workflow.cleanup.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-                self.assertEqual(
-                    xcom_count(
-                        execution_date=execution_date,
-                        dag_ids=workflow.dag_id,
-                    ),
-                    3,
-                )
+                    # cleanup
+                    ti = env.run_task(workflow.cleanup.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(
+                        xcom_count(
+                            execution_date=execution_date,
+                            dag_ids=workflow.dag_id,
+                        ),
+                        3,
+                    )

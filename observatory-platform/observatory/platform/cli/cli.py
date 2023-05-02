@@ -14,6 +14,7 @@
 
 # Author: James Diprose, Aniek Roelofs, Tuan Chien
 
+import json
 import os
 from typing import ClassVar
 
@@ -377,6 +378,30 @@ def terraform(command, config_path, terraform_credentials_path, debug):
         # Update an existing workspace
         elif command == "update-workspace":
             terraform_cmd.update_workspace()
+
+
+@cli.command("sort-schema")
+@click.argument("input-file", type=click.Path(exists=True, file_okay=True, dir_okay=False))
+def sort_schema_cmd(input_file):
+    def sort_schema(schema):
+        sorted_schema = sorted(schema, key=lambda x: x["name"])
+
+        for field in sorted_schema:
+            if field["type"] == "RECORD" and "fields" in field:
+                field["fields"] = sort_schema(field["fields"])
+
+        return sorted_schema
+
+    # Load the JSON schema from a string
+    with open(input_file, mode="r") as f:
+        data = json.load(f)
+
+    # Sort the schema
+    sorted_json_schema = sort_schema(data)
+
+    # Save the schema
+    with open(input_file, mode="w") as f:
+        json.dump(sorted_json_schema, f, indent=2)
 
 
 def terraform_check_dependencies(

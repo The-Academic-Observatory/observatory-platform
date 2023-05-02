@@ -43,7 +43,7 @@ from observatory.platform.gcs import (
     gcs_delete_old_buckets_with_prefix,
     gcs_blob_name_from_path,
 )
-from observatory.platform.observatory_environment import random_id
+from observatory.platform.observatory_environment import random_id, aws_bucket_test_env
 
 
 def make_account_url(account_name: str) -> str:
@@ -92,9 +92,8 @@ class TestGoogleCloudStorage(unittest.TestCase):
         self.az_storage_account_name: str = os.getenv("TEST_AZURE_STORAGE_ACCOUNT_NAME")
         self.az_container_sas_token: str = os.getenv("TEST_AZURE_CONTAINER_SAS_TOKEN")
         self.az_container_name: str = os.getenv("TEST_AZURE_CONTAINER_NAME")
-        self.aws_key_id: str = os.getenv("TEST_AWS_KEY_ID")
-        self.aws_secret_key: str = os.getenv("TEST_AWS_SECRET_KEY")
-        self.aws_bucket_name: str = os.getenv("TEST_AWS_BUCKET_NAME")
+        self.aws_key = (os.getenv("AWS_ACCESS_KEY_ID"), os.getenv("AWS_SECRET_ACCESS_KEY"))
+        self.aws_region_name = os.getenv("AWS_DEFAULT_REGION")
         self.gc_project_id: str = os.getenv("TEST_GCP_PROJECT_ID")
         self.gc_bucket_name: str = os.getenv("TEST_GCP_BUCKET_NAME")
         self.gc_location: str = os.getenv("TEST_GCP_DATA_LOCATION")
@@ -343,55 +342,59 @@ class TestGoogleCloudStorage(unittest.TestCase):
         bucket = storage_client.get_bucket(self.gc_bucket_name)
         gc_blob = bucket.blob(blob_name)
 
-        try:
-            # Create client for working with AWS storage bucket
-            s3 = boto3.resource("s3", aws_access_key_id=self.aws_key_id, aws_secret_access_key=self.aws_secret_key)
-            aws_blob = s3.Object(self.aws_bucket_name, blob_name)
-            aws_blob.put(Body=self.data)
+        # Create bucket and dataset for use in first and second run
+        with aws_bucket_test_env(prefix="gcs", region_name=self.aws_region_name) as aws_bucket_name:
+            try:
+                # Create client for working with AWS storage bucket
+                s3 = boto3.resource("s3")
+                aws_blob = s3.Object(aws_bucket_name, blob_name)
+                aws_blob.put(Body=self.data)
 
-            # Test transfer where no data is found, because modified date is not between dates
-            success, objects_count = gcs_create_aws_transfer(
-                aws_key=(self.aws_key_id, self.aws_secret_key),
-                aws_bucket=self.aws_bucket_name,
-                include_prefixes=[blob_name],
-                gc_project_id=self.gc_project_id,
-                gc_bucket_dst_uri=f"gs://{self.gc_bucket_name}",
-                description=f"Test AWS to Google Cloud Storage Transfer " f"{pendulum.now('UTC').to_datetime_string()}",
-                last_modified_before=pendulum.datetime(2021, 1, 1),
-            )
-            # Check that transfer was successful, but no objects were transferred
-            self.assertTrue(success)
-            self.assertEqual(0, objects_count)
+                # Test transfer where no data is found, because modified date is not between dates
+                success, objects_count = gcs_create_aws_transfer(
+                    aws_key=self.aws_key,
+                    aws_bucket=aws_bucket_name,
+                    include_prefixes=[blob_name],
+                    gc_project_id=self.gc_project_id,
+                    gc_bucket_dst_uri=f"gs://{self.gc_bucket_name}",
+                    description=f"Test AWS to Google Cloud Storage Transfer "
+                    f"{pendulum.now('UTC').to_datetime_string()}",
+                    last_modified_before=pendulum.datetime(2021, 1, 1),
+                )
+                # Check that transfer was successful, but no objects were transferred
+                self.assertTrue(success)
+                self.assertEqual(0, objects_count)
 
-            # Transfer data
-            success, objects_count = gcs_create_aws_transfer(
-                aws_key=(self.aws_key_id, self.aws_secret_key),
-                aws_bucket=self.aws_bucket_name,
-                include_prefixes=[blob_name],
-                gc_project_id=self.gc_project_id,
-                gc_bucket_dst_uri=f"gs://{self.gc_bucket_name}",
-                description=f"Test AWS to Google Cloud Storage Transfer " f"{pendulum.now('UTC').to_datetime_string()}",
-                last_modified_since=pendulum.datetime(2021, 1, 1),
-                last_modified_before=pendulum.now("UTC") + timedelta(days=1),
-            )
-            # Check that transfer was successful and 1 object was transferred
-            self.assertTrue(success)
-            self.assertEqual(1, objects_count)
+                # Transfer data
+                success, objects_count = gcs_create_aws_transfer(
+                    aws_key=self.aws_key,
+                    aws_bucket=aws_bucket_name,
+                    include_prefixes=[blob_name],
+                    gc_project_id=self.gc_project_id,
+                    gc_bucket_dst_uri=f"gs://{self.gc_bucket_name}",
+                    description=f"Test AWS to Google Cloud Storage Transfer "
+                    f"{pendulum.now('UTC').to_datetime_string()}",
+                    last_modified_since=pendulum.datetime(2021, 1, 1),
+                    last_modified_before=pendulum.now("UTC") + timedelta(days=1),
+                )
+                # Check that transfer was successful and 1 object was transferred
+                self.assertTrue(success)
+                self.assertEqual(1, objects_count)
 
-            # Check that blob exists
-            self.assertTrue(gc_blob.exists())
+                # Check that blob exists
+                self.assertTrue(gc_blob.exists())
 
-            # Check that blob has expected crc32c token
-            gc_blob.update()
-            self.assertEqual(gc_blob.crc32c, self.expected_crc32c)
-        finally:
-            # Delete file on Google Cloud
-            if gc_blob.exists():
-                gc_blob.delete()
+                # Check that blob has expected crc32c token
+                gc_blob.update()
+                self.assertEqual(gc_blob.crc32c, self.expected_crc32c)
+            finally:
+                # Delete file on Google Cloud
+                if gc_blob.exists():
+                    gc_blob.delete()
 
-            # Delete file on AWS
-            if aws_blob is not None:
-                aws_blob.delete()
+                # Delete file on AWS
+                if aws_blob is not None:
+                    aws_blob.delete()
 
     def test_gcs_delete_bucket_dir(self):
         runner = CliRunner()

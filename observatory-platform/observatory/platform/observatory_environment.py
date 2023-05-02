@@ -456,7 +456,6 @@ class ObservatoryEnvironment:
         self,
         dag: DAG,
         execution_date: pendulum.DateTime,
-        freeze: bool = True,
         run_type: DagRunType = DagRunType.SCHEDULED,
     ):
         """Create a DagRun that can be used when running tasks.
@@ -464,7 +463,6 @@ class ObservatoryEnvironment:
 
         :param dag: the Airflow DAG instance.
         :param execution_date: the execution date of the DAG.
-        :param freeze: whether to freeze time to the start date of the DAG run.
         :param run_type: what run_type to use when running the DAG run.
         :return: None.
         """

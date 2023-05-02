@@ -18,6 +18,7 @@ import datetime
 from unittest.mock import patch
 
 import pendulum
+import time_machine
 from airflow.models import XCom
 from airflow.models.connection import Connection
 from airflow.utils.session import provide_session
@@ -305,18 +306,19 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # check dags status
-                ti = env.run_task(workflow.check_dags_status.__name__)
-                self.assertEqual(ti.state, State.SKIPPED)
+                    # check dags status
+                    ti = env.run_task(workflow.check_dags_status.__name__)
+                    self.assertEqual(ti.state, State.SKIPPED)
 
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
@@ -346,56 +348,59 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # check dags status
-                ti = env.run_task(workflow.check_dags_status.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # update terraform variable
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
-                ) as m_update:
-                    ti = env.run_task(workflow.update_terraform_variable.__name__)
-                    m_update.assert_called_once_with(False)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                #  run terraform
-                with patch("observatory.platform.workflows.vm_workflow.TerraformApi.create_run") as m_create_run:
-                    m_create_run.return_value = "run_id"
-                    ti = env.run_task(workflow.run_terraform.__name__)
-                    call_args, _ = m_create_run.call_args
-                    self.assertEqual(call_args[0], "workspace")
-                    self.assertEqual(call_args[1], "module.airflow_worker_vm")
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
 
-                # check run status
-                with patch("observatory.platform.workflows.vm_workflow.TerraformApi.get_run_details") as m_run_details:
-                    with patch("observatory.platform.workflows.vm_workflow.send_slack_msg") as m_slack:
-                        m_run_details.return_value = {"data": {"attributes": {"status": "planned_and_finished"}}}
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                        ti = env.run_task(workflow.check_run_status.__name__)
+                    # check dags status
+                    ti = env.run_task(workflow.check_dags_status.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+
+                    # update terraform variable
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
+                    ) as m_update:
+                        ti = env.run_task(workflow.update_terraform_variable.__name__)
+                        m_update.assert_called_once_with(False)
+                    self.assertEqual(ti.state, State.SUCCESS)
+
+                    #  run terraform
+                    with patch("observatory.platform.workflows.vm_workflow.TerraformApi.create_run") as m_create_run:
+                        m_create_run.return_value = "run_id"
+                        ti = env.run_task(workflow.run_terraform.__name__)
+                        call_args, _ = m_create_run.call_args
+                        self.assertEqual(call_args[0], "workspace")
+                        self.assertEqual(call_args[1], "module.airflow_worker_vm")
                         self.assertEqual(ti.state, State.SUCCESS)
-                        _, kwargs = m_slack.call_args
-                        self.assertEqual(kwargs["comments"], "Terraform run status: planned_and_finished")
 
-                # cleanup
-                ti = env.run_task(workflow.cleanup.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-                self.assertEqual(
-                    xcom_count(
-                        execution_date=execution_date,
-                        dag_ids=workflow.dag_id,
-                    ),
-                    2,
-                )
+                    # check run status
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformApi.get_run_details"
+                    ) as m_run_details:
+                        with patch("observatory.platform.workflows.vm_workflow.send_slack_msg") as m_slack:
+                            m_run_details.return_value = {"data": {"attributes": {"status": "planned_and_finished"}}}
+
+                            ti = env.run_task(workflow.check_run_status.__name__)
+                            self.assertEqual(ti.state, State.SUCCESS)
+                            _, kwargs = m_slack.call_args
+                            self.assertEqual(kwargs["comments"], "Terraform run status: planned_and_finished")
+
+                    # cleanup
+                    ti = env.run_task(workflow.cleanup.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(
+                        xcom_count(
+                            execution_date=execution_date,
+                            dag_ids=workflow.dag_id,
+                        ),
+                        2,
+                    )
 
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
@@ -425,22 +430,23 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # check dags status
-                ti = env.run_task(workflow.check_dags_status.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # check dags status
+                    ti = env.run_task(workflow.check_dags_status.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # update terraform variable
-                ti = env.run_task(workflow.update_terraform_variable.__name__)
-                self.assertEqual(ti.state, State.SKIPPED)
+                    # update terraform variable
+                    ti = env.run_task(workflow.update_terraform_variable.__name__)
+                    self.assertEqual(ti.state, State.SKIPPED)
 
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
@@ -470,93 +476,94 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # check dags status
-                xcom_push(
-                    dag_id=self.vm_create_dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_START_TIME_VM,
-                    value="2021-01-01",
-                )
-
-                xcom_push(
-                    dag_id=self.vm_create_dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_PREV_START_TIME_VM,
-                    value="2021-01-01",
-                )
-
-                class MockDR:
-                    def __init__(self):
-                        self.start_date = datetime.datetime(2000, 1, 1)
-                        self.execution_date = datetime.datetime(2020, 1, 1)
-                        self.state = DagRunState.SUCCESS
-                        self.dag_id = "dagid"
-
-                class MockDag:
-                    def __init__(self):
-                        self.normalized_schedule_interval = "@weekly"
-                        self.catchup = False
-
-                    def previous_schedule(self, *args):
-                        return datetime.datetime(2000, 1, 1)
-
-                    def get_run_dates(self, *args):
-                        return [datetime.datetime(2000, 1, 1)]
-
-                with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
-                    with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
-                        m_drfind.return_value = [MockDR()]
-                        m_getdag.return_value = MockDag()
-
-                        ti = env.run_task(workflow.check_dags_status.__name__)
-                        self.assertEqual(ti.state, State.SUCCESS)
-
-                # update terraform variable
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
-                ) as m_update:
-                    ti = env.run_task(workflow.update_terraform_variable.__name__)
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
-                    m_update.assert_called_once_with(False)
 
-                # update terraform variable
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.create_terraform_run"
-                ) as m_runterraform:
-                    m_runterraform.return_value = "run_id"
-                    ti = env.run_task(workflow.run_terraform.__name__)
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
-                    m_runterraform.assert_called_once()
 
-                # check run status
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.check_terraform_run_status"
-                ) as m_checkrun:
-                    ti = env.run_task(workflow.check_run_status.__name__)
-                    self.assertEqual(ti.state, State.SUCCESS)
-                    m_checkrun.assert_called_once()
-
-                # cleanup
-                ti = env.run_task(workflow.cleanup.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-                self.assertEqual(
-                    xcom_count(
+                    # check dags status
+                    xcom_push(
+                        dag_id=self.vm_create_dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
                         execution_date=execution_date,
-                        dag_ids=workflow.dag_id,
-                    ),
-                    2,
-                )
+                        key=XCOM_START_TIME_VM,
+                        value="2021-01-01",
+                    )
+
+                    xcom_push(
+                        dag_id=self.vm_create_dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
+                        execution_date=execution_date,
+                        key=XCOM_PREV_START_TIME_VM,
+                        value="2021-01-01",
+                    )
+
+                    class MockDR:
+                        def __init__(self):
+                            self.start_date = datetime.datetime(2000, 1, 1)
+                            self.execution_date = datetime.datetime(2020, 1, 1)
+                            self.state = DagRunState.SUCCESS
+                            self.dag_id = "dagid"
+
+                    class MockDag:
+                        def __init__(self):
+                            self.normalized_schedule_interval = "@weekly"
+                            self.catchup = False
+
+                        def previous_schedule(self, *args):
+                            return datetime.datetime(2000, 1, 1)
+
+                        def get_run_dates(self, *args):
+                            return [datetime.datetime(2000, 1, 1)]
+
+                    with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
+                        with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
+                            m_drfind.return_value = [MockDR()]
+                            m_getdag.return_value = MockDag()
+
+                            ti = env.run_task(workflow.check_dags_status.__name__)
+                            self.assertEqual(ti.state, State.SUCCESS)
+
+                    # update terraform variable
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
+                    ) as m_update:
+                        ti = env.run_task(workflow.update_terraform_variable.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        m_update.assert_called_once_with(False)
+
+                    # update terraform variable
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.create_terraform_run"
+                    ) as m_runterraform:
+                        m_runterraform.return_value = "run_id"
+                        ti = env.run_task(workflow.run_terraform.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        m_runterraform.assert_called_once()
+
+                    # check run status
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.check_terraform_run_status"
+                    ) as m_checkrun:
+                        ti = env.run_task(workflow.check_run_status.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        m_checkrun.assert_called_once()
+
+                    # cleanup
+                    ti = env.run_task(workflow.cleanup.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(
+                        xcom_count(
+                            execution_date=execution_date,
+                            dag_ids=workflow.dag_id,
+                        ),
+                        2,
+                    )
 
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
@@ -586,101 +593,102 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # check dags status
-                xcom_push(
-                    dag_id=self.vm_create_dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_START_TIME_VM,
-                    value="2021-01-01",
-                )
-
-                xcom_push(
-                    dag_id=self.vm_create_dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_PREV_START_TIME_VM,
-                    value="2021-01-01",
-                )
-
-                xcom_push(
-                    dag_id=self.dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_DESTROY_TIME_VM,
-                    value="2021-01-01",
-                )
-
-                class MockDR:
-                    def __init__(self):
-                        self.start_date = datetime.datetime(2000, 1, 1)
-                        self.execution_date = datetime.datetime(2020, 1, 1)
-                        self.state = DagRunState.SUCCESS
-                        self.dag_id = "dagid"
-
-                class MockDag:
-                    def __init__(self):
-                        self.normalized_schedule_interval = "@weekly"
-                        self.catchup = False
-
-                    def previous_schedule(self, *args):
-                        return datetime.datetime(2000, 1, 1)
-
-                    def get_run_dates(self, *args):
-                        return [datetime.datetime(2000, 1, 1)]
-
-                with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
-                    with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
-                        m_drfind.return_value = [MockDR()]
-                        m_getdag.return_value = MockDag()
-
-                        ti = env.run_task(workflow.check_dags_status.__name__)
-                        self.assertEqual(ti.state, State.SUCCESS)
-
-                # update terraform variable
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
-                ) as m_update:
-                    ti = env.run_task(workflow.update_terraform_variable.__name__)
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
-                    m_update.assert_called_once_with(False)
 
-                # update terraform variable
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.create_terraform_run"
-                ) as m_runterraform:
-                    m_runterraform.return_value = "run_id"
-                    ti = env.run_task(workflow.run_terraform.__name__)
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
-                    m_runterraform.assert_called_once()
 
-                # check run status
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.check_terraform_run_status"
-                ) as m_checkrun:
-                    ti = env.run_task(workflow.check_run_status.__name__)
-                    self.assertEqual(ti.state, State.SUCCESS)
-                    m_checkrun.assert_called_once()
-
-                # cleanup
-                ti = env.run_task(workflow.cleanup.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-                self.assertEqual(
-                    xcom_count(
+                    # check dags status
+                    xcom_push(
+                        dag_id=self.vm_create_dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
                         execution_date=execution_date,
-                        dag_ids=workflow.dag_id,
-                    ),
-                    2,
-                )
+                        key=XCOM_START_TIME_VM,
+                        value="2021-01-01",
+                    )
+
+                    xcom_push(
+                        dag_id=self.vm_create_dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
+                        execution_date=execution_date,
+                        key=XCOM_PREV_START_TIME_VM,
+                        value="2021-01-01",
+                    )
+
+                    xcom_push(
+                        dag_id=self.dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
+                        execution_date=execution_date,
+                        key=XCOM_DESTROY_TIME_VM,
+                        value="2021-01-01",
+                    )
+
+                    class MockDR:
+                        def __init__(self):
+                            self.start_date = datetime.datetime(2000, 1, 1)
+                            self.execution_date = datetime.datetime(2020, 1, 1)
+                            self.state = DagRunState.SUCCESS
+                            self.dag_id = "dagid"
+
+                    class MockDag:
+                        def __init__(self):
+                            self.normalized_schedule_interval = "@weekly"
+                            self.catchup = False
+
+                        def previous_schedule(self, *args):
+                            return datetime.datetime(2000, 1, 1)
+
+                        def get_run_dates(self, *args):
+                            return [datetime.datetime(2000, 1, 1)]
+
+                    with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
+                        with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
+                            m_drfind.return_value = [MockDR()]
+                            m_getdag.return_value = MockDag()
+
+                            ti = env.run_task(workflow.check_dags_status.__name__)
+                            self.assertEqual(ti.state, State.SUCCESS)
+
+                    # update terraform variable
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
+                    ) as m_update:
+                        ti = env.run_task(workflow.update_terraform_variable.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        m_update.assert_called_once_with(False)
+
+                    # update terraform variable
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.create_terraform_run"
+                    ) as m_runterraform:
+                        m_runterraform.return_value = "run_id"
+                        ti = env.run_task(workflow.run_terraform.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        m_runterraform.assert_called_once()
+
+                    # check run status
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.check_terraform_run_status"
+                    ) as m_checkrun:
+                        ti = env.run_task(workflow.check_run_status.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        m_checkrun.assert_called_once()
+
+                    # cleanup
+                    ti = env.run_task(workflow.cleanup.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(
+                        xcom_count(
+                            execution_date=execution_date,
+                            dag_ids=workflow.dag_id,
+                        ),
+                        2,
+                    )
 
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
@@ -710,101 +718,102 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # check dags status
-                xcom_push(
-                    dag_id=self.vm_create_dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_START_TIME_VM,
-                    value="2020-01-01",
-                )
-
-                xcom_push(
-                    dag_id=self.vm_create_dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_PREV_START_TIME_VM,
-                    value="2021-01-01",
-                )
-
-                xcom_push(
-                    dag_id=self.dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_DESTROY_TIME_VM,
-                    value="2021-01-01",
-                )
-
-                class MockDR:
-                    def __init__(self):
-                        self.start_date = datetime.datetime(2000, 1, 1)
-                        self.execution_date = datetime.datetime(2020, 1, 1)
-                        self.state = DagRunState.SUCCESS
-                        self.dag_id = "dagid"
-
-                class MockDag:
-                    def __init__(self):
-                        self.normalized_schedule_interval = "@weekly"
-                        self.catchup = False
-
-                    def previous_schedule(self, *args):
-                        return datetime.datetime(2000, 1, 1)
-
-                    def get_run_dates(self, *args):
-                        return [datetime.datetime(2000, 1, 1)]
-
-                with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
-                    with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
-                        m_drfind.return_value = [MockDR()]
-                        m_getdag.return_value = MockDag()
-
-                        ti = env.run_task(workflow.check_dags_status.__name__)
-                        self.assertEqual(ti.state, State.SUCCESS)
-
-                # update terraform variable
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
-                ) as m_update:
-                    ti = env.run_task(workflow.update_terraform_variable.__name__)
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
-                    m_update.assert_called_once_with(False)
 
-                # update terraform variable
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.create_terraform_run"
-                ) as m_runterraform:
-                    m_runterraform.return_value = "run_id"
-                    ti = env.run_task(workflow.run_terraform.__name__)
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
-                    m_runterraform.assert_called_once()
 
-                # check run status
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.check_terraform_run_status"
-                ) as m_checkrun:
-                    ti = env.run_task(workflow.check_run_status.__name__)
-                    self.assertEqual(ti.state, State.SUCCESS)
-                    m_checkrun.assert_called_once()
-
-                # cleanup
-                ti = env.run_task(workflow.cleanup.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-                self.assertEqual(
-                    xcom_count(
+                    # check dags status
+                    xcom_push(
+                        dag_id=self.vm_create_dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
                         execution_date=execution_date,
-                        dag_ids=workflow.dag_id,
-                    ),
-                    2,
-                )
+                        key=XCOM_START_TIME_VM,
+                        value="2020-01-01",
+                    )
+
+                    xcom_push(
+                        dag_id=self.vm_create_dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
+                        execution_date=execution_date,
+                        key=XCOM_PREV_START_TIME_VM,
+                        value="2021-01-01",
+                    )
+
+                    xcom_push(
+                        dag_id=self.dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
+                        execution_date=execution_date,
+                        key=XCOM_DESTROY_TIME_VM,
+                        value="2021-01-01",
+                    )
+
+                    class MockDR:
+                        def __init__(self):
+                            self.start_date = datetime.datetime(2000, 1, 1)
+                            self.execution_date = datetime.datetime(2020, 1, 1)
+                            self.state = DagRunState.SUCCESS
+                            self.dag_id = "dagid"
+
+                    class MockDag:
+                        def __init__(self):
+                            self.normalized_schedule_interval = "@weekly"
+                            self.catchup = False
+
+                        def previous_schedule(self, *args):
+                            return datetime.datetime(2000, 1, 1)
+
+                        def get_run_dates(self, *args):
+                            return [datetime.datetime(2000, 1, 1)]
+
+                    with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
+                        with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
+                            m_drfind.return_value = [MockDR()]
+                            m_getdag.return_value = MockDag()
+
+                            ti = env.run_task(workflow.check_dags_status.__name__)
+                            self.assertEqual(ti.state, State.SUCCESS)
+
+                    # update terraform variable
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
+                    ) as m_update:
+                        ti = env.run_task(workflow.update_terraform_variable.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        m_update.assert_called_once_with(False)
+
+                    # update terraform variable
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.create_terraform_run"
+                    ) as m_runterraform:
+                        m_runterraform.return_value = "run_id"
+                        ti = env.run_task(workflow.run_terraform.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        m_runterraform.assert_called_once()
+
+                    # check run status
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.check_terraform_run_status"
+                    ) as m_checkrun:
+                        ti = env.run_task(workflow.check_run_status.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        m_checkrun.assert_called_once()
+
+                    # cleanup
+                    ti = env.run_task(workflow.cleanup.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(
+                        xcom_count(
+                            execution_date=execution_date,
+                            dag_ids=workflow.dag_id,
+                        ),
+                        2,
+                    )
 
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
@@ -834,101 +843,102 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # check dags status
-                xcom_push(
-                    dag_id=self.vm_create_dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_START_TIME_VM,
-                    value="2020-01-01",
-                )
-
-                xcom_push(
-                    dag_id=self.vm_create_dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_PREV_START_TIME_VM,
-                    value="2021-01-01",
-                )
-
-                xcom_push(
-                    dag_id=self.dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_DESTROY_TIME_VM,
-                    value="2021-01-01",
-                )
-
-                class MockDR:
-                    def __init__(self):
-                        self.start_date = datetime.datetime(2000, 1, 1)
-                        self.execution_date = datetime.datetime(2020, 1, 1)
-                        self.state = DagRunState.SUCCESS
-                        self.dag_id = "dagid"
-
-                class MockDag:
-                    def __init__(self):
-                        self.normalized_schedule_interval = "@weekly"
-                        self.catchup = True
-
-                    def previous_schedule(self, *args):
-                        return datetime.datetime(2000, 1, 1)
-
-                    def get_run_dates(self, *args):
-                        return [datetime.datetime(2000, 1, 1)]
-
-                with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
-                    with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
-                        m_drfind.return_value = [MockDR()]
-                        m_getdag.return_value = MockDag()
-
-                        ti = env.run_task(workflow.check_dags_status.__name__)
-                        self.assertEqual(ti.state, State.SUCCESS)
-
-                # update terraform variable
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
-                ) as m_update:
-                    ti = env.run_task(workflow.update_terraform_variable.__name__)
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
-                    m_update.assert_called_once_with(False)
 
-                # update terraform variable
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.create_terraform_run"
-                ) as m_runterraform:
-                    m_runterraform.return_value = "run_id"
-                    ti = env.run_task(workflow.run_terraform.__name__)
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
-                    m_runterraform.assert_called_once()
 
-                # check run status
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.check_terraform_run_status"
-                ) as m_checkrun:
-                    ti = env.run_task(workflow.check_run_status.__name__)
-                    self.assertEqual(ti.state, State.SUCCESS)
-                    m_checkrun.assert_called_once()
-
-                # cleanup
-                ti = env.run_task(workflow.cleanup.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-                self.assertEqual(
-                    xcom_count(
+                    # check dags status
+                    xcom_push(
+                        dag_id=self.vm_create_dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
                         execution_date=execution_date,
-                        dag_ids=workflow.dag_id,
-                    ),
-                    2,
-                )
+                        key=XCOM_START_TIME_VM,
+                        value="2020-01-01",
+                    )
+
+                    xcom_push(
+                        dag_id=self.vm_create_dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
+                        execution_date=execution_date,
+                        key=XCOM_PREV_START_TIME_VM,
+                        value="2021-01-01",
+                    )
+
+                    xcom_push(
+                        dag_id=self.dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
+                        execution_date=execution_date,
+                        key=XCOM_DESTROY_TIME_VM,
+                        value="2021-01-01",
+                    )
+
+                    class MockDR:
+                        def __init__(self):
+                            self.start_date = datetime.datetime(2000, 1, 1)
+                            self.execution_date = datetime.datetime(2020, 1, 1)
+                            self.state = DagRunState.SUCCESS
+                            self.dag_id = "dagid"
+
+                    class MockDag:
+                        def __init__(self):
+                            self.normalized_schedule_interval = "@weekly"
+                            self.catchup = True
+
+                        def previous_schedule(self, *args):
+                            return datetime.datetime(2000, 1, 1)
+
+                        def get_run_dates(self, *args):
+                            return [datetime.datetime(2000, 1, 1)]
+
+                    with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
+                        with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
+                            m_drfind.return_value = [MockDR()]
+                            m_getdag.return_value = MockDag()
+
+                            ti = env.run_task(workflow.check_dags_status.__name__)
+                            self.assertEqual(ti.state, State.SUCCESS)
+
+                    # update terraform variable
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
+                    ) as m_update:
+                        ti = env.run_task(workflow.update_terraform_variable.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        m_update.assert_called_once_with(False)
+
+                    # update terraform variable
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.create_terraform_run"
+                    ) as m_runterraform:
+                        m_runterraform.return_value = "run_id"
+                        ti = env.run_task(workflow.run_terraform.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        m_runterraform.assert_called_once()
+
+                    # check run status
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.check_terraform_run_status"
+                    ) as m_checkrun:
+                        ti = env.run_task(workflow.check_run_status.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        m_checkrun.assert_called_once()
+
+                    # cleanup
+                    ti = env.run_task(workflow.cleanup.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(
+                        xcom_count(
+                            execution_date=execution_date,
+                            dag_ids=workflow.dag_id,
+                        ),
+                        2,
+                    )
 
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
@@ -958,57 +968,58 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # check dags status
-                xcom_push(
-                    dag_id=self.vm_create_dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_START_TIME_VM,
-                    value="2021-01-01",
-                )
+                    # check dags status
+                    xcom_push(
+                        dag_id=self.vm_create_dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
+                        execution_date=execution_date,
+                        key=XCOM_START_TIME_VM,
+                        value="2021-01-01",
+                    )
 
-                class MockDR:
-                    def __init__(self):
-                        self.start_date = datetime.datetime(2000, 1, 1)
-                        self.execution_date = datetime.datetime(2020, 1, 1)
-                        self.state = DagRunState.RUNNING
-                        self.dag_id = "dagid"
+                    class MockDR:
+                        def __init__(self):
+                            self.start_date = datetime.datetime(2000, 1, 1)
+                            self.execution_date = datetime.datetime(2020, 1, 1)
+                            self.state = DagRunState.RUNNING
+                            self.dag_id = "dagid"
 
-                class MockDag:
-                    def __init__(self):
-                        self.normalized_schedule_interval = "@weekly"
-                        self.catchup = False
-                        self.default_args = {"start_date": datetime.datetime(2000, 1, 1)}
+                    class MockDag:
+                        def __init__(self):
+                            self.normalized_schedule_interval = "@weekly"
+                            self.catchup = False
+                            self.default_args = {"start_date": datetime.datetime(2000, 1, 1)}
 
-                    def previous_schedule(self, *args):
-                        return datetime.datetime(2000, 1, 1)
+                        def previous_schedule(self, *args):
+                            return datetime.datetime(2000, 1, 1)
 
-                    def get_run_dates(self, *args):
-                        return [datetime.datetime(2000, 1, 1)]
+                        def get_run_dates(self, *args):
+                            return [datetime.datetime(2000, 1, 1)]
 
-                with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
-                    with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
-                        m_drfind.return_value = [MockDR()]
-                        m_getdag.return_value = MockDag()
+                    with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
+                        with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
+                            m_drfind.return_value = [MockDR()]
+                            m_getdag.return_value = MockDag()
 
-                        ti = env.run_task(workflow.check_dags_status.__name__)
-                        self.assertEqual(ti.state, State.SUCCESS)
+                            ti = env.run_task(workflow.check_dags_status.__name__)
+                            self.assertEqual(ti.state, State.SUCCESS)
 
-                # update terraform variable
-                with patch(
-                    "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
-                ) as m_update:
-                    ti = env.run_task(workflow.update_terraform_variable.__name__)
-                    self.assertEqual(ti.state, State.SKIPPED)
+                    # update terraform variable
+                    with patch(
+                        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.update_terraform_vm_create_variable"
+                    ) as m_update:
+                        ti = env.run_task(workflow.update_terraform_variable.__name__)
+                        self.assertEqual(ti.state, State.SKIPPED)
 
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
@@ -1038,72 +1049,73 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # check dags status
-                xcom_push(
-                    dag_id=self.vm_create_dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_START_TIME_VM,
-                    value="2020-12-31",
-                )
+                    # check dags status
+                    xcom_push(
+                        dag_id=self.vm_create_dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
+                        execution_date=execution_date,
+                        key=XCOM_START_TIME_VM,
+                        value="2020-12-31",
+                    )
 
-                xcom_push(
-                    dag_id=self.vm_create_dag_id,
-                    task_id=VmCreateWorkflow.run_terraform.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_PREV_START_TIME_VM,
-                    value="2021-01-01",
-                )
+                    xcom_push(
+                        dag_id=self.vm_create_dag_id,
+                        task_id=VmCreateWorkflow.run_terraform.__name__,
+                        execution_date=execution_date,
+                        key=XCOM_PREV_START_TIME_VM,
+                        value="2021-01-01",
+                    )
 
-                xcom_push(
-                    dag_id=self.dag_id,
-                    task_id=VmDestroyWorkflow.check_runtime_vm.__name__,
-                    execution_date=execution_date,
-                    key=XCOM_WARNING_TIME,
-                    value="2020-01-01",
-                )
+                    xcom_push(
+                        dag_id=self.dag_id,
+                        task_id=VmDestroyWorkflow.check_runtime_vm.__name__,
+                        execution_date=execution_date,
+                        key=XCOM_WARNING_TIME,
+                        value="2020-01-01",
+                    )
 
-                class MockDR:
-                    def __init__(self):
-                        self.start_date = datetime.datetime(2000, 1, 1)
-                        self.execution_date = datetime.datetime(2020, 1, 1)
-                        self.state = DagRunState.SUCCESS
-                        self.dag_id = "dagid"
+                    class MockDR:
+                        def __init__(self):
+                            self.start_date = datetime.datetime(2000, 1, 1)
+                            self.execution_date = datetime.datetime(2020, 1, 1)
+                            self.state = DagRunState.SUCCESS
+                            self.dag_id = "dagid"
 
-                class MockDag:
-                    def __init__(self):
-                        self.normalized_schedule_interval = "@weekly"
-                        self.catchup = False
+                    class MockDag:
+                        def __init__(self):
+                            self.normalized_schedule_interval = "@weekly"
+                            self.catchup = False
 
-                    def previous_schedule(self, *args):
-                        return datetime.datetime(2000, 1, 1)
+                        def previous_schedule(self, *args):
+                            return datetime.datetime(2000, 1, 1)
 
-                    def get_run_dates(self, *args):
-                        return [datetime.datetime(2000, 1, 1)]
+                        def get_run_dates(self, *args):
+                            return [datetime.datetime(2000, 1, 1)]
 
-                with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
-                    with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
-                        with patch(
-                            "observatory.platform.workflows.vm_workflow.VmDestroyWorkflow._check_success_runs"
-                        ) as m_check_success_runs:
-                            with patch("observatory.platform.workflows.vm_workflow.send_slack_msg") as m_slack:
-                                m_drfind.return_value = [MockDR()]
-                                m_getdag.return_value = MockDag()
-                                m_check_success_runs.return_value = False
+                    with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind:
+                        with patch("observatory.platform.workflows.vm_workflow.DagBag.get_dag") as m_getdag:
+                            with patch(
+                                "observatory.platform.workflows.vm_workflow.VmDestroyWorkflow._check_success_runs"
+                            ) as m_check_success_runs:
+                                with patch("observatory.platform.workflows.vm_workflow.send_slack_msg") as m_slack:
+                                    m_drfind.return_value = [MockDR()]
+                                    m_getdag.return_value = MockDag()
+                                    m_check_success_runs.return_value = False
 
-                                ti = env.run_task(workflow.check_dags_status.__name__)
-                                self.assertEqual(ti.state, State.SUCCESS)
+                                    ti = env.run_task(workflow.check_dags_status.__name__)
+                                    self.assertEqual(ti.state, State.SUCCESS)
 
-                                self.assertEqual(m_slack.call_count, 1)
+                                    self.assertEqual(m_slack.call_count, 1)
 
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
@@ -1130,57 +1142,58 @@ class TestVmDestroyWorkflow(ObservatoryTestCase):
                 dags_watch_list=["vm_destroy"],
             )
             dag = workflow.make_dag()
-            execution_date = pendulum.datetime(2021, 1, 1)
+            data_interval_start = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                # check dags status
-                class MockDR:
-                    def __init__(self):
-                        self.start_date = datetime.datetime(2000, 1, 1)
-                        self.execution_date = datetime.datetime(2020, 1, 1)
-                        self.state = DagRunState.SUCCESS
-                        self.dag_id = "dagid"
-
-                class MockDag:
-                    def __init__(self):
-                        self.normalized_schedule_interval = "@weekly"
-                        self.catchup = False
-
-                    def previous_schedule(self, *args):
-                        return datetime.datetime(2000, 1, 1)
-
-                    def get_run_dates(self, *args):
-                        return [datetime.datetime(2000, 1, 1)]
-
-                with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind, patch(
-                    "observatory.platform.workflows.vm_workflow.DagBag.get_dag"
-                ) as m_getdag, patch(
-                    "observatory.platform.workflows.vm_workflow.VmDestroyWorkflow._check_success_runs"
-                ) as m_check_success_runs, patch(
-                    "observatory.platform.workflows.vm_workflow.send_slack_msg"
-                ) as m_slack, patch(
-                    "observatory.platform.workflows.vm_workflow.TaskInstance.xcom_pull"
-                ) as mock_xcom_pull:
-                    mock_xcom_pull.reset_mock()
-                    prev_start_time_vm = "2021-01-01"
-                    start_time_vm = "2020-12-31"
-                    warning_time = "2021-01-01"
-                    # First 2 None xcom usages are from 'check_dependencies' task
-                    mock_xcom_pull.side_effect = [None, None, prev_start_time_vm, start_time_vm, None, warning_time]
-
-                    m_drfind.return_value = [MockDR()]
-                    m_getdag.return_value = MockDag()
-                    m_check_success_runs.return_value = False
-
-                    ti = env.run_task(workflow.check_dags_status.__name__)
+            with env.create_dag_run(dag, data_interval_start) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
                     self.assertEqual(ti.state, State.SUCCESS)
-                    self.assertEqual(m_slack.call_count, 0)
+
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+
+                    # check dags status
+                    class MockDR:
+                        def __init__(self):
+                            self.start_date = datetime.datetime(2000, 1, 1)
+                            self.execution_date = datetime.datetime(2020, 1, 1)
+                            self.state = DagRunState.SUCCESS
+                            self.dag_id = "dagid"
+
+                    class MockDag:
+                        def __init__(self):
+                            self.normalized_schedule_interval = "@weekly"
+                            self.catchup = False
+
+                        def previous_schedule(self, *args):
+                            return datetime.datetime(2000, 1, 1)
+
+                        def get_run_dates(self, *args):
+                            return [datetime.datetime(2000, 1, 1)]
+
+                    with patch("observatory.platform.workflows.vm_workflow.DagRun.find") as m_drfind, patch(
+                        "observatory.platform.workflows.vm_workflow.DagBag.get_dag"
+                    ) as m_getdag, patch(
+                        "observatory.platform.workflows.vm_workflow.VmDestroyWorkflow._check_success_runs"
+                    ) as m_check_success_runs, patch(
+                        "observatory.platform.workflows.vm_workflow.send_slack_msg"
+                    ) as m_slack, patch(
+                        "observatory.platform.workflows.vm_workflow.TaskInstance.xcom_pull"
+                    ) as mock_xcom_pull:
+                        mock_xcom_pull.reset_mock()
+                        prev_start_time_vm = "2021-01-01"
+                        start_time_vm = "2020-12-31"
+                        warning_time = "2021-01-01"
+                        # First 2 None xcom usages are from 'check_dependencies' task
+                        mock_xcom_pull.side_effect = [None, None, prev_start_time_vm, start_time_vm, None, warning_time]
+
+                        m_drfind.return_value = [MockDR()]
+                        m_getdag.return_value = MockDag()
+                        m_check_success_runs.return_value = False
+
+                        ti = env.run_task(workflow.check_dags_status.__name__)
+                        self.assertEqual(ti.state, State.SUCCESS)
+                        self.assertEqual(m_slack.call_count, 0)

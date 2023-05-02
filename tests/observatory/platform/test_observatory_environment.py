@@ -331,7 +331,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
             with env.create_dag_run(dag, second_execution_date):
                 # Test DAG Run is set and has frozen start date
                 self.assertIsNotNone(env.dag_run)
-                self.assertEqual(second_start_date.date(), env.dag_run.start_date.date())
+                self.assertEqual(second_start_date, env.dag_run.start_date)
 
                 ti2 = env.run_task(telescope.check_dependencies.__name__)
                 self.assertEqual("success", ti2.state)
@@ -349,20 +349,20 @@ class TestObservatoryEnvironment(unittest.TestCase):
             env.add_connection(conn)
 
             # First DAG Run
-            with env.create_dag_run(dag, first_execution_date, freeze=False):
+            with env.create_dag_run(dag, first_execution_date):
                 # Test DAG Run is set and has today as start date
                 self.assertIsNotNone(env.dag_run)
-                self.assertEqual(pendulum.now("UTC").date(), env.dag_run.start_date.date())
+                self.assertEqual(first_start_date, env.dag_run.start_date)
 
                 ti1 = env.run_task(telescope.check_dependencies.__name__)
                 self.assertEqual("success", ti1.state)
                 self.assertIsNone(ti1.previous_ti)
 
             # Second DAG Run
-            with env.create_dag_run(dag, second_execution_date, freeze=False):
+            with env.create_dag_run(dag, second_execution_date):
                 # Test DAG Run is set and has today as start date
                 self.assertIsNotNone(env.dag_run)
-                self.assertEqual(pendulum.now("UTC").date(), env.dag_run.start_date.date())
+                self.assertEqual(second_start_date, env.dag_run.start_date)
 
                 ti2 = env.run_task(telescope.check_dependencies.__name__)
                 self.assertEqual("success", ti2.state)
@@ -380,7 +380,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
         with env.create():
             with env.create_dag_run(dag, execution_date):
                 self.assertIsNotNone(env.dag_run)
-                self.assertEqual(expected_dag_date.date(), env.dag_run.start_date.date())
+                self.assertEqual(expected_dag_date, env.dag_run.start_date)
 
 
 class TestObservatoryTestCase(unittest.TestCase):
