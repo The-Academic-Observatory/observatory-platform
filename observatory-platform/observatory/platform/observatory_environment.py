@@ -73,7 +73,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from multiprocessing import Process
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 import boto3
 import croniter
@@ -600,22 +600,24 @@ class ObservatoryEnvironment:
                     self.elastic_env.stop()
 
 
-def load_json(file_path: str):
+def load_and_parse_json(file_path: str, date_fields: Set[str] = None):
     """Load a JSON file for testing purposes. It parses dates and datetimes into pendulum instances."""
 
     def parse_datetime(obj):
         for key, value in obj.items():
-            if isinstance(value, str):
-                try:
-                    obj[key] = pendulum.from_format(value, "YYYY-MM-DD").date()
-                except (ValueError, TypeError):
+            # Try to parse into a date or datetime
+            if key in date_fields:
+                if isinstance(value, str):
                     try:
-                        obj[key] = pendulum.from_format(value, "YYYYMMDD").date()
+                        obj[key] = pendulum.from_format(value, "YYYY-MM-DD").date()
                     except (ValueError, TypeError):
                         try:
-                            obj[key] = pendulum.parse(value)
+                            obj[key] = pendulum.from_format(value, "YYYYMMDD").date()
                         except (ValueError, TypeError):
-                            pass
+                            try:
+                                obj[key] = pendulum.parse(value)
+                            except (ValueError, TypeError):
+                                pass
         return obj
 
     with open(file_path, mode="r") as f:
@@ -815,6 +817,10 @@ class ObservatoryTestCase(unittest.TestCase):
         :param primary_key: the primary key to use to compare.
         :return: whether the table has content and the expected content is correct
         """
+
+        logging.info(
+            f"assert_table_content: {table_id}, len(expected_content)={len(expected_content), }, primary_key={primary_key}"
+        )
         rows = None
         actual_content = None
         try:
