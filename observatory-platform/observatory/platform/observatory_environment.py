@@ -601,7 +601,7 @@ class ObservatoryEnvironment:
 
 
 def load_and_parse_json(file_path: str, date_fields: Set[str] = None):
-    """Load a JSON file for testing purposes. It parses dates and datetimes into pendulum instances."""
+    """Load a JSON file for testing purposes. It parses string dates and datetimes into date and datetime instances."""
 
     def parse_datetime(obj):
         for key, value in obj.items():
@@ -609,13 +609,24 @@ def load_and_parse_json(file_path: str, date_fields: Set[str] = None):
             if key in date_fields:
                 if isinstance(value, str):
                     try:
-                        obj[key] = pendulum.from_format(value, "YYYY-MM-DD").date()
+                        obj[key] = datetime.strptime(value, "%Y-%m-%d").date()
                     except (ValueError, TypeError):
                         try:
-                            obj[key] = pendulum.from_format(value, "YYYYMMDD").date()
+                            obj[key] = datetime.strptime(value, "%Y%m%d").date()
                         except (ValueError, TypeError):
                             try:
-                                obj[key] = pendulum.parse(value)
+                                dt = pendulum.parse(value)
+                                dt = datetime(
+                                    dt.year,
+                                    dt.month,
+                                    dt.day,
+                                    dt.hour,
+                                    dt.minute,
+                                    dt.second,
+                                    dt.microsecond,
+                                    tzinfo=dt.tzinfo,
+                                )
+                                obj[key] = dt
                             except (ValueError, TypeError):
                                 pass
         return obj
@@ -647,15 +658,21 @@ def compare_lists_of_dicts(expected: List[Dict], actual: List[Dict], primary_key
     for key in expected_dict:
         diff = DeepDiff(expected_dict[key], actual_dict[key], ignore_order=True)
         for diff_type, changes in diff.items():
-            if diff_type.startswith("values_changed"):
-                all_matched = False
+            all_matched = False
+            if diff_type == "values_changed":
                 for key_path, change in changes.items():
                     logging.error(
                         f"(expected) != (actual) {key_path}: {change['old_value']} (expected) != (actual) {change['new_value']}"
                     )
-            elif diff_type.startswith("type_changes"):
+            elif diff_type == "dictionary_item_added":
+                for change in changes:
+                    logging.error(f"dictionary_item_added: {change}")
+            elif diff_type == "dictionary_item_removed":
+                for change in changes:
+                    logging.error(f"dictionary_item_removed: {change}")
+            elif diff_type == "type_changes":
                 for key_path, change in changes.items():
-                    logging.warning(
+                    logging.error(
                         f"(expected) != (actual) {key_path}: {change['old_type']} (expected) != (actual) {change['new_type']}"
                     )
 
