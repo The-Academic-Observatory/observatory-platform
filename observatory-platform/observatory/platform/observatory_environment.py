@@ -603,6 +603,9 @@ class ObservatoryEnvironment:
 def load_and_parse_json(file_path: str, date_fields: Set[str] = None):
     """Load a JSON file for testing purposes. It parses string dates and datetimes into date and datetime instances."""
 
+    if date_fields is None:
+        date_fields = set()
+
     def parse_datetime(obj):
         for key, value in obj.items():
             # Try to parse into a date or datetime
