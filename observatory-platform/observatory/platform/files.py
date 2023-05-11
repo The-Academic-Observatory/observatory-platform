@@ -238,6 +238,17 @@ def save_jsonl_gz(file_path: str, data: List[Dict]) -> None:
             jsonl_gzip_file.write(bytes_io.getvalue())
 
 
+def save_jsonl(file_path: str, data: List[Dict]) -> None:
+    """Takes a list of dictionaries and writes this to a jsonl file.
+    :param file_path: Path to the .jsonl.gz file
+    :param data: a list of dictionaries that can be written out with jsonlines
+    :return: None.
+    """
+
+    with jsonlines.Writer(file_path) as writer:
+        writer.write_all(data)
+
+
 def load_file(file_name: str, modes="r"):
     """Load a file.
 
