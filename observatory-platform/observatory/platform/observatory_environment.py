@@ -660,6 +660,7 @@ def compare_lists_of_dicts(expected: List[Dict], actual: List[Dict], primary_key
     all_matched = True
     for key in expected_dict:
         diff = DeepDiff(expected_dict[key], actual_dict[key], ignore_order=True)
+        logging.info(f"primary_key: {key}")
         for diff_type, changes in diff.items():
             all_matched = False
             if diff_type == "values_changed":

@@ -245,8 +245,9 @@ def save_jsonl(file_path: str, data: List[Dict]) -> None:
     :return: None.
     """
 
-    with jsonlines.Writer(file_path) as writer:
-        writer.write_all(data)
+    with open(file_path, mode="w") as f:
+        with jsonlines.Writer(f) as writer:
+            writer.write_all(data)
 
 
 def load_file(file_name: str, modes="r"):
