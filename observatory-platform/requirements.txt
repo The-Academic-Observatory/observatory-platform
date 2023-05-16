@@ -47,6 +47,7 @@ json_lines>=0.5.0,<1 # Reading, including jsonl.gz
 requests>=2.25.0,<3
 tldextract>=3.1.1
 aiohttp>=3.7.0,<4
+responses>=0.23.1,<1
 
 # SFTP
 pysftp>=0.2.9,<1
