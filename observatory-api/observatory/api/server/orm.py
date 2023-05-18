@@ -134,6 +134,7 @@ class DatasetRelease(Base):
     data_interval_start: pendulum.DateTime
     data_interval_end: pendulum.DateTime
     snapshot_date: pendulum.DateTime
+    partition_date: pendulum.DateTime
     changefile_start_date: pendulum.DateTime
     changefile_end_date: pendulum.DateTime
     sequence_start: int
@@ -149,6 +150,7 @@ class DatasetRelease(Base):
     data_interval_start = Column(DateTime(), nullable=True)
     data_interval_end = Column(DateTime(), nullable=True)
     snapshot_date = Column(DateTime(), nullable=True)
+    partition_date = Column(DateTime(), nullable=True)
     changefile_start_date = Column(DateTime(), nullable=True)
     changefile_end_date = Column(DateTime(), nullable=True)
     sequence_start = Column(Integer, nullable=True)
@@ -166,6 +168,7 @@ class DatasetRelease(Base):
         data_interval_start: Union[pendulum.DateTime, str] = None,
         data_interval_end: Union[pendulum.DateTime, str] = None,
         snapshot_date: Union[pendulum.DateTime, str] = None,
+        partition_date: Union[pendulum.DateTime, str] = None,
         changefile_start_date: Union[pendulum.DateTime, str] = None,
         changefile_end_date: Union[pendulum.DateTime, str] = None,
         sequence_start: int = None,
@@ -183,6 +186,7 @@ class DatasetRelease(Base):
         :param data_interval_start: the DAGs data interval start. Date is inclusive.
         :param data_interval_end: the DAGs data interval end. Date is exclusive.
         :param snapshot_date: the release date of the snapshot.
+        :param partition_date: the partition date.
         :param changefile_start_date: the date of the first changefile processed in this release.
         :param changefile_end_date: the date of the last changefile processed in this release.
         :param sequence_start: the starting sequence number of files that make up this release.
@@ -199,6 +203,7 @@ class DatasetRelease(Base):
         self.data_interval_start = to_datetime_utc(data_interval_start)
         self.data_interval_end = to_datetime_utc(data_interval_end)
         self.snapshot_date = to_datetime_utc(snapshot_date)
+        self.partition_date = to_datetime_utc(partition_date)
         self.changefile_start_date = to_datetime_utc(changefile_start_date)
         self.changefile_end_date = to_datetime_utc(changefile_end_date)
         self.sequence_start = sequence_start
@@ -215,6 +220,7 @@ class DatasetRelease(Base):
         data_interval_start: Union[pendulum.DateTime, str] = None,
         data_interval_end: Union[pendulum.DateTime, str] = None,
         snapshot_date: Union[pendulum.DateTime, str] = None,
+        partition_date: Union[pendulum.DateTime, str] = None,
         changefile_start_date: Union[pendulum.DateTime, str] = None,
         changefile_end_date: Union[pendulum.DateTime, str] = None,
         sequence_start: int = None,
@@ -230,7 +236,8 @@ class DatasetRelease(Base):
         :param dag_run_id: the DAG's run ID.
         :param data_interval_start: the DAGs data interval start. Date is inclusive.
         :param data_interval_end: the DAGs data interval end. Date is exclusive.
-        :param snapshot_date: the release date of the snapshot.
+        :param snapshot_date: the snapshot date.
+        :param partition_date: the partition date.
         :param changefile_start_date: the date of the first changefile processed in this release.
         :param changefile_end_date: the date of the last changefile processed in this release.
         :param sequence_start: the starting sequence number of files that make up this release.
@@ -257,6 +264,9 @@ class DatasetRelease(Base):
 
         if snapshot_date is not None:
             self.snapshot_date = to_datetime_utc(snapshot_date)
+
+        if partition_date is not None:
+            self.partition_date = to_datetime_utc(partition_date)
 
         if changefile_start_date is not None:
             self.changefile_start_date = to_datetime_utc(changefile_start_date)

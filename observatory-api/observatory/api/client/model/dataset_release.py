@@ -83,6 +83,7 @@ class DatasetRelease(ModelNormal):
             'data_interval_start': (datetime, none_type,),  # noqa: E501, F821
             'data_interval_end': (datetime, none_type,),  # noqa: E501, F821
             'snapshot_date': (datetime, none_type,),  # noqa: E501, F821
+            'partition_date': (datetime, none_type,),  # noqa: E501, F821
             'changefile_start_date': (datetime, none_type,),  # noqa: E501, F821
             'changefile_end_date': (datetime, none_type,),  # noqa: E501, F821
             'sequence_start': (int, none_type,),  # noqa: E501, F821
@@ -105,6 +106,7 @@ class DatasetRelease(ModelNormal):
         'data_interval_start': 'data_interval_start',  # noqa: E501
         'data_interval_end': 'data_interval_end',  # noqa: E501
         'snapshot_date': 'snapshot_date',  # noqa: E501
+        'partition_date': 'partition_date',  # noqa: E501
         'changefile_start_date': 'changefile_start_date',  # noqa: E501
         'changefile_end_date': 'changefile_end_date',  # noqa: E501
         'sequence_start': 'sequence_start',  # noqa: E501
@@ -164,6 +166,7 @@ class DatasetRelease(ModelNormal):
             data_interval_start (datetime, none_type): [optional]  # noqa: E501
             data_interval_end (datetime, none_type): [optional]  # noqa: E501
             snapshot_date (datetime, none_type): [optional]  # noqa: E501
+            partition_date (datetime, none_type): [optional]  # noqa: E501
             changefile_start_date (datetime, none_type): [optional]  # noqa: E501
             changefile_end_date (datetime, none_type): [optional]  # noqa: E501
             sequence_start (int, none_type): [optional]  # noqa: E501
@@ -263,6 +266,7 @@ class DatasetRelease(ModelNormal):
             data_interval_start (datetime, none_type): [optional]  # noqa: E501
             data_interval_end (datetime, none_type): [optional]  # noqa: E501
             snapshot_date (datetime, none_type): [optional]  # noqa: E501
+            partition_date (datetime, none_type): [optional]  # noqa: E501
             changefile_start_date (datetime, none_type): [optional]  # noqa: E501
             changefile_end_date (datetime, none_type): [optional]  # noqa: E501
             sequence_start (int, none_type): [optional]  # noqa: E501

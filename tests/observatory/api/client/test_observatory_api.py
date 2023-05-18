@@ -76,6 +76,7 @@ class TestObservatoryApi(unittest.TestCase):
                     dag_run_id="scheduled__2023-03-26T00:00:00+00:00",
                     data_interval_start=dt,
                     data_interval_end=dt,
+                    partition_date=dt,
                     snapshot_date=dt,
                     changefile_start_date=dt,
                     changefile_end_date=dt,
@@ -98,6 +99,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(dt_utc, obj.data_interval_start)
             self.assertEqual(dt_utc, obj.data_interval_end)
             self.assertEqual(dt_utc, obj.snapshot_date)
+            self.assertEqual(dt_utc, obj.partition_date)
             self.assertEqual(dt_utc, obj.changefile_start_date)
             self.assertEqual(dt_utc, obj.changefile_end_date)
             self.assertEqual(1, obj.sequence_start)
@@ -129,6 +131,7 @@ class TestObservatoryApi(unittest.TestCase):
                 data_interval_start=dt,
                 data_interval_end=dt,
                 snapshot_date=dt,
+                partition_date=dt,
                 changefile_start_date=dt,
                 changefile_end_date=dt,
                 sequence_start=1,
@@ -144,6 +147,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(dt_utc, result.data_interval_start)
             self.assertEqual(dt_utc, result.data_interval_end)
             self.assertEqual(dt_utc, result.snapshot_date)
+            self.assertEqual(dt_utc, result.partition_date)
             self.assertEqual(dt_utc, result.changefile_start_date)
             self.assertEqual(dt_utc, result.changefile_end_date)
             self.assertEqual(1, result.sequence_start)
@@ -165,6 +169,7 @@ class TestObservatoryApi(unittest.TestCase):
                 data_interval_start=dt,
                 data_interval_end=dt,
                 snapshot_date=dt,
+                partition_date=dt,
                 changefile_start_date=dt,
                 changefile_end_date=dt,
                 sequence_start=1,
@@ -180,6 +185,7 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertEqual(dt_utc, result.data_interval_start)
             self.assertEqual(dt_utc, result.data_interval_end)
             self.assertEqual(dt_utc, result.snapshot_date)
+            self.assertEqual(dt_utc, result.partition_date)
             self.assertEqual(dt_utc, result.changefile_start_date)
             self.assertEqual(dt_utc, result.changefile_end_date)
             self.assertEqual(1, result.sequence_start)
@@ -208,6 +214,7 @@ class TestObservatoryApi(unittest.TestCase):
                         data_interval_start=dt,
                         data_interval_end=dt,
                         snapshot_date=dt,
+                        partition_date=dt,
                         changefile_start_date=dt,
                         changefile_end_date=dt,
                         sequence_start=1,

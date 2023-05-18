@@ -60,6 +60,12 @@
     <td>[optional] </td>
 </tr>
 <tr>
+    <td><strong>partition_date</strong></td>
+    <td><strong>datetime, none_type</strong></td>
+    <td></td>
+    <td>[optional] </td>
+</tr>
+<tr>
     <td><strong>changefile_start_date</strong></td>
     <td><strong>datetime, none_type</strong></td>
     <td></td>
