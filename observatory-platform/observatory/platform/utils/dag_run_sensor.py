@@ -18,7 +18,7 @@
 import datetime
 import os
 from time import sleep
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun

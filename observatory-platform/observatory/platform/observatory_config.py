@@ -18,17 +18,20 @@
 from __future__ import annotations
 
 import base64
-import binascii
+import datetime
 import json
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, ClassVar, Dict, List, TextIO, Tuple, Union
+from typing import Any, Callable, ClassVar, Dict, List, TextIO, Tuple, Union, Optional
 
+import binascii
 import cerberus.validator
+import pendulum
 import yaml
 from cerberus import Validator
 from cryptography.fernet import Fernet
+from yaml.constructor import SafeConstructor
 
 from observatory.platform.cli.cli_utils import (
     INDENT1,
@@ -36,11 +39,10 @@ from observatory.platform.cli.cli_utils import (
     comment,
     indent,
 )
-from observatory.platform.terraform.terraform_api import TerraformVariable
-from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.config_utils import (
+from observatory.platform.config import (
     observatory_home as default_observatory_home,
 )
+from observatory.platform.terraform.terraform_api import TerraformVariable
 
 
 def generate_fernet_key() -> str:
@@ -276,7 +278,6 @@ class GoogleCloud:
         region: the Google Cloud region.
         zone: the Google Cloud zone.
         data_location: the data location for storing buckets.
-        buckets: a list of the Google Cloud buckets.
     """
 
     project_id: str = None
@@ -284,7 +285,6 @@ class GoogleCloud:
     region: str = None
     zone: str = None
     data_location: str = None
-    buckets: List[CloudStorageBucket] = field(default_factory=lambda: [])
 
     def read_credentials(self) -> str:
         with open(self.credentials, "r") as f:
@@ -299,7 +299,6 @@ class GoogleCloud:
                 "region": self.region,
                 "zone": self.zone,
                 "data_location": self.data_location,
-                "buckets": [bucket.name for bucket in self.buckets],
             }
         )
 
@@ -316,16 +315,237 @@ class GoogleCloud:
         region = dict_.get("region")
         zone = dict_.get("zone")
         data_location = dict_.get("data_location")
-        buckets = CloudStorageBucket.parse_buckets(dict_.get("buckets", dict()))
 
         return GoogleCloud(
-            project_id=project_id,
-            credentials=credentials,
-            region=region,
-            zone=zone,
-            data_location=data_location,
-            buckets=buckets,
+            project_id=project_id, credentials=credentials, region=region, zone=zone, data_location=data_location
         )
+
+
+class CloudWorkspace:
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        download_bucket: str,
+        transform_bucket: str,
+        data_location: str,
+        output_project_id: Optional[str] = None,
+    ):
+        """The CloudWorkspace settings used by workflows.
+
+        project_id: the Google Cloud project id. input_project_id is an alias for project_id.
+        download_bucket: the Google Cloud Storage bucket where downloads will be stored.
+        transform_bucket: the Google Cloud Storage bucket where transformed data will be stored.
+        data_location: the data location for storing information, e.g. where BigQuery datasets should be located.
+        output_project_id: an optional Google Cloud project id when the outputs of a workflow should be stored in a
+        different project to the inputs. If an output_project_id is not supplied, the project_id will be used.
+        """
+
+        self._project_id = project_id
+        self._download_bucket = download_bucket
+        self._transform_bucket = transform_bucket
+        self._data_location = data_location
+        self._output_project_id = output_project_id
+
+    @property
+    def project_id(self) -> str:
+        return self._project_id
+
+    @project_id.setter
+    def project_id(self, project_id: str):
+        self._project_id = project_id
+
+    @property
+    def download_bucket(self) -> str:
+        return self._download_bucket
+
+    @download_bucket.setter
+    def download_bucket(self, download_bucket: str):
+        self._download_bucket = download_bucket
+
+    @property
+    def transform_bucket(self) -> str:
+        return self._transform_bucket
+
+    @transform_bucket.setter
+    def transform_bucket(self, transform_bucket: str):
+        self._transform_bucket = transform_bucket
+
+    @property
+    def data_location(self) -> str:
+        return self._data_location
+
+    @data_location.setter
+    def data_location(self, data_location: str):
+        self._data_location = data_location
+
+    @property
+    def input_project_id(self) -> str:
+        return self._project_id
+
+    @input_project_id.setter
+    def input_project_id(self, project_id: str):
+        self._project_id = project_id
+
+    @property
+    def output_project_id(self) -> Optional[str]:
+        if self._output_project_id is None:
+            return self._project_id
+        return self._output_project_id
+
+    @output_project_id.setter
+    def output_project_id(self, output_project_id: Optional[str]):
+        self._output_project_id = output_project_id
+
+    @staticmethod
+    def from_dict(dict_: Dict) -> CloudWorkspace:
+        """Constructs a CloudWorkspace instance from a dictionary.
+
+        :param dict_: the dictionary.
+        :return: the Workflow instance.
+        """
+
+        project_id = dict_.get("project_id")
+        download_bucket = dict_.get("download_bucket")
+        transform_bucket = dict_.get("transform_bucket")
+        data_location = dict_.get("data_location")
+        output_project_id = dict_.get("output_project_id")
+
+        return CloudWorkspace(
+            project_id=project_id,
+            download_bucket=download_bucket,
+            transform_bucket=transform_bucket,
+            data_location=data_location,
+            output_project_id=output_project_id,
+        )
+
+    def to_dict(self) -> Dict:
+        """CloudWorkspace instance to dictionary.
+
+        :return: the dictionary.
+        """
+
+        return dict(
+            project_id=self._project_id,
+            download_bucket=self._download_bucket,
+            transform_bucket=self._transform_bucket,
+            data_location=self._data_location,
+            output_project_id=self.output_project_id,
+        )
+
+    @staticmethod
+    def parse_cloud_workspaces(list: List) -> List[CloudWorkspace]:
+        """Parse the cloud workspaces list object into a list of CloudWorkspace instances.
+
+        :param list: the list.
+        :return: a list of CloudWorkspace instances.
+        """
+
+        return [CloudWorkspace.from_dict(dict_) for dict_ in list]
+
+
+@dataclass
+class Workflow:
+    """A Workflow configuration.
+
+    Attributes:
+        dag_id: the Airflow DAG identifier for the workflow.
+        name: a user-friendly name for the workflow.
+        class_name: the fully qualified class name for the workflow class.
+        cloud_workspace: the Cloud Workspace to use when running the workflow.
+        kwargs: a dictionary containing optional keyword arguments that are injected into the workflow constructor.
+    """
+
+    dag_id: str = None
+    name: str = None
+    class_name: str = None
+    cloud_workspace: CloudWorkspace = None
+    kwargs: Optional[Dict] = field(default_factory=lambda: dict())
+
+    def to_dict(self) -> Dict:
+        """Workflow instance to dictionary.
+
+        :return: the dictionary.
+        """
+
+        cloud_workspace = self.cloud_workspace
+        if self.cloud_workspace is not None:
+            cloud_workspace = self.cloud_workspace.to_dict()
+
+        return dict(
+            dag_id=self.dag_id,
+            name=self.name,
+            class_name=self.class_name,
+            cloud_workspace=cloud_workspace,
+            kwargs=self.kwargs,
+        )
+
+    @staticmethod
+    def from_dict(dict_: Dict) -> Workflow:
+        """Constructs a Workflow instance from a dictionary.
+
+        :param dict_: the dictionary.
+        :return: the Workflow instance.
+        """
+
+        dag_id = dict_.get("dag_id")
+        name = dict_.get("name")
+        class_name = dict_.get("class_name")
+
+        cloud_workspace = dict_.get("cloud_workspace")
+        if cloud_workspace is not None:
+            cloud_workspace = CloudWorkspace.from_dict(cloud_workspace)
+
+        kwargs = dict_.get("kwargs", dict())
+
+        return Workflow(dag_id, name, class_name, cloud_workspace, kwargs)
+
+    @staticmethod
+    def parse_workflows(list: List) -> List[Workflow]:
+        """Parse the workflows list object into a list of Workflow instances.
+
+        :param list: the list.
+        :return: a list of Workflow instances.
+        """
+
+        return [Workflow.from_dict(dict_) for dict_ in list]
+
+
+class PendulumDateTimeEncoder(json.JSONEncoder):
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, pendulum.DateTime):
+            return obj.isoformat()
+        return super().default(obj)
+
+
+def workflows_to_json_string(workflows: List[Workflow]) -> str:
+    """Covnert a list of Workflow instances to a JSON string.
+
+    :param workflows: the Workflow instances.
+    :return: a JSON string.
+    """
+
+    data = [workflow.to_dict() for workflow in workflows]
+    return json.dumps(data, cls=PendulumDateTimeEncoder)
+
+
+def json_string_to_workflows(json_string: str) -> List[Workflow]:
+    """Convert a JSON string into a list of Workflow instances.
+
+    :param json_string: a JSON string version of a list of Workflow instances.
+    :return: a list of Workflow instances.
+    """
+
+    def parse_datetime(obj):
+        for key, value in obj.items():
+            try:
+                obj[key] = pendulum.parse(value)
+            except (ValueError, TypeError):
+                pass
+        return obj
+
+    data = json.loads(json_string, object_hook=parse_datetime)
+    return Workflow.parse_workflows(data)
 
 
 def parse_dict_to_list(dict_: Dict, cls: ClassVar) -> List[Any]:
@@ -375,85 +595,6 @@ class WorkflowsProject:
             dags_module = item["dags_module"]
             parsed_items.append(WorkflowsProject(package_name, package, package_type, dags_module))
         return parsed_items
-
-
-def list_to_hcl(items: List[Union[AirflowConnection, AirflowVariable]]) -> str:
-    """Convert a list of AirflowConnection or AirflowVariable instances into HCL.
-
-    :param items: the list of AirflowConnection or AirflowVariable instances.
-    :return: the HCL string.
-    """
-
-    dict_ = dict()
-    for item in items:
-        dict_[item.name] = item.value
-    return to_hcl(dict_)
-
-
-@dataclass
-class AirflowConnection:
-    """An Airflow Connection.
-
-    Attributes:
-        name: the name of the Airflow Connection.
-        value: the value of the Airflow Connection.
-    """
-
-    name: str
-    value: str
-
-    @property
-    def conn_name(self) -> str:
-        """The Airflow Connection environment variable name, which is required to set the connection from an
-        environment variable.
-
-        :return: the Airflow Connection environment variable name.
-        """
-
-        return f"AIRFLOW_CONN_{self.name.upper()}"
-
-    @staticmethod
-    def parse_airflow_connections(dict_: Dict) -> List[AirflowConnection]:
-        """Parse the airflow_connections dictionary object into a list of AirflowConnection instances.
-
-        :param dict_: the dictionary.
-        :return: a list of AirflowConnection instances.
-        """
-
-        return parse_dict_to_list(dict_, AirflowConnection)
-
-
-@dataclass
-class AirflowVariable:
-    """An Airflow Variable.
-
-    Attributes:
-        name: the name of the Airflow Variable.
-        value: the value of the Airflow Variable.
-    """
-
-    name: str
-    value: str
-
-    @property
-    def env_var_name(self):
-        """The Airflow Variable environment variable name, which is required to set the variable from an
-        environment variable.
-
-        :return: the Airflow Variable environment variable name.
-        """
-
-        return f"AIRFLOW_VAR_{self.name.upper()}"
-
-    @staticmethod
-    def parse_airflow_variables(dict_: Dict) -> List[AirflowVariable]:
-        """Parse the airflow_variables dictionary object into a list of AirflowVariable instances.
-
-        :param dict_: the dictionary.
-        :return: a list of AirflowVariable instances.
-        """
-
-        return parse_dict_to_list(dict_, AirflowVariable)
 
 
 @dataclass
@@ -685,8 +826,8 @@ class ObservatoryConfig:
         observatory: Observatory = None,
         google_cloud: GoogleCloud = None,
         terraform: Terraform = None,
-        airflow_variables: List[AirflowVariable] = None,
-        airflow_connections: List[AirflowConnection] = None,
+        cloud_workspaces: List[CloudWorkspace] = None,
+        workflows: List[Workflow] = None,
         workflows_projects: List[WorkflowsProject] = None,
         validator: ObservatoryConfigValidator = None,
     ):
@@ -696,8 +837,8 @@ class ObservatoryConfig:
         :param observatory: the Observatory config.
         :param google_cloud: the Google Cloud config.
         :param terraform: the Terraform config.
-        :param airflow_variables: a list of Airflow variables.
-        :param airflow_connections: a list of Airflow connections.
+        :param cloud_workspaces: the CloudWorkspaces.
+        :param workflows: the workflows to create in Airflow.
         :param workflows_projects: a list of DAGs projects.
         :param validator: an ObservatoryConfigValidator instance.
         """
@@ -707,13 +848,13 @@ class ObservatoryConfig:
         self.google_cloud = google_cloud
         self.terraform = terraform
 
-        self.airflow_variables = airflow_variables
-        if airflow_variables is None:
-            self.airflow_variables = []
+        self.cloud_workspaces = cloud_workspaces
+        if cloud_workspaces is None:
+            self.cloud_workspaces = []
 
-        self.airflow_connections = airflow_connections
-        if airflow_connections is None:
-            self.airflow_connections = []
+        self.workflows = workflows
+        if workflows is None:
+            self.workflows = []
 
         self.workflows_projects = workflows_projects
         if workflows_projects is None:
@@ -786,48 +927,20 @@ class ObservatoryConfig:
         return packages
 
     @property
-    def dags_module_names(self):
+    def airflow_var_workflows(self) -> str:
+        """Make the workflows Airflow variable.
+        :return: the workflows Airflow variable.
+        """
+
+        return workflows_to_json_string(self.workflows)
+
+    @property
+    def airflow_var_dags_module_names(self):
         """Returns a list of DAG project module names.
         :return: the list of DAG project module names.
         """
 
-        return f"'{str(json.dumps([project.dags_module for project in self.workflows_projects]))}'"
-
-    def make_airflow_variables(self) -> List[AirflowVariable]:
-        """Make all airflow variables for the observatory platform.
-
-        :return: a list of AirflowVariable objects.
-        """
-
-        # Create airflow variables from fixed config file values
-        variables = [AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)]
-
-        if self.google_cloud is not None:
-            if self.google_cloud.project_id is not None:
-                variables.append(AirflowVariable(AirflowVars.PROJECT_ID, self.google_cloud.project_id))
-
-            if self.google_cloud.data_location:
-                variables.append(AirflowVariable(AirflowVars.DATA_LOCATION, self.google_cloud.data_location))
-
-            # Create airflow variables from bucket names
-            for bucket in self.google_cloud.buckets:
-                variables.append(AirflowVariable(bucket.id, bucket.name))
-
-        if self.terraform is not None:
-            if self.terraform.organization is not None:
-                variables.append(AirflowVariable(AirflowVars.TERRAFORM_ORGANIZATION, self.terraform.organization))
-
-        # Add dags module names
-        variables.append(
-            AirflowVariable(
-                AirflowVars.DAGS_MODULE_NAMES, json.dumps([proj.dags_module for proj in self.workflows_projects])
-            )
-        )
-
-        # Add user defined variables to list
-        variables += self.airflow_variables
-
-        return variables
+        return json.dumps([project.dags_module for project in self.workflows_projects])
 
     @staticmethod
     def _parse_fields(
@@ -837,19 +950,19 @@ class ObservatoryConfig:
         Observatory,
         GoogleCloud,
         Terraform,
-        List[AirflowVariable],
-        List[AirflowConnection],
+        List[CloudWorkspace],
+        List[Workflow],
         List[WorkflowsProject],
     ]:
         backend = Backend.from_dict(dict_.get("backend", dict()))
         observatory = Observatory.from_dict(dict_.get("observatory", dict()))
         google_cloud = GoogleCloud.from_dict(dict_.get("google_cloud", dict()))
         terraform = Terraform.from_dict(dict_.get("terraform", dict()))
-        airflow_variables = AirflowVariable.parse_airflow_variables(dict_.get("airflow_variables", dict()))
-        airflow_connections = AirflowConnection.parse_airflow_connections(dict_.get("airflow_connections", dict()))
+        cloud_workspaces = CloudWorkspace.parse_cloud_workspaces(dict_.get("cloud_workspaces", list()))
+        workflows = Workflow.parse_workflows(dict_.get("workflows", list()))
         workflows_projects = WorkflowsProject.parse_workflows_projects(dict_.get("workflows_projects", list()))
 
-        return backend, observatory, google_cloud, terraform, airflow_variables, airflow_connections, workflows_projects
+        return backend, observatory, google_cloud, terraform, cloud_workspaces, workflows, workflows_projects
 
     @classmethod
     def from_dict(cls, dict_: Dict) -> ObservatoryConfig:
@@ -872,8 +985,8 @@ class ObservatoryConfig:
                 observatory,
                 google_cloud,
                 terraform,
-                airflow_variables,
-                airflow_connections,
+                cloud_workspaces,
+                workflows,
                 workflows_projects,
             ) = ObservatoryConfig._parse_fields(dict_)
 
@@ -882,8 +995,8 @@ class ObservatoryConfig:
                 observatory,
                 google_cloud=google_cloud,
                 terraform=terraform,
-                airflow_variables=airflow_variables,
-                airflow_connections=airflow_connections,
+                cloud_workspaces=cloud_workspaces,
+                workflows=workflows,
                 workflows_projects=workflows_projects,
                 validator=validator,
             )
@@ -897,8 +1010,17 @@ class ObservatoryConfig:
         :return: the ObservatoryConfig instance (or a subclass of ObservatoryConfig)
         """
 
-        dict_ = dict()
+        # Make sure that dates and datetimes are returned as pendulum.DateTime instances
+        # We let yaml parse the date / datetime and then convert to pendulum
+        def date_constructor(loader, node):
+            value = SafeConstructor.construct_yaml_timestamp(loader, node)
+            if isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+                value = datetime.datetime(value.year, value.month, value.day)
+            return pendulum.instance(value)
 
+        yaml.SafeLoader.add_constructor("tag:yaml.org,2002:timestamp", date_constructor)
+
+        dict_ = dict()
         try:
             with open(path, "r") as f:
                 dict_ = yaml.safe_load(f)
@@ -934,8 +1056,6 @@ class ObservatoryConfig:
             self.save_observatory(f)
             self.save_terraform(f)
             self.save_google_cloud(f)
-            self.save_airflow_connections(f)
-            self.save_airflow_variables(f)
             self.save_workflows_projects(f)
 
     def save_backend(self, f: TextIO):
@@ -1013,36 +1133,6 @@ class ObservatoryConfig:
         f.writelines(output)
         f.write("\n")
 
-    def save_airflow_connections(self, f: TextIO):
-        """Write the Airflow connections configuration section to the config file.
-
-        :param f: File object for the config file.
-        """
-
-        requirement = self.get_requirement_string("airflow_connections")
-        f.write(f"# [{requirement}] User defined Apache Airflow Connections:\n")
-
-        lines = ObserveratoryConfigString.airflow_connections(airflow_connections=self.airflow_connections)
-        output = map(comment, lines) if len(self.airflow_connections) == 0 and requirement == "Optional" else lines
-
-        f.writelines(output)
-        f.write("\n")
-
-    def save_airflow_variables(self, f: TextIO):
-        """Write the Airflow variables configuration section to the config file.
-
-        :param f: File object for the config file.
-        """
-
-        requirement = self.get_requirement_string("airflow_variables")
-        f.write(f"# [{requirement}] User defined Apache Airflow variables:\n")
-
-        lines = ObserveratoryConfigString.airflow_variables(airflow_variables=self.airflow_variables)
-        output = map(comment, lines) if len(self.airflow_variables) == 0 and requirement == "Optional" else lines
-
-        f.writelines(output)
-        f.write("\n")
-
     def save_workflows_projects(self, f: TextIO):
         """Write the DAGs projects configuration section to the config file.
 
@@ -1068,8 +1158,8 @@ class TerraformConfig(ObservatoryConfig):
         observatory: Observatory = None,
         google_cloud: GoogleCloud = None,
         terraform: Terraform = None,
-        airflow_variables: List[AirflowVariable] = None,
-        airflow_connections: List[AirflowConnection] = None,
+        cloud_workspaces: List[CloudWorkspace] = None,
+        workflows: List[Workflow] = None,
         workflows_projects: List[WorkflowsProject] = None,
         cloud_sql_database: CloudSqlDatabase = None,
         airflow_main_vm: VirtualMachine = None,
@@ -1082,8 +1172,8 @@ class TerraformConfig(ObservatoryConfig):
         :param observatory: the Observatory config.
         :param google_cloud: the Google Cloud config.
         :param terraform: the Terraform config.
-        :param airflow_variables: a list of Airflow variables.
-        :param airflow_connections: a list of Airflow connections.
+        :param cloud_workspaces: the CloudWorkspaces.
+        :param workflows: the workflows to create in Airflow.
         :param workflows_projects: a list of DAGs projects.
         :param cloud_sql_database: a Google Cloud SQL database config.
         :param airflow_main_vm: the Airflow Main VM config.
@@ -1099,8 +1189,8 @@ class TerraformConfig(ObservatoryConfig):
             observatory=observatory,
             google_cloud=google_cloud,
             terraform=terraform,
-            airflow_variables=airflow_variables,
-            airflow_connections=airflow_connections,
+            cloud_workspaces=cloud_workspaces,
+            workflows=workflows,
             workflows_projects=workflows_projects,
             validator=validator,
         )
@@ -1117,57 +1207,21 @@ class TerraformConfig(ObservatoryConfig):
 
         return TerraformConfig.WORKSPACE_PREFIX + self.backend.environment.value
 
-    def make_airflow_variables(self) -> List[AirflowVariable]:
-        """Make all airflow variables for the Observatory Platform.
-
-        :return: a list of AirflowVariable objects.
-        """
-
-        # Create airflow variables from fixed config file values
-        variables = [AirflowVariable(AirflowVars.ENVIRONMENT, self.backend.environment.value)]
-
-        if self.google_cloud.project_id is not None:
-            variables.append(AirflowVariable(AirflowVars.PROJECT_ID, self.google_cloud.project_id))
-            variables.append(AirflowVariable(AirflowVars.DOWNLOAD_BUCKET, f"{self.google_cloud.project_id}-download"))
-            variables.append(AirflowVariable(AirflowVars.TRANSFORM_BUCKET, f"{self.google_cloud.project_id}-transform"))
-
-        if self.google_cloud.data_location:
-            variables.append(AirflowVariable(AirflowVars.DATA_LOCATION, self.google_cloud.data_location))
-
-        if self.terraform.organization is not None:
-            variables.append(AirflowVariable(AirflowVars.TERRAFORM_ORGANIZATION, self.terraform.organization))
-
-        variables.append(
-            AirflowVariable(
-                AirflowVars.DAGS_MODULE_NAMES, json.dumps([proj.dags_module for proj in self.workflows_projects])
-            )
-        )
-
-        # Add user defined variables to list
-        variables += self.airflow_variables
-
-        return variables
-
     def terraform_variables(self) -> List[TerraformVariable]:
         """Create a list of TerraformVariable instances from the Terraform Config.
 
         :return: a list of TerraformVariable instances.
         """
 
-        sensitive = True
         return [
             TerraformVariable("environment", self.backend.environment.value),
-            TerraformVariable("observatory", self.observatory.to_hcl(), sensitive=sensitive, hcl=True),
-            TerraformVariable("google_cloud", self.google_cloud.to_hcl(), sensitive=sensitive, hcl=True),
+            TerraformVariable("observatory", self.observatory.to_hcl(), sensitive=True, hcl=True),
+            TerraformVariable("google_cloud", self.google_cloud.to_hcl(), sensitive=True, hcl=True),
             TerraformVariable("cloud_sql_database", self.cloud_sql_database.to_hcl(), hcl=True),
             TerraformVariable("airflow_main_vm", self.airflow_main_vm.to_hcl(), hcl=True),
             TerraformVariable("airflow_worker_vm", self.airflow_worker_vm.to_hcl(), hcl=True),
-            TerraformVariable(
-                "airflow_variables", list_to_hcl(self.make_airflow_variables()), hcl=True, sensitive=False
-            ),
-            TerraformVariable(
-                "airflow_connections", list_to_hcl(self.airflow_connections), hcl=True, sensitive=sensitive
-            ),
+            TerraformVariable("airflow_var_workflows", self.airflow_var_workflows),
+            TerraformVariable("airflow_var_dags_module_names", self.airflow_var_dags_module_names),
         ]
 
     @classmethod
@@ -1191,8 +1245,8 @@ class TerraformConfig(ObservatoryConfig):
                 observatory,
                 google_cloud,
                 terraform,
-                airflow_variables,
-                airflow_connections,
+                cloud_workspaces,
+                workflows,
                 workflows_projects,
             ) = ObservatoryConfig._parse_fields(dict_)
 
@@ -1205,8 +1259,8 @@ class TerraformConfig(ObservatoryConfig):
                 observatory,
                 google_cloud=google_cloud,
                 terraform=terraform,
-                airflow_variables=airflow_variables,
-                airflow_connections=airflow_connections,
+                cloud_workspaces=cloud_workspaces,
+                workflows=workflows,
                 workflows_projects=workflows_projects,
                 cloud_sql_database=cloud_sql_database,
                 airflow_main_vm=airflow_main_vm,
@@ -1326,14 +1380,6 @@ def make_schema(backend_type: BackendType) -> Dict:
         },
     }
 
-    if not is_backend_terraform:
-        schema["google_cloud"]["schema"]["buckets"] = {
-            "required": False,
-            "type": "dict",
-            "keysrules": {"type": "string"},
-            "valuesrules": {"type": "string"},
-        }
-
     # Observatory settings
     package_types = ["editable", "sdist", "pypi"]
     schema["observatory"] = {
@@ -1391,26 +1437,40 @@ def make_schema(backend_type: BackendType) -> Dict:
         schema["airflow_main_vm"] = vm_schema
         schema["airflow_worker_vm"] = vm_schema
 
-    # Key value string pair schema
-    key_val_schema = {
-        "required": False,
-        "type": "dict",
-        "keysrules": {"type": "string"},
-        "valuesrules": {"type": "string"},
+    # Workflow configuration
+    cloud_workspace_schema = {
+        "project_id": {"required": True, "type": "string"},
+        "download_bucket": {"required": True, "type": "string"},
+        "transform_bucket": {"required": True, "type": "string"},
+        "data_location": {"required": True, "type": "string"},
+        "output_project_id": {"required": False, "type": "string"},
     }
 
-    # Airflow variables
-    schema["airflow_variables"] = key_val_schema
-
-    # Airflow connections
-    schema["airflow_connections"] = {
+    schema["cloud_workspaces"] = {
         "required": False,
-        "type": "dict",
-        "keysrules": {"type": "string"},
-        "valuesrules": {"type": "string", "regex": r"\S*:\/\/\S*:\S*@\S*$|google-cloud-platform:\/\/\S*$"},
+        "type": "list",
+        "schema": {
+            "type": "dict",
+            "schema": {"workspace": {"required": True, "type": "dict", "schema": cloud_workspace_schema}},
+        },
     }
 
-    # Dags projects
+    schema["workflows"] = {
+        "required": False,
+        "dependencies": "cloud_workspaces",  # cloud_workspaces must be specified when workflows are defined
+        "type": "list",
+        "schema": {
+            "type": "dict",
+            "schema": {
+                "dag_id": {"required": True, "type": "string"},
+                "name": {"required": True, "type": "string"},
+                "class_name": {"required": True, "type": "string"},
+                "cloud_workspace": {"required": False, "type": "dict", "schema": cloud_workspace_schema},
+                "kwargs": {"required": False, "type": "dict"},
+            },
+        },
+    }
+
     schema["workflows_projects"] = {
         "required": False,
         "type": "list",
@@ -1518,16 +1578,6 @@ class ObserveratoryConfigString:
                 data_location="us",
                 region="us-west1",
                 zone="us-west1-a",
-                buckets=[
-                    CloudStorageBucket(
-                        id="download_bucket",
-                        name="my-download-bucket-name",
-                    ),
-                    CloudStorageBucket(
-                        id="transform_bucket",
-                        name="my-transform-bucket-name",
-                    ),
-                ],
             )
 
         lines = [
@@ -1541,59 +1591,6 @@ class ObserveratoryConfigString:
         if backend.type == BackendType.terraform:
             lines.append(indent(f"region: {google_cloud.region}\n", INDENT1))
             lines.append(indent(f"zone: {google_cloud.zone}\n", INDENT1))
-        else:
-            lines.append(indent("buckets:\n", INDENT1))
-            for bucket in google_cloud.buckets:
-                lines.append(indent(f"{bucket.id}: {bucket.name}\n", INDENT3))
-
-        return lines
-
-    @staticmethod
-    def airflow_connections(airflow_connections: List[AirflowConnection]) -> List[str]:
-        """Constructs the Airflow connections section string.
-
-        :param airflow_connections: List of Airflow connection configuration objects.
-        :return: List of strings for the section, including the section heading."
-        """
-
-        lines = ["airflow_connections:\n"]
-
-        connections = airflow_connections.copy()
-        if len(connections) == 0:
-            connections.append(
-                AirflowConnection(
-                    name="my_connection",
-                    value="http://my-username:my-password@",
-                )
-            )
-
-        for conn in connections:
-            lines.append(indent(f"{conn.name}: {conn.value}\n", INDENT1))
-
-        return lines
-
-    @staticmethod
-    def airflow_variables(airflow_variables: List[AirflowVariable]) -> List[str]:
-        """Constructs the Airflow variables section string.
-
-        :param airflow_connections: List of Airflow variable configuration objects.
-        :return: List of strings for the section, including the section heading."
-        """
-
-        lines = ["airflow_variables:\n"]
-
-        variables = airflow_variables.copy()
-
-        if len(variables) == 0:
-            variables.append(
-                AirflowVariable(
-                    name="my_variable_name",
-                    value="my-variable-value",
-                )
-            )
-
-        for variable in variables:
-            lines.append(indent(f"{variable.name}: {variable.value}\n", INDENT1))
 
         return lines
 

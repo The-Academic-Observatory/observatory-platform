@@ -18,22 +18,20 @@
 from __future__ import annotations
 
 import os
-import pendulum
 from dataclasses import dataclass
+from typing import Any, ClassVar, Dict, Union
+
+import pendulum
 from sqlalchemy import (
-    JSON,
     Column,
-    Date,
     DateTime,
-    ForeignKey,
+    JSON,
     Integer,
-    BigInteger,
     String,
     create_engine,
 )
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relation, relationship, scoped_session, sessionmaker
-from typing import Any, ClassVar, Dict, List, Union
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 Base = declarative_base()
 session_ = None  # Global session
@@ -126,637 +124,164 @@ def to_datetime_utc(obj: Union[None, pendulum.DateTime, str]) -> Union[pendulum.
 
 
 @dataclass
-class Organisation(Base):
-    __tablename__ = "organisation"
-
-    id: int
-    name: str
-    project_id: str
-    download_bucket: str
-    transform_bucket: str
-    created: pendulum.DateTime
-    modified: pendulum.DateTime
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(250))
-    project_id = Column(String(30))
-    download_bucket = Column(String(222))
-    transform_bucket = Column(String(222))
-    created = Column(DateTime())
-    modified = Column(DateTime())
-    workflows = relationship("Workflow", backref="organisation")
-
-    def __init__(
-        self,
-        id: int = None,
-        name: str = None,
-        project_id: str = None,
-        download_bucket: str = None,
-        transform_bucket: str = None,
-        created: pendulum.DateTime = None,
-        modified: pendulum.DateTime = None,
-    ):
-        """Construct an Organisation object, which contains information about what Google Cloud project an
-        organisation uses, what are it's download and transform buckets and what workflows does it have.
-
-        The maximum lengths of the project_id, download_bucket and transform_bucket come from the following
-        documentation:
-        * https://cloud.google.com/resource-manager/docs/creating-managing-projects
-        * https://cloud.google.com/storage/docs/naming-buckets
-
-
-        :param id: unique id.
-        :param name: the name.
-        :param project_id: the Google Cloud project id.
-        :param download_bucket: the Google Cloud Storage download bucket name for the above project.
-        :param transform_bucket: the Google Cloud Storage transform bucket name for the above project.
-        :param created: datetime created in UTC.
-        :param modified: datetime modified in UTC.
-        """
-
-        self.id = id
-        self.name = name
-        self.project_id = project_id
-        self.download_bucket = download_bucket
-        self.transform_bucket = transform_bucket
-        self.created = to_datetime_utc(created)
-        self.modified = to_datetime_utc(modified)
-
-    def update(
-        self,
-        name: str = None,
-        project_id: str = None,
-        download_bucket: str = None,
-        transform_bucket: str = None,
-        modified: pendulum.DateTime = None,
-    ):
-        """Update the properties of an existing Organisation object. This method is handy when you want to update
-        the Organisation from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
-
-        :param name: the name.
-        :param project_id: the Google Cloud project id.
-        :param download_bucket: the Google Cloud Storage download bucket name for the above project.
-        :param transform_bucket: the Google Cloud Storage transform bucket name for the above project.
-        :param modified: datetime modified in UTC.
-        :return: None.
-        """
-
-        if name is not None:
-            self.name = name
-
-        if project_id is not None:
-            self.project_id = project_id
-
-        if download_bucket is not None:
-            self.download_bucket = download_bucket
-
-        if transform_bucket is not None:
-            self.transform_bucket = transform_bucket
-
-        if modified is not None:
-            self.modified = to_datetime_utc(modified)
-
-
-@dataclass
-class WorkflowType(Base):
-    __tablename__ = "workflow_type"
-
-    id: int
-    type_id: str
-    name: str
-    created: pendulum.DateTime
-    modified: pendulum.DateTime
-
-    id = Column(Integer, primary_key=True)
-    type_id = Column(String(250), unique=True, nullable=False)
-    name = Column(String(250))
-    created = Column(DateTime())
-    modified = Column(DateTime())
-    workflows = relationship("Workflow", backref="workflow_type")
-
-    def __init__(
-        self,
-        id: int = None,
-        type_id: str = None,
-        name: str = None,
-        created: pendulum.DateTime = None,
-        modified: pendulum.DateTime = None,
-    ):
-        """Construct a WorkflowType object.
-
-        :param id: unique id.
-        :param type_id: a unique string id for the workflow type.
-        :param name: the name.
-        :param created: datetime created in UTC.
-        :param modified: datetime modified in UTC.
-        """
-
-        self.id = id
-        self.type_id = type_id
-        self.name = name
-        self.created = to_datetime_utc(created)
-        self.modified = to_datetime_utc(modified)
-
-    def update(self, type_id: str = None, name: str = None, modified: pendulum.DateTime = None):
-        """Update the properties of an existing WorkflowType object. This method is handy when you want to update
-        the WorkflowType from a dictionary, e.g. obj.update(**{'name': 'hello world'}).
-
-        :param name: the name of the WorkflowType.
-        :param type_id: a unique string id for the workflow type.
-        :param modified: datetime modified in UTC.
-        :return: None.
-        """
-
-        if type_id is not None:
-            self.type_id = type_id
-
-        if name is not None:
-            self.name = name
-
-        if modified is not None:
-            self.modified = to_datetime_utc(modified)
-
-
-@dataclass
-class Workflow(Base):
-    __tablename__ = "workflow"
-
-    # Only include should be serialized to JSON as dataclass attributes
-    id: int
-    name: str
-    extra: Dict
-    tags: str
-    created: pendulum.DateTime
-    modified: pendulum.DateTime
-    workflow_type: WorkflowType = None
-    organisation: Organisation = None
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(250))
-    extra = Column(JSON())
-    tags = Column(String(250), nullable=True)
-    created = Column(DateTime())
-    modified = Column(DateTime())
-    organisation_id = Column(Integer, ForeignKey(f"{Organisation.__tablename__}.id"), nullable=True)
-    workflow_type_id = Column(Integer, ForeignKey(f"{WorkflowType.__tablename__}.id"), nullable=False)
-    datasets = relationship("Dataset", backref=__tablename__)
-
-    def __init__(
-        self,
-        id: int = None,
-        name: str = None,
-        extra: Dict = None,
-        tags: str = None,
-        created: pendulum.DateTime = None,
-        modified: pendulum.DateTime = None,
-        organisation: Union[Organisation, Dict] = None,
-        workflow_type: Union[WorkflowType, Dict] = None,
-    ):
-        """Construct a Workflow object.
-
-        :param id: unique id.
-        :param name: the workflow name.
-        :param extra: additional metadata for a workflow, stored as JSON.
-        :param tags: List of tags, stored as JSON list string.
-        :param created: datetime created in UTC.
-        :param modified: datetime modified in UTC.
-        :param organisation: the organisation associated with this workflow.
-        :param workflow_type: the workflow type associated with this workflow.
-        """
-
-        self.id = id
-        self.name = name
-        self.extra = extra
-        self.tags = tags
-        self.created = to_datetime_utc(created)
-        self.modified = to_datetime_utc(modified)
-
-        # Fetch organisation and workflow type from database if it exists
-        self.organisation = fetch_db_object(Organisation, organisation)
-        self.workflow_type = fetch_db_object(WorkflowType, workflow_type)
-
-    def update(
-        self,
-        name: str = None,
-        extra: Dict = None,
-        tags: str = None,
-        modified: pendulum.DateTime = None,
-        organisation: Union[Organisation, Dict] = None,
-        workflow_type: Union[WorkflowType, Dict] = None,
-    ):
-        """Update the properties of an existing Workflow object. This method is handy when you want to update
-        the Workflow from a dictionary, e.g. obj.update(**{'modified': datetime.utcnow()}).
-
-        :param name: the workflow name.
-        :param extra: additional metadata for a workflow, stored as JSON.
-        :param tags: list of tags, stored as JSON list string.
-        :param modified: datetime modified in UTC.
-        :param organisation: the organisation associated with this workflow.
-        :param workflow_type: the workflow type associated with this workflow.
-        :return: None.
-        """
-
-        if name is not None:
-            self.name = name
-
-        if extra is not None:
-            self.extra = extra
-
-        if tags is not None:
-            self.tags = tags
-
-        if organisation is not None:
-            self.organisation = fetch_db_object(Organisation, organisation)
-
-        if workflow_type is not None:
-            self.workflow_type = fetch_db_object(WorkflowType, workflow_type)
-
-        if modified is not None:
-            self.modified = to_datetime_utc(modified)
-
-
-@dataclass
-class TableType(Base):
-    __tablename__ = "table_type"
-
-    id: int
-    type_id: str
-    name: str
-    created: pendulum.DateTime
-    modified: pendulum.DateTime
-
-    id = Column(Integer, primary_key=True)
-    type_id = Column(String(250), unique=True, nullable=False)
-    name = Column(String(250))
-    created = Column(DateTime())
-    modified = Column(DateTime())
-
-    dataset_types = relationship("DatasetType", backref=__tablename__)
-
-    def __init__(
-        self,
-        id: int = None,
-        type_id: str = None,
-        name: str = None,
-        created: pendulum.DateTime = None,
-        modified: pendulum.DateTime = None,
-    ):
-        """Construct a TableType object.
-
-        :param id: unique id.
-        :param type_id: the table type id.
-        :param name: the table type name.
-        :param created: datetime created in UTC.
-        :param modified: datetime modified in UTC.
-        """
-
-        self.id = id
-        self.name = name
-        self.type_id = type_id
-        self.created = to_datetime_utc(created)
-        self.modified = to_datetime_utc(modified)
-
-    def update(
-        self,
-        type_id: str = None,
-        name: str = None,
-        modified: pendulum.DateTime = None,
-    ):
-        """Update the properties of an existing TableType object. This method is handy when you want to update
-        the Dataset from a dictionary, e.g. obj.update(**{'modified': datetime.utcnow()}).
-
-        :param type_id: the table type id.
-        :param name: the dataset name.
-        :param modified: datetime modified in UTC.
-        :return: None.
-        """
-
-        if type_id is not None:
-            self.type_id = type_id
-
-        if name is not None:
-            self.name = name
-
-        if modified is not None:
-            self.modified = to_datetime_utc(modified)
-
-
-@dataclass
-class DatasetType(Base):
-    __tablename__ = "dataset_type"
-
-    # Only include should be serialized to JSON as dataclass attributes
-    id: int
-    type_id: str
-    name: str
-    extra: dict
-    created: pendulum.DateTime
-    modified: pendulum.DateTime
-    table_type: TableType = None
-
-    id = Column(Integer, primary_key=True)
-    type_id = Column(String(250), unique=True, nullable=False)
-    name = Column(String(250))
-    extra = Column(JSON())
-    created = Column(DateTime())
-    modified = Column(DateTime())
-
-    table_type_id = Column(Integer, ForeignKey(f"{TableType.__tablename__}.id"), nullable=False)
-    datasets = relationship("Dataset", backref=__tablename__)
-
-    def __init__(
-        self,
-        id: int = None,
-        type_id: str = None,
-        name: str = None,
-        extra: dict = None,
-        table_type: Union[TableType, dict] = None,
-        created: pendulum.DateTime = None,
-        modified: pendulum.DateTime = None,
-    ):
-        """Construct a Dataset object.
-
-        :param id: unique id.
-        :param type_id: a unique string id for the workflow type.
-        :param name: the dataset name.
-        :param extra: additional metadata for a dataset, stored as JSON.
-        :param created: datetime created in UTC.
-        :param modified: datetime modified in UTC.
-        :param table_type: the Workflow associated with this dataset.
-        """
-
-        self.id = id
-        self.type_id = type_id
-        self.name = name
-        self.extra = extra
-        self.created = to_datetime_utc(created)
-        self.modified = to_datetime_utc(modified)
-        self.table_type = fetch_db_object(TableType, table_type)
-
-    def update(
-        self,
-        type_id: str = None,
-        name: str = None,
-        extra: dict = None,
-        table_type: Union[TableType, dict] = None,
-        modified: pendulum.DateTime = None,
-    ):
-        """Update the properties of an existing Dataset object. This method is handy when you want to update
-        the Dataset from a dictionary, e.g. obj.update(**{'modified': datetime.utcnow()}).
-
-        :param type_id: a unique string id for the workflow type.
-        :param name: the dataset name.
-        :param extra: additional metadata for a dataset, stored as JSON.
-        :param modified: datetime modified in UTC.
-        :param workflow: the Workflow associated with this dataset.
-        :return: None.
-        """
-
-        if type_id is not None:
-            self.type_id = type_id
-
-        if name is not None:
-            self.name = name
-
-        if extra is not None:
-            self.extra = extra
-
-        if table_type is not None:
-            self.table_type = fetch_db_object(TableType, table_type)
-
-        if modified is not None:
-            self.modified = to_datetime_utc(modified)
-
-
-@dataclass
-class Dataset(Base):
-    __tablename__ = "dataset"
-
-    # Only include should be serialized to JSON as dataclass attributes
-    id: int
-    name: str
-    service: str
-    address: str
-    created: pendulum.DateTime
-    modified: pendulum.DateTime
-    workflow: Workflow = None
-    dataset_type: DatasetType = None
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(250))
-    service = Column(String(250), nullable=False)
-    address = Column(String(250), nullable=False)
-    created = Column(DateTime())
-    modified = Column(DateTime())
-
-    workflow_id = Column(Integer, ForeignKey(f"{Workflow.__tablename__}.id"), nullable=False)
-    dataset_type_id = Column(Integer, ForeignKey(f"{DatasetType.__tablename__}.id"), nullable=False)
-    releases = relationship("DatasetRelease", backref=__tablename__)
-
-    def __init__(
-        self,
-        id: int = None,
-        name: str = None,
-        service: str = None,
-        address: str = None,
-        workflow: Union[Workflow, dict] = None,
-        dataset_type: Union[DatasetType, dict] = None,
-        created: pendulum.DateTime = None,
-        modified: pendulum.DateTime = None,
-    ):
-        """Construct a Dataset object.
-
-        :param id: unique id.
-        :param name: the dataset name.
-        :param service: storage service name.
-        :param address: storage resource address.
-        :param created: datetime created in UTC.
-        :param modified: datetime modified in UTC.
-        :param workflow: the Workflow associated with this dataset.
-        :param dataset_type: the DatasetType associated with this dataset.
-        """
-
-        self.id = id
-        self.name = name
-        self.service = service
-        self.address = address
-        self.created = to_datetime_utc(created)
-        self.modified = to_datetime_utc(modified)
-
-        # Fetch associated table info
-        self.workflow = fetch_db_object(Workflow, workflow)
-        self.dataset_type = fetch_db_object(DatasetType, dataset_type)
-
-    def update(
-        self,
-        name: str = None,
-        service: str = None,
-        address: str = None,
-        workflow: Union[Workflow, dict] = None,
-        dataset_type: Union[DatasetType, dict] = None,
-        modified: pendulum.DateTime = None,
-    ):
-        """Update the properties of an existing Dataset object. This method is handy when you want to update
-        the Dataset from a dictionary, e.g. obj.update(**{'modified': datetime.utcnow()}).
-
-        :param name: the dataset name.
-        :param service: The storage service name, e.g., google.
-        :param address: Storage resource address, e.g., project.dataset.tablename
-        :param modified: datetime modified in UTC.
-        :param workflow: the Workflow associated with this dataset.
-        :param dataset_type: the DatasetType associated with this dataset.
-        :return: None.
-        """
-
-        if name is not None:
-            self.name = name
-
-        if service is not None:
-            self.service = service
-
-        if address is not None:
-            self.address = address
-
-        if workflow is not None:
-            self.workflow = fetch_db_object(Workflow, workflow)
-
-        if dataset_type is not None:
-            self.dataset_type = fetch_db_object(DatasetType, dataset_type)
-
-        if modified is not None:
-            self.modified = to_datetime_utc(modified)
-
-
-@dataclass
 class DatasetRelease(Base):
     __tablename__ = "dataset_release"
 
     id: int
-
-    start_date: pendulum.DateTime
-    end_date: pendulum.DateTime
+    dag_id: str
+    dataset_id: str
+    dag_run_id: str
+    data_interval_start: pendulum.DateTime
+    data_interval_end: pendulum.DateTime
+    snapshot_date: pendulum.DateTime
+    partition_date: pendulum.DateTime
+    changefile_start_date: pendulum.DateTime
+    changefile_end_date: pendulum.DateTime
+    sequence_start: int
+    sequence_end: int
+    extra: Dict
     created: pendulum.DateTime
     modified: pendulum.DateTime
-    dataset: Dataset = None
 
     id = Column(Integer, primary_key=True)
-    start_date = Column(DateTime())
-    end_date = Column(DateTime())
-    dataset_id = Column(Integer, ForeignKey(f"{Dataset.__tablename__}.id"), nullable=False)
+    dag_id = Column(String(250), nullable=False)
+    dataset_id = Column(String(250), nullable=False)
+    dag_run_id = Column(String(250), nullable=True)
+    data_interval_start = Column(DateTime(), nullable=True)
+    data_interval_end = Column(DateTime(), nullable=True)
+    snapshot_date = Column(DateTime(), nullable=True)
+    partition_date = Column(DateTime(), nullable=True)
+    changefile_start_date = Column(DateTime(), nullable=True)
+    changefile_end_date = Column(DateTime(), nullable=True)
+    sequence_start = Column(Integer, nullable=True)
+    sequence_end = Column(Integer, nullable=True)
+    extra = Column(JSON(), nullable=True)
     created = Column(DateTime())
     modified = Column(DateTime())
 
     def __init__(
         self,
         id: int = None,
-        start_date: Union[pendulum.DateTime, str] = None,
-        end_date: Union[pendulum.DateTime, str] = None,
-        dataset: Dataset = None,
+        dag_id: str = None,
+        dataset_id: str = None,
+        dag_run_id: str = None,
+        data_interval_start: Union[pendulum.DateTime, str] = None,
+        data_interval_end: Union[pendulum.DateTime, str] = None,
+        snapshot_date: Union[pendulum.DateTime, str] = None,
+        partition_date: Union[pendulum.DateTime, str] = None,
+        changefile_start_date: Union[pendulum.DateTime, str] = None,
+        changefile_end_date: Union[pendulum.DateTime, str] = None,
+        sequence_start: int = None,
+        sequence_end: int = None,
+        extra: dict = None,
         created: pendulum.DateTime = None,
         modified: pendulum.DateTime = None,
     ):
-        """Construct a DatasetStorage object.
+        """Construct a DatasetRelease object.
 
         :param id: unique id.
-        :param service: storage service name.
-        :param address: storage resource address.
+        :param dag_id: the DAG ID.
+        :param dataset_id: the dataset ID.
+        :param dag_run_id: the DAG's run ID.
+        :param data_interval_start: the DAGs data interval start. Date is inclusive.
+        :param data_interval_end: the DAGs data interval end. Date is exclusive.
+        :param snapshot_date: the release date of the snapshot.
+        :param partition_date: the partition date.
+        :param changefile_start_date: the date of the first changefile processed in this release.
+        :param changefile_end_date: the date of the last changefile processed in this release.
+        :param sequence_start: the starting sequence number of files that make up this release.
+        :param sequence_end: the end sequence number of files that make up this release.
+        :param extra: optional extra field for storing any data.
         :param created: datetime created in UTC.
         :param modified: datetime modified in UTC.
         """
 
         self.id = id
-        self.start_date = to_datetime_utc(start_date)
-        self.end_date = to_datetime_utc(end_date)
-
-        self.dataset = fetch_db_object(Dataset, dataset)
-
+        self.dag_id = dag_id
+        self.dataset_id = dataset_id
+        self.dag_run_id = dag_run_id
+        self.data_interval_start = to_datetime_utc(data_interval_start)
+        self.data_interval_end = to_datetime_utc(data_interval_end)
+        self.snapshot_date = to_datetime_utc(snapshot_date)
+        self.partition_date = to_datetime_utc(partition_date)
+        self.changefile_start_date = to_datetime_utc(changefile_start_date)
+        self.changefile_end_date = to_datetime_utc(changefile_end_date)
+        self.sequence_start = sequence_start
+        self.sequence_end = sequence_end
+        self.extra = extra
         self.created = to_datetime_utc(created)
         self.modified = to_datetime_utc(modified)
 
     def update(
         self,
-        start_date: Union[pendulum.DateTime, str] = None,
-        end_date: Union[pendulum.DateTime, str] = None,
-        dataset: Dataset = None,
+        dag_id: str = None,
+        dataset_id: str = None,
+        dag_run_id: str = None,
+        data_interval_start: Union[pendulum.DateTime, str] = None,
+        data_interval_end: Union[pendulum.DateTime, str] = None,
+        snapshot_date: Union[pendulum.DateTime, str] = None,
+        partition_date: Union[pendulum.DateTime, str] = None,
+        changefile_start_date: Union[pendulum.DateTime, str] = None,
+        changefile_end_date: Union[pendulum.DateTime, str] = None,
+        sequence_start: int = None,
+        sequence_end: int = None,
+        extra: dict = None,
         modified: pendulum.DateTime = None,
     ):
-        """Update the properties of an existing DatasetStorage object. This method is handy when you want to update
-        the DatasetStorage from a dictionary, e.g. obj.update(**{'service': 'hello world'}).
+        """Update the properties of an existing DatasetRelease object. This method is handy when you want to update
+        the DatasetRelease from a dictionary, e.g. obj.update(**{'service': 'hello world'}).
 
-        :param service: The storage service name, e.g., google.
-        :param address: Storage resource address, e.g., project.dataset.tablename
-        :param modified: Datetime modified in UTC.
-        :return: None.
-        """
-
-        if start_date is not None:
-            self.start_date = to_datetime_utc(start_date)
-
-        if end_date is not None:
-            self.end_date = to_datetime_utc(end_date)
-
-        if modified is not None:
-            self.modified = to_datetime_utc(modified)
-
-        if dataset is not None:
-            self.dataset = fetch_db_object(Dataset, dataset)
-
-
-@dataclass
-class BigQueryBytesProcessed(Base):
-    __tablename__ = "bigquery_bytes_processed"
-
-    id: int
-    project: str
-    total: int
-    created: pendulum.DateTime
-    modified: pendulum.DateTime
-
-    id = Column(Integer, primary_key=True)
-    project = Column(String(250))
-    total = Column(BigInteger)
-    created = Column(DateTime())
-    modified = Column(DateTime())
-
-    def __init__(
-        self,
-        id: int = None,
-        project: str = None,
-        total: int = None,
-        created: pendulum.DateTime = None,
-        modified: pendulum.DateTime = None,
-    ):
-        """Construct a BigQueryBytesProcessed object.
-
-        :param id: unique id.
-        :param project: GCP project.
-        :param total: Total number of processed bytes.
-        :param created: datetime created in UTC, i.e. the date that the query was made.
-        :param modified: datetime modified in UTC.
-        """
-
-        self.id = id
-        self.project = project
-        self.total = total
-        self.created = to_datetime_utc(created)
-        self.modified = to_datetime_utc(modified)
-
-    def update(self, project: str = None, date: str = None, total: int = None, modified: pendulum.DateTime = None):
-        """Update the properties of an existing BigQueryBytesProcessed object. This method is handy when you want to
-        update the BigQueryBytesProcessed from a dictionary, e.g. obj.update(**{'total': 100}).
-
-        :param project: GCP project name.
-        :param date: Date of queries in YYYY-MM-DD format.
-        :param total: Total number of processed bytes.
+        :param dag_id: the DAG ID.
+        :param dataset_id: the dataset ID.
+        :param dag_run_id: the DAG's run ID.
+        :param data_interval_start: the DAGs data interval start. Date is inclusive.
+        :param data_interval_end: the DAGs data interval end. Date is exclusive.
+        :param snapshot_date: the snapshot date.
+        :param partition_date: the partition date.
+        :param changefile_start_date: the date of the first changefile processed in this release.
+        :param changefile_end_date: the date of the last changefile processed in this release.
+        :param sequence_start: the starting sequence number of files that make up this release.
+        :param sequence_end: the end sequence number of files that make up this release.
+        :param extra: optional extra field for storing any data.
         :param modified: datetime modified in UTC.
         :return: None.
         """
 
-        if project is not None:
-            self.project = project
+        if dag_id is not None:
+            self.dag_id = dag_id
 
-        if total is not None:
-            self.total = total
+        if dataset_id is not None:
+            self.dataset_id = dataset_id
+
+        if dag_run_id is not None:
+            self.dag_run_id = dag_run_id
+
+        if data_interval_start is not None:
+            self.data_interval_start = to_datetime_utc(data_interval_start)
+
+        if data_interval_end is not None:
+            self.data_interval_end = to_datetime_utc(data_interval_end)
+
+        if snapshot_date is not None:
+            self.snapshot_date = to_datetime_utc(snapshot_date)
+
+        if partition_date is not None:
+            self.partition_date = to_datetime_utc(partition_date)
+
+        if changefile_start_date is not None:
+            self.changefile_start_date = to_datetime_utc(changefile_start_date)
+
+        if changefile_end_date is not None:
+            self.changefile_end_date = to_datetime_utc(changefile_end_date)
+
+        if sequence_start is not None:
+            self.sequence_start = sequence_start
+
+        if sequence_end is not None:
+            self.sequence_end = sequence_end
+
+        if extra is not None:
+            self.extra = extra
 
         if modified is not None:
             self.modified = to_datetime_utc(modified)

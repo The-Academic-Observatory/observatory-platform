@@ -32,18 +32,11 @@ import time
 import observatory.api.client
 from pprint import pprint
 from observatory.api.client.api import observatory_api
-from observatory.api.client.model.big_query_bytes_processed import BigQueryBytesProcessed
-from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
-from observatory.api.client.model.dataset_type import DatasetType
-from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.table_type import TableType
-from observatory.api.client.model.workflow import Workflow
-from observatory.api.client.model.workflow_type import WorkflowType
-# Defining the host is optional and defaults to https://api.observatory.academy
+# Defining the host is optional and defaults to https://localhost:5002
 # See configuration.py for a list of all supported configuration parameters.
 configuration = observatory.api.client.Configuration(
-    host = "https://api.observatory.academy"
+    host = "https://localhost:5002"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -62,18 +55,18 @@ configuration.api_key['api_key'] = 'YOUR_API_KEY'
 with observatory.api.client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = observatory_api.ObservatoryApi(api_client)
-    id = 1 # int | Dataset id
+    id = 1 # int | DatasetRelease id
 
     try:
-        # delete a Dataset
-        api_instance.delete_dataset(id)
+        # delete a DatasetRelease
+        api_instance.delete_dataset_release(id)
     except observatory.api.client.ApiException as e:
-        print("Exception when calling ObservatoryApi->delete_dataset: %s\n" % e)
+        print("Exception when calling ObservatoryApi->delete_dataset_release: %s\n" % e)
 ```
 
 ## Documentation for API Endpoints
 
-All URIs are relative to *https://api.observatory.academy*
+All URIs are relative to *https://localhost:5002*
 
 ```eval_rst
 .. toctree::
@@ -96,65 +89,9 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#delete_dataset"><strong>delete_dataset</strong></a></td>
-<td><strong>DELETE</strong> /v1/dataset</td>
-<td>delete a Dataset</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
 <td><a href="ObservatoryApi.html#delete_dataset_release"><strong>delete_dataset_release</strong></a></td>
 <td><strong>DELETE</strong> /v1/dataset_release</td>
 <td>delete a DatasetRelease</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#delete_dataset_type"><strong>delete_dataset_type</strong></a></td>
-<td><strong>DELETE</strong> /v1/dataset_type</td>
-<td>delete a DatasetType</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#delete_organisation"><strong>delete_organisation</strong></a></td>
-<td><strong>DELETE</strong> /v1/organisation</td>
-<td>delete an Organisation</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#delete_table_type"><strong>delete_table_type</strong></a></td>
-<td><strong>DELETE</strong> /v1/table_type</td>
-<td>delete a TableType</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#delete_workflow"><strong>delete_workflow</strong></a></td>
-<td><strong>DELETE</strong> /v1/workflow</td>
-<td>delete a Workflow</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#delete_workflow_type"><strong>delete_workflow_type</strong></a></td>
-<td><strong>DELETE</strong> /v1/workflow_type</td>
-<td>delete a WorkflowType</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_bigquery_bytes_processed"><strong>get_bigquery_bytes_processed</strong></a></td>
-<td><strong>GET</strong> /v1/bigquery_bytes_processed</td>
-<td>get a BigQueryBytesProcessed</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_dataset"><strong>get_dataset</strong></a></td>
-<td><strong>GET</strong> /v1/dataset</td>
-<td>get a Dataset</td>
 </tr>
 
 <tr>
@@ -173,97 +110,6 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_dataset_type"><strong>get_dataset_type</strong></a></td>
-<td><strong>GET</strong> /v1/dataset_type</td>
-<td>get a DatasetType</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_dataset_types"><strong>get_dataset_types</strong></a></td>
-<td><strong>GET</strong> /v1/dataset_types</td>
-<td>Get a list of DatasetType objects</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_datasets"><strong>get_datasets</strong></a></td>
-<td><strong>GET</strong> /v1/datasets</td>
-<td>Get a list of Datasets</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_organisation"><strong>get_organisation</strong></a></td>
-<td><strong>GET</strong> /v1/organisation</td>
-<td>get an Organisation</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_organisations"><strong>get_organisations</strong></a></td>
-<td><strong>GET</strong> /v1/organisations</td>
-<td>Get a list of Organisations</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_table_type"><strong>get_table_type</strong></a></td>
-<td><strong>GET</strong> /v1/table_type</td>
-<td>get a TableType</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_table_types"><strong>get_table_types</strong></a></td>
-<td><strong>GET</strong> /v1/table_types</td>
-<td>Get a list of TableType objects</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_workflow"><strong>get_workflow</strong></a></td>
-<td><strong>GET</strong> /v1/workflow</td>
-<td>get a Workflow</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_workflow_type"><strong>get_workflow_type</strong></a></td>
-<td><strong>GET</strong> /v1/workflow_type</td>
-<td>get a WorkflowType</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_workflow_types"><strong>get_workflow_types</strong></a></td>
-<td><strong>GET</strong> /v1/workflow_types</td>
-<td>Get a list of WorkflowType objects</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#get_workflows"><strong>get_workflows</strong></a></td>
-<td><strong>GET</strong> /v1/workflows</td>
-<td>Get a list of Workflow objects</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#post_bigquery_bytes_processed"><strong>post_bigquery_bytes_processed</strong></a></td>
-<td><strong>POST</strong> /v1/bigquery_bytes_processed</td>
-<td>create a BigQueryBytesProcessed</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#post_dataset"><strong>post_dataset</strong></a></td>
-<td><strong>POST</strong> /v1/dataset</td>
-<td>create a Dataset</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
 <td><a href="ObservatoryApi.html#post_dataset_release"><strong>post_dataset_release</strong></a></td>
 <td><strong>POST</strong> /v1/dataset_release</td>
 <td>create a DatasetRelease</td>
@@ -271,86 +117,9 @@ All URIs are relative to *https://api.observatory.academy*
 
 <tr>
 <td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#post_dataset_type"><strong>post_dataset_type</strong></a></td>
-<td><strong>POST</strong> /v1/dataset_type</td>
-<td>create a DatasetType</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#post_organisation"><strong>post_organisation</strong></a></td>
-<td><strong>POST</strong> /v1/organisation</td>
-<td>create an Organisation</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#post_table_type"><strong>post_table_type</strong></a></td>
-<td><strong>POST</strong> /v1/table_type</td>
-<td>create a TableType</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#post_workflow"><strong>post_workflow</strong></a></td>
-<td><strong>POST</strong> /v1/workflow</td>
-<td>create a Workflow</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#post_workflow_type"><strong>post_workflow_type</strong></a></td>
-<td><strong>POST</strong> /v1/workflow_type</td>
-<td>create a WorkflowType</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#put_dataset"><strong>put_dataset</strong></a></td>
-<td><strong>PUT</strong> /v1/dataset</td>
-<td>create or update a Dataset</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
 <td><a href="ObservatoryApi.html#put_dataset_release"><strong>put_dataset_release</strong></a></td>
 <td><strong>PUT</strong> /v1/dataset_release</td>
 <td>create or update a DatasetRelease</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#put_dataset_type"><strong>put_dataset_type</strong></a></td>
-<td><strong>PUT</strong> /v1/dataset_type</td>
-<td>create or update a DatasetType</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#put_organisation"><strong>put_organisation</strong></a></td>
-<td><strong>PUT</strong> /v1/organisation</td>
-<td>create or update an Organisation</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#put_table_type"><strong>put_table_type</strong></a></td>
-<td><strong>PUT</strong> /v1/table_type</td>
-<td>create or update a TableType</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#put_workflow"><strong>put_workflow</strong></a></td>
-<td><strong>PUT</strong> /v1/workflow</td>
-<td>create or update a Workflow</td>
-</tr>
-
-<tr>
-<td><em>ObservatoryApi</em></td>
-<td><a href="ObservatoryApi.html#put_workflow_type"><strong>put_workflow_type</strong></a></td>
-<td><strong>PUT</strong> /v1/workflow_type</td>
-<td>create or update a WorkflowType</td>
 </tr>
 
 
@@ -362,14 +131,7 @@ All URIs are relative to *https://api.observatory.academy*
 .. toctree::
     :maxdepth: 1
 
-    BigQueryBytesProcessed
-    Dataset
     DatasetRelease
-    DatasetType
-    Organisation
-    TableType
-    Workflow
-    WorkflowType
     
 ```
 

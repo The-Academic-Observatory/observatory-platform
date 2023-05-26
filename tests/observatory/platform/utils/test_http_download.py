@@ -14,21 +14,21 @@
 
 # Author: Tuan Chien
 
-import logging
 import os
 import shutil
 from unittest.mock import patch
 
 from click.testing import CliRunner
+
+from observatory.platform.observatory_environment import (
+    HttpServer,
+    ObservatoryTestCase,
+    test_fixtures_path,
+)
 from observatory.platform.utils.http_download import (
     DownloadInfo,
     download_file,
     download_files,
-)
-from observatory.platform.utils.test_utils import (
-    HttpServer,
-    ObservatoryTestCase,
-    test_fixtures_path,
 )
 from observatory.platform.utils.url_utils import get_observatory_http_header
 
@@ -101,6 +101,20 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                 self.assert_file_integrity(file1, hash1, algorithm)
                 self.assert_file_integrity(file2, hash2, algorithm)
 
+            # Assert that filepaths are correct
+            with CliRunner().isolated_filesystem() as tmpdir:
+                success, download_info = download_file(url=url1)
+                self.assertTrue(success)
+                self.assertEqual(file1, download_info.file_path)
+
+                success, download_info = download_file(url=url1, prefix_dir=tmpdir)
+                self.assertTrue(success)
+                self.assertEqual(os.path.join(tmpdir, file1), download_info.file_path)
+
+                success, download_info = download_file(url=url1, prefix_dir=tmpdir, filename=file2)
+                self.assertTrue(success)
+                self.assertEqual(os.path.join(tmpdir, file2), download_info.file_path)
+
             # Single download with  (prefix dir)
             with CliRunner().isolated_filesystem() as tmpdir:
                 dinfo = DownloadInfo(url=url1, filename=file1, prefix_dir="invalid")
@@ -129,7 +143,7 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                 shutil.copyfile(src_file, dst_file)
 
                 hash = "garbage2dc0f896fd7cb4cb0031ba249"
-                success = download_file(url=url1, hash=hash, hash_algorithm="md5")
+                success, download_info = download_file(url=url1, hash=hash, hash_algorithm="md5")
                 self.assertFalse(success)
 
             # File exists, bad hash (prefix dir)
@@ -139,18 +153,18 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                 shutil.copyfile(src_file, dst_file)
 
                 hash = "garbage2dc0f896fd7cb4cb0031ba249"
-                success = download_file(url=url1, hash=hash, hash_algorithm="md5", prefix_dir=tmpdir)
+                success, download_info = download_file(url=url1, hash=hash, hash_algorithm="md5", prefix_dir=tmpdir)
                 self.assertFalse(success)
 
             # File does not exist, bad hash
             with CliRunner().isolated_filesystem() as tmpdir:
                 hash = "garbage2dc0f896fd7cb4cb0031ba249"
-                success = download_file(url=url1, hash=hash, hash_algorithm="md5")
+                success, download_info = download_file(url=url1, hash=hash, hash_algorithm="md5")
                 self.assertFalse(success)
 
             # File does not exist, good hash
             with CliRunner().isolated_filesystem() as tmpdir:
-                success = download_file(url=url1, hash=hash1, hash_algorithm="md5")
+                success, download_info = download_file(url=url1, hash=hash1, hash_algorithm="md5")
                 self.assertTrue(success)
                 self.assert_file_integrity(file1, hash1, algorithm)
 
@@ -163,7 +177,7 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
 
                 # Skip download because exists (with prefix dir)
                 with patch("observatory.platform.utils.http_download.download_http_file_") as m_down:
-                    success = download_file(
+                    success, download_info = download_file(
                         url=url1, filename=file1, hash=hash1, hash_algorithm="md5", prefix_dir=tmpdir
                     )
                     self.assertTrue(success)
@@ -174,7 +188,7 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
             with CliRunner().isolated_filesystem() as tmpdir:
                 with patch("observatory.platform.utils.http_download.parse_header") as m_header:
                     m_header.return_value = (None, {"filename": "testfile"})
-                    success = download_file(url=url1, hash=hash1, hash_algorithm="md5")
+                    success, download_info = download_file(url=url1, hash=hash1, hash_algorithm="md5")
                     self.assertTrue(success)
                     self.assert_file_integrity("testfile", hash1, algorithm)
 

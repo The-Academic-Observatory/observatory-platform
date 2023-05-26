@@ -151,15 +151,15 @@ from observatory.platform.utils.airflow_utils import AirflowVars, AirflowConns
 
 
 class MyRelease(Release):
-    def __init__(self, dag_id: str, release_date: pendulum.DateTime):
+    def __init__(self, dag_id: str, snapshot_date: pendulum.DateTime):
         """Construct a Release instance
 
         :param dag_id: the id of the DAG.
-        :param release_date: the release date (used to construct release_id).
+        :param snapshot_date: the release date (used to construct release_id).
         """
 
-        self.release_date = release_date
-        release_id = f'{dag_id}_{self.release_date.strftime("%Y_%m_%d")}'
+        self.snapshot_date = snapshot_date
+        release_id = f'{dag_id}_{self.snapshot_date.strftime("%Y_%m_%d")}'
         super().__init__(dag_id, release_id)
 
 
@@ -234,8 +234,8 @@ class MyWorkflow(Workflow):
         :param kwargs: the context passed from the PythonOperator.
         :return: A release instance
         """
-        release_date = kwargs["execution_date"]
-        release = MyRelease(dag_id=self.dag_id, release_date=release_date)
+        snapshot_date = kwargs["execution_date"]
+        release = MyRelease(dag_id=self.dag_id, snapshot_date=snapshot_date)
         return release
 
     def task1(self, release: MyRelease, **kwargs):
@@ -345,8 +345,8 @@ def cleanup(**kwargs):
     :return: None.
     """
     dag_id = "my_workflow"
-    release_date = kwargs["execution_date"]
-    release_id = f'{dag_id}_{release_date.strftime("%Y_%m_%d")}'
+    snapshot_date = kwargs["execution_date"]
+    release_id = f'{dag_id}_{snapshot_date.strftime("%Y_%m_%d")}'
     download_folder = workflow_path(SubFolder.downloaded.value, dag_id, release_id)
     extract_folder = workflow_path(SubFolder.extracted.value, dag_id, release_id)
     transform_folder = workflow_path(SubFolder.transformed.value, dag_id, release_id)

@@ -28,11 +28,10 @@ import observatory.platform.docker as docker_module
 from observatory.platform.cli.cli import HOST_UID
 from observatory.platform.docker.platform_runner import PlatformRunner
 from observatory.platform.observatory_config import (
-    AirflowConnection,
-    AirflowVariable,
     Backend,
     BackendType,
-    CloudStorageBucket,
+    Workflow,
+    CloudWorkspace,
     Environment,
     GoogleCloud,
     Observatory,
@@ -40,7 +39,7 @@ from observatory.platform.observatory_config import (
     Terraform,
     WorkflowsProject,
 )
-from observatory.platform.utils.test_utils import module_file_path
+from observatory.platform.observatory_environment import module_file_path
 
 
 class MockFromEnv(Mock):
@@ -80,7 +79,6 @@ def make_expected_env(cmd: PlatformRunner) -> Dict:
         "AIRFLOW_UI_USER_EMAIL": cmd.config.observatory.airflow_ui_user_email,
         "AIRFLOW_UI_USER_PASSWORD": cmd.config.observatory.airflow_ui_user_password,
         "POSTGRES_PASSWORD": cmd.config.observatory.postgres_password,
-        "AIRFLOW_VAR_ENVIRONMENT": "develop",
     }
 
 
@@ -207,9 +205,6 @@ class TestPlatformRunner(unittest.TestCase):
             cmd = PlatformRunner(config=cfg)
 
             # Manually override the platform command with a more fleshed out config file
-            bucket = CloudStorageBucket(id="download_bucket", name="my-download-bucket-name")
-            var = AirflowVariable(name="my-var", value="my-variable-value")
-            conn = AirflowConnection(name="my-conn", value="http://my-username:my-password@")
             dags_project = WorkflowsProject(
                 package_name="academic-observatory-workflows",
                 package="/path/to/academic-observatory-workflows",
@@ -225,18 +220,30 @@ class TestPlatformRunner(unittest.TestCase):
                 airflow_secret_key="a" * 16,
                 observatory_home=t,
             )
-            google_cloud = GoogleCloud(
-                project_id="my-project-id", credentials="/path/to/creds.json", data_location="us", buckets=[bucket]
-            )
+            google_cloud = GoogleCloud(project_id="my-project-id", credentials="/path/to/creds.json")
             terraform = Terraform(organization="my-terraform-org-name")
+            cloud_workspace = CloudWorkspace(
+                project_id="my-project-id",
+                download_bucket="my-download-bucket",
+                transform_bucket="my-transform-bucket",
+                data_location="us",
+            )
             config = ObservatoryConfig(
                 backend=backend,
                 observatory=observatory,
                 google_cloud=google_cloud,
                 terraform=terraform,
-                airflow_variables=[var],
-                airflow_connections=[conn],
                 workflows_projects=[dags_project],
+                cloud_workspaces=[],
+                workflows=[
+                    Workflow(
+                        dag_id="my_workflow",
+                        name="My Workflow",
+                        class_name="path.to.my_workflow.Workflow",
+                        cloud_workspace=cloud_workspace,
+                        kwargs=dict(hello="world"),
+                    )
+                ],
             )
             cmd.config = config
             cmd.config_exists = True
@@ -250,15 +257,8 @@ class TestPlatformRunner(unittest.TestCase):
             expected_env["AIRFLOW_FERNET_KEY"] = cmd.config.observatory.airflow_fernet_key
             expected_env["AIRFLOW_SECRET_KEY"] = cmd.config.observatory.airflow_secret_key
             expected_env["HOST_GOOGLE_APPLICATION_CREDENTIALS"] = cmd.config.google_cloud.credentials
-            expected_env["AIRFLOW_VAR_ENVIRONMENT"] = cmd.config.backend.environment.value
-            expected_env["AIRFLOW_VAR_PROJECT_ID"] = google_cloud.project_id
-            expected_env["AIRFLOW_VAR_DATA_LOCATION"] = google_cloud.data_location
-            expected_env["AIRFLOW_VAR_TERRAFORM_ORGANIZATION"] = terraform.organization
-            expected_env["AIRFLOW_VAR_DOWNLOAD_BUCKET"] = bucket.name
-
-            # TODO: it seems a little inconsistent to name these vars like this
-            expected_env["AIRFLOW_VAR_MY-VAR"] = var.value
-            expected_env["AIRFLOW_CONN_MY-CONN"] = conn.value
+            expected_env["AIRFLOW_VAR_WORKFLOWS"] = cmd.config.airflow_var_workflows
+            expected_env["AIRFLOW_VAR_DAGS_MODULE_NAMES"] = cmd.config.airflow_var_dags_module_names
 
             # Check that expected keys and values exist
             for key, value in expected_env.items():

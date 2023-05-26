@@ -14,5 +14,5 @@
 # limitations under the License.
 
 # Basic dependencies
-sudo apt-get update
+apt-get update
 apt-get install git build-essential -y

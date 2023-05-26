@@ -14,12 +14,15 @@ alembic<=1.9.4 # prevent alembic errors
 
 # Google Cloud
 google-crc32c>=1.1.0,<2
-google-cloud-bigquery==2.1.*
+google-cloud-bigquery==3.3.*
 google-api-python-client==2.0.*
 google-cloud-storage==1.35.*
 google-auth-oauthlib>=0.4.5,<1
 google-cloud-secret-manager<2.0.0,>=0.2.0 # for Google Cloud Secret Manager backend
 google-api-core==1.33.2 # fix TypeError: _blocking_poll() got an unexpected keyword argument 'retry'
+
+# AWS
+boto3>=1.15.0,<2
 
 # Elasticsearch
 elasticsearch>=8.0.0,<9
@@ -44,6 +47,7 @@ json_lines>=0.5.0,<1 # Reading, including jsonl.gz
 requests>=2.25.0,<3
 tldextract>=3.1.1
 aiohttp>=3.7.0,<4
+responses>=0.23.1,<1
 
 # SFTP
 pysftp>=0.2.9,<1
@@ -59,7 +63,7 @@ pandas
 tenacity
 
 # Test utils
-freezegun>=1.1.0,<2
+time_machine>=2.0.0,<3
 httpretty>=1.0.0,<2
 sftpserver>=0.3,<1
 
@@ -72,3 +76,8 @@ six>=1.16.0,<2
 
 oauth2client==4.1.*
 importlib-metadata==3.7.3
+
+deprecation>2,<3
+
+virtualenv
+deepdiff

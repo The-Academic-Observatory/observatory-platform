@@ -12,23 +12,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Keegan Smith
 
+import cgi
 import json
+import logging
 import os
-import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, List, Tuple, Union
-import logging
+from datetime import datetime
+from email.utils import parsedate_to_datetime
+from typing import Dict, List, Tuple, Union, Optional
 
+import pytz
 import requests
+import time
 import xmltodict
+from airflow import AirflowException
 from importlib_metadata import metadata
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from tenacity import Retrying, stop_after_attempt, before_sleep_log, wait_exponential_jitter
-from tenacity.wait import wait_base
+from tenacity.wait import wait_base, wait_fixed
+from urllib3.util.retry import Retry
+
+
+def parse_retry_after(retry_after: Optional[str]) -> Optional[int]:
+    """Parse the Retry-After header. Can be a delay in seconds or a datetime.
+
+    :param retry_after: the Retry-After header.
+    :return: returns the number of seconds to wait for.
+    """
+
+    delay = None
+    if retry_after is not None:
+        try:
+            delay = int(retry_after)
+        except ValueError:
+            retry_date = parsedate_to_datetime(retry_after)
+            delay = max(0., (retry_date - datetime.now(pytz.utc)).total_seconds())
+    return delay
 
 
 def retry_get_url(
@@ -51,28 +73,46 @@ def retry_get_url(
     log_url = "***" if squelch_url else url
     logger = logging.getLogger(__name__)
     logging.basicConfig(level=logging.INFO)
-    for attempt in Retrying(
+    retrier = Retrying(
         stop=stop_after_attempt(num_retries),
         wait=wait,
         reraise=True,
         before_sleep=before_sleep_log(logger, logging.INFO),
-    ):
+    )
+    prev_wait = None
+    for attempt in retrier:
         # Set the function that Tenacity thinks it's retrying. This fixes the name in the logs
         attempt.retry_state.fn = retry_get_url
+
+        # Set wait back to original wait function after 429 error handling
+        if prev_wait is not None:
+            retrier.wait = prev_wait
+            prev_wait = None
+
         with attempt:
             try:
                 response = None
                 response = requests.get(url, **kwargs)
                 response.raise_for_status()
-            except requests.exceptions.RequestException as e:
-                response_log = f"Error getting url: {log_url} | "
-                if response is not None:  # Timeout error doesn't result in response
-                    response_log += f"Got response code: {response.status_code} | Reason: {response.reason} | "
-                response_log += (
-                    f"Attempt: {attempt.retry_state.attempt_number} | Idle for: {attempt.retry_state.idle_for}"
-                )
+            except (requests.exceptions.ReadTimeout, requests.exceptions.HTTPError) as e:
+                log = f"Error getting url: {log_url} | "
+
+                if isinstance(e, requests.exceptions.HTTPError):
+                    # Timeout error doesn't result in response, but HTTPError does
+                    log += f"Got response code: {response.status_code} | Reason: {response.reason} | "
+
+                    # Handle HTTP 429 error
+                    if response.status_code == 429:
+                        delay = parse_retry_after(response.headers.get("Retry-After"))
+                        if delay is not None:
+                            prev_wait = retrier.wait
+                            retrier.wait = wait_fixed(delay)
+                            log += f"Retry-After header detected, sleeping for: {delay} seconds"
+
+                log += f"Attempt: {attempt.retry_state.attempt_number} | Idle for: {attempt.retry_state.idle_for}"
+
                 # Using e.__class__ logs the specific name of the exception
-                raise e.__class__(response_log)
+                raise e.__class__(log)
     return response
 
 
@@ -223,5 +263,8 @@ def get_filename_from_http_header(url: str) -> str:
     """
 
     response = requests.head(url)
-    cd = response.headers["Content-Disposition"]
-    return cd
+    if response.status_code != 200:
+        raise AirflowException(f"get_filename_from_http_header: url={response.url}, status_code={response.status_code}")
+    header = response.headers["Content-Disposition"]
+    value, params = cgi.parse_header(header)
+    return params.get("filename")

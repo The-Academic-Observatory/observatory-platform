@@ -12,19 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
+# Author: James Diprose, Keegan Smith
 
 import unittest
 from datetime import datetime
 from typing import List
 from unittest.mock import patch
-import time
 
 import httpretty
+import pendulum
 import requests
+import responses
+import time
+from airflow.exceptions import AirflowException
 from click.testing import CliRunner
 from tenacity import wait_fixed
-from observatory.platform.utils.test_utils import HttpServer, test_fixtures_path
+
+from observatory.platform.observatory_environment import HttpServer, test_fixtures_path
 from observatory.platform.utils.url_utils import (
     get_filename_from_url,
     get_http_response_json,
@@ -41,25 +45,6 @@ from tests.observatory.platform.cli.test_platform_command import MockUrlOpen
 
 
 class TestUrlUtils(unittest.TestCase):
-    relative_urls = [
-        "#skip-to-content",
-        "#",
-        "/local/assets/css/tipso.css",
-        "acknowledgements/rogers.html",
-        "acknowledgements/staff.html#lwallace",
-        "?residentType=INT",
-        "hello/?p=2036",
-    ]
-
-    absolute_urls = [
-        "https://www.curtin.edu.au/",
-        "//global.curtin.edu.au/template/css/layoutv3.css",
-        "https://www.curtin.edu.au/?p=1000",
-        "https://www.curtin.edu.au/test#",
-        "https://www.curtin.edu.au/test#lwallace",
-        "//global.curtin.edu.au/template/css/layoutv3.css/?a=1",
-    ]
-
     class MockMetadata:
         @classmethod
         def get(self, attribute):
@@ -110,33 +95,118 @@ class TestUrlUtils(unittest.TestCase):
         httpretty.disable()
         httpretty.reset()
 
+    @responses.activate
     def test_retry_get_url(self):
-        httpretty.enable()
-
         # Test that we receive the last response
+        responses.reset()
         url = "http://test.com/"
-        status_codes = [500, 404, 200]
-        bodies = ["Internal server error", "Page not found", "success"]
-        self.__create_mock_request_sequence(url, status_codes, bodies)
+        res = responses.Response(
+            method="GET",
+            url=url,
+            body="Internal server error",
+            status=500,
+        )
+        responses.add(res)
+        res = responses.Response(
+            method="GET",
+            url=url,
+            body="Page not found",
+            status=404,
+        )
+        responses.add(res)
+        res = responses.Response(
+            method="GET",
+            url=url,
+            body="success",
+            status=200,
+        )
+        responses.add(res)
         response = retry_get_url(url, num_retries=3, wait=wait_fixed(0))
         self.assertEqual(response.text, "success")
+        self.assertEqual(response.status_code, 200)
 
         # Test that an HTTPError is triggered
+        responses.reset()
         url = "http://fail.com/"
-        status_codes = [500, 500, 500, 500, 200]  # It should fail before getting to status 200, because we only retry
-        # 3 times
-        bodies = ["Internal server error"] * 4 + ["success"]
-        self.__create_mock_request_sequence(url, status_codes, bodies)
+        res = responses.Response(
+            method="GET",
+            url=url,
+            body="Internal server error",
+            status=500,
+        )
+        responses.add(res)
+        res = responses.Response(
+            method="GET",
+            url=url,
+            body="Internal server error",
+            status=500,
+        )
+        responses.add(res)
+        res = responses.Response(
+            method="GET",
+            url=url,
+            body="Internal server error",
+            status=500,
+        )
+        responses.add(res)
+        res = responses.Response(
+            method="GET",
+            url=url,
+            body="success",
+            status=200,
+        )
+        responses.add(res)
         with self.assertRaises(requests.exceptions.HTTPError):
-            response = retry_get_url(url, num_retries=3, wait=wait_fixed(0))
+            retry_get_url(url, num_retries=3, wait=wait_fixed(0))
 
+        # Test 429 error handling
+        responses.reset()
+        url = "http://toomanyrequests.com/"
+        res = responses.Response(method="GET", url=url, body="Internal server error", status=500)
+        responses.add(res)
+        res = responses.Response(
+            method="GET", url=url, body="Too many requests", status=429, headers={"Retry-After": "10"}
+        )
+        responses.add(res)
+        retry_after_date = pendulum.now().add(seconds=20).in_tz("GMT").format("ddd, DD MMM YYYY HH:mm:ss [GMT]")
+        print(f"retry_after_date: {retry_after_date}")
+        res = responses.Response(
+            method="GET",
+            url=url,
+            body="Too many requests",
+            status=429,
+            headers={"Retry-After": retry_after_date},
+        )
+        responses.add(res)
+        res = responses.Response(method="GET", url=url, body="Internal server error", status=500)
+        responses.add(res)
+        res = responses.Response(
+            method="GET",
+            url=url,
+            body="success",
+            status=200,
+        )
+        responses.add(res)
+        start = datetime.now()
+        response = retry_get_url(url, num_retries=5)
+        end = datetime.now()
+        self.assertEqual(response.text, "success")
+        self.assertEqual(response.status_code, 200)
+
+        expected_wait = 60.0
+        duration = (end - start).total_seconds()
+        self.assertAlmostEqual(expected_wait, duration, delta=2.5)
+
+    def test_retry_get_url_read_timeout(self):
         # Test that a ReadTimeout is triggered
+
+        httpretty.enable()
         url = "http://timeout.com/"
         status_codes = [500, 500, 500, 200]
         bodies = ["Internal server error"] * 4 + ["success"]
         self.__create_mock_request_sequence(url, status_codes, bodies, sleep=3)
         with self.assertRaises(requests.exceptions.ReadTimeout):
-            response = retry_get_url(url, num_retries=3, wait=wait_fixed(0), timeout=2)
+            retry_get_url(url, num_retries=3, wait=wait_fixed(0), timeout=2)
 
         # Cleanup
         httpretty.disable()
@@ -234,11 +304,24 @@ class TestUrlUtils(unittest.TestCase):
 
     @patch("observatory.platform.utils.url_utils.requests.head")
     def test_get_filename_from_http_header(self, m_head):
+        url = "http://someurl"
+
         class MockResponse:
             def __init__(self):
-                self.headers = {"Content-Disposition": "filename"}
+                self.url = url
+                self.headers = {
+                    "Content-Disposition": 'attachment; filename="unpaywall_snapshot_2023-03-23T083001.jsonl.gz"'
+                }
+                self.status_code = 200
 
+        # Assert correct filename
         m_head.return_value = MockResponse()
+        filename = get_filename_from_http_header(url)
+        self.assertEqual("unpaywall_snapshot_2023-03-23T083001.jsonl.gz", filename)
 
-        filename = get_filename_from_http_header("someurl")
-        self.assertEqual(filename, "filename")
+        # Assert AirflowException when status code is invalid (not 200)
+        with self.assertRaises(AirflowException):
+            response = MockResponse()
+            response.status_code = 403
+            m_head.return_value = response
+            get_filename_from_http_header(url)
