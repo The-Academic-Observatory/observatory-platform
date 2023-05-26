@@ -22,8 +22,8 @@ from typing import Dict
 import requests
 from elasticsearch import Elasticsearch
 
+from observatory.platform.config import module_file_path
 from observatory.platform.docker.compose_runner import ComposeRunner, ProcessOutput
-from observatory.platform.utils.config_utils import module_file_path
 
 
 class ElasticEnvironment(ComposeRunner):

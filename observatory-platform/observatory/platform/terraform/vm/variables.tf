@@ -1,64 +1,69 @@
 variable "name" {
-  type = string
+  type        = string
   description = ""
 }
 
 variable "image" {
   type = object({
-    self_link=string
+    self_link = string
   })
   description = ""
 }
 
 variable "network" {
   type = object({
-    id=string
-    name=string
+    id   = string
+    name = string
   })
   description = ""
 }
 variable "subnetwork" {
   type = object({
-    id=string
-    name=string
-    self_link=string
+    id        = string
+    name      = string
+    self_link = string
   })
   description = ""
 }
 
-variable "static_external_ip_address" {
-  type = string
+variable "internal_ip" {
+  type        = string
+  description = "The static internal IP address for the VM"
+}
+
+variable "external_ip" {
+  type        = string
   description = "The static external IP address for the VM"
 }
 
 variable "region" {
-  type = string
+  type        = string
   description = ""
 }
 
 variable "machine_type" {
-  type = string
+  type        = string
   description = ""
 }
 
 variable "disk_size" {
-  type = number
+  type        = number
   description = "Disk size in GB"
 }
 
 variable "disk_type" {
-  type = string
+  type        = string
   description = "Disk type"
 }
 
 variable "service_account_email" {
-  type = string
+  type        = string
   description = ""
 }
 
-variable "startup_script_path"{
+variable "startup_script_path" {
   type = string
 }
 
-variable "metadata_variables"{
+variable "metadata_variables" {
 }

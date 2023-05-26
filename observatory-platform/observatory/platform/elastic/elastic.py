@@ -28,15 +28,15 @@ from elasticsearch.helpers import parallel_bulk, scan
 from pendulum import Date
 
 
-def make_sharded_index(index_prefix: str, release_date: Date) -> str:
+def make_sharded_index(index_prefix: str, snapshot_date: Date) -> str:
     """Make a sharded Elasticsearch index given an index prefix and a date.
 
     :param index_prefix: the index prefix.
-    :param release_date: the date.
+    :param snapshot_date: the date.
     :return: the sharded index.
     """
 
-    return f'{index_prefix}-{release_date.strftime("%Y%m%d")}'
+    return f'{index_prefix}-{snapshot_date.strftime("%Y%m%d")}'
 
 
 def make_elastic_uri(schema: str, user: str, secret: str, hostname: str, port: int) -> str:

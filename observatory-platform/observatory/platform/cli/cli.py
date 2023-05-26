@@ -14,6 +14,7 @@
 
 # Author: James Diprose, Aniek Roelofs, Tuan Chien
 
+import json
 import os
 from typing import ClassVar
 
@@ -23,15 +24,15 @@ from observatory.platform.cli.cli_utils import INDENT1, INDENT2, INDENT3, indent
 from observatory.platform.cli.generate_command import GenerateCommand
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.cli.terraform_command import TerraformCommand
+from observatory.platform.config import observatory_home
+from observatory.platform.config import (
+    terraform_credentials_path as default_terraform_credentials_path,
+)
 from observatory.platform.docker.platform_runner import DEBUG, HOST_UID
 from observatory.platform.observatory_config import Config, TerraformConfig, ObservatoryConfig
 from observatory.platform.observatory_config import (
     generate_fernet_key,
     generate_secret_key,
-)
-from observatory.platform.utils.config_utils import observatory_home
-from observatory.platform.utils.config_utils import (
-    terraform_credentials_path as default_terraform_credentials_path,
 )
 
 PLATFORM_NAME = "Observatory Platform"
@@ -377,6 +378,30 @@ def terraform(command, config_path, terraform_credentials_path, debug):
         # Update an existing workspace
         elif command == "update-workspace":
             terraform_cmd.update_workspace()
+
+
+@cli.command("sort-schema")
+@click.argument("input-file", type=click.Path(exists=True, file_okay=True, dir_okay=False))
+def sort_schema_cmd(input_file):
+    def sort_schema(schema):
+        sorted_schema = sorted(schema, key=lambda x: x["name"])
+
+        for field in sorted_schema:
+            if field["type"] == "RECORD" and "fields" in field:
+                field["fields"] = sort_schema(field["fields"])
+
+        return sorted_schema
+
+    # Load the JSON schema from a string
+    with open(input_file, mode="r") as f:
+        data = json.load(f)
+
+    # Sort the schema
+    sorted_json_schema = sort_schema(data)
+
+    # Save the schema
+    with open(input_file, mode="w") as f:
+        json.dump(sorted_json_schema, f, indent=2)
 
 
 def terraform_check_dependencies(

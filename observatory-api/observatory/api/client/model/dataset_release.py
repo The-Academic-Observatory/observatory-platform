@@ -25,14 +25,10 @@ from observatory.api.client.model_utils import (  # noqa: F401
     file_type,
     none_type,
     validate_get_composed_info,
+    OpenApiModel
 )
-from ..model_utils import OpenApiModel
 from observatory.api.client.exceptions import ApiAttributeError
 
-
-def lazy_import():
-    from observatory.api.client.model.dataset import Dataset
-    globals()['Dataset'] = Dataset
 
 
 class DatasetRelease(ModelNormal):
@@ -79,14 +75,22 @@ class DatasetRelease(ModelNormal):
             openapi_types (dict): The key is attribute name
                 and the value is attribute type.
         """
-        lazy_import()
         return {
             'id': (int,),  # noqa: E501, F821
-            'start_date': (datetime,),  # noqa: E501, F821
-            'end_date': (datetime, none_type,),  # noqa: E501, F821
-            'dataset': (Dataset,),  # noqa: E501, F821
+            'dag_id': (str,),  # noqa: E501, F821
+            'dataset_id': (str,),  # noqa: E501, F821
+            'dag_run_id': (str,),  # noqa: E501, F821
+            'data_interval_start': (datetime, none_type,),  # noqa: E501, F821
+            'data_interval_end': (datetime, none_type,),  # noqa: E501, F821
+            'snapshot_date': (datetime, none_type,),  # noqa: E501, F821
+            'partition_date': (datetime, none_type,),  # noqa: E501, F821
+            'changefile_start_date': (datetime, none_type,),  # noqa: E501, F821
+            'changefile_end_date': (datetime, none_type,),  # noqa: E501, F821
+            'sequence_start': (int, none_type,),  # noqa: E501, F821
+            'sequence_end': (int, none_type,),  # noqa: E501, F821
             'created': (datetime,),  # noqa: E501, F821
             'modified': (datetime,),  # noqa: E501, F821
+            'extra': (bool, date, datetime, dict, float, int, list, str, none_type,),  # noqa: E501, F821
         }
 
     @cached_property
@@ -96,11 +100,20 @@ class DatasetRelease(ModelNormal):
 
     attribute_map = {
         'id': 'id',  # noqa: E501
-        'start_date': 'start_date',  # noqa: E501
-        'end_date': 'end_date',  # noqa: E501
-        'dataset': 'dataset',  # noqa: E501
+        'dag_id': 'dag_id',  # noqa: E501
+        'dataset_id': 'dataset_id',  # noqa: E501
+        'dag_run_id': 'dag_run_id',  # noqa: E501
+        'data_interval_start': 'data_interval_start',  # noqa: E501
+        'data_interval_end': 'data_interval_end',  # noqa: E501
+        'snapshot_date': 'snapshot_date',  # noqa: E501
+        'partition_date': 'partition_date',  # noqa: E501
+        'changefile_start_date': 'changefile_start_date',  # noqa: E501
+        'changefile_end_date': 'changefile_end_date',  # noqa: E501
+        'sequence_start': 'sequence_start',  # noqa: E501
+        'sequence_end': 'sequence_end',  # noqa: E501
         'created': 'created',  # noqa: E501
         'modified': 'modified',  # noqa: E501
+        'extra': 'extra',  # noqa: E501
     }
 
     read_only_vars = {
@@ -147,15 +160,24 @@ class DatasetRelease(ModelNormal):
                                 through its discriminator because we passed in
                                 _visited_composed_classes = (Animal,)
             id (int): [optional]  # noqa: E501
-            start_date (datetime): [optional]  # noqa: E501
-            end_date (datetime, none_type): [optional]  # noqa: E501
-            dataset (Dataset): [optional]  # noqa: E501
+            dag_id (str): [optional]  # noqa: E501
+            dataset_id (str): [optional]  # noqa: E501
+            dag_run_id (str): [optional]  # noqa: E501
+            data_interval_start (datetime, none_type): [optional]  # noqa: E501
+            data_interval_end (datetime, none_type): [optional]  # noqa: E501
+            snapshot_date (datetime, none_type): [optional]  # noqa: E501
+            partition_date (datetime, none_type): [optional]  # noqa: E501
+            changefile_start_date (datetime, none_type): [optional]  # noqa: E501
+            changefile_end_date (datetime, none_type): [optional]  # noqa: E501
+            sequence_start (int, none_type): [optional]  # noqa: E501
+            sequence_end (int, none_type): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
             modified (datetime): [optional]  # noqa: E501
+            extra (bool, date, datetime, dict, float, int, list, str, none_type): [optional]  # noqa: E501
         """
 
         _check_type = kwargs.pop('_check_type', True)
-        _spec_property_naming = kwargs.pop('_spec_property_naming', False)
+        _spec_property_naming = kwargs.pop('_spec_property_naming', True)
         _path_to_item = kwargs.pop('_path_to_item', ())
         _configuration = kwargs.pop('_configuration', None)
         _visited_composed_classes = kwargs.pop('_visited_composed_classes', ())
@@ -163,14 +185,18 @@ class DatasetRelease(ModelNormal):
         self = super(OpenApiModel, cls).__new__(cls)
 
         if args:
-            raise ApiTypeError(
-                "Invalid positional arguments=%s passed to %s. Remove those invalid positional arguments." % (
-                    args,
-                    self.__class__.__name__,
-                ),
-                path_to_item=_path_to_item,
-                valid_classes=(self.__class__,),
-            )
+            for arg in args:
+                if isinstance(arg, dict):
+                    kwargs.update(arg)
+                else:
+                    raise ApiTypeError(
+                        "Invalid positional arguments=%s passed to %s. Remove those invalid positional arguments." % (
+                            args,
+                            self.__class__.__name__,
+                        ),
+                        path_to_item=_path_to_item,
+                        valid_classes=(self.__class__,),
+                    )
 
         self._data_store = {}
         self._check_type = _check_type
@@ -234,11 +260,20 @@ class DatasetRelease(ModelNormal):
                                 through its discriminator because we passed in
                                 _visited_composed_classes = (Animal,)
             id (int): [optional]  # noqa: E501
-            start_date (datetime): [optional]  # noqa: E501
-            end_date (datetime, none_type): [optional]  # noqa: E501
-            dataset (Dataset): [optional]  # noqa: E501
+            dag_id (str): [optional]  # noqa: E501
+            dataset_id (str): [optional]  # noqa: E501
+            dag_run_id (str): [optional]  # noqa: E501
+            data_interval_start (datetime, none_type): [optional]  # noqa: E501
+            data_interval_end (datetime, none_type): [optional]  # noqa: E501
+            snapshot_date (datetime, none_type): [optional]  # noqa: E501
+            partition_date (datetime, none_type): [optional]  # noqa: E501
+            changefile_start_date (datetime, none_type): [optional]  # noqa: E501
+            changefile_end_date (datetime, none_type): [optional]  # noqa: E501
+            sequence_start (int, none_type): [optional]  # noqa: E501
+            sequence_end (int, none_type): [optional]  # noqa: E501
             created (datetime): [optional]  # noqa: E501
             modified (datetime): [optional]  # noqa: E501
+            extra (bool, date, datetime, dict, float, int, list, str, none_type): [optional]  # noqa: E501
         """
 
         _check_type = kwargs.pop('_check_type', True)
@@ -248,14 +283,18 @@ class DatasetRelease(ModelNormal):
         _visited_composed_classes = kwargs.pop('_visited_composed_classes', ())
 
         if args:
-            raise ApiTypeError(
-                "Invalid positional arguments=%s passed to %s. Remove those invalid positional arguments." % (
-                    args,
-                    self.__class__.__name__,
-                ),
-                path_to_item=_path_to_item,
-                valid_classes=(self.__class__,),
-            )
+            for arg in args:
+                if isinstance(arg, dict):
+                    kwargs.update(arg)
+                else:
+                    raise ApiTypeError(
+                        "Invalid positional arguments=%s passed to %s. Remove those invalid positional arguments." % (
+                            args,
+                            self.__class__.__name__,
+                        ),
+                        path_to_item=_path_to_item,
+                        valid_classes=(self.__class__,),
+                    )
 
         self._data_store = {}
         self._check_type = _check_type

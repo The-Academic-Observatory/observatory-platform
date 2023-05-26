@@ -9,12 +9,8 @@
 """
 
 
-import unittest
-
-from observatory.api.client.model.dataset import Dataset
-
-globals()["Dataset"] = Dataset
 import datetime
+import unittest
 
 from observatory.api.client.exceptions import ApiAttributeError, ApiTypeError
 from observatory.api.client.model.dataset_release import DatasetRelease
@@ -31,26 +27,39 @@ class TestDatasetRelease(unittest.TestCase):
                 self.discard_unknown_keys = True
 
         dt = datetime.datetime.utcnow()
+
+        # Successfully create
         DatasetRelease(
             id=1,
-            start_date=dt,
-            end_date=dt,
+            dag_id="doi_workflow",
+            dataset_id="doi",
+            dag_run_id="scheduled__2023-03-26T00:00:00+00:00",
+            data_interval_start=dt,
+            data_interval_end=dt,
+            partition_date=dt,
+            snapshot_date=dt,
+            changefile_start_date=dt,
+            changefile_end_date=dt,
+            sequence_start=1,
+            sequence_end=10,
             extra={},
-            _configuration=Configuration(),
-            unknown="var",
         )
 
-        self.assertRaises(
-            ApiAttributeError,
-            DatasetRelease,
-            start_date=dt,
-            end_date=dt,
-            extra={},
-            _configuration=Configuration(),
-            unknown="var",
-            created=dt,
-            modified=dt,
-        )
+        # Created and modified are read only
+        with self.assertRaises(ApiAttributeError):
+            DatasetRelease(
+                id=1,
+                dag_id="doi_workflow",
+                dataset_id="doi",
+                partition_date=dt,
+                snapshot_date=dt,
+                start_date=dt,
+                end_date=dt,
+                sequence_num=1,
+                extra={},
+                created=dt,
+                modified=dt,
+            )
 
         # Invalid argument
         with self.assertRaises(ApiTypeError):

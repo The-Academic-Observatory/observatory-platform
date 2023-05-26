@@ -1,25 +1,20 @@
-import os
 from unittest.mock import PropertyMock, patch
 
 import pendulum
+import time_machine
 from airflow.models import XCom
 from airflow.models.connection import Connection
-from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
-from observatory.platform.observatory_config import VirtualMachine
-from observatory.platform.terraform.terraform_api import TerraformVariable
-from observatory.platform.utils.airflow_utils import AirflowConns, AirflowVars
-from observatory.platform.utils.test_utils import (
+from observatory.platform.config import AirflowConns
+from observatory.platform.observatory_config import Workflow, VirtualMachine
+from observatory.platform.observatory_environment import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
-    module_file_path,
 )
-from observatory.platform.workflows.vm_workflow import (
-    TerraformRelease,
-    VmCreateWorkflow,
-)
+from observatory.platform.terraform.terraform_api import TerraformVariable
+from observatory.platform.workflows.vm_workflow import VmCreateWorkflow, TerraformVirtualMachineAPI
 
 
 @provide_session
@@ -37,22 +32,33 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.dag_id = "vm_create"
+        self.terraform_organisation = "terraform-org"
+        self.terraform_workspace = "my-terraform-workspace-develop"
 
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
-    @patch("observatory.platform.workflows.vm_workflow.TerraformRelease.workspace_id", new_callable=PropertyMock)
-    @patch("observatory.platform.workflows.vm_workflow.TerraformRelease.terraform_api", new_callable=PropertyMock)
+    @patch(
+        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.workspace_id", new_callable=PropertyMock
+    )
+    @patch(
+        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.terraform_api", new_callable=PropertyMock
+    )
     def test_get_vm_info_no_vars(self, m_tapi, m_wid, m_list_vars):
         """Test get_vm_info"""
 
         m_list_vars.return_value = []
         m_wid.return_value = "wid"
-        release = TerraformRelease()
-        vm, vm_var = release.get_vm_info()
+        api = TerraformVirtualMachineAPI(organisation=self.terraform_organisation, workspace=self.terraform_workspace)
+        vm, vm_var = api.get_vm_info()
         self.assertIsNone(vm)
         self.assertIsNone(vm_var)
 
-    @patch("observatory.platform.workflows.vm_workflow.TerraformRelease.workspace_id", new_callable=PropertyMock)
-    @patch("observatory.platform.workflows.vm_workflow.TerraformRelease.terraform_api", new_callable=PropertyMock)
+    @patch(
+        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.workspace_id", new_callable=PropertyMock
+    )
+    @patch(
+        "observatory.platform.workflows.vm_workflow.TerraformVirtualMachineAPI.terraform_api", new_callable=PropertyMock
+    )
     def test_get_vm_info_no_target_vars(self, m_tapi, m_wid):
         """Test get_vm_info"""
 
@@ -68,9 +74,9 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
                 return [vm_tf]
 
         m_tapi.return_value = MockApi()
-        release = TerraformRelease()
+        api = TerraformVirtualMachineAPI(organisation=self.terraform_organisation, workspace=self.terraform_workspace)
 
-        vm, vm_var = release.get_vm_info()
+        vm, vm_var = api.get_vm_info()
         self.assertIsNone(vm)
         self.assertIsNone(vm_var)
 
@@ -79,7 +85,11 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
         :return: None
         """
 
-        dag = VmCreateWorkflow().make_dag()
+        dag = VmCreateWorkflow(
+            dag_id=self.dag_id,
+            terraform_organisation=self.terraform_organisation,
+            terraform_workspace=self.terraform_workspace,
+        ).make_dag()
         self.assert_dag_structure(
             {
                 "check_dependencies": ["check_vm_state"],
@@ -97,27 +107,35 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
         :return: None
         """
 
-        with ObservatoryEnvironment().create():
-            dag_file = os.path.join(module_file_path("observatory.platform.dags"), "vm_create.py")
-            self.assert_dag_load("vm_create", dag_file)
+        env = ObservatoryEnvironment(
+            workflows=[
+                Workflow(
+                    dag_id="vm_create",
+                    name="VM Create Workflow",
+                    class_name="observatory.platform.workflows.vm_workflow.VmCreateWorkflow",
+                    kwargs=dict(
+                        terraform_organisation="terraform_organisation", terraform_workspace="terraform_workspace"
+                    ),
+                )
+            ]
+        )
+
+        with env.create():
+            self.assert_dag_load_from_config("vm_create")
 
     def setup_env(self, env):
-        var = Variable(key=AirflowVars.PROJECT_ID, val="project")
-        env.add_variable(var)
+        conn = Connection(
+            conn_id=AirflowConns.SLACK, uri="https://:my-slack-token@https%3A%2F%2Fhooks.slack.com%2Fservices"
+        )
+        env.add_connection(conn)
 
-        var = Variable(key=AirflowVars.TERRAFORM_ORGANIZATION, val="terraform_org")
-        env.add_variable(var)
-
-        var = Variable(key=AirflowVars.ENVIRONMENT, val="environment")
-        env.add_variable(var)
-
-        conn = Connection(conn_id=AirflowConns.TERRAFORM, uri="http://localhost")
+        conn = Connection(conn_id=AirflowConns.TERRAFORM, uri="http://:apikey@")
         env.add_connection(conn)
 
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.list_workspace_variables")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.workspace_id")
     def test_workflow_vm_already_on(self, m_tapi, m_list_workspace_vars):
-        "Test the vm_create workflow"
+        """Test the vm_create workflow"""
 
         m_tapi.return_value = "workspace"
 
@@ -132,35 +150,40 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment()
         with env.create():
-            workflow = VmCreateWorkflow()
+            workflow = VmCreateWorkflow(
+                dag_id=self.dag_id,
+                terraform_organisation=self.terraform_organisation,
+                terraform_workspace=self.terraform_workspace,
+            )
             dag = workflow.make_dag()
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # update terraform variable
-                ti = env.run_task(workflow.update_terraform_variable.__name__)
-                self.assertEqual(ti.state, State.SKIPPED)
+                    # update terraform variable
+                    ti = env.run_task(workflow.update_terraform_variable.__name__)
+                    self.assertEqual(ti.state, State.SKIPPED)
 
-                # run terraform
-                ti = env.run_task(workflow.run_terraform.__name__)
-                self.assertEqual(ti.state, State.SKIPPED)
+                    # run terraform
+                    ti = env.run_task(workflow.run_terraform.__name__)
+                    self.assertEqual(ti.state, State.SKIPPED)
 
-                # check run status
-                ti = env.run_task(workflow.check_run_status.__name__)
-                self.assertEqual(ti.state, State.SKIPPED)
+                    # check run status
+                    ti = env.run_task(workflow.check_run_status.__name__)
+                    self.assertEqual(ti.state, State.SKIPPED)
 
-                # cleanup
-                ti = env.run_task(workflow.cleanup.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # cleanup
+                    ti = env.run_task(workflow.cleanup.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
     @patch("observatory.platform.workflows.vm_workflow.send_slack_msg")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.get_run_details")
@@ -187,45 +210,50 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
 
         env = ObservatoryEnvironment()
         with env.create():
-            workflow = VmCreateWorkflow()
+            workflow = VmCreateWorkflow(
+                dag_id=self.dag_id,
+                terraform_organisation=self.terraform_organisation,
+                terraform_workspace=self.terraform_workspace,
+            )
             dag = workflow.make_dag()
             execution_date = pendulum.datetime(2021, 1, 1)
             self.setup_env(env)
 
-            with env.create_dag_run(dag, execution_date):
-                # check dependencies
-                ti = env.run_task(workflow.check_dependencies.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+            with env.create_dag_run(dag, execution_date) as dag_run:
+                with time_machine.travel(dag_run.start_date, tick=True):
+                    # check dependencies
+                    ti = env.run_task(workflow.check_dependencies.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # check vm state
-                ti = env.run_task(workflow.check_vm_state.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # check vm state
+                    ti = env.run_task(workflow.check_vm_state.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # update terraform variable
-                ti = env.run_task(workflow.update_terraform_variable.__name__)
-                self.assertEqual(m_update.call_count, 1)
-                call_args, _ = m_update.call_args
-                self.assertEqual(call_args[0], vm_tf)
-                self.assertEqual(call_args[1], "workspace")
-                self.assertEqual(ti.state, State.SUCCESS)
+                    # update terraform variable
+                    ti = env.run_task(workflow.update_terraform_variable.__name__)
+                    self.assertEqual(m_update.call_count, 1)
+                    call_args, _ = m_update.call_args
+                    self.assertEqual(call_args[0], vm_tf)
+                    self.assertEqual(call_args[1], "workspace")
+                    self.assertEqual(ti.state, State.SUCCESS)
 
-                # run terraform
-                ti = env.run_task(workflow.run_terraform.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-                self.assertEqual(m_create_run.call_count, 1)
+                    # run terraform
+                    ti = env.run_task(workflow.run_terraform.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(m_create_run.call_count, 1)
 
-                # check run status
-                ti = env.run_task(workflow.check_run_status.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-                self.assertEqual(m_send_slack_msg.call_count, 1)
+                    # check run status
+                    ti = env.run_task(workflow.check_run_status.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(m_send_slack_msg.call_count, 1)
 
-                # cleanup
-                ti = env.run_task(workflow.cleanup.__name__)
-                self.assertEqual(ti.state, State.SUCCESS)
-                self.assertEqual(
-                    xcom_count(
-                        execution_date=execution_date,
-                        dag_ids=workflow.dag_id,
-                    ),
-                    3,
-                )
+                    # cleanup
+                    ti = env.run_task(workflow.cleanup.__name__)
+                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(
+                        xcom_count(
+                            execution_date=execution_date,
+                            dag_ids=workflow.dag_id,
+                        ),
+                        3,
+                    )

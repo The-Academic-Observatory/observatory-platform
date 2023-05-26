@@ -22,7 +22,7 @@ from openapi_spec_validator import validate_v2_spec
 from openapi_spec_validator.readers import read_from_filename
 
 from observatory.api.server.openapi_renderer import OpenApiRenderer
-from observatory.platform.utils.config_utils import module_file_path
+from observatory.platform.config import module_file_path
 
 
 class TestOpenApiSchema(unittest.TestCase):

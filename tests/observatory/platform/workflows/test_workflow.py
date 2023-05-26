@@ -17,34 +17,35 @@
 import os
 from datetime import datetime, timezone
 from functools import partial
-from unittest.mock import ANY, Mock, patch
+from tempfile import TemporaryDirectory
+from unittest.mock import patch, MagicMock
+from copy import deepcopy
 
 import pendulum
 from airflow import DAG
-from airflow.exceptions import AirflowNotFoundException
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowNotFoundException, AirflowException
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.variable import Variable
+from airflow.models.connection import Connection
 from airflow.operators.bash import BashOperator
-from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
+from airflow.operators.python import PythonOperator
 from airflow.sensors.external_task import ExternalTaskSensor
-from observatory.platform.observatory_config import Environment
-from observatory.platform.utils.airflow_utils import AirflowVars
-from observatory.platform.utils.test_utils import (
+
+from observatory.platform.observatory_config import CloudWorkspace
+from observatory.platform.observatory_environment import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     find_free_port,
 )
-from observatory.platform.workflows.workflow import Release, Workflow, make_task_id
-from observatory.api.client.model.dataset import Dataset
-from observatory.api.client.model.dataset_type import DatasetType
-from observatory.api.client.model.workflow import Workflow as apiWorkflow
-from observatory.api.testing import ObservatoryApiEnvironment
-from observatory.api.client import ApiClient, Configuration
-from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
-from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.table_type import TableType
-from observatory.api.client.model.workflow_type import WorkflowType
+from observatory.platform.workflows.workflow import (
+    Release,
+    Workflow,
+    make_task_id,
+    make_workflow_folder,
+    make_snapshot_date,
+    cleanup,
+    set_task_state,
+    check_workflow_inputs,
+)
 
 
 class MockWorkflow(Workflow):
@@ -54,11 +55,9 @@ class MockWorkflow(Workflow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dag_id = "dag_id"
-        self.release_id = "20210101"
 
     def make_release(self, **kwargs) -> Release:
-        return Release(self.dag_id, self.release_id)
+        return Release(dag_id=self.dag_id, run_id=kwargs["run_id"])
 
     def setup_task(self, **kwargs) -> bool:
         return True
@@ -84,6 +83,119 @@ class TestCallbackWorkflow(Workflow):
         return
 
 
+class TestWorkflowFunctions(ObservatoryTestCase):
+    def test_set_task_state(self):
+        """Test set_task_state"""
+
+        task_id = "test_task"
+        set_task_state(True, task_id)
+        with self.assertRaises(AirflowException):
+            set_task_state(False, task_id)
+
+    @patch("observatory.platform.airflow.Variable.get")
+    def test_make_workflow_folder(self, mock_get_variable):
+        """Tests the make_workflow_folder function"""
+        with TemporaryDirectory() as tempdir:
+            mock_get_variable.return_value = tempdir
+            run_id = "scheduled__2023-03-26T00:00:00+00:00"  # Also can look like: "manual__2023-03-26T00:00:00+00:00"
+            path = make_workflow_folder("test_dag", run_id, "sub_folder", "subsub_folder")
+            self.assertEqual(
+                path,
+                os.path.join(tempdir, f"test_dag/scheduled__2023-03-26T00:00:00+00:00/sub_folder/subsub_folder"),
+            )
+
+    def test_check_workflow_inputs(self):
+        """Test check_workflow_inputs"""
+        # Test Dag ID validity
+        wf = MagicMock(dag_id="valid")
+        check_workflow_inputs(wf, check_cloud_workspace=False)  # Should pass
+        for dag_id in ["", None, 42]:  # Should all fail
+            wf.dag_id = dag_id
+            with self.assertRaises(AirflowException) as cm:
+                check_workflow_inputs(wf, check_cloud_workspace=False)
+            msg = cm.exception.args[0]
+            self.assertIn("dag_id", msg)
+
+        # Test when cloud workspace is of wrong type
+        wf = MagicMock(dag_id="valid", cloud_workspace="invalid")
+        with self.assertRaisesRegex(AirflowException, "cloud_workspace"):
+            check_workflow_inputs(wf)
+
+        # Test validity of each part of the cloud workspace
+        valid_cloud_workspace = CloudWorkspace(
+            project_id="project_id",
+            download_bucket="download_bucket",
+            transform_bucket="transform_bucket",
+            data_location="data_location",
+            output_project_id="output_project_id",
+        )
+        wf = MagicMock(dag_id="valid", cloud_workspace=deepcopy(valid_cloud_workspace))
+        check_workflow_inputs(wf)  # Should pass
+        for attr, invalid_val in [
+            ("project_id", ""),
+            ("download_bucket", None),
+            ("transform_bucket", 42),
+            ("data_location", MagicMock()),
+            ("output_project_id", ""),
+        ]:
+            wf = MagicMock(dag_id="valid", cloud_workspace=deepcopy(valid_cloud_workspace))
+            setattr(wf.cloud_workspace, attr, invalid_val)
+            with self.assertRaisesRegex(AirflowException, f"cloud_workspace.{attr}"):
+                check_workflow_inputs(wf)
+        wf = MagicMock(dag_id="valid", cloud_workspace=deepcopy(valid_cloud_workspace))
+        wf.cloud_workspace.output_project_id = None
+        check_workflow_inputs(wf)  # This one should pass
+
+    def test_make_snapshot_date(self):
+        """Test make_table_name"""
+
+        data_interval_end = pendulum.datetime(2021, 11, 11)
+        expected_date = pendulum.datetime(2021, 11, 11)
+        actual_date = make_snapshot_date(**{"data_interval_end": data_interval_end})
+        self.assertEqual(expected_date, actual_date)
+
+    def test_cleanup(self):
+        """
+        Tests the cleanup function.
+        Creates a task and pushes and Xcom. Also creates a fake workflow directory.
+        Both the Xcom and the directory should be deleted by the cleanup() function
+        """
+
+        def create_xcom(**kwargs):
+            ti = kwargs["ti"]
+            execution_date = kwargs["execution_date"]
+            ti.xcom_push("topic", {"snapshot_date": execution_date.format("YYYYMMDD"), "something": "info"})
+
+        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        with env.create():
+            execution_date = pendulum.datetime(2023, 1, 1)
+            with DAG(
+                dag_id="test_dag",
+                schedule_interval="@daily",
+                default_args={"owner": "airflow", "start_date": execution_date},
+                catchup=True,
+            ) as dag:
+                kwargs = {"task_id": "create_xcom"}
+                op = PythonOperator(python_callable=create_xcom, **kwargs)
+
+            with TemporaryDirectory() as workflow_dir:
+                # Create some files in the workflow folder
+                subdir = os.path.join(workflow_dir, "test_directory")
+                os.mkdir(subdir)
+
+                # DAG Run
+                with env.create_dag_run(dag=dag, execution_date=execution_date):
+                    ti = env.run_task("create_xcom")
+                    self.assertEqual("success", ti.state)
+                    msgs = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
+                    self.assertIsInstance(msgs, dict)
+                    cleanup("test_dag", execution_date, workflow_folder=workflow_dir, retention_days=0)
+                    msgs = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
+                    self.assertEqual(msgs, None)
+                    self.assertEqual(os.path.isdir(subdir), False)
+                    self.assertEqual(os.path.isdir(workflow_dir), False)
+
+
 class TestWorkflow(ObservatoryTestCase):
     """Tests the Telescope."""
 
@@ -103,49 +215,6 @@ class TestWorkflow(ObservatoryTestCase):
 
         self.host = "localhost"
         self.port = find_free_port()
-        configuration = Configuration(host=f"http://{self.host}:{self.port}")
-        api_client = ApiClient(configuration)
-        self.api = ObservatoryApi(api_client=api_client)  # noqa: E501
-        self.env = ObservatoryApiEnvironment(host=self.host, port=self.port)
-        self.org_name = "Curtin University"
-        self.workflow_id = 1
-
-    def setup_api(self):
-        org = Organisation(name=self.org_name)
-        result = self.api.put_organisation(org)
-        self.assertIsInstance(result, Organisation)
-
-        tele_type = WorkflowType(type_id="tele_type", name="My Telescope")
-        result = self.api.put_workflow_type(tele_type)
-        self.assertIsInstance(result, WorkflowType)
-
-        telescope = apiWorkflow(organisation=Organisation(id=1), workflow_type=WorkflowType(id=1))
-        result = self.api.put_workflow(telescope)
-        self.assertIsInstance(result, apiWorkflow)
-
-        table_type = TableType(
-            type_id="partitioned",
-            name="partitioned bq table",
-        )
-        self.api.put_table_type(table_type)
-
-        dataset_type = DatasetType(
-            name="My dataset type",
-            type_id="type id",
-            table_type=TableType(id=1),
-        )
-
-        self.api.put_dataset_type(dataset_type)
-
-        dataset = Dataset(
-            name="My dataset",
-            service="bigquery",
-            address="project.dataset.table",
-            workflow=apiWorkflow(id=1),
-            dataset_type=DatasetType(id=1),
-        )
-        result = self.api.put_dataset(dataset)
-        self.assertIsInstance(result, Dataset)
 
     def test_make_task_id(self):
         """Test make_task_id"""
@@ -162,6 +231,38 @@ class TestWorkflow(ObservatoryTestCase):
         expected_task_id = "test_func"
         actual_task_id = make_task_id(test_func, {})
         self.assertEqual(expected_task_id, actual_task_id)
+
+    def dummy_func(self):
+        pass
+
+    def test_add_operator(self):
+        workflow = MockWorkflow(
+            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily"
+        )
+        op1 = ExternalTaskSensor(
+            external_dag_id="1", task_id="test", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
+        )
+        op2 = ExternalTaskSensor(
+            external_dag_id="1", task_id="test2", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
+        )
+
+        with workflow.parallel_tasks():
+            workflow.add_operator(op1)
+            workflow.add_operator(op2)
+        workflow.add_task(self.dummy_func)
+        dag = workflow.make_dag()
+
+        self.assert_dag_structure({"dummy_func": [], "test": ["dummy_func"], "test2": ["dummy_func"]}, dag)
+
+    def test_workflow_tags(self):
+        workflow = MockWorkflow(
+            dag_id="1",
+            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
+            schedule_interval="daily",
+            tags=["oaebu"],
+        )
+
+        self.assertEqual(workflow.dag.tags, ["oaebu"])
 
     def test_make_dag(self):
         """Test making DAG"""
@@ -225,7 +326,8 @@ class TestWorkflow(ObservatoryTestCase):
             telescope.add_task(telescope.task, task_id="task4")
         telescope.add_task(telescope.task, task_id="join2")
         with telescope.parallel_tasks():
-            telescope.add_task_chain([telescope.task5, telescope.task6])
+            telescope.add_task(telescope.task5)
+            telescope.add_task(telescope.task6)
 
         dag = telescope.make_dag()
         self.assertIsInstance(dag, DAG)
@@ -252,79 +354,25 @@ class TestWorkflow(ObservatoryTestCase):
             self.assertTrue(telescope._parallel_tasks)
         self.assertFalse(telescope._parallel_tasks)
 
-    @patch("observatory.platform.utils.release_utils.make_observatory_api")
-    @patch("observatory.platform.workflows.workflow.get_datasets")
-    def test_add_new_dataset_releases(self, m_get_datasets, m_makeapi):
-        m_makeapi.return_value = self.api
-
-        with self.env.create():
-            self.setup_api()
-            dataset = Dataset(
-                id=1,
-                name="My dataset",
-                service="bigquery",
-                address="project.dataset.table",
-                workflow=apiWorkflow(id=1),
-                dataset_type=DatasetType(id=1),
-            )
-            m_get_datasets.return_value = [dataset]
-
-            telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval)
-            self.assertRaises(Exception, telescope.add_new_dataset_releases, None)
-
-            telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval, workflow_id=1)
-
-            # No releases
-            telescope.add_new_dataset_releases([])
-
-            # Single 'release'
-            release = Release(dag_id="dag_id", release_id="20220101")
-            telescope.add_new_dataset_releases(release)
-
-            # Single 'releases'
-            release = [Release(dag_id="dag_id", release_id="20220101")]
-            telescope.add_new_dataset_releases(release)
-
-    @patch("observatory.platform.utils.release_utils.make_observatory_api")
-    @patch("observatory.platform.workflows.workflow.get_datasets")
-    def test_add_new_dataset_releases_missing_dataset(self, m_get_datasets, m_makeapi):
-        m_makeapi.return_value = self.api
-        m_get_datasets.return_value = []
-
-        with self.env.create():
-            self.setup_api()
-            telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval, workflow_id=1)
-            release = Release(dag_id="dag_id", release_id="20220101")
-            self.assertRaises(AirflowException, telescope.add_new_dataset_releases, release)
-
-    @patch("observatory.platform.utils.release_utils.make_observatory_api")
-    def test_telescope(self, m_makeapi):
-        """Basic test to make sure that the Workflow class can execute in an Airflow environment.
-        :return: None.
-        """
-
-        m_makeapi.return_value = self.api
-
+    def test_telescope(self):
+        """Basic test to make sure that the Workflow class can execute in an Airflow environment."""
         # Setup Observatory environment
         env = ObservatoryEnvironment(self.project_id, self.data_location, api_host=self.host, api_port=self.port)
 
         # Create the Observatory environment and run tests
         with env.create(task_logging=True):
-            self.setup_api()
-
             task1 = "task1"
             task2 = "task2"
             expected_date = "success"
 
-            telescope = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval, workflow_id=1)
-            telescope.add_setup_task(telescope.setup_task)
-            telescope.add_task(telescope.task, task_id=task1)
-            telescope.add_operator(BashOperator(task_id=task2, bash_command="echo 'hello'"))
-            telescope.add_task(telescope.add_new_dataset_releases)
+            workflow = MockWorkflow(self.dag_id, self.start_date, self.schedule_interval)
+            workflow.add_setup_task(workflow.setup_task)
+            workflow.add_task(workflow.task, task_id=task1)
+            workflow.add_operator(BashOperator(task_id=task2, bash_command="echo 'hello'"))
 
-            dag = telescope.make_dag()
+            dag = workflow.make_dag()
             with env.create_dag_run(dag, self.start_date):
-                ti = env.run_task(telescope.setup_task.__name__)
+                ti = env.run_task(workflow.setup_task.__name__)
                 self.assertEqual(expected_date, ti.state)
 
                 ti = env.run_task(task1)
@@ -333,13 +381,7 @@ class TestWorkflow(ObservatoryTestCase):
                 ti = env.run_task(task2)
                 self.assertEqual(expected_date, ti.state)
 
-                ti = env.run_task(telescope.add_new_dataset_releases.__name__)
-                self.assertEqual(expected_date, ti.state)
-                releases = self.api.get_dataset_releases(limit=1000)
-                self.assertEqual(len(releases), 1)
-                self.assertEqual(pendulum.instance(releases[0].start_date), pendulum.datetime(2021, 1, 1))
-
-    @patch("observatory.platform.utils.workflow_utils.send_slack_msg")
+    @patch("observatory.platform.airflow.send_slack_msg")
     def test_callback(self, mock_send_slack_msg):
         """Test that the on_failure_callback function is successfully called in a production environment when a task
         fails
@@ -352,102 +394,36 @@ class TestWorkflow(ObservatoryTestCase):
         # Setup Observatory environment
         env = ObservatoryEnvironment(self.project_id, self.data_location)
 
-        # Setup Telescope with 0 retries and missing airflow variable, so it will fail the task
+        # Setup Workflow with 0 retries and missing airflow variable, so it will fail the task
         execution_date = pendulum.datetime(2020, 1, 1)
-        telescope = TestCallbackWorkflow(
+        conn_id = "orcid_bucket"
+        workflow = TestCallbackWorkflow(
             "test_callback",
             execution_date,
             self.schedule_interval,
             max_retries=0,
-            airflow_conns=[AirflowVars.ORCID_BUCKET],
+            airflow_conns=[conn_id],
         )
-        dag = telescope.make_dag()
+        dag = workflow.make_dag()
 
         # Create the Observatory environment and run task, expecting slack webhook call in production environment
         with env.create(task_logging=True):
             with env.create_dag_run(dag, execution_date):
-                env.add_variable(Variable(key=AirflowVars.ENVIRONMENT, val=Environment.production.value))
                 with self.assertRaises(AirflowNotFoundException):
-                    env.run_task(telescope.check_dependencies.__name__)
+                    env.run_task(workflow.check_dependencies.__name__)
 
                 _, callkwargs = mock_send_slack_msg.call_args
                 self.assertEqual(
                     callkwargs["comments"],
                     "Task failed, exception:\nairflow.exceptions.AirflowNotFoundException: The conn_id `orcid_bucket` isn't defined",
                 )
-                self.assertEqual(callkwargs["project_id"], self.project_id)
 
         # Reset mock
         mock_send_slack_msg.reset_mock()
 
-        # Create the Observatory environment and run task, expecting no slack webhook call in develop environment
+        # Add orcid_bucket connection and test that Slack Web Hook did not get triggered
         with env.create(task_logging=True):
             with env.create_dag_run(dag, execution_date):
-                env.add_variable(Variable(key=AirflowVars.ENVIRONMENT, val=Environment.develop.value))
-                with self.assertRaises(AirflowNotFoundException):
-                    env.run_task(telescope.check_dependencies.__name__)
+                env.add_connection(Connection(conn_id=conn_id, uri="https://orcid.org/"))
+                env.run_task(workflow.check_dependencies.__name__)
                 mock_send_slack_msg.assert_not_called()
-
-
-class TestAddOperatorsTelescope(ObservatoryTestCase):
-    """Tests the operator interface."""
-
-    def dummy_func(self):
-        pass
-
-    def test_add_operator(self):
-        mt = MockWorkflow(
-            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily"
-        )
-        tds = ExternalTaskSensor(
-            external_dag_id="1", task_id="test", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
-        )
-        tds2 = ExternalTaskSensor(
-            external_dag_id="1", task_id="test2", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
-        )
-
-        with mt.parallel_tasks():
-            mt.add_operator(tds)
-            mt.add_operator(tds2)
-        mt.add_task(self.dummy_func)
-        dag = mt.make_dag()
-
-        self.assert_dag_structure({"dummy_func": [], "test": ["dummy_func"], "test2": ["dummy_func"]}, dag)
-
-    def test_add_operators(self):
-        mt = MockWorkflow(
-            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily"
-        )
-        tds = ExternalTaskSensor(
-            external_dag_id="1", task_id="test", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
-        )
-        tds2 = ExternalTaskSensor(
-            external_dag_id="1", task_id="test2", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
-        )
-
-        with mt.parallel_tasks():
-            mt.add_operator_chain([tds, tds2])
-        mt.add_task(self.dummy_func)
-        dag = mt.make_dag()
-
-        self.assert_dag_structure({"dummy_func": [], "test": ["dummy_func"], "test2": ["dummy_func"]}, dag)
-
-    def test_add_operators_empty(self):
-        mt = MockWorkflow(
-            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule_interval="daily"
-        )
-        mt.add_task(self.dummy_func)
-        mt.add_operator_chain([])
-        dag = mt.make_dag()
-
-        self.assert_dag_structure({"dummy_func": []}, dag)
-
-    def test_workflow_tags(self):
-        mt = MockWorkflow(
-            dag_id="1",
-            start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
-            schedule_interval="daily",
-            tags=["oaebu"],
-        )
-
-        self.assertEqual(mt.dag.tags, ["oaebu"])

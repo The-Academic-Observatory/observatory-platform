@@ -14,12 +14,8 @@
 
 # Author: James Diprose
 
-import logging
-import subprocess
 from subprocess import Popen
-from typing import List, Tuple, Union
-
-from airflow.exceptions import AirflowException
+from typing import Tuple
 
 
 def wait_for_process(proc: Popen) -> Tuple[str, str]:

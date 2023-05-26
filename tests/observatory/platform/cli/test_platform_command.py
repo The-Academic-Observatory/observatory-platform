@@ -24,7 +24,7 @@ from click.testing import CliRunner
 
 from observatory.platform.cli.platform_command import PlatformCommand
 from observatory.platform.observatory_config import Observatory, ObservatoryConfig, Backend, Environment, BackendType
-from observatory.platform.utils.test_utils import find_free_port
+from observatory.platform.observatory_environment import find_free_port
 
 
 class MockUrlOpen(Mock):

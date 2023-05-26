@@ -20,7 +20,7 @@ import unittest
 from click.testing import CliRunner
 
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
-from observatory.platform.utils.test_utils import (
+from observatory.platform.observatory_environment import (
     find_free_port,
 )
 

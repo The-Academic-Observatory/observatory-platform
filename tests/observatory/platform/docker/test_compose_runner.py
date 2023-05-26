@@ -20,7 +20,7 @@ import unittest
 from click.testing import CliRunner
 
 from observatory.platform.docker.compose_runner import ComposeRunner
-from observatory.platform.utils.test_utils import find_free_port
+from observatory.platform.observatory_environment import find_free_port
 from observatory.platform.utils.url_utils import retry_session
 
 DOCKERFILE = """

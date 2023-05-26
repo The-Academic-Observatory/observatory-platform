@@ -30,8 +30,8 @@ from observatory.platform.cli.cli import (
 from observatory.platform.docker.compose_runner import ProcessOutput
 from observatory.platform.docker.platform_runner import DEBUG, HOST_UID
 from observatory.platform.observatory_config import TerraformConfig, ValidationError
+from observatory.platform.observatory_environment import random_id
 from observatory.platform.terraform.terraform_api import TerraformApi
-from observatory.platform.utils.test_utils import random_id
 
 
 class TestObservatoryGenerate(unittest.TestCase):

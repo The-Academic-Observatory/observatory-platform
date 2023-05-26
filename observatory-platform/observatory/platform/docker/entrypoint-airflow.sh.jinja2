@@ -30,20 +30,6 @@ unset PBR_VERSION
 {% endif %}
 {% endfor %}
 
-# Initialise or upgrade the Airflow database and create the admin user
-# Only run if webserver is command as there should only be one webserver
-if [ "$1" = "webserver" ]; then
-  echo "Running database and admin user creation commands on webserver"
-
-  # Initialise / upgrade the Airflow database
-  echo "Running command: airflow db upgrade"
-  airflow db upgrade
-
-  #Create the Admin user. This command will just print "airflow already exist in the db" if the user already exists
-  echo "Running command: airflow users create"
-  airflow users create -r Admin -u ${AIRFLOW_UI_USER_EMAIL} -e ${AIRFLOW_UI_USER_EMAIL} -f Observatory -l Admin -p ${AIRFLOW_UI_USER_PASSWORD}
-fi
-
 # Enter airflow home folder. Must be in the AIRFLOW_HOME folder (i.e. /opt/airflow) before running the next command
 # otherwise the system will start but the workers and scheduler will not find the DAGs and other files because
 # they look for them based on the current working directory.

@@ -29,9 +29,9 @@ from observatory.platform.elastic.elastic import (
     make_sharded_index,
 )
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
-from observatory.platform.utils.file_utils import load_file, yield_csv
-from observatory.platform.utils.test_utils import find_free_port
-from observatory.platform.utils.test_utils import random_id, test_fixtures_path
+from observatory.platform.files import load_file, yield_csv
+from observatory.platform.observatory_environment import find_free_port
+from observatory.platform.observatory_environment import random_id, test_fixtures_path
 
 
 class TestElastic(unittest.TestCase):
@@ -74,9 +74,9 @@ class TestElastic(unittest.TestCase):
         """Test making an Elasticsearch sharded index name"""
 
         index_prefix = "oa-metrics-country"
-        release_date = pendulum.date(year=2020, month=1, day=1)
+        snapshot_date = pendulum.date(year=2020, month=1, day=1)
         expected_index = "oa-metrics-country-20200101"
-        actual_index = make_sharded_index(index_prefix, release_date)
+        actual_index = make_sharded_index(index_prefix, snapshot_date)
         self.assertEqual(expected_index, actual_index)
 
     def test_make_elastic_uri(self):

@@ -24,8 +24,8 @@ from airflow.models import DagRun, DagModel
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 
+from observatory.platform.observatory_environment import ObservatoryEnvironment, ObservatoryTestCase, make_dummy_dag
 from observatory.platform.utils.dag_run_sensor import DagRunSensor
-from observatory.platform.utils.test_utils import ObservatoryEnvironment, ObservatoryTestCase, make_dummy_dag
 from observatory.platform.workflows.workflow import Workflow
 
 

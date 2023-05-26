@@ -41,9 +41,15 @@ from observatory.platform.observatory_config import (
     BackendType,
     Environment,
     WorkflowsProject,
+    Workflow,
+)
+from observatory.platform.observatory_environment import (
+    test_fixtures_path,
+    find_free_port,
+    save_empty_file,
+    module_file_path,
 )
 from observatory.platform.utils.proc_utils import stream_process
-from observatory.platform.utils.test_utils import test_fixtures_path, find_free_port, save_empty_file, module_file_path
 from observatory.platform.utils.url_utils import wait_for_url
 
 
@@ -114,13 +120,46 @@ class TestCliFunctional(unittest.TestCase):
         self.docker_network_name = "observatory-unit-test-network"
         self.docker_compose_project_name = "observatory_unit_test"
         self.expected_platform_dag_ids = {"dummy_telescope", "vm_create", "vm_destroy"}
-        self.expected_workflows_dag_ids = {"dummy_telescope", "vm_create", "vm_destroy", "my_dag", "hello_world_dag"}
+        self.expected_workflows_dag_ids = {
+            "dummy_telescope",
+            "vm_create",
+            "vm_destroy",
+            "my_dag",
+            "hello_world_dag",
+            "my_workflow",
+        }
         self.start_cmd = ["platform", "start", "--debug", "--config-path"]
         self.stop_cmd = ["platform", "stop", "--debug", "--config-path"]
         self.workflows_package_name = "my-workflows-project"
         self.dag_check_timeout = 360
         self.port_wait_timeout = 360
         self.config_file_name = "config.yaml"
+
+        self.platform_workflows = [
+            Workflow(
+                dag_id="vm_create",
+                name="VM Create Workflow",
+                class_name="observatory.platform.workflows.vm_workflow.VmCreateWorkflow",
+                kwargs=dict(terraform_organisation="terraform_organisation", terraform_workspace="terraform_workspace"),
+            ),
+            Workflow(
+                dag_id="vm_destroy",
+                name="VM Destroy Workflow",
+                class_name="observatory.platform.workflows.vm_workflow.VmDestroyWorkflow",
+                kwargs=dict(
+                    terraform_organisation="terraform_organisation",
+                    terraform_workspace="terraform_workspace",
+                    dags_watch_list=["dag1", "dag2"],
+                ),
+            ),
+        ]
+        self.all_workflows = self.platform_workflows + [
+            Workflow(
+                dag_id="my_workflow",
+                name="My Workflow",
+                class_name="my_workflows_project.workflows.my_workflow.MyWorkflow",
+            ),
+        ]
 
     def make_editable_observatory_config(self, temp_dir: str) -> ObservatoryConfig:
         """Make an editable observatory config.
@@ -148,6 +187,7 @@ class TestCliFunctional(unittest.TestCase):
                 api_package_type="editable",
                 api_package=os.path.join(temp_dir, self.observatory_api_package_name),
             ),
+            workflows=self.platform_workflows,
         )
 
     def copy_observatory_api(self, temp_dir: str):
@@ -278,6 +318,7 @@ class TestCliFunctional(unittest.TestCase):
                     dags_module=f"{stringcase.snakecase(self.workflows_package_name)}.dags",
                 )
             ]
+            config.workflows = self.all_workflows
             mock_config_load.return_value = config
 
             try:
@@ -334,6 +375,7 @@ class TestCliFunctional(unittest.TestCase):
                 api_package=observatory_api_sdist_path,
                 api_package_type="sdist",
             ),
+            workflows=self.platform_workflows,
         )
 
     @patch("observatory.platform.cli.cli.ObservatoryConfig.load")
@@ -405,6 +447,7 @@ class TestCliFunctional(unittest.TestCase):
                     dags_module=f"{stringcase.snakecase(self.workflows_package_name)}.dags",
                 )
             ]
+            config.workflows = self.all_workflows
             mock_config_load.return_value = config
 
             try:

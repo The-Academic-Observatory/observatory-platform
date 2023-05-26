@@ -27,15 +27,12 @@ from observatory.platform.cli.generate_command import (
     FlaskSecretKeyType,
     GenerateCommand,
     InteractiveConfigBuilder,
-    write_rendered_template,
 )
+from observatory.platform.config import module_file_path
 from observatory.platform.observatory_config import (
-    AirflowConnection,
-    AirflowVariable,
     Backend,
     BackendType,
     CloudSqlDatabase,
-    CloudStorageBucket,
     Environment,
     GoogleCloud,
     Observatory,
@@ -45,8 +42,7 @@ from observatory.platform.observatory_config import (
     VirtualMachine,
     WorkflowsProject,
 )
-from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.utils.test_utils import ObservatoryTestCase
+from observatory.platform.observatory_environment import ObservatoryTestCase
 
 
 class TestGenerateCommand(ObservatoryTestCase):
@@ -89,30 +85,6 @@ class TestGenerateCommand(ObservatoryTestCase):
         with CliRunner().isolated_filesystem():
             cmd.generate_terraform_config(config_path, editable=True, workflows=[], oapi=True)
             self.assertTrue(os.path.exists(config_path))
-
-    @patch("click.confirm")
-    def test_write_rendered_template(self, mock_click_confirm):
-        """Test writing a rendered template file, only overwrite when file exists if confirmed by user
-
-        :param mock_click_confirm: Mock the click.confirm user confirmation
-        :return: None.
-        """
-        with CliRunner().isolated_filesystem():
-            # Create file to test function when file already exists
-            file_path = "test.txt"
-            with open(file_path, "w") as f:
-                f.write("test")
-            self.assert_file_integrity(file_path, "098f6bcd4621d373cade4e832627b4f6", "md5")
-
-            mock_click_confirm.return_value = False
-            write_rendered_template(file_path, template="some text", file_type="test")
-            # Assert that file content stays the same ('test')
-            self.assert_file_integrity(file_path, "098f6bcd4621d373cade4e832627b4f6", "md5")
-
-            mock_click_confirm.return_value = True
-            write_rendered_template(file_path, template="some text", file_type="test")
-            # Assert that file content is now 'some text' instead of 'test'
-            self.assert_file_integrity(file_path, "552e21cd4cd9918678e3c1a0df491bc3", "md5")
 
 
 class TestInteractiveConfigBuilder(unittest.TestCase):
@@ -157,8 +129,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_main_vm")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_cloud_sql_database")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_workflows_projects")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_variables")
-    @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_airflow_connections")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_google_cloud")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_terraform")
     @patch("observatory.platform.cli.generate_command.InteractiveConfigBuilder.config_observatory")
@@ -169,8 +139,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         m_observatory,
         m_terraform,
         m_google_cloud,
-        m_airflow_connections,
-        m_airflow_variables,
         m_workflows_projects,
         m_cloud_sql_database,
         m_airflow_main_vm,
@@ -223,8 +191,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         self.assertTrue(m_observatory.called)
         self.assertTrue(m_terraform.called)
         self.assertTrue(m_google_cloud.called)
-        self.assertTrue(m_airflow_connections.called)
-        self.assertTrue(m_airflow_variables.called)
         self.assertTrue(m_workflows_projects.called)
         self.assertTrue(m_cloud_sql_database.called)
         self.assertTrue(m_airflow_main_vm.called)
@@ -493,10 +459,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             project_id="proj",
             credentials="/tmp",
             data_location="us",
-            buckets=[
-                CloudStorageBucket(id="download_bucket", name="download"),
-                CloudStorageBucket(id="transform_bucket", name="transform"),
-            ],
         )
 
         # Answer to questions
@@ -504,8 +466,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
             google_cloud.project_id,
             google_cloud.credentials,
             google_cloud.data_location,
-            google_cloud.buckets[0].name,
-            google_cloud.buckets[1].name,
         ]
 
         config = ObservatoryConfig()
@@ -515,12 +475,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
 
     @patch("observatory.platform.cli.generate_command.click.prompt")
     def test_config_google_cloud_terraform_config(self, m_prompt):
-        project_id = "proj"
-        credentials = "/tmp"
-        data_location = "us"
-        region = "us-west2"
-        zone = "us-west1-b"
-
         google_cloud = GoogleCloud(
             project_id="proj",
             credentials="/tmp",
@@ -574,62 +528,6 @@ class TestInteractiveConfigBuilder(unittest.TestCase):
         config = TerraformConfig()
         InteractiveConfigBuilder.config_terraform(config)
         self.assertEqual(config.terraform, terraform)
-
-    @patch("observatory.platform.cli.generate_command.click.confirm")
-    def test_config_airflow_connections_none(self, m_confirm):
-        m_confirm.return_value = False
-        config = ObservatoryConfig()
-        InteractiveConfigBuilder.config_airflow_connections(config)
-        self.assertEqual(len(config.airflow_connections), 0)
-
-    @patch("observatory.platform.cli.generate_command.click.prompt")
-    @patch("observatory.platform.cli.generate_command.click.confirm")
-    def test_config_airflow_connections_add(self, m_confirm, m_prompt):
-        m_confirm.side_effect = [True, True, False]
-
-        expected_conns = [
-            AirflowConnection(name="con1", value="val1"),
-            AirflowConnection(name="con2", value="val2"),
-        ]
-
-        m_prompt.side_effect = [
-            expected_conns[0].name,
-            expected_conns[0].value,
-            expected_conns[1].name,
-            expected_conns[1].value,
-        ]
-
-        config = ObservatoryConfig()
-        InteractiveConfigBuilder.config_airflow_connections(config)
-        self.assertEqual(config.airflow_connections, expected_conns)
-
-    @patch("observatory.platform.cli.generate_command.click.confirm")
-    def test_config_airflow_variables_none(self, m_confirm):
-        m_confirm.return_value = False
-        config = ObservatoryConfig()
-        InteractiveConfigBuilder.config_airflow_variables(config)
-        self.assertEqual(len(config.airflow_variables), 0)
-
-    @patch("observatory.platform.cli.generate_command.click.prompt")
-    @patch("observatory.platform.cli.generate_command.click.confirm")
-    def test_config_airflow_variables_add(self, m_confirm, m_prompt):
-        m_confirm.side_effect = [True, True, False]
-
-        expected_variables = [
-            AirflowVariable(name="var1", value="val1"),
-            AirflowVariable(name="var2", value="val2"),
-        ]
-
-        m_prompt.side_effect = [
-            expected_variables[0].name,
-            expected_variables[0].value,
-            expected_variables[1].name,
-            expected_variables[1].value,
-        ]
-
-        config = ObservatoryConfig()
-        InteractiveConfigBuilder.config_airflow_variables(config)
-        self.assertEqual(config.airflow_variables, expected_variables)
 
     @patch("observatory.platform.cli.generate_command.click.confirm")
     def test_config_workflows_projects_none(self, m_confirm):

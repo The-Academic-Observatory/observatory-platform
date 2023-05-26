@@ -22,9 +22,9 @@ import subprocess
 from subprocess import Popen
 from typing import Tuple
 from observatory.platform.cli.cli_utils import indent, INDENT1
+from observatory.platform.config import module_file_path
 from observatory.platform.docker.platform_runner import PlatformRunner
 from observatory.platform.observatory_config import TerraformConfig
-from observatory.platform.utils.config_utils import module_file_path
 from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.proc_utils import stream_process
 

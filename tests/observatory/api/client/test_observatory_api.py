@@ -32,36 +32,11 @@ import observatory.api.server.orm as orm
 from observatory.api.client import ApiClient, Configuration
 from observatory.api.client.api.observatory_api import ObservatoryApi  # noqa: E501
 from observatory.api.client.exceptions import (
-    ApiException,
     NotFoundException,
 )
-from observatory.api.client.model.big_query_bytes_processed import (
-    BigQueryBytesProcessed,
-)
-from observatory.api.client.model.dataset import Dataset
 from observatory.api.client.model.dataset_release import DatasetRelease
-from observatory.api.client.model.dataset_type import DatasetType
-from observatory.api.client.model.organisation import Organisation
-from observatory.api.client.model.table_type import TableType
-from observatory.api.client.model.workflow import Workflow
-from observatory.api.client.model.workflow_type import WorkflowType
 from observatory.api.testing import ObservatoryApiEnvironment
-from observatory.platform.utils.test_utils import find_free_port
-
-
-def make_workflow_types(env: ObservatoryApiEnvironment, dt):
-    # Add WorkflowType objects
-    workflow_types = [
-        ("onix", "ONIX Workflow"),
-        ("jstor", "JSTOR Workflow"),
-        ("google_analytics", "Google Analytics Workflow"),
-    ]
-
-    for type_id, name in workflow_types:
-        env.session.add(orm.WorkflowType(type_id=type_id, name=name, created=dt, modified=dt))
-    env.session.commit()
-
-    return workflow_types
+from observatory.platform.observatory_environment import find_free_port
 
 
 class TestObservatoryApi(unittest.TestCase):
@@ -80,1215 +55,34 @@ class TestObservatoryApi(unittest.TestCase):
         api = ObservatoryApi()
         self.assertTrue(api.api_client is not None)
 
-    def test_delete_organisation(self):
-        """Test case for delete_organisation
-
-        delete an Organisation  # noqa: E501
-        """
-
-        with self.env.create():
-            # Post workflow
-            expected_id = 1
-
-            dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.Organisation(name="Curtin University", created=dt, modified=dt))
-            self.env.session.commit()
-
-            result = self.api.delete_organisation(expected_id)
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.delete_organisation(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Organisation with id {expected_id}"\n', e.exception.body)
-
-    def test_delete_workflow(self):
-        """Test case for delete_workflow
-
-        delete a Workflow  # noqa: E501
-        """
-
-        with self.env.create():
-            # Post workflow
-            expected_id = 1
-
-            workflow_type_name = "ONIX Workflow"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Workflow(
-                    organisation={"id": expected_id}, workflow_type={"id": expected_id}, created=dt, modified=dt
-                )
-            )
-            self.env.session.commit()
-
-            result = self.api.delete_workflow(expected_id)
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.delete_workflow(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Workflow with id {expected_id}"\n', e.exception.body)
-
-    def test_delete_workflow_type(self):
-        """Test case for delete_workflow_type
-
-        delete a WorkflowType  # noqa: E501
-        """
-
-        with self.env.create():
-            # Post workflow
-            expected_id = 1
-
-            dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.WorkflowType(type_id="onix", name="ONIX Workflow", created=dt, modified=dt))
-            self.env.session.commit()
-
-            result = self.api.delete_workflow_type(expected_id)
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.delete_workflow_type(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: WorkflowType with id {expected_id}"\n', e.exception.body)
-
-    def test_delete_table_type(self):
-        """Test case for delete_table_type
-
-        delete a TableType  # noqa: E501
-        """
-
-        with self.env.create():
-            # Post workflow
-            expected_id = 1
-
-            dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.TableType(type_id="typeid", name="My type id", created=dt, modified=dt))
-            self.env.session.commit()
-
-            result = self.api.delete_table_type(expected_id)
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.delete_table_type(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: TableType with id {expected_id}"\n', e.exception.body)
-
-    def test_get_organisation(self):
-        """Test case for get_organisation
-
-        get an Organisation  # noqa: E501
-        """
-
-        with self.env.create():
-            expected_id = 1
-
-            # Assert that WorkflowType with given id does not exist
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_workflow_type(id=expected_id)
-
-            # Add WorkflowType
-            name = "Curtin University"
-            project_id = "my-project-id"
-            download_bucket = "my-download-bucket"
-            transform_bucket = "my-transform-bucket"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(
-                orm.Organisation(
-                    name=name,
-                    project_id=project_id,
-                    download_bucket=download_bucket,
-                    transform_bucket=transform_bucket,
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Assert that WorkflowType with given id exists
-            obj = self.api.get_organisation(expected_id)
-            self.assertIsInstance(obj, Organisation)
-            self.assertEqual(expected_id, obj.id)
-            self.assertEqual(name, obj.name)
-            self.assertEqual(project_id, obj.project_id)
-            self.assertEqual(download_bucket, obj.download_bucket)
-            self.assertEqual(transform_bucket, obj.transform_bucket)
-            self.assertEqual(dt_utc, obj.created)
-            self.assertEqual(dt_utc, obj.modified)
-
-    def test_get_organisations(self):
-        """Test case for get_organisations
-
-        Get a list of Organisations  # noqa: E501
-        """
-
-        with self.env.create():
-            # Add Organisation objects
-            names = ["Curtin University", "Massachusetts Institute of Technology", "Harvard University"]
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            for name in names:
-                self.env.session.add(orm.Organisation(name=name, created=dt, modified=dt))
-            self.env.session.commit()
-
-            # Assert that Organisation objects returned
-            objects = self.api.get_organisations(limit=10)
-            self.assertEqual(len(names), len(objects))
-            for i, (obj, name) in enumerate(zip(objects, names)):
-                expected_id = i + 1
-                self.assertIsInstance(obj, Organisation)
-                self.assertEqual(expected_id, obj.id)
-                self.assertEqual(name, obj.name)
-                self.assertEqual(dt_utc, obj.created)
-                self.assertEqual(dt_utc, obj.modified)
-
-    def test_get_workflow(self):
-        """Test case for get_workflow
-
-        get a Workflow  # noqa: E501
-        """
-
-        with self.env.create():
-            expected_id = 1
-
-            # Assert that Workflow with given id does not exist
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_workflow(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Workflow with id {expected_id}"\n', e.exception.body)
-
-            # Add Workflow
-            workflow_type_name = "ONIX Workflow"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Workflow(
-                    name="Curtin ONIX Workflow",
-                    extra={"view_id": 123456},
-                    tags=None,
-                    organisation={"id": expected_id},
-                    workflow_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Assert that Workflow with given id exists
-            obj = self.api.get_workflow(expected_id)
-            self.assertIsInstance(obj, Workflow)
-            self.assertEqual(expected_id, obj.id)
-            self.assertEqual(expected_id, obj.organisation.id)
-            self.assertEqual(org_name, obj.organisation.name)
-            self.assertEqual(expected_id, obj.workflow_type.id)
-            self.assertEqual(workflow_type_name, obj.workflow_type.name)
-            self.assertEqual(dt_utc, obj.created)
-            self.assertEqual(dt_utc, obj.modified)
-
-    def test_get_workflow_type(self):
-        """Test case for get_workflow_type
-
-        get a WorkflowType  # noqa: E501
-        """
-
-        with self.env.create():
-            expected_id = 1
-            type_id = "onix"
-
-            # Assert that WorkflowType with given id does not exist
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_workflow_type(id=expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: WorkflowType with id {expected_id}"\n', e.exception.body)
-
-            # Assert that WorkflowType with given type_id does not exist
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_workflow_type(type_id=type_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: WorkflowType with type_id {type_id}"\n', e.exception.body)
-
-            # Assert that 400 error raised: both missing
-            expected_body = '"At least one and only one of id or type_id must be specified"\n'
-            with self.assertRaises(ApiException) as e:
-                self.api.get_workflow_type()
-            self.assertEqual(400, e.exception.status)
-            self.assertEqual(expected_body, e.exception.body)
-
-            # Assert that 400 error raised: both present
-            with self.assertRaises(ApiException) as e:
-                self.api.get_workflow_type(id=expected_id, type_id=type_id)
-            self.assertEqual(400, e.exception.status)
-            self.assertEqual(expected_body, e.exception.body)
-
-            # Add WorkflowType
-            name = "ONIX Workflow"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.WorkflowType(type_id=type_id, name=name, created=dt, modified=dt))
-            self.env.session.commit()
-
-            # Assert that WorkflowType with given id exists
-            obj = self.api.get_workflow_type(id=expected_id)
-            self.assertIsInstance(obj, WorkflowType)
-            self.assertEqual(expected_id, obj.id)
-            self.assertEqual(name, obj.name)
-            self.assertEqual(dt_utc, obj.created)
-            self.assertEqual(dt_utc, obj.modified)
-
-            # Assert that WorkflowType can be fetched with type_id
-            obj = self.api.get_workflow_type(type_id=type_id)
-            self.assertIsInstance(obj, WorkflowType)
-            self.assertEqual(expected_id, obj.id)
-            self.assertEqual(name, obj.name)
-            self.assertEqual(dt_utc, obj.created)
-            self.assertEqual(dt_utc, obj.modified)
-
-    def test_get_workflow_types(self):
-        """Test case for get_workflow_types
-
-        Get a list of WorkflowType objects  # noqa: E501
-        """
-
-        with self.env.create():
-            # Add WorkflowType objects
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            workflow_types = make_workflow_types(self.env, dt)
-
-            # Assert that WorkflowType objects returned
-            objects = self.api.get_workflow_types(limit=10)
-            self.assertEqual(len(workflow_types), len(objects))
-            for i, (obj, (type_id, name)) in enumerate(zip(objects, workflow_types)):
-                expected_id = i + 1
-                self.assertIsInstance(obj, WorkflowType)
-                self.assertEqual(expected_id, obj.id)
-                self.assertEqual(type_id, obj.type_id)
-                self.assertEqual(name, obj.name)
-                self.assertEqual(dt_utc, obj.created)
-                self.assertEqual(dt_utc, obj.modified)
-
-    def test_get_workflows(self):
-        """Test case for get_workflows
-
-        Get a list of Workflow objects  # noqa: E501
-        """
-
-        with self.env.create():
-            # Add WorkflowType objects
-            dt = pendulum.now(self.timezone)
-            make_workflow_types(self.env, dt)
-
-            # Add Organisations
-            names = ["Curtin University", "Massachusetts Institute of Technology"]
-            for name in names:
-                self.env.session.add(orm.Organisation(name=name, created=dt, modified=dt))
-            self.env.session.commit()
-
-            # Add Workflows
-            dt = pendulum.now(self.timezone)
-            self.env.session.add(
-                orm.Workflow(
-                    organisation={"id": 1},
-                    workflow_type={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.add(orm.Workflow(organisation={"id": 1}, workflow_type={"id": 2}, created=dt, modified=dt))
-            self.env.session.add(orm.Workflow(organisation={"id": 2}, workflow_type={"id": 1}, created=dt, modified=dt))
-            self.env.session.commit()
-
-            # Assert that all Workflow objects returned
-            objects = self.api.get_workflows(limit=10)
-            self.assertEqual(3, len(objects))
-
-            # Assert that Organisation 1 Workflow objects returned
-            objects = self.api.get_workflows(organisation_id=1, limit=10)
-            self.assertEqual(2, len(objects))
-
-            # Assert that Organisation 2 Workflow objects returned
-            objects = self.api.get_workflows(organisation_id=2, limit=10)
-            self.assertEqual(1, len(objects))
-
-            # Assert that WorkflowType 1 Workflow objects returned
-            objects = self.api.get_workflows(workflow_type_id=1, limit=10)
-            self.assertEqual(2, len(objects))
-
-            # Assert that WorkflowType 2 Workflow objects returned
-            objects = self.api.get_workflows(workflow_type_id=2, limit=10)
-            self.assertEqual(1, len(objects))
-
-    def test_get_table_type(self):
-        """Test case for get_table_type
-
-        get a TableType  # noqa: E501
-        """
-
-        with self.env.create():
-            expected_id = 1
-            type_id = "table type id"
-
-            # Assert that TableType with given id does not exist
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_table_type(id=expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: TableType with id {expected_id}"\n', e.exception.body)
-
-            # Assert that TableType with given type_id does not exist
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_table_type(type_id=type_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: TableType with type_id {type_id}"\n', e.exception.body)
-
-            # Assert that 400 error raised: both missing
-            expected_body = '"At least one and only one of id or type_id must be specified"\n'
-            with self.assertRaises(ApiException) as e:
-                self.api.get_table_type()
-            self.assertEqual(400, e.exception.status)
-            self.assertEqual(expected_body, e.exception.body)
-
-            # Assert that 400 error raised: both present
-            with self.assertRaises(ApiException) as e:
-                self.api.get_workflow_type(id=expected_id, type_id=type_id)
-            self.assertEqual(400, e.exception.status)
-            self.assertEqual(expected_body, e.exception.body)
-
-            # Add TableType
-            name = "My table type"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TableType(type_id=type_id, name=name, created=dt, modified=dt))
-            self.env.session.commit()
-
-            # Assert that TableType with given id exists
-            obj = self.api.get_table_type(id=expected_id)
-            self.assertIsInstance(obj, TableType)
-            self.assertEqual(expected_id, obj.id)
-            self.assertEqual(name, obj.name)
-            self.assertEqual(dt_utc, obj.created)
-            self.assertEqual(dt_utc, obj.modified)
-
-            # Assert that TableType can be fetched with type_id
-            obj = self.api.get_table_type(type_id=type_id)
-            self.assertIsInstance(obj, TableType)
-            self.assertEqual(expected_id, obj.id)
-            self.assertEqual(name, obj.name)
-            self.assertEqual(dt_utc, obj.created)
-            self.assertEqual(dt_utc, obj.modified)
-
-    def test_get_table_types(self):
-        """Test case for get_table_types
-
-        Get a list of TableType objects  # noqa: E501
-        """
-
-        with self.env.create():
-            # Add TableType objects
-            name = "My table type"
-            type_id = "table type id"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TableType(type_id=type_id, name=name, created=dt, modified=dt))
-            self.env.session.commit()
-
-            # Assert that TableType objects returned
-            objects = self.api.get_table_types(limit=10)
-            self.assertEqual(1, len(objects))
-            self.assertIsInstance(objects[0], TableType)
-            self.assertEqual(1, objects[0].id)
-            self.assertEqual(type_id, objects[0].type_id)
-            self.assertEqual(name, objects[0].name)
-            self.assertEqual(dt_utc, objects[0].created)
-            self.assertEqual(dt_utc, objects[0].modified)
-
-    def test_post_organisation(self):
-        """Test case for post_organisation
-
-        create an Organisation  # noqa: E501
-        """
-
-        with self.env.create():
-            # Post workflow
-            expected_id = 1
-            obj = Organisation(name="Curtin University")
-            result = self.api.post_organisation(obj)
-            self.assertIsInstance(result, Organisation)
-            self.assertEqual(expected_id, result.id)
-
-    def test_post_workflow(self):
-        """Test case for post_workflow
-
-        create a Workflow  # noqa: E501
-        """
-
-        with self.env.create():
-            # Add WorkflowType and Organisation
-            dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.WorkflowType(type_id="onix", name="ONIX Workflow", created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name="Curtin University", created=dt, modified=dt))
-            self.env.session.commit()
-
-            # Post workflow
-            expected_id = 1
-            obj = Workflow(
-                name="Curtin University ONIX Workflow",
-                extra={"view_id": 123456},
-                tags='["oaebu"]',
-                organisation=Organisation(id=expected_id),
-                workflow_type=WorkflowType(id=expected_id),
-            )
-            result = self.api.post_workflow(obj)
-            self.assertIsInstance(result, Workflow)
-            self.assertEqual(expected_id, result.id)
-
-    def test_post_workflow_type(self):
-        """Test case for post_workflow_type
-
-        create a WorkflowType  # noqa: E501
-        """
-
-        with self.env.create():
-            expected_id = 1
-            obj = WorkflowType(type_id="onix", name="ONIX Workflow")
-            result = self.api.post_workflow_type(obj)
-
-            self.assertIsInstance(result, WorkflowType)
-            self.assertEqual(expected_id, result.id)
-
-    def test_post_table_type(self):
-        """Test case for post_table_type
-
-        create a TableType  # noqa: E501
-        """
-
-        with self.env.create():
-            expected_id = 1
-            obj = TableType(type_id="table type", name="My table type")
-            result = self.api.post_table_type(obj)
-
-            self.assertIsInstance(result, TableType)
-            self.assertEqual(expected_id, result.id)
-
-    def test_put_organisation(self):
-        """Test case for put_organisation
-
-        create or update an Organisation  # noqa: E501
-        """
-
-        with self.env.create():
-            # Put create
-            expected_id = 1
-            name = "Curtin University"
-            obj = Organisation(name=name)
-            result = self.api.put_organisation(obj)
-            self.assertIsInstance(result, Organisation)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(name, result.name)
-
-            # Put update
-            new_name = "Massachusetts Institute of Technology"
-            obj = Organisation(id=expected_id, name=new_name)
-            result = self.api.put_organisation(obj)
-            self.assertIsInstance(result, Organisation)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(new_name, result.name)
-
-            # Put not found
-            expected_id = 2
-            with self.assertRaises(NotFoundException) as e:
-                self.api.put_organisation(Organisation(id=expected_id, name=new_name))
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Organisation with id {expected_id}"\n', e.exception.body)
-
-    def test_put_workflow(self):
-        """Test case for put_workflow
-
-        create or update a Workflow  # noqa: E501
-        """
-
-        with self.env.create():
-            expected_id = 1
-            dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.WorkflowType(type_id="onix", name="ONIX Workflow", created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name="Curtin University", created=dt, modified=dt))
-            self.env.session.add(
-                orm.Organisation(name="Massachusetts Institute of Technology", created=dt, modified=dt)
-            )
-            self.env.session.commit()
-
-            # Put create
-            obj = Workflow(organisation=Organisation(id=expected_id), workflow_type=WorkflowType(id=expected_id))
-            result = self.api.put_workflow(obj)
-            self.assertIsInstance(result, Workflow)
-            self.assertEqual(expected_id, result.id)
-
-            # Put update
-            name = "Curtin ONIX Workflow"
-            extra = {"view_id": 123456}
-            tags = '["oaebu"]'
-            obj = Workflow(
-                id=expected_id,
-                name=name,
-                extra=extra,
-                tags=tags,
-                organisation=Organisation(id=2),
-                workflow_type=WorkflowType(id=expected_id),
-            )
-            result = self.api.put_workflow(obj)
-            self.assertIsInstance(result, Workflow)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(name, result.name)
-            self.assertDictEqual(extra, result.extra)
-            self.assertEqual("Massachusetts Institute of Technology", result.organisation.name)
-
-            # Put not found
-            expected_id = 2
-            with self.assertRaises(NotFoundException) as e:
-                self.api.put_workflow(
-                    Workflow(
-                        id=expected_id,
-                        organisation=Organisation(id=expected_id),
-                        workflow_type=WorkflowType(id=expected_id),
-                    )
-                )
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Workflow with id {expected_id}"\n', e.exception.body)
-
-            # Put with no organisation set
-            obj = Workflow(workflow_type=WorkflowType(id=1))
-            result = self.api.put_workflow(obj)
-            self.assertEqual(None, result.organisation)
-
-    def test_put_workflow_type(self):
-        """Test case for put_workflow_type
-
-        create or update a WorkflowType  # noqa: E501
-        """
-
-        with self.env.create():
-            # Put create
-            expected_id = 1
-            name = "ONIX Workflow"
-            obj = WorkflowType(type_id="onix", name=name)
-            result = self.api.put_workflow_type(obj)
-            self.assertIsInstance(result, WorkflowType)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(name, result.name)
-
-            # Put update
-            new_name = "Google Analytics Workflow"
-            obj = WorkflowType(type_id="google_analytics", id=expected_id, name=new_name)
-            result = self.api.put_workflow_type(obj)
-            self.assertIsInstance(result, WorkflowType)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(new_name, result.name)
-
-            # Put not found
-            expected_id = 2
-            with self.assertRaises(NotFoundException) as e:
-                self.api.put_workflow_type(WorkflowType(id=expected_id, name=new_name))
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: WorkflowType with id {expected_id}"\n', e.exception.body)
-
-    def test_put_table_type(self):
-        """Test case for put_table_type
-
-        create or update a TableType  # noqa: E501
-        """
-
-        with self.env.create():
-            # Put create
-            expected_id = 1
-            name = "My table id"
-            type_id = "table id"
-            obj = TableType(type_id=type_id, name=name)
-            result = self.api.put_table_type(obj)
-            self.assertIsInstance(result, TableType)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(name, result.name)
-
-            # Put update
-            new_name = "New name"
-            type_id = "new type id"
-            obj = TableType(type_id=type_id, id=expected_id, name=new_name)
-            result = self.api.put_table_type(obj)
-            self.assertIsInstance(result, TableType)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(new_name, result.name)
-
-            # Put not found
-            expected_id = 2
-            with self.assertRaises(NotFoundException) as e:
-                self.api.put_table_type(TableType(id=expected_id, name=new_name))
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: TableType with id {expected_id}"\n', e.exception.body)
-
-    def test_get_dataset_type(self):
-        """Test case for get_dataset_type"""
-
-        with self.env.create():
-            expected_id = 1
-
-            # No arguments specified
-            with self.assertRaises(ApiException):
-                self.api.get_dataset_type()
-
-            # Assert that DatasetType with given id does not exist
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_dataset_type(id=expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetType with id {expected_id}"\n', e.exception.body)
-
-            # Add DatasetType
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.TableType(type_id="table type", name="table type name", created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.DatasetType(
-                    type_id="type id",
-                    name="Dataset type name",
-                    extra={"view_id": 123456},
-                    table_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Assert that Dataset with given id exists
-            obj = self.api.get_dataset_type(id=expected_id)
-            self.assertIsInstance(obj, DatasetType)
-            self.assertEqual(expected_id, obj.id)
-            self.assertEqual("Dataset type name", obj.name)
-            self.assertEqual(dt_utc, obj.created)
-            self.assertEqual(dt_utc, obj.modified)
-
-            dataset_type = self.api.get_dataset_type(type_id="type id")
-            self.assertEqual(dataset_type.name, "Dataset type name")
-
-            # Type id not found
-            with self.assertRaises(NotFoundException):
-                dataset_type = self.api.get_dataset_type(type_id="unknown")
-
-    def test_post_dataset_type(self):
-        """Test case for post_dataset"""
-
-        with self.env.create():
-            expected_id = 1
-            dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.TableType(type_id="table type", name="table type name", created=dt, modified=dt))
-            self.env.session.commit()
-
-            # Post DatasetType
-            obj = DatasetType(
-                name="My dataset type",
-                type_id="type id",
-                table_type=TableType(id=expected_id),
-            )
-            result = self.api.post_dataset_type(obj)
-            self.assertIsInstance(result, DatasetType)
-            self.assertEqual(expected_id, result.id)
-
-    def test_put_dataset_type(self):
-        """Test case for put_dataset_type"""
-
-        with self.env.create():
-            expected_id = 1
-            dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.TableType(type_id="table type", name="table type name", created=dt, modified=dt))
-            self.env.session.commit()
-
-            # Put create
-            name = "new type name"
-            obj = DatasetType(
-                name=name,
-                type_id="type id",
-                table_type=TableType(id=expected_id),
-            )
-            result = self.api.put_dataset_type(obj)
-            self.assertIsInstance(result, DatasetType)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(name, result.name)
-
-            # Put update
-            name = "new type name"
-            extra = {}
-            obj = DatasetType(
-                id=expected_id,
-                name=name,
-                type_id="type id",
-                table_type=TableType(id=expected_id),
-            )
-            result = self.api.put_dataset_type(obj)
-            self.assertIsInstance(result, DatasetType)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(name, result.name)
-
-            # Put not found
-            expected_id = 2
-            with self.assertRaises(NotFoundException) as e:
-                self.api.put_dataset_type(
-                    DatasetType(
-                        id=expected_id,
-                        name=name,
-                        type_id="type id",
-                        table_type=TableType(id=expected_id),
-                    )
-                )
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetType with id {expected_id}"\n', e.exception.body)
-
-    def test_delete_dataset_type(self):
-        """Test case for delete_dataset_type"""
-
-        with self.env.create():
-            expected_id = 1
-            dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.TableType(type_id="table type", name="table type name", created=dt, modified=dt))
-            self.env.session.commit()
-
-            # Put create
-            name = "new type name"
-            obj = DatasetType(
-                name=name,
-                type_id="type id",
-                table_type=TableType(id=expected_id),
-            )
-            result = self.api.put_dataset_type(obj)
-            self.assertIsInstance(result, DatasetType)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(name, result.name)
-
-            # Delete
-            self.api.delete_dataset_type(expected_id)
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.delete_dataset_type(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetType with id {expected_id}"\n', e.exception.body)
-
-    def test_get_dataset_types(self):
-        """Test case for get_dataset_types"""
-
-        with self.env.create():
-            expected_id = 1
-            dt = pendulum.now(self.timezone)
-            self.env.session.add(orm.TableType(type_id="table type", name="table type name", created=dt, modified=dt))
-            self.env.session.commit()
-
-            # Put create
-            name = "new type name"
-            obj = DatasetType(
-                name=name,
-                type_id="type id",
-                table_type=TableType(id=expected_id),
-            )
-            result = self.api.put_dataset_type(obj)
-            self.assertIsInstance(result, DatasetType)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(name, result.name)
-
-            # Search dataset types
-            objects = self.api.get_dataset_types(limit=100)
-            self.assertEqual(1, len(objects))
-
-    def test_get_dataset(self):
-        """Test case for get_dataset"""
-
-        with self.env.create():
-            expected_id = 1
-
-            # Assert that Dataset with given id does not exist
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_dataset(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Dataset with id {expected_id}"\n', e.exception.body)
-
-            # Add Dataset
-            workflow_type_name = "ONIX Workflow"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Workflow(
-                    name="Curtin ONIX Workflow",
-                    extra={"view_id": 123456},
-                    tags='["oaebu"]',
-                    organisation={"id": expected_id},
-                    workflow_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.TableType(
-                    type_id="partitioned",
-                    name="partitioned bq table",
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.DatasetType(
-                    type_id="dataset_type_id",
-                    name="ds type",
-                    extra={},
-                    table_type={"id": 1},
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset",
-                    service="bigquery",
-                    address="project.dataset.table",
-                    workflow={"id": expected_id},
-                    dataset_type={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Assert that Dataset with given id exists
-            obj = self.api.get_dataset(expected_id)
-            self.assertIsInstance(obj, Dataset)
-            self.assertEqual(expected_id, obj.id)
-            self.assertEqual("dataset", obj.name)
-            self.assertEqual(expected_id, obj.workflow.id)
-            self.assertEqual("Curtin ONIX Workflow", obj.workflow.name)
-            self.assertEqual(dt_utc, obj.created)
-            self.assertEqual(dt_utc, obj.modified)
-
-    def test_post_dataset(self):
-        """Test case for post_dataset"""
-
-        with self.env.create():
-            expected_id = 1
-            workflow_type_name = "ONIX Workflow"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Workflow(
-                    name="Curtin ONIX Workflow",
-                    extra={"view_id": 123456},
-                    tags='["oaebu"]',
-                    organisation={"id": expected_id},
-                    workflow_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.TableType(
-                    type_id="partitioned",
-                    name="partitioned bq table",
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.DatasetType(
-                    type_id="dataset_type_id",
-                    name="ds type",
-                    extra={},
-                    table_type={"id": 1},
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Post Dataset
-            obj = Dataset(
-                name="My dataset",
-                service="bigquery",
-                address="project.dataset.table",
-                workflow=Workflow(id=expected_id),
-                dataset_type=DatasetType(id=1),
-            )
-            result = self.api.post_dataset(obj)
-            self.assertIsInstance(result, Dataset)
-            self.assertEqual(expected_id, result.id)
-
-    def test_put_dataset(self):
-        """Test case for put_dataset"""
-
-        with self.env.create():
-            expected_id = 1
-            workflow_type_name = "ONIX Workflow"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Workflow(
-                    name="Curtin ONIX Workflow",
-                    extra={"view_id": 123456},
-                    tags='["oaebu"]',
-                    organisation={"id": expected_id},
-                    workflow_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.TableType(
-                    type_id="partitioned",
-                    name="partitioned bq table",
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.DatasetType(
-                    type_id="dataset_type_id",
-                    name="ds type",
-                    extra={},
-                    table_type={"id": 1},
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Put create
-            obj = Dataset(
-                name="My dataset",
-                service="bigquery",
-                address="project.dataset.table",
-                workflow=Workflow(id=expected_id),
-                dataset_type=DatasetType(id=1),
-            )
-            result = self.api.put_dataset(obj)
-            self.assertIsInstance(result, Dataset)
-            self.assertEqual(expected_id, result.id)
-
-            # Put update
-            name = "Dataset"
-            obj = Dataset(
-                id=expected_id,
-                name=name,
-                service="bigquery",
-                address="project.dataset.table",
-                workflow=Workflow(id=expected_id),
-            )
-            result = self.api.put_dataset(obj)
-            self.assertIsInstance(result, Dataset)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(name, result.name)
-            self.assertEqual("Curtin ONIX Workflow", result.workflow.name)
-
-            # Put not found
-            expected_id = 2
-            with self.assertRaises(NotFoundException) as e:
-                self.api.put_dataset(
-                    Dataset(
-                        id=expected_id,
-                        service="bigquery",
-                        address="project.dataset.table",
-                        workflow=Workflow(id=expected_id),
-                    )
-                )
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Dataset with id {expected_id}"\n', e.exception.body)
-
-    def test_get_datasets(self):
-        """Test case for get_datasets"""
-
-        with self.env.create():
-            expected_id = 1
-            workflow_type_name = "ONIX Workflow"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Workflow(
-                    name="Curtin ONIX Workflow",
-                    extra={"view_id": 123456},
-                    tags='["oaebu"]',
-                    organisation={"id": expected_id},
-                    workflow_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.add(
-                orm.Workflow(
-                    name="Curtin ONIX Workflow",
-                    extra={"view_id": 123456},
-                    tags='["oaebu"]',
-                    organisation={"id": expected_id},
-                    workflow_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.TableType(
-                    type_id="partitioned",
-                    name="partitioned bq table",
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.DatasetType(
-                    type_id="dataset_type_id",
-                    name="ds type",
-                    extra={},
-                    table_type={"id": 1},
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Add Datasets
-            dt = pendulum.now(self.timezone)
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset",
-                    service="bigquery",
-                    address="project.dataset.table",
-                    workflow={"id": 1},
-                    dataset_type={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset",
-                    workflow={"id": 2},
-                    dataset_type={"id": 1},
-                    service="bigquery",
-                    address="project.dataset.table",
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Assert that all Workflow objects returned
-            objects = self.api.get_datasets(limit=10)
-            self.assertEqual(2, len(objects))
-
-            # Search datasets by workflow_id
-            objects = self.api.get_datasets(workflow_id=1, limit=10)
-            self.assertEqual(1, len(objects))
-
-            objects = self.api.get_datasets(workflow_id=2, limit=10)
-            self.assertEqual(1, len(objects))
-
     def test_get_dataset_release(self):
         """Test case for get_dataset_release"""
 
         with self.env.create():
+            # Not found
             expected_id = 1
             with self.assertRaises(NotFoundException) as e:
                 self.api.get_dataset_release(id=expected_id)
             self.assertEqual(404, e.exception.status)
             self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
 
-            expected_id = 1
-            workflow_type_name = "ONIX Workflow"
-            org_name = "Curtin University"
+            # Add DatasetRelease to database
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Workflow(
-                    name="Curtin ONIX Workflow",
-                    extra={"view_id": 123456},
-                    tags='["oaebu"]',
-                    organisation={"id": expected_id},
-                    workflow_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.TableType(
-                    type_id="partitioned",
-                    name="partitioned bq table",
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.DatasetType(
-                    type_id="dataset_type_id",
-                    name="ds type",
-                    extra={},
-                    table_type={"id": 1},
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Add Datasets
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset",
-                    service="bigquery",
-                    address="project.dataset.table",
-                    workflow={"id": 1},
-                    dataset_type={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
             self.env.session.add(
                 orm.DatasetRelease(
-                    start_date=dt,
-                    end_date=dt,
-                    dataset={"id": expected_id},
+                    dag_id="doi_workflow",
+                    dataset_id="doi",
+                    dag_run_id="scheduled__2023-03-26T00:00:00+00:00",
+                    data_interval_start=dt,
+                    data_interval_end=dt,
+                    partition_date=dt,
+                    snapshot_date=dt,
+                    changefile_start_date=dt,
+                    changefile_end_date=dt,
+                    sequence_start=1,
+                    sequence_end=10,
+                    extra={"hello": "world"},
                     created=dt,
                     modified=dt,
                 )
@@ -1299,8 +93,18 @@ class TestObservatoryApi(unittest.TestCase):
             obj = self.api.get_dataset_release(id=expected_id)
             self.assertIsInstance(obj, DatasetRelease)
             self.assertEqual(expected_id, obj.id)
-            self.assertEqual(expected_id, obj.dataset.id)
-            self.assertEqual("dataset", obj.dataset.name)
+            self.assertEqual("doi_workflow", obj.dag_id)
+            self.assertEqual("doi", obj.dataset_id)
+            self.assertEqual("scheduled__2023-03-26T00:00:00+00:00", obj.dag_run_id)
+            self.assertEqual(dt_utc, obj.data_interval_start)
+            self.assertEqual(dt_utc, obj.data_interval_end)
+            self.assertEqual(dt_utc, obj.snapshot_date)
+            self.assertEqual(dt_utc, obj.partition_date)
+            self.assertEqual(dt_utc, obj.changefile_start_date)
+            self.assertEqual(dt_utc, obj.changefile_end_date)
+            self.assertEqual(1, obj.sequence_start)
+            self.assertEqual(10, obj.sequence_end)
+            self.assertEqual({"hello": "world"}, obj.extra)
             self.assertEqual(dt_utc, obj.created)
             self.assertEqual(dt_utc, obj.modified)
 
@@ -1309,168 +113,94 @@ class TestObservatoryApi(unittest.TestCase):
             self.assertIsInstance(obj, DatasetRelease)
 
             # DatasetRelease not found
-            dataset_id = 2
-            self.assertRaises(NotFoundException, self.api.get_dataset_release, dataset_id)
+            id = 2
+            self.assertRaises(NotFoundException, self.api.get_dataset_release, id)
 
     def test_post_dataset_release(self):
         """Test case for post_dataset_release"""
 
         with self.env.create():
-            expected_id = 1
-            workflow_type_name = "ONIX Workflow"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Workflow(
-                    name="Curtin ONIX Workflow",
-                    extra={"view_id": 123456},
-                    tags='["oaebu"]',
-                    organisation={"id": expected_id},
-                    workflow_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.TableType(
-                    type_id="partitioned",
-                    name="partitioned bq table",
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.DatasetType(
-                    type_id="dataset_type_id",
-                    name="ds type",
-                    extra={},
-                    table_type={"id": 1},
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Add Datasets
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset",
-                    workflow={"id": 1},
-                    dataset_type={"id": 1},
-                    service="bigquery",
-                    address="project.dataset.table",
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
             # Post DatasetRelease
             expected_id = 1
+            dt = pendulum.now(self.timezone)
+            dt_utc = dt.in_tz(tz="UTC")
             obj = DatasetRelease(
-                start_date=dt,
-                end_date=dt,
-                dataset=Dataset(id=expected_id),
+                dag_id="doi_workflow",
+                dataset_id="doi",
+                dag_run_id="scheduled__2023-03-26T00:00:00+00:00",
+                data_interval_start=dt,
+                data_interval_end=dt,
+                snapshot_date=dt,
+                partition_date=dt,
+                changefile_start_date=dt,
+                changefile_end_date=dt,
+                sequence_start=1,
+                sequence_end=10,
+                extra={"hello": "world"},
             )
             result = self.api.post_dataset_release(obj)
             self.assertIsInstance(result, DatasetRelease)
             self.assertEqual(expected_id, result.id)
+            self.assertEqual("doi_workflow", result.dag_id)
+            self.assertEqual("doi", result.dataset_id)
+            self.assertEqual("scheduled__2023-03-26T00:00:00+00:00", result.dag_run_id)
+            self.assertEqual(dt_utc, result.data_interval_start)
+            self.assertEqual(dt_utc, result.data_interval_end)
+            self.assertEqual(dt_utc, result.snapshot_date)
+            self.assertEqual(dt_utc, result.partition_date)
+            self.assertEqual(dt_utc, result.changefile_start_date)
+            self.assertEqual(dt_utc, result.changefile_end_date)
+            self.assertEqual(1, result.sequence_start)
+            self.assertEqual(10, result.sequence_end)
+            self.assertEqual({"hello": "world"}, result.extra)
 
     def test_put_dataset_release(self):
         """Test case for put_dataset_release"""
 
         with self.env.create():
+            # Put create
             expected_id = 1
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_dataset_release(id=expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
-
-            expected_id = 1
-            workflow_type_name = "ONIX Workflow"
-            org_name = "Curtin University"
             dt = pendulum.now(self.timezone)
             dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Workflow(
-                    name="Curtin ONIX Workflow",
-                    extra={"view_id": 123456},
-                    tags='["oaebu"]',
-                    organisation={"id": expected_id},
-                    workflow_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.TableType(
-                    type_id="partitioned",
-                    name="partitioned bq table",
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.DatasetType(
-                    type_id="dataset_type_id",
-                    name="ds type",
-                    extra={},
-                    table_type={"id": 1},
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Add Datasets
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset",
-                    service="bigquery",
-                    address="project.dataset.table",
-                    workflow={"id": 1},
-                    dataset_type={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Put create
             obj = DatasetRelease(
-                dataset=Dataset(id=expected_id),
-                start_date=dt,
-                end_date=dt,
+                dag_id="doi_workflow",
+                dataset_id="doi",
+                dag_run_id="scheduled__2023-03-26T00:00:00+00:00",
+                data_interval_start=dt,
+                data_interval_end=dt,
+                snapshot_date=dt,
+                partition_date=dt,
+                changefile_start_date=dt,
+                changefile_end_date=dt,
+                sequence_start=1,
+                sequence_end=10,
+                extra={"hello": "world"},
             )
             result = self.api.put_dataset_release(obj)
             self.assertIsInstance(result, DatasetRelease)
             self.assertEqual(expected_id, result.id)
+            self.assertEqual("doi_workflow", result.dag_id)
+            self.assertEqual("doi", result.dataset_id)
+            self.assertEqual("scheduled__2023-03-26T00:00:00+00:00", result.dag_run_id)
+            self.assertEqual(dt_utc, result.data_interval_start)
+            self.assertEqual(dt_utc, result.data_interval_end)
+            self.assertEqual(dt_utc, result.snapshot_date)
+            self.assertEqual(dt_utc, result.partition_date)
+            self.assertEqual(dt_utc, result.changefile_start_date)
+            self.assertEqual(dt_utc, result.changefile_end_date)
+            self.assertEqual(1, result.sequence_start)
+            self.assertEqual(10, result.sequence_end)
+            self.assertEqual({"hello": "world"}, result.extra)
 
             # Put update
             obj = DatasetRelease(
                 id=expected_id,
-                start_date=dt,
-                end_date=dt,
+                sequence_start=2,
             )
             result = self.api.put_dataset_release(obj)
             self.assertIsInstance(result, DatasetRelease)
             self.assertEqual(expected_id, result.id)
+            self.assertEqual(2, result.sequence_start)
 
             # Put not found
             expected_id = 2
@@ -1478,9 +208,17 @@ class TestObservatoryApi(unittest.TestCase):
                 self.api.put_dataset_release(
                     DatasetRelease(
                         id=expected_id,
-                        dataset=Dataset(id=expected_id),
-                        start_date=dt,
-                        end_date=dt,
+                        dag_id="doi_workflow",
+                        dataset_id="doi",
+                        dag_run_id="scheduled__2023-03-26T00:00:00+00:00",
+                        data_interval_start=dt,
+                        data_interval_end=dt,
+                        snapshot_date=dt,
+                        partition_date=dt,
+                        changefile_start_date=dt,
+                        changefile_end_date=dt,
+                        sequence_start=1,
+                        sequence_end=10,
                     )
                 )
             self.assertEqual(404, e.exception.status)
@@ -1490,240 +228,59 @@ class TestObservatoryApi(unittest.TestCase):
         """Test case for get_dataset_releases"""
 
         with self.env.create():
-            expected_id = 1
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.get_dataset_release(id=expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
-
-            expected_id = 1
-            workflow_type_name = "ONIX Workflow"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Workflow(
-                    name="Curtin ONIX Workflow",
-                    extra={"view_id": 123456},
-                    tags='["oaebu"]',
-                    organisation={"id": expected_id},
-                    workflow_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.TableType(
-                    type_id="partitioned",
-                    name="partitioned bq table",
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.DatasetType(
-                    type_id="dataset_type_id",
-                    name="ds type",
-                    extra={},
-                    table_type={"id": 1},
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Add Datasets
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset1",
-                    service="bigquery",
-                    address="project.dataset.table",
-                    workflow={"id": 1},
-                    dataset_type={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset2",
-                    service="bigquery",
-                    address="project.dataset.table",
-                    workflow={"id": 1},
-                    dataset_type={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
             # Post DatasetRelease
-            expected_id = 1
             obj = DatasetRelease(
-                dataset=Dataset(id=1),
-                start_date=dt,
-                end_date=dt,
+                dag_id="doi_workflow",
+                dataset_id="doi",
+                dag_run_id="scheduled__2023-03-26T00:00:00+00:00",
+                snapshot_date=pendulum.datetime(2023, 1, 1),
             )
             self.api.post_dataset_release(obj)
             obj = DatasetRelease(
-                dataset=Dataset(id=2),
-                start_date=dt,
-                end_date=dt,
+                dag_id="doi_workflow",
+                dataset_id="doi",
+                dag_run_id="scheduled__2023-03-26T00:00:00+00:00",
+                snapshot_date=pendulum.datetime(2023, 1, 7),
+            )
+            self.api.post_dataset_release(obj)
+            obj = DatasetRelease(
+                dag_id="doi_workflow",
+                dataset_id="author",
+                dag_run_id="scheduled__2023-03-26T00:00:00+00:00",
+                snapshot_date=pendulum.datetime(2023, 1, 7),
             )
             self.api.post_dataset_release(obj)
 
             # Assert that all DatasetRelease objects returned
-            objects = self.api.get_dataset_releases(limit=10)
+            objects = self.api.get_dataset_releases(dag_id="doi_workflow", dataset_id="doi")
             self.assertEqual(2, len(objects))
             self.assertIsInstance(objects[0], DatasetRelease)
             self.assertIsInstance(objects[1], DatasetRelease)
 
             self.assertEqual(objects[0].id, 1)
+            self.assertEqual(objects[0].dag_id, "doi_workflow")
+            self.assertEqual(objects[0].dataset_id, "doi")
             self.assertEqual(objects[1].id, 2)
+            self.assertEqual(objects[1].dag_id, "doi_workflow")
+            self.assertEqual(objects[1].dataset_id, "doi")
 
-            objects = self.api.get_dataset_releases(dataset_id=1, limit=10)
+            objects = self.api.get_dataset_releases(dag_id="doi_workflow", dataset_id="author")
             self.assertEqual(1, len(objects))
             self.assertIsInstance(objects[0], DatasetRelease)
-            self.assertEqual(objects[0].dataset.name, "dataset1")
-
-    def test_delete_dataset(self):
-        """Test case for delete_dataset"""
-
-        with self.env.create():
-            expected_id = 1
-            workflow_type_name = "ONIX Workflow"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Workflow(
-                    name="Curtin ONIX Workflow",
-                    extra={"view_id": 123456},
-                    tags='["oaebu"]',
-                    organisation={"id": expected_id},
-                    workflow_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.TableType(
-                    type_id="partitioned",
-                    name="partitioned bq table",
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.DatasetType(
-                    type_id="dataset_type_id",
-                    name="ds type",
-                    extra={},
-                    table_type={"id": 1},
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Post Dataset
-            obj = Dataset(
-                name="My dataset",
-                service="bigquery",
-                address="project.dataset.table",
-                workflow=Workflow(id=expected_id),
-                dataset_type=DatasetType(id=1),
-            )
-            self.api.post_dataset(obj)
-            self.api.delete_dataset(expected_id)
-
-            with self.assertRaises(NotFoundException) as e:
-                self.api.delete_dataset(expected_id)
-            self.assertEqual(404, e.exception.status)
-            self.assertEqual(f'"Not found: Dataset with id {expected_id}"\n', e.exception.body)
+            self.assertEqual(objects[0].dag_id, "doi_workflow")
+            self.assertEqual(objects[0].dataset_id, "author")
 
     def test_delete_dataset_release(self):
         """Test case for delete_dataset_release"""
 
         with self.env.create():
-            expected_id = 1
-            workflow_type_name = "ONIX Workflow"
-            org_name = "Curtin University"
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            self.env.session.add(orm.WorkflowType(type_id="onix", name=workflow_type_name, created=dt, modified=dt))
-            self.env.session.add(orm.Organisation(name=org_name, created=dt, modified=dt))
-            self.env.session.commit()
-            self.env.session.add(
-                orm.Workflow(
-                    name="Curtin ONIX Workflow",
-                    extra={"view_id": 123456},
-                    tags='["oaebu"]',
-                    organisation={"id": expected_id},
-                    workflow_type={"id": expected_id},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.TableType(
-                    type_id="partitioned",
-                    name="partitioned bq table",
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            self.env.session.add(
-                orm.DatasetType(
-                    type_id="dataset_type_id",
-                    name="ds type",
-                    extra={},
-                    table_type={"id": 1},
-                    modified=dt,
-                    created=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Add Datasets
-            self.env.session.add(
-                orm.Dataset(
-                    name="dataset",
-                    service="bigquery",
-                    address="project.dataset.table",
-                    workflow={"id": 1},
-                    dataset_type={"id": 1},
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
             # Post DatasetRelease
             expected_id = 1
             obj = DatasetRelease(
-                start_date=dt,
-                end_date=dt,
-                dataset=Dataset(id=expected_id),
+                dag_id="doi_workflow",
+                dataset_id="doi",
+                dag_run_id="scheduled__2023-03-26T00:00:00+00:00",
+                snapshot_date=pendulum.datetime(2023, 1, 1),
             )
             self.api.post_dataset_release(obj)
             self.api.delete_dataset_release(expected_id)
@@ -1732,89 +289,6 @@ class TestObservatoryApi(unittest.TestCase):
                 self.api.delete_dataset_release(expected_id)
             self.assertEqual(404, e.exception.status)
             self.assertEqual(f'"Not found: DatasetRelease with id {expected_id}"\n', e.exception.body)
-
-    def test_get_bigquery_bytes_processed(self):
-        """Test case for get_bigquery_bytes_processed"""
-
-        with self.env.create():
-            utc_now = pendulum.now("UTC")
-            project = "project"
-            tib_to_bytes = 1100000000000
-
-            # More than 24 hours before
-            dt = utc_now.subtract(hours=24, minutes=1)
-            total = 5 * tib_to_bytes
-            self.env.session.add(
-                orm.BigQueryBytesProcessed(
-                    project=project,
-                    total=total,
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            self.env.session.commit()
-
-            # Check that the total bytes used in the last 24 hours is zero
-            expected_total = 0
-            actual_total = self.api.get_bigquery_bytes_processed(project=project)
-            self.assertEqual(expected_total, actual_total)
-
-            # Less than 24 hours before
-            dt = utc_now.subtract(hours=6)
-            total_a = 3 * tib_to_bytes
-            self.env.session.add(
-                orm.BigQueryBytesProcessed(
-                    project=project,
-                    total=total_a,
-                    created=dt,
-                    modified=dt,
-                )
-            )
-            total_b = 4 * tib_to_bytes
-            self.env.session.add(
-                orm.BigQueryBytesProcessed(
-                    project=project,
-                    total=total_b,
-                    created=utc_now,
-                    modified=utc_now,
-                )
-            )
-            self.env.session.commit()
-
-            # Check that we have received the expected number of bytes
-            expected_total = total_a + total_b
-            actual_total = self.api.get_bigquery_bytes_processed(project=project)
-            self.assertEqual(expected_total, actual_total)
-
-            # Check that we receive zero for a project id that doesn't exist
-            expected_total = 0
-            project = "unknown"
-            actual_total = self.api.get_bigquery_bytes_processed(project=project)
-            self.assertEqual(expected_total, actual_total)
-
-    def test_post_bigquery_bytes_processed(self):
-        """Test case for post_dataset"""
-
-        with self.env.create():
-            expected_id = 1
-            dt = pendulum.now(self.timezone)
-            dt_utc = dt.in_tz(tz="UTC")
-            project = "project"
-            total = 10
-
-            # Post BigQueryBytesProcessed
-            obj = BigQueryBytesProcessed(project=project, total=total)
-            result = self.api.post_bigquery_bytes_processed(obj)
-            self.assertIsInstance(result, BigQueryBytesProcessed)
-            self.assertEqual(expected_id, result.id)
-            self.assertEqual(project, result.project)
-            self.assertEqual(total, result.total)
-
-            diff = pendulum.instance(result.created).diff(dt_utc).in_seconds()
-            self.assertLessEqual(diff, 5)
-
-            diff = pendulum.instance(result.modified).diff(dt_utc).in_seconds()
-            self.assertLessEqual(diff, 5)
 
 
 if __name__ == "__main__":
