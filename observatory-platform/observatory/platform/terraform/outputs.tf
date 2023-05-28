@@ -18,11 +18,13 @@ output "airflow_worker_vm_ip_address" {
 output "airflow_main_vm_external_ip" {
   value       = try(google_compute_address.airflow_main_vm_static_external_ip, null)
   description = "The external IP address of the Airflow Main VM."
+  sensitive = true
 }
 
 output "airflow_worker_vm_external_ip" {
   value       = try(google_compute_address.airflow_worker_vm_static_external_ip, null)
   description = "The external IP address of the Airflow Worker VM."
+  sensitive = true
 }
 
 output "airflow_main_vm_script" {
