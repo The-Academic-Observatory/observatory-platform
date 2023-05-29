@@ -314,6 +314,9 @@ class ElasticImportWorkflow(Workflow):
         :param tags: List of dag tags.
         """
 
+        if tags is None:
+            tags = []
+
         super().__init__(
             dag_id=dag_id,
             start_date=start_date,
