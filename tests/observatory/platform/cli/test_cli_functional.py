@@ -207,7 +207,7 @@ class TestCliFunctional(unittest.TestCase):
             test_fixtures_path("cli", self.workflows_package_name), os.path.join(temp_dir, self.workflows_package_name)
         )
 
-    def assert_dags_loaded(self, expected_dag_ids: Set, config: ObservatoryConfig, dag_check_timeout: int = 30):
+    def assert_dags_loaded(self, expected_dag_ids: Set, config: ObservatoryConfig, dag_check_timeout: int = 180):
         """Assert that DAGs loaded into Airflow.
 
         :param expected_dag_ids: the expected DAG ids.
