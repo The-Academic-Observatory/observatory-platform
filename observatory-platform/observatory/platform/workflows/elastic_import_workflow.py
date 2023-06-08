@@ -395,9 +395,10 @@ class ElasticImportWorkflow(Workflow):
 
         # Create a dictionary to store the latest table IDs for each table name
         latest_table_ids = dict()
-        snapshot_date = kwargs["next_execution_date"].subtract(microseconds=1).date()
-        snapshot_date = pendulum.datetime(snapshot_date.year, snapshot_date.month, snapshot_date.day)
+        snapshot_date = kwargs["data_interval_end"]
+        logging.info("Searching export tables")
         for table_id in all_table_ids:
+            logging.info(f"Found: {table_id}")
             _, _, _, table_name, shard_date = bq_table_id_parts(table_id)
             if shard_date is None:
                 raise AirflowException(
@@ -406,21 +407,29 @@ class ElasticImportWorkflow(Workflow):
 
             # Only include tables made on or before the current snapshot_date
             if shard_date > snapshot_date:
+                logging.info(f"Skipping as shard_date > snapshot_date: {table_id}")
                 continue
 
             # Sort tables by their shard date
             if table_name not in latest_table_ids:
+                logging.info(f"Adding to latest_table_ids: {table_id}")
                 latest_table_ids[table_name] = table_id
             else:
                 latest_table_id = latest_table_ids[table_name]
                 _, _, _, _, latest_shard_date = bq_table_id_parts(latest_table_id)
                 if shard_date > latest_shard_date:
+                    logging.info(f"Updating latest_table_ids: {table_id}")
                     latest_table_ids[shard_date] = table_id
 
         # Make a list of the latest table_ids
+        logging.info("Exporting tables:")
         table_ids = []
         for _, table_id in latest_table_ids.items():
+            logging.info(table_id)
             table_ids.append(table_id)
+
+        if len(table_ids) == 0:
+            raise AirflowException("No tables found to export")
 
         # Push table ids and release date
         ti: TaskInstance = kwargs["ti"]
