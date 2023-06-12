@@ -393,7 +393,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
 
             # Run Dummy Dags
             execution_date = pendulum.datetime(year=2021, month=5, day=16)
-            snapshot_date = pendulum.datetime(year=2021, month=5, day=22)
+            snapshot_date = pendulum.datetime(year=2021, month=5, day=23)
             expected_state = "success"
             doi_dag = make_dummy_dag(dag_id_sensor, execution_date)
             with env.create_dag_run(doi_dag, execution_date):
