@@ -36,6 +36,7 @@ from google.cloud.exceptions import Conflict, NotFound
 from natsort import natsorted
 
 from observatory.platform.config import sql_templates_path
+from observatory.platform.observatory_environment import compare_lists_of_dicts
 from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
@@ -920,9 +921,8 @@ def bq_upsert_records(
     upsert_columns = bq_select_columns(table_id=upsert_table_id)
 
     # Assert that the column names and data types in main_table and upsert_table are the same
-    assert (
-        main_columns == upsert_columns
-    ), f"bq_upsert_records: columns in {main_table_id} do not match {upsert_table_id}"
+    columns_match = compare_lists_of_dicts(main_columns, upsert_columns, "column_name")
+    assert columns_match, f"bq_upsert_records: columns in {main_table_id} do not match {upsert_table_id}"
 
     # Check that primary_key is in both tables
     # The data_type of primary_key must match because of the above assert
