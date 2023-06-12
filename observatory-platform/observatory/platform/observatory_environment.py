@@ -67,6 +67,7 @@ import shutil
 import socket
 import socketserver
 import threading
+import time
 import unittest
 import uuid
 from dataclasses import dataclass
@@ -82,7 +83,6 @@ import httpretty
 import paramiko
 import pendulum
 import requests
-import time
 from airflow import DAG, settings
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
@@ -99,7 +99,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from dateutil.relativedelta import relativedelta
-from deepdiff import DeepDiff
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
 from pendulum import DateTime
@@ -113,6 +112,7 @@ from observatory.platform.bigquery import (
     bq_table_id,
     SourceFormat,
     bq_delete_old_datasets_with_prefix,
+    compare_lists_of_dicts,
 )
 from observatory.platform.config import module_file_path, AirflowVars, AirflowConns
 from observatory.platform.elastic.elastic_environment import ElasticEnvironment
@@ -637,50 +637,6 @@ def load_and_parse_json(file_path: str, date_fields: Set[str] = None):
     with open(file_path, mode="r") as f:
         rows = json.load(f, object_hook=parse_datetime)
     return rows
-
-
-def compare_lists_of_dicts(expected: List[Dict], actual: List[Dict], primary_key: str) -> bool:
-    """Compare two lists of dictionaries, using a primary_key as the basis for the top level comparisons.
-
-    :param expected: the expected data.
-    :param actual: the actual data.
-    :param primary_key: the primary key.
-    :return: whether the expected and actual match.
-    """
-
-    expected_dict = {item[primary_key]: item for item in expected}
-    actual_dict = {item[primary_key]: item for item in actual}
-
-    if set(expected_dict.keys()) != set(actual_dict.keys()):
-        logging.error("Primary keys don't match:")
-        logging.error(f"Only in expected: {set(expected_dict.keys()) - set(actual_dict.keys())}")
-        logging.error(f"Only in actual: {set(actual_dict.keys()) - set(expected_dict.keys())}")
-        return False
-
-    all_matched = True
-    for key in expected_dict:
-        diff = DeepDiff(expected_dict[key], actual_dict[key], ignore_order=True)
-        logging.info(f"primary_key: {key}")
-        for diff_type, changes in diff.items():
-            all_matched = False
-            if diff_type == "values_changed":
-                for key_path, change in changes.items():
-                    logging.error(
-                        f"(expected) != (actual) {key_path}: {change['old_value']} (expected) != (actual) {change['new_value']}"
-                    )
-            elif diff_type == "dictionary_item_added":
-                for change in changes:
-                    logging.error(f"dictionary_item_added: {change}")
-            elif diff_type == "dictionary_item_removed":
-                for change in changes:
-                    logging.error(f"dictionary_item_removed: {change}")
-            elif diff_type == "type_changes":
-                for key_path, change in changes.items():
-                    logging.error(
-                        f"(expected) != (actual) {key_path}: {change['old_type']} (expected) != (actual) {change['new_type']}"
-                    )
-
-    return all_matched
 
 
 class ObservatoryTestCase(unittest.TestCase):

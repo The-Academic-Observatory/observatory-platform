@@ -26,6 +26,7 @@ from typing import Dict, Tuple, Union, List, Optional
 
 import jsonlines
 import pendulum
+from deepdiff import DeepDiff
 from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud import bigquery
 from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat, CopyJobConfig, CopyJob
@@ -36,7 +37,6 @@ from google.cloud.exceptions import Conflict, NotFound
 from natsort import natsorted
 
 from observatory.platform.config import sql_templates_path
-from observatory.platform.observatory_environment import compare_lists_of_dicts
 from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
@@ -56,6 +56,50 @@ def assert_table_id(table_id: str):
 
     n_parts = len(table_id.split("."))
     assert n_parts == 3, f"bq_table_id_parts: table_id={table_id} requires 3 parts but only has {n_parts}"
+
+
+def compare_lists_of_dicts(expected: List[Dict], actual: List[Dict], primary_key: str) -> bool:
+    """Compare two lists of dictionaries, using a primary_key as the basis for the top level comparisons.
+
+    :param expected: the expected data.
+    :param actual: the actual data.
+    :param primary_key: the primary key.
+    :return: whether the expected and actual match.
+    """
+
+    expected_dict = {item[primary_key]: item for item in expected}
+    actual_dict = {item[primary_key]: item for item in actual}
+
+    if set(expected_dict.keys()) != set(actual_dict.keys()):
+        logging.error("Primary keys don't match:")
+        logging.error(f"Only in expected: {set(expected_dict.keys()) - set(actual_dict.keys())}")
+        logging.error(f"Only in actual: {set(actual_dict.keys()) - set(expected_dict.keys())}")
+        return False
+
+    all_matched = True
+    for key in expected_dict:
+        diff = DeepDiff(expected_dict[key], actual_dict[key], ignore_order=True)
+        logging.info(f"primary_key: {key}")
+        for diff_type, changes in diff.items():
+            all_matched = False
+            if diff_type == "values_changed":
+                for key_path, change in changes.items():
+                    logging.error(
+                        f"(expected) != (actual) {key_path}: {change['old_value']} (expected) != (actual) {change['new_value']}"
+                    )
+            elif diff_type == "dictionary_item_added":
+                for change in changes:
+                    logging.error(f"dictionary_item_added: {change}")
+            elif diff_type == "dictionary_item_removed":
+                for change in changes:
+                    logging.error(f"dictionary_item_removed: {change}")
+            elif diff_type == "type_changes":
+                for key_path, change in changes.items():
+                    logging.error(
+                        f"(expected) != (actual) {key_path}: {change['old_type']} (expected) != (actual) {change['new_type']}"
+                    )
+
+    return all_matched
 
 
 def bq_table_id(project_id: str, dataset_id: str, table_id: str) -> str:
