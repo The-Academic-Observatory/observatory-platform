@@ -393,7 +393,7 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
 
             # Run Dummy Dags
             execution_date = pendulum.datetime(year=2021, month=5, day=16)
-            snapshot_date = pendulum.datetime(year=2021, month=5, day=22)
+            snapshot_date = pendulum.datetime(year=2021, month=5, day=23)
             expected_state = "success"
             doi_dag = make_dummy_dag(dag_id_sensor, execution_date)
             with env.create_dag_run(doi_dag, execution_date):
@@ -475,15 +475,15 @@ class TestElasticImportWorkflow(ObservatoryTestCase):
 
                 # Test delete_stale_indices task
                 # Artificially load extra indices for ao-author
-                elastic.create_index("ao-author-20210523")
                 elastic.create_index("ao-author-20210524")
                 elastic.create_index("ao-author-20210525")
+                elastic.create_index("ao-author-20210526")
                 ti = env.run_task(workflow.delete_stale_indices.__name__)
                 self.assertEqual(expected_state, ti.state)
                 indices_after_cleanup = set(elastic.list_indices("ao-author-*"))
                 self.assertEqual(len(indices_after_cleanup), 2)
+                self.assertTrue("ao-author-20210526" in indices_after_cleanup)
                 self.assertTrue("ao-author-20210525" in indices_after_cleanup)
-                self.assertTrue("ao-author-20210524" in indices_after_cleanup)
 
                 # Test list create_kibana_index_patterns info task
                 expected_index_pattern_id = expected_alias_id

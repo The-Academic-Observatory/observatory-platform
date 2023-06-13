@@ -43,7 +43,7 @@ from observatory.platform.utils.jinja2_utils import (
 
 # BigQuery single query byte limit.
 # Daily limit is set in Terraform
-BIGQUERY_SINGLE_QUERY_BYTE_LIMIT = 1024 * 1024 * 1024 * 1024 * 1  # 1 TiB
+BIGQUERY_SINGLE_QUERY_BYTE_LIMIT = int(2 * 2**40)  # 2 TiB
 
 
 def assert_table_id(table_id: str):
@@ -919,10 +919,11 @@ def bq_upsert_records(
     main_columns = bq_select_columns(table_id=main_table_id)
     upsert_columns = bq_select_columns(table_id=upsert_table_id)
 
-    # Assert that the column names and data types in main_table and upsert_table are the same
+    # Assert that the column names and data types in main_table and upsert_table are the same and in the same order
+    # Must be in same order for upsert to work
     assert (
         main_columns == upsert_columns
-    ), f"bq_upsert_records: columns in {main_table_id} do not match {upsert_table_id}"
+    ), f"bq_upsert_records: columns in {main_table_id} do not match {upsert_table_id} or are not in the same order"
 
     # Check that primary_key is in both tables
     # The data_type of primary_key must match because of the above assert

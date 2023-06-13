@@ -321,7 +321,7 @@ resource "google_storage_bucket_iam_member" "observatory_airflow_bucket_observat
 
 # Necessary to define the network so that the VMs can talk to the Cloud SQL database.
 locals {
-  network_name       = "observatory-network"
+  network_name       = "ao-network"
 }
 
 resource "google_compute_network" "observatory_network" {
@@ -381,19 +381,6 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   depends_on              = [google_project_service.services]
 }
 
-resource "random_id" "database_protector" {
-  count       = var.environment == "production" ? 1 : 0
-  byte_length = 8
-  keepers     = {
-    observatory_db_instance = google_sql_database_instance.observatory_db_instance.id
-    airflow_db              = google_sql_database.airflow_db.id
-    users                   = google_sql_user.observatory_user.id
-  }
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
 resource "random_id" "airflow_db_name_suffix" {
   byte_length = 4
 }
@@ -417,6 +404,7 @@ resource "google_sql_database_instance" "observatory_db_instance" {
       location           = var.google_cloud.data_location
       start_time         = var.cloud_sql_database.backup_start_time
     }
+    deletion_protection_enabled = true # Stops the machine being deleted at the GCP platform level
   }
 }
 
