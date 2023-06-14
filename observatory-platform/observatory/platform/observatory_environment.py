@@ -1069,7 +1069,7 @@ class FtpServer:
     def create(self):
         """Make and destroy a test FTP server.
 
-        :yield: None.
+        :yield: self.directory.
         """
 
         # Set up the FTP server
