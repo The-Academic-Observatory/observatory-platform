@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import unittest
@@ -23,6 +24,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union
 from unittest.mock import patch
+from ftplib import FTP
 
 import croniter
 import httpretty
@@ -43,6 +45,7 @@ from observatory.platform.observatory_environment import (
     ObservatoryEnvironment,
     ObservatoryTestCase,
     SftpServer,
+    FtpServer,
     random_id,
     test_fixtures_path,
     find_free_port,
@@ -665,6 +668,38 @@ class TestSftpServer(unittest.TestCase):
             files = sftp.listdir(".")
             self.assertEqual(1, len(files))
             self.assertEqual(expected_file_name, files[0])
+
+class TestFtpServer(unittest.TestCase):
+    def setUp(self) -> None:
+        self.host = "localhost"
+        self.port = find_free_port()
+
+    @contextlib.contextmanager
+    def test_server(self):
+        """Test that the FTP server can be connected to"""
+
+        with CliRunner().isolated_filesystem() as tmp_dir:
+
+            server = FtpServer(directory=tmp_dir, host=self.host, port=self.port)
+            with server.create() as root_dir:
+
+                # Connect to FTP server anonymously
+                ftp_conn = FTP()
+                ftp_conn.connect(host=self.host, port=self.port)
+                ftp_conn.login()
+
+                # Check that there are no files
+                files = ftp_conn.nlst()
+                self.assertFalse(len(files))
+
+                # Add a file and check that it exists
+                expected_file_name = "textfile.txt"
+                file_path = os.path.join(root_dir, expected_file_name)
+                with open(file_path, mode="w") as f:
+                    f.write("hello world")
+                files = ftp_conn.nlst()
+                self.assertEqual(1, len(files))
+                self.assertEqual(expected_file_name, files[0])
 
 
 class TestHttpserver(ObservatoryTestCase):
