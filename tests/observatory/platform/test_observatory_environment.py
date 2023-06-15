@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import List, Union
 from unittest.mock import patch
 from ftplib import FTP
+import re
 
 import croniter
 import httpretty
@@ -259,7 +260,6 @@ class TestObservatoryEnvironment(unittest.TestCase):
         # Test environment without logging enabled
         with env.create():
             with env.create_dag_run(dag, execution_date):
-
                 # Test add_variable
                 env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
 
@@ -373,7 +373,6 @@ class TestObservatoryEnvironment(unittest.TestCase):
                 self.assertEqual(ti1.job_id, ti2.previous_ti.job_id)
 
     def test_create_dag_run_timedelta(self):
-
         env = ObservatoryEnvironment(self.project_id, self.data_location)
 
         telescope = TelescopeTest(schedule_interval=timedelta(days=1))
@@ -669,6 +668,7 @@ class TestSftpServer(unittest.TestCase):
             self.assertEqual(1, len(files))
             self.assertEqual(expected_file_name, files[0])
 
+
 class TestFtpServer(unittest.TestCase):
     def setUp(self) -> None:
         self.host = "localhost"
@@ -679,10 +679,8 @@ class TestFtpServer(unittest.TestCase):
         """Test that the FTP server can be connected to"""
 
         with CliRunner().isolated_filesystem() as tmp_dir:
-
             server = FtpServer(directory=tmp_dir, host=self.host, port=self.port)
             with server.create() as root_dir:
-
                 # Connect to FTP server anonymously
                 ftp_conn = FTP()
                 ftp_conn.connect(host=self.host, port=self.port)
@@ -700,6 +698,43 @@ class TestFtpServer(unittest.TestCase):
                 files = ftp_conn.nlst()
                 self.assertEqual(1, len(files))
                 self.assertEqual(expected_file_name, files[0])
+
+    @contextlib.contextmanager
+    def test_user_permissions(self):
+        "Test the level of permissions of the root and anonymous users."
+
+        with CliRunner().isolated_filesystem() as tmp_dir:
+            server = FtpServer(
+                directory=tmp_dir, host=self.host, port=self.port, root_username="root", root_password="pass"
+            )
+            with server.create() as root_dir:
+                # Add a file onto locally hosted server.
+                expected_file_name = "textfile.txt"
+                file_path = os.path.join(root_dir, expected_file_name)
+                with open(file_path, mode="w") as f:
+                    f.write("hello world")
+
+                # Connect to FTP server anonymously.
+                ftp_conn = FTP()
+                ftp_conn.connect(host=self.host, port=self.port)
+                ftp_conn.login()
+
+                # Make sure that anonymoous user has read-only permissions
+                ftp_repsonse = ftp_conn.sendcmd(f"MLST {expected_file_name}")
+                self.assertTrue(";perm=r;size=11;type=file;" in ftp_repsonse)
+
+                ftp_conn.close()
+
+                # Connect to FTP server as root user.
+                ftp_conn = FTP()
+                ftp_conn.connect(host=self.host, port=self.port)
+                ftp_conn.login(user="root", passwd="pass")
+
+                # Make sure that root user has all available read/write/modification permissions.
+                ftp_repsonse = ftp_conn.sendcmd(f"MLST {expected_file_name}")
+                self.assertTrue(";perm=radfwMT;size=11;type=file;" in ftp_repsonse)
+
+                ftp_conn.close()
 
 
 class TestHttpserver(ObservatoryTestCase):

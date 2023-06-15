@@ -1046,8 +1046,6 @@ class FtpServer:
     """
     Create a Mock FTPServer instance.
 
-    Please note that this is for "anonymous" FTP hosting only. 
-
     :param directory: The directory that is hosted on FTP server.
     :param host: Hostname of the server.
     :param port: The port number.
@@ -1055,12 +1053,22 @@ class FtpServer:
     time to start before connecting to it.
     """
 
-    def __init__(self, directory: str = "/", host: str = "localhost", port: int = 21, startup_wait_secs: int = 1,):
-        
+    def __init__(
+        self,
+        directory: str = "/",
+        host: str = "localhost",
+        port: int = 21,
+        startup_wait_secs: int = 1,
+        root_username: str = "root",
+        root_password: str = "pass",
+    ):
         self.host = host
         self.port = port
         self.directory = directory
         self.startup_wait_secs = startup_wait_secs
+
+        self.root_username = root_username
+        self.root_password = root_password
 
         self.is_shutdown = True
         self.server_thread = None
@@ -1072,14 +1080,17 @@ class FtpServer:
         :yield: self.directory.
         """
 
-        # Set up the FTP server
+        # Set up the FTP server with root and anonymous users.
         authorizer = DummyAuthorizer()
+        authorizer.add_user(
+            username=self.root_username, password=self.root_password, homedir=self.directory, perm="elradfmwMT"
+        )
         authorizer.add_anonymous(self.directory)
-
         handler = FTPHandler
         handler.authorizer = authorizer
 
         try:
+            # Start server in separate thread.
             self.server = ThreadedFTPServer((self.host, self.port), handler)
             self.server_thread = threading.Thread(target=self.server.serve_forever)
             self.server_thread.daemon = True
