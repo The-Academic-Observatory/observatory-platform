@@ -4,6 +4,7 @@ echo " ----- Sleeping for 30 seconds as per Packer documentation ----- "
 sleep 30
 
 echo " ----- Install Docker and Docker Compose V2 (using apt-get) ----- "
+sudo apt-get update
 sudo apt-get -y install ca-certificates curl gnupg lsb-release
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
