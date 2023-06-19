@@ -63,12 +63,10 @@ class PlatformRunner(ComposeRunner):
             path=os.path.join(self.docker_module_path, "entrypoint-airflow.sh.jinja2"), config=self.config
         )
         self.add_template(path=os.path.join(self.docker_module_path, "Dockerfile.apiserver.jinja2"), config=self.config)
-        self.add_template(path=os.path.join(self.docker_module_path, "Dockerfile.seed_db.jinja2"), config=self.config)
         self.add_template(path=os.path.join(self.docker_module_path, "entrypoint-api.sh.jinja2"), config=self.config)
         self.add_file(
             path=os.path.join(self.docker_module_path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh"
         )
-        self.add_template(path=os.path.join(self.docker_module_path, "seed_db.sh.jinja2"), config=self.config)
 
         # Add all project requirements files for local projects
         for package in self.config.python_packages:
