@@ -43,7 +43,7 @@ from observatory.platform.utils.jinja2_utils import (
 
 # BigQuery single query byte limit.
 # Daily limit is set in Terraform
-BIGQUERY_SINGLE_QUERY_BYTE_LIMIT = int(2 * 2**40)  # 2 TiB
+BIGQUERY_SINGLE_QUERY_BYTE_LIMIT = int(2 * 2 ** 40)  # 2 TiB
 
 
 def assert_table_id(table_id: str):
@@ -328,7 +328,7 @@ def bq_load_table(
     partition_field: Union[None, str] = None,
     partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
     require_partition_filter=False,
-    write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE,  # TODO: overwrite?
+    write_disposition: str = bigquery.WriteDisposition.WRITE_EMPTY,
     table_description: str = "",
     cluster: bool = False,
     clustering_fields=None,
