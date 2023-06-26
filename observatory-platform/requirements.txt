@@ -53,6 +53,9 @@ responses>=0.23.1,<1
 pysftp>=0.2.9,<1
 paramiko>=2.7.2,<3
 
+# FTP 
+pyftpdlib>=1.5.7,<2
+
 # Utils
 natsort>=7.1.1,<8
 backoff>=1.11.0,<2

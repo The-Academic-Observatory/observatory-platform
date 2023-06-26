@@ -104,6 +104,9 @@ from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
 from pendulum import DateTime
 from sftpserver.stub_sftp import StubServer, StubSFTPServer
+from pyftpdlib.authorizers import DummyAuthorizer
+from pyftpdlib.handlers import FTPHandler
+from pyftpdlib.servers import ThreadedFTPServer
 
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.bigquery import bq_create_dataset
@@ -1037,6 +1040,73 @@ class SftpServer:
                 self.is_shutdown = True
                 if self.server_thread is not None:
                     self.server_thread.join()
+
+
+class FtpServer:
+    """
+    Create a Mock FTPServer instance.
+
+    :param directory: The directory that is hosted on FTP server.
+    :param host: Hostname of the server.
+    :param port: The port number.
+    :param startup_wait_secs: time in seconds to wait before returning from create to give the server enough
+    time to start before connecting to it.
+    """
+
+    def __init__(
+        self,
+        directory: str = "/",
+        host: str = "localhost",
+        port: int = 21,
+        startup_wait_secs: int = 1,
+        root_username: str = "root",
+        root_password: str = "pass",
+    ):
+        self.host = host
+        self.port = port
+        self.directory = directory
+        self.startup_wait_secs = startup_wait_secs
+
+        self.root_username = root_username
+        self.root_password = root_password
+
+        self.is_shutdown = True
+        self.server_thread = None
+
+    @contextlib.contextmanager
+    def create(self):
+        """Make and destroy a test FTP server.
+
+        :yield: self.directory.
+        """
+
+        # Set up the FTP server with root and anonymous users.
+        authorizer = DummyAuthorizer()
+        authorizer.add_user(
+            username=self.root_username, password=self.root_password, homedir=self.directory, perm="elradfmwMT"
+        )
+        authorizer.add_anonymous(self.directory)
+        handler = FTPHandler
+        handler.authorizer = authorizer
+
+        try:
+            # Start server in separate thread.
+            self.server = ThreadedFTPServer((self.host, self.port), handler)
+            self.server_thread = threading.Thread(target=self.server.serve_forever)
+            self.server_thread.daemon = True
+            self.server_thread.start()
+
+            # Wait a little bit to give the server time to grab the socket
+            time.sleep(self.startup_wait_secs)
+
+            yield self.directory
+
+        finally:
+            # Stop server and wait for server thread to join
+            self.is_shutdown = True
+            if self.server_thread is not None:
+                self.server.close_all()
+                self.server_thread.join()
 
 
 def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
