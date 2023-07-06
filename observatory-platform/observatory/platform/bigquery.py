@@ -900,14 +900,14 @@ def bq_upsert_records(
     *,
     main_table_id: str,
     upsert_table_id: str,
-    primary_key: str,
+    primary_key: Union[str, List[str]],
     bytes_budget: Optional[int] = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT,
 ):
     """Upserts records (updates and inserts) from an upsert_table into a main_table based on a primary_key.
 
     :param main_table_id: the fully qualified table identifier for the BigQuery main table that will be udpated.
     :param upsert_table_id: the fully qualified table identifier for the BigQuery table containing the upserts.
-    :param primary_key: the primary key to use to determine which records to upsert.
+    :param primary_key: A single key or a list of keys to use to determine which records to upsert.
     :param bytes_budget: the BigQuery bytes budget.
     :return: whether the upsert was successful or not.
     """
@@ -930,9 +930,14 @@ def bq_upsert_records(
     # The data_type of primary_key must match because of the above assert
     main_column_names = [col["column_name"] for col in main_columns]
     upsert_column_names = [col["column_name"] for col in upsert_columns]
-    assert (
-        primary_key in main_column_names and primary_key in upsert_column_names
-    ), f"bq_upsert_records: primary_key={primary_key} not in {main_table_id} or {upsert_table_id}"
+
+    # If just a string, turn into a list for the jinja template render.
+    keys = [primary_key] if isinstance(primary_key, str) else primary_key
+    logging.info(f"Keys to upsert on: {keys}")
+    for key in keys:
+        assert (
+            key in main_column_names and key in upsert_column_names
+        ), f"bq_upsert_records: key={key} not in {main_table_id} or {upsert_table_id}"
 
     # Run query to upsert records
     template_path = os.path.join(sql_templates_path(), "upsert_records.sql.jinja2")
@@ -940,7 +945,7 @@ def bq_upsert_records(
         template_path,
         upsert_table_id=upsert_table_id,
         main_table_id=main_table_id,
-        primary_key=primary_key,
+        keys=keys,
         columns=main_column_names,
     )
     bq_run_query(query, bytes_budget=bytes_budget)
@@ -950,8 +955,8 @@ def bq_delete_records(
     *,
     main_table_id: str,
     delete_table_id: str,
-    main_table_primary_key: str,
-    delete_table_primary_key: str,
+    main_table_primary_key: Union[str, List[str]],
+    delete_table_primary_key: Union[str, List[str]],
     main_table_primary_key_prefix: str = "",
     delete_table_primary_key_prefix: str = "",
     bytes_budget: Optional[int] = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT,
@@ -978,24 +983,39 @@ def bq_delete_records(
     }
 
     # Check that primary_keys are in tables and that data types match
-    assert (
-        main_table_primary_key in main_column_index
-    ), f"bq_delete_records: main_table_primary_key={main_table_primary_key} not in {main_table_id}"
-    assert (
-        delete_table_primary_key in delete_column_index
-    ), f"bq_delete_records: delete_table_primary_key={delete_table_primary_key} not in {delete_table_id}"
-    assert (
-        main_column_index[main_table_primary_key] == delete_column_index[delete_table_primary_key]
-    ), f"bq_delete_records: data types for main_table_primary_key ({main_column_index[main_table_primary_key]}) and delete_table_primary_key ({main_column_index[delete_table_primary_key]}) do not match"
+    main_table_keys = [main_table_primary_key] if isinstance(main_table_primary_key, str) else main_table_primary_key
+    for main_table_key in main_table_keys:
+        assert (
+            main_table_key in main_column_index
+        ), f"bq_delete_records: main_table_primary_key={main_table_key} not in {main_table_id}"
+
+    delete_table_keys = (
+        [delete_table_primary_key] if isinstance(delete_table_primary_key, str) else delete_table_primary_key
+    )
+    for delete_table_key in delete_table_keys:
+        assert (
+            delete_table_key in delete_column_index
+        ), f"bq_delete_records: delete_table_primary_key={delete_table_key} not in {delete_table_id}"
+
+    assert len(main_table_keys) == len(
+        delete_table_keys
+    ), f"bq_delete_records: Number of main_table_keys={len(main_table_keys)} not equal to delete_table_keys={len(delete_table_keys)}"
+
+    for main_table_key, delete_table_key in zip(main_table_keys, delete_table_keys):
+        assert (
+            main_column_index[main_table_key] == delete_column_index[delete_table_key]
+        ), f"bq_delete_records: data types for main_table_primary_key ({main_column_index[main_table_key]}) and delete_table_primary_key ({main_column_index[delete_table_key]}) do not match"
 
     template_path = os.path.join(sql_templates_path(), "delete_records.sql.jinja2")
     query = render_template(
         template_path,
         delete_table_id=delete_table_id,
         main_table_id=main_table_id,
-        main_table_primary_key=main_table_primary_key,
-        delete_table_primary_key=delete_table_primary_key,
+        main_table_keys=main_table_keys,
+        delete_table_keys=delete_table_keys,
         main_table_primary_key_prefix=main_table_primary_key_prefix,
         delete_table_primary_key_prefix=delete_table_primary_key_prefix,
+        zip=zip,
     )
+    print(query)
     bq_run_query(query, bytes_budget=bytes_budget)

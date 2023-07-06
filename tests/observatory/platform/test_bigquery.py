@@ -613,11 +613,11 @@ class TestBigQuery(unittest.TestCase):
             main_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents")
             sql = """
             WITH presidents AS
-            (SELECT 'Washington' as name, DATE('1789-04-29') as date UNION ALL
-            SELECT 'Adams', DATE('1797-03-04') UNION ALL
-            SELECT 'Jefferson', DATE('1801-03-04') UNION ALL
-            SELECT 'Madison', DATE('1809-03-04') UNION ALL
-            SELECT 'Monroe', DATE('1817-03-04'))
+            (SELECT 'Washington' as name, '67' as death_age, DATE('1789-04-29') as date UNION ALL
+            SELECT 'Adams', '90', DATE('1797-03-04') UNION ALL
+            SELECT 'Jefferson', '83', DATE('1801-03-04') UNION ALL
+            SELECT 'Madison', '85', DATE('1809-03-04') UNION ALL
+            SELECT 'Monroe', '73', DATE('1817-03-04')) 
             SELECT * FROM presidents
             """
             success = bq_create_table_from_query(
@@ -629,11 +629,13 @@ class TestBigQuery(unittest.TestCase):
             # Create upsert table
             # Washington updated with correct inaugural address date
             # Kennedy added
+            # Adams, president that shares shame name but won't update but add record because the death_age is different.
             upsert_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents_upserts")
             sql = """
             WITH presidents AS
-            (SELECT 'Washington' as name, DATE('1789-04-30') as date UNION ALL
-            SELECT 'Kennedy', DATE('1961-01-20'))
+            (SELECT 'Washington' as name, '67' as death_age, DATE('1789-04-30') as date UNION ALL
+            SELECT 'Adams', '80', DATE('1829-03-04') UNION ALL
+            SELECT 'Kennedy', '46', DATE('1961-01-20'))
             SELECT * FROM presidents
             """
             success = bq_create_table_from_query(
@@ -643,16 +645,19 @@ class TestBigQuery(unittest.TestCase):
             self.assertTrue(success)
 
             # Upsert records
-            bq_upsert_records(main_table_id=main_table_id, upsert_table_id=upsert_table_id, primary_key="name")
+            bq_upsert_records(
+                main_table_id=main_table_id, upsert_table_id=upsert_table_id, primary_key=["name", "death_age"]
+            )
 
             # Check that main_table is in correct state
             expected = [
-                dict(name="Adams", date=datetime.date(1797, 3, 4)),
-                dict(name="Jefferson", date=datetime.date(1801, 3, 4)),
-                dict(name="Kennedy", date=datetime.date(1961, 1, 20)),
-                dict(name="Madison", date=datetime.date(1809, 3, 4)),
-                dict(name="Monroe", date=datetime.date(1817, 3, 4)),
-                dict(name="Washington", date=datetime.date(1789, 4, 30)),
+                dict(name="Adams", death_age="80", date=datetime.date(1829, 3, 4)),
+                dict(name="Adams", death_age="90", date=datetime.date(1797, 3, 4)),
+                dict(name="Jefferson", death_age="83", date=datetime.date(1801, 3, 4)),
+                dict(name="Kennedy", death_age="46", date=datetime.date(1961, 1, 20)),
+                dict(name="Madison", death_age="85", date=datetime.date(1809, 3, 4)),
+                dict(name="Monroe", death_age="73", date=datetime.date(1817, 3, 4)),
+                dict(name="Washington", death_age="67", date=datetime.date(1789, 4, 30)),
             ]
             results = bq_run_query(f"SELECT * FROM {main_table_id} ORDER BY name ASC")
             results = [dict(row) for row in results]
@@ -686,8 +691,8 @@ class TestBigQuery(unittest.TestCase):
             # Delete Madison and Monroe
             sql = f"""
             WITH presidents AS
-            (SELECT '{delete_prefix}Madison' as {delete_key} UNION ALL
-            SELECT '{delete_prefix}Monroe')
+            (SELECT '{delete_prefix}Madison' as {delete_key}, DATE('1809-03-04') as date UNION ALL
+            SELECT '{delete_prefix}Monroe', DATE('1817-03-03') )
             SELECT * FROM presidents
             """
             success = bq_create_table_from_query(
@@ -770,6 +775,35 @@ class TestBigQuery(unittest.TestCase):
                 dict(name="PresidentAdams", date=datetime.date(1797, 3, 4)),
                 dict(name="PresidentJefferson", date=datetime.date(1801, 3, 4)),
                 dict(name="PresidentWashington", date=datetime.date(1789, 4, 30)),
+            ]
+            results = bq_run_query(f"SELECT * FROM {main_table_id} ORDER BY name ASC")
+            results = [dict(row) for row in results]
+            self.assertEqual(expected, results)
+
+        # Delete records: By matching on multiple fields.
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
+            main_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents")
+            delete_table_id = bq_table_id(self.gc_project_id, dataset_id, "presidents_deletes")
+            insert_data(main_table_id, delete_table_id)
+
+            # Delete records: By matching on multiple keys.
+            bq_delete_records(
+                main_table_id=main_table_id,
+                delete_table_id=delete_table_id,
+                main_table_primary_key=["name", "date"],
+                delete_table_primary_key=["name", "date"],
+                main_table_primary_key_prefix="",
+                delete_table_primary_key_prefix="",
+            )
+
+            # Check that main_table is in correct state
+            expected = [
+                dict(name="Adams", date=datetime.date(1797, 3, 4)),
+                dict(name="Jefferson", date=datetime.date(1801, 3, 4)),
+                dict(name="Monroe", date=datetime.date(1817, 3, 4)),
+                dict(name="Washington", date=datetime.date(1789, 4, 30)),
             ]
             results = bq_run_query(f"SELECT * FROM {main_table_id} ORDER BY name ASC")
             results = [dict(row) for row in results]
