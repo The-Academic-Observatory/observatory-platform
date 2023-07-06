@@ -933,7 +933,6 @@ def bq_upsert_records(
 
     # If just a string, turn into a list for the jinja template render.
     keys = [primary_key] if isinstance(primary_key, str) else primary_key
-    logging.info(f"Keys to upsert on: {keys}")
     for key in keys:
         assert (
             key in main_column_names and key in upsert_column_names
@@ -965,8 +964,8 @@ def bq_delete_records(
 
     :param main_table_id: the fully qualified table identifier for the main BigQuery table where records will be deleted from.
     :param delete_table_id: the fully qualified table identifier for the BigQuery table containing the records to delete.
-    :param main_table_primary_key: the primary key to use in the main table.
-    :param delete_table_primary_key: the primary key to use in the delete table.
+    :param main_table_primary_key: A single key or a list of keys to use in the main table.
+    :param delete_table_primary_key: A single key or a list of keys to use in the delete table. Must match main_table_primary_key length.
     :param main_table_primary_key_prefix: an optional prefix to add to the primary key main table cells.
     :param delete_table_primary_key_prefix: an optional prefix to add to the primary key delete table cells.
     :param bytes_budget: the bytes budget.
@@ -1017,5 +1016,4 @@ def bq_delete_records(
         delete_table_primary_key_prefix=delete_table_primary_key_prefix,
         zip=zip,
     )
-    print(query)
     bq_run_query(query, bytes_budget=bytes_budget)
