@@ -19,7 +19,7 @@ ON main_table.{{ keys[0] }} = upsert_table.{{ keys[0] }}
 {% else %}
 ON ( main_table.{{ keys[0] }} = upsert_table.{{ keys[0] }} AND
 {% for key in keys[1:-1] %}
-   main_table.{{ key }} = upsert_table.{{ key }},
+   main_table.{{ key }} = upsert_table.{{ key }} AND
 {% endfor %}
    main_table.{{ keys[-1] }} = upsert_table.{{ keys[-1] }} )
 {% endif %}
