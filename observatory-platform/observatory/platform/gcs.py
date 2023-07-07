@@ -745,6 +745,17 @@ def gcs_list_buckets_with_prefix(*, prefix: str = "") -> List[bucket.Bucket]:
     return bucket_list
 
 
+def gcs_list_blobs(bucket_name: str, prefix: str = None) -> List[storage.Blob]:
+    """List blobs in a bucket using a gcs_uri.
+
+    :param bucket_name: The name of the bucket
+    :param prefix: The prefix to filter by
+    :return: A list of blob objects in the bucket
+    """
+    storage_client = storage.Client()
+    return list(storage_client.list_blobs(bucket_name, prefix=prefix))
+
+
 def gcs_delete_old_buckets_with_prefix(*, prefix: str, age_to_delete: int):
     """Deletes buckets that share the same prefix and if it is older than "age_to_delete" hours.
 
@@ -761,13 +772,11 @@ def gcs_delete_old_buckets_with_prefix(*, prefix: str, age_to_delete: int):
 
     buckets_deleted = []
     for bucket in bucket_list:
-
         # Check bucket age
         bucket_age = (datetime.datetime.now(datetime.timezone.utc) - bucket.time_created).total_seconds() / 3600.0
 
         # Delete bucket if older than specified age
         if bucket_age >= age_to_delete:
-
             # Attempt to delete bucket
             try:
                 bucket.delete(force=True)
