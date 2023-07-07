@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.#}
 
-SELECT column_name, data_type
-FROM {{ project_id }}.{{ dataset_id }}.INFORMATION_SCHEMA.COLUMNS
+SELECT field_path as column_name, data_type
+FROM {{ project_id }}.{{ dataset_id }}.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS
 WHERE table_name = '{{ table_id }}'
