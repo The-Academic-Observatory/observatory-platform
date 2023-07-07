@@ -40,6 +40,7 @@ from observatory.platform.gcs import (
     gcs_upload_file,
     gcs_upload_files,
     gcs_list_buckets_with_prefix,
+    gcs_list_blobs,
     gcs_delete_old_buckets_with_prefix,
     gcs_blob_name_from_path,
 )
@@ -444,6 +445,38 @@ class TestGoogleCloudStorage(unittest.TestCase):
 
             # Check that it is in the list of all other buckets
             self.assertTrue(set(bucket_names).issuperset({bucket_id}))
+
+        finally:
+            # Delete testing bucket
+            bucket = client.get_bucket(bucket_id)
+            bucket.delete(force=True)
+
+    def test_gcs_list_blobs(self):
+        client = storage.Client()
+        bucket_id = self.prefix + "_" + random_id()
+
+        try:
+            # Create a test bucket
+            bucket = client.create_bucket(bucket_id)
+
+            # Upload some test blobs to the bucket
+            blob1 = storage.Blob("folder/blob1", bucket)
+            blob1.upload_from_string("Test data 1")
+            blob2 = storage.Blob("blob2", bucket)
+            blob2.upload_from_string("Test data 2")
+
+            # Call the function without prefix
+            result = gcs_list_blobs(bucket_id)
+            self.assertEqual(len(result), 2)
+            self.assertTrue(isinstance(result[0], storage.Blob))
+            self.assertTrue(isinstance(result[1], storage.Blob))
+            self.assertEqual(set([result[0].name, result[1].name]), set(["folder/blob1", "blob2"]))
+
+            # Call the function with prefix
+            result = gcs_list_blobs(bucket_id, prefix="folder")
+            self.assertEqual(len(result), 1)
+            self.assertTrue(isinstance(result[0], storage.Blob))
+            self.assertEqual(result[0].name, "folder/blob1")
 
         finally:
             # Delete testing bucket
