@@ -938,6 +938,8 @@ def bq_upsert_records(
             key in main_column_names and key in upsert_column_names
         ), f"bq_upsert_records: key={key} not in {main_table_id} or {upsert_table_id}"
 
+    main_top_level_cols = [col for col in main_column_names if len(col.split(".")) == 1]
+
     # Run query to upsert records
     template_path = os.path.join(sql_templates_path(), "upsert_records.sql.jinja2")
     query = render_template(
@@ -945,7 +947,7 @@ def bq_upsert_records(
         upsert_table_id=upsert_table_id,
         main_table_id=main_table_id,
         keys=keys,
-        columns=main_column_names,
+        columns=main_top_level_cols,
     )
     bq_run_query(query, bytes_budget=bytes_budget)
 
