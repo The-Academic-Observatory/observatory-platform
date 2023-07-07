@@ -43,7 +43,7 @@ from observatory.platform.utils.jinja2_utils import (
 
 # BigQuery single query byte limit.
 # Daily limit is set in Terraform
-BIGQUERY_SINGLE_QUERY_BYTE_LIMIT = int(2 * 2 ** 40)  # 2 TiB
+BIGQUERY_SINGLE_QUERY_BYTE_LIMIT = int(2 * 2**40)  # 2 TiB
 
 
 def assert_table_id(table_id: str):
@@ -207,7 +207,6 @@ def bq_find_schema(
     release_date: Union[pendulum.DateTime, pendulum.Date] = None,
     prefix: str = "",
 ) -> Union[str, None]:
-
     """Finds a schema file on a given path, with a particular table name, optional release date and prefix.
 
     Depending on the input and available files in the directory, this function's return will change
@@ -316,7 +315,7 @@ def bq_update_table_description(*, table_id: str, description: str):
 
 def bq_load_table(
     *,
-    uri: str,
+    uri: Union[str, List[str]],
     table_id: str,
     schema_file_path: str,
     source_format: str,
@@ -336,7 +335,7 @@ def bq_load_table(
 ) -> bool:
     """Load a BigQuery table from an object on Google Cloud Storage.
 
-    :param uri: the uri of the object to load from Google Cloud Storage into BigQuery.
+    :param uri: the uri(s) of the object to load from Google Cloud Storage into BigQuery.
     :param table_id: the fully qualified BigQuery table identifier.
     :param schema_file_path: path on local file system to BigQuery table schema.
     :param source_format: the format of the data to load into BigQuery.
@@ -354,14 +353,19 @@ def bq_load_table(
     :param clustering_fields: what fields to cluster on.
     Default is to overwrite.
     :param ignore_unknown_values: whether to ignore unknown values or not.
-    :return:
+    :return: True if the load job was successful, False otherwise.
     """
 
     func_name = bq_load_table.__name__
-    msg = f"uri={uri}, table_id={table_id}, schema_file_path={schema_file_path}, source_format={source_format}"
-    logging.info(f"{func_name}: load bigquery table {msg}")
 
-    assert uri.startswith("gs://"), "load_big_query_table: 'uri' must begin with 'gs://'"
+    if isinstance(uri, str):
+        uri = [uri]
+
+    for u in uri:
+        msg = f"uri={u}, table_id={table_id}, schema_file_path={schema_file_path}, source_format={source_format}"
+        logging.info(f"{func_name}: load bigquery table {msg}")
+        assert u.startswith("gs://"), "load_big_query_table: 'uri' must begin with 'gs://'"
+
     assert_table_id(table_id)
 
     # Handle mutable default arguments
@@ -776,7 +780,6 @@ def bq_list_datasets_with_prefix(*, prefix: str = "") -> List[dataset.Dataset]:
     dataset_list = []
     for dataset in datasets:
         if dataset.dataset_id.startswith(prefix):
-
             # Try to grab dataset object from the Google API.
             try:
                 dataset_list.append(client.get_dataset(dataset.dataset_id))
@@ -807,13 +810,11 @@ def bq_delete_old_datasets_with_prefix(*, prefix: str, age_to_delete: int):
 
     datasets_deleted = []
     for dataset in dataset_list:
-
         # Get age of the dataset.
         dataset_age = (datetime.datetime.now(datetime.timezone.utc) - dataset.created).total_seconds() / 3600.0
 
         # Delete dataset if older than specified age
         if dataset_age >= age_to_delete:
-
             # Try to delete the dataset - to get around the not found exception error if deleted previously.
             try:
                 client.delete_dataset(dataset.dataset_id, delete_contents=True, not_found_ok=False)

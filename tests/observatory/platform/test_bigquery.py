@@ -488,9 +488,11 @@ class TestBigQuery(unittest.TestCase):
         csv_file_path = os.path.join(test_data_path, "people.csv")
         csv_blob_name = f"people_{random_id()}.csv"
 
-        # JSON file
+        # JSON files
         json_file_path = os.path.join(test_data_path, "people.jsonl")
         json_blob_name = f"people_{random_id()}.jsonl"
+        json_extra_file_path = os.path.join(test_data_path, "people_extra.jsonl")
+        json_extra_blob_name = f"people_{random_id()}.jsonl"
 
         with bq_dataset_test_env(
             project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
@@ -522,6 +524,27 @@ class TestBigQuery(unittest.TestCase):
 
                 # Test loading JSON newline table
                 uri = f"gs://{self.gc_bucket_name}/{json_blob_name}"
+                table_id = bq_table_id(self.gc_project_id, dataset_id, random_id())
+                result = bq_load_table(
+                    uri=uri,
+                    table_id=table_id,
+                    schema_file_path=schema_file_path,
+                    source_format=SourceFormat.NEWLINE_DELIMITED_JSON,
+                )
+                self.assertTrue(result)
+                self.assertTrue(bq_table_exists(table_id=table_id))
+
+                # Upload additional JSONL to storage bucket
+                result, upload = gcs_upload_file(
+                    bucket_name=self.gc_bucket_name, blob_name=json_extra_blob_name, file_path=json_extra_file_path
+                )
+                self.assertTrue(result)
+
+                # Test loading two files into the same table
+                uri = [
+                    f"gs://{self.gc_bucket_name}/{json_blob_name}",
+                    f"gs://{self.gc_bucket_name}/{json_extra_blob_name}",
+                ]
                 table_id = bq_table_id(self.gc_project_id, dataset_id, random_id())
                 result = bq_load_table(
                     uri=uri,
