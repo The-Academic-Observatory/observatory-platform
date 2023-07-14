@@ -17,13 +17,9 @@
 
 MERGE `{{ main_table_id }}` main_table
 USING `{{ delete_table_id }}` delete_table
-{% if main_table_keys|length == 1 %}
-ON CONCAT('{{ main_table_primary_key_prefix }}', main_table.{{ main_table_keys[0] }}) = CONCAT('{{ delete_table_primary_key_prefix }}', delete_table.{{ delete_table_keys[0] }})
-{% else %}
-ON ( CONCAT('{{ main_table_primary_key_prefix }}', main_table.{{ main_table_keys[0] }}) = CONCAT('{{ delete_table_primary_key_prefix }}', delete_table.{{ delete_table_keys[0] }}) AND
-{% for (main_table_key, delete_table_key) in zip(main_table_keys[1:-1], delete_table_keys[1:-1]) %}
-   CONCAT('{{ main_table_primary_key_prefix }}', main_table.{{ main_table_key }}) = CONCAT('{{ delete_table_primary_key_prefix }}', delete_table.{{ delete_table_key }}) AND
-{% endfor %}
-   CONCAT('{{ main_table_primary_key_prefix }}', main_table.{{ main_table_keys[-1] }}) = CONCAT('{{ delete_table_primary_key_prefix }}', delete_table.{{ delete_table_keys[-1] }}) )
-{% endif %}
+ON (
+{%- for (main_table_key, delete_table_key) in zip(main_table_keys, delete_table_keys) %}
+   CONCAT('{{ main_table_primary_key_prefix }}', main_table.{{ main_table_key }}) = CONCAT('{{ delete_table_primary_key_prefix }}', delete_table.{{ delete_table_key }}){% if not loop.last %} AND{% endif %}
+{%- endfor %}
+)
 WHEN MATCHED THEN DELETE;

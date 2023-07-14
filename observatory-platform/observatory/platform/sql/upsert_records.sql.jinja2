@@ -14,19 +14,15 @@
 
 MERGE `{{ main_table_id }}` main_table
 USING `{{ upsert_table_id }}` upsert_table
-{% if keys|length == 1 %}
-ON main_table.{{ keys[0] }} = upsert_table.{{ keys[0] }} 
-{% else %}
-ON ( main_table.{{ keys[0] }} = upsert_table.{{ keys[0] }} AND
-{% for key in keys[1:-1] %}
-   main_table.{{ key }} = upsert_table.{{ key }} AND
-{% endfor %}
-   main_table.{{ keys[-1] }} = upsert_table.{{ keys[-1] }} )
-{% endif %}
+ON (
+  {%- for key in keys %}
+  main_table.{{ key }}=upsert_table.{{ key }}{% if not loop.last %} AND{% endif %}
+  {%- endfor %}
+)
 WHEN MATCHED THEN
   UPDATE SET
-    {% for col in columns %}
+    {%- for col in columns %}
     main_table.{{ col }}=upsert_table.{{ col }}{% if not loop.last %},{% endif %}
-    {% endfor %}
+    {%- endfor %}
 WHEN NOT MATCHED THEN
   INSERT ROW
