@@ -17,5 +17,9 @@
 
 MERGE `{{ main_table_id }}` main_table
 USING `{{ delete_table_id }}` delete_table
-ON CONCAT('{{ main_table_primary_key_prefix }}', main_table.{{ main_table_primary_key }}) = CONCAT('{{ delete_table_primary_key_prefix }}', delete_table.{{ delete_table_primary_key }})
+ON (
+{%- for (main_table_key, delete_table_key) in zip(main_table_keys, delete_table_keys) %}
+   CONCAT('{{ main_table_primary_key_prefix }}', main_table.{{ main_table_key }}) = CONCAT('{{ delete_table_primary_key_prefix }}', delete_table.{{ delete_table_key }}){% if not loop.last %} AND{% endif %}
+{%- endfor %}
+)
 WHEN MATCHED THEN DELETE;
