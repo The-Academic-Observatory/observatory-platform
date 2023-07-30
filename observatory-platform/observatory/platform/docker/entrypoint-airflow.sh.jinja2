@@ -25,7 +25,7 @@
 {% if package.type == 'editable' -%}
 cd /opt/{{ package.name }}
 export PBR_VERSION=0.0.1
-pip3 install -e . --user
+pip3 install -e . --user --constraint https://raw.githubusercontent.com/apache/airflow/constraints-{{ airflow_version }}/constraints-no-providers-{{ python_version }}.txt
 unset PBR_VERSION
 {% endif %}
 {% endfor %}

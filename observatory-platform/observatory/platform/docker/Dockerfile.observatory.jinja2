@@ -14,7 +14,7 @@
 
 # Author: James Diprose
 
-FROM apache/airflow:2.2.1-python3.8
+FROM apache/airflow:slim-{{ airflow_version }}-python{{ python_version }}
 
 ARG HOST_USER_ID
 ARG OBSERVATORY_HOME=/opt/observatory
@@ -31,10 +31,10 @@ RUN usermod -u ${HOST_USER_ID} ${INSTALL_USER}
 USER ${INSTALL_USER}
 
 # Clean up default installed Python packages
-RUN pip freeze | xargs pip uninstall -y
-RUN python -m pip install --upgrade pip
-RUN pip cache purge
-RUN pip install apache-airflow-providers-google==5.1.0 --no-deps
+{#RUN pip freeze | xargs pip uninstall -y#}
+{#RUN python -m pip install --upgrade pip#}
+{#RUN pip cache purge#}
+{#RUN pip install apache-airflow-providers-google==5.1.0 --no-deps#}
 
 # Install dependencies for all projects
 {% for package in config.python_packages %}
