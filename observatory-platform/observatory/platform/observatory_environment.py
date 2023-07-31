@@ -444,12 +444,19 @@ class ObservatoryEnvironment:
 
         assert self.dag_run is not None, "with create_dag_run must be called before run_task"
 
+        # dag = self.dag_run.dag
+        # run_id = self.dag_run.run_id
+        # task = dag.get_task(task_id=task_id)
+        # ti = TaskInstance(task, run_id=run_id)
+        # ti.dag_run = self.dag_run
+        # ti.init_run_context(raw=True)
+        # ti.run(ignore_ti_state=True)
+
         dag = self.dag_run.dag
         run_id = self.dag_run.run_id
         task = dag.get_task(task_id=task_id)
         ti = TaskInstance(task, run_id=run_id)
-        ti.dag_run = self.dag_run
-        ti.init_run_context(raw=True)
+        ti.refresh_from_db()
         ti.run(ignore_ti_state=True)
 
         return ti

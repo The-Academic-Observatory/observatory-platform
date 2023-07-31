@@ -6,7 +6,7 @@ apache-airflow[redis,celery,slack,http]==2.6.3
 
 # Google Cloud
 google-crc32c>=1.1.0,<2
-google-cloud-bigquery>2,<3
+google-cloud-bigquery>=3,<4
 google-api-python-client>=2,<3
 google-cloud-storage>=1,<2
 google-auth-oauthlib>=0.4.5,<1

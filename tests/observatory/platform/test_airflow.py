@@ -129,7 +129,7 @@ class TestAirflow(unittest.TestCase):
             self.assertSetEqual(expected_dag_ids, actual_dag_ids)
 
     @patch("observatory.platform.airflow.SlackWebhookHook")
-    @patch("airflow.hooks.base_hook.BaseHook.get_connection")
+    @patch("airflow.hooks.base.BaseHook.get_connection")
     def test_send_slack_msg(self, mock_get_connection, m_slack):
         mock_get_connection.return_value = Connection(uri=f"https://:key@https%3A%2F%2Fhooks.slack.com%2Fservices")
 

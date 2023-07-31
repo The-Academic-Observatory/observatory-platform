@@ -30,12 +30,6 @@ RUN usermod -u ${HOST_USER_ID} ${INSTALL_USER}
 # Install Python dependencies for Observatory Platform as airflow user
 USER ${INSTALL_USER}
 
-# Clean up default installed Python packages
-{#RUN pip freeze | xargs pip uninstall -y#}
-{#RUN python -m pip install --upgrade pip#}
-{#RUN pip cache purge#}
-{#RUN pip install apache-airflow-providers-google==5.1.0 --no-deps#}
-
 # Install dependencies for all projects
 {% for package in config.python_packages %}
 # Set working directory for {{ package.name }}
