@@ -37,12 +37,12 @@ class MonitoringWorkflow(Workflow):
         *,
         start_date: pendulum.DateTime,
         ext_dag_id: str,
-        schedule_interval: str = "@monthly",
+        schedule: str = "@monthly",
         mode: str = "reschedule",
         check_exists: bool = True,
     ):
         super().__init__(
-            dag_id=MonitoringWorkflow.DAG_ID, start_date=start_date, schedule_interval=schedule_interval, catchup=False
+            dag_id=MonitoringWorkflow.DAG_ID, start_date=start_date, schedule=schedule, catchup=False
         )
 
         sensor = DagRunSensor(
@@ -133,10 +133,10 @@ class TestDagRunSensor(ObservatoryTestCase):
 
             self.assertEqual(m_get_execdate.call_count, 2)
 
-    def add_dummy_dag_model(self, t: str, dag_id: str, schedule_interval: str):
+    def add_dummy_dag_model(self, t: str, dag_id: str, schedule: str):
         model = DagModel()
         model.dag_id = dag_id
-        model.schedule_interval = schedule_interval
+        model.schedule = schedule
         model.fileloc = os.path.join(t, "dummy_dag.py")
         open(model.fileloc, mode="a").close()
         self.update_db(object=model)
@@ -147,7 +147,7 @@ class TestDagRunSensor(ObservatoryTestCase):
         dag = make_dummy_dag(self.ext_dag_id, execution_date)
 
         # Add DagModel to db
-        self.add_dummy_dag_model(env.temp_dir, dag.dag_id, dag.schedule_interval)
+        self.add_dummy_dag_model(env.temp_dir, dag.dag_id, dag.schedule)
 
         # Run DAG
         with env.create_dag_run(dag, execution_date):

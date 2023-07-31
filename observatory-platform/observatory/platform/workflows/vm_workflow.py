@@ -182,7 +182,7 @@ class VmCreateWorkflow(Workflow):
         terraform_conn_id=AirflowConns.TERRAFORM,
         slack_conn_id=AirflowConns.SLACK,
         start_date: pendulum.DateTime = pendulum.datetime(2020, 7, 1),
-        schedule_interval: str = "@weekly",
+        schedule: str = "@weekly",
         **kwargs,
     ):
         """Construct the workflow.
@@ -193,14 +193,14 @@ class VmCreateWorkflow(Workflow):
         :param terraform_conn_id: the Airflow Connection ID for the Terraform credentials.
         :param slack_conn_id: the Airflow Connection ID for the Slack credentials.
         :param start_date: Start date for the DAG.
-        :param schedule_interval: Schedule interval for the DAG.
+        :param schedule: Schedule interval for the DAG.
         :param kwargs: to catch any extra kwargs passed during DAG creation.
         """
 
         super().__init__(
             dag_id=dag_id,
             start_date=start_date,
-            schedule_interval=schedule_interval,
+            schedule=schedule,
             catchup=False,
             max_active_runs=1,
             airflow_conns=[terraform_conn_id, slack_conn_id],
@@ -310,7 +310,7 @@ class VmDestroyWorkflow(Workflow):
         terraform_conn_id=AirflowConns.TERRAFORM,
         slack_conn_id=AirflowConns.SLACK,
         start_date: pendulum.DateTime = pendulum.datetime(2020, 1, 1),
-        schedule_interval: str = "*/10 * * * *",
+        schedule: str = "*/10 * * * *",
         **kwargs,
     ):
         """Construct the workflow.
@@ -322,14 +322,14 @@ class VmDestroyWorkflow(Workflow):
         :param terraform_conn_id: the Airflow Connection ID for the Terraform credentials.
         :param slack_conn_id: the Airflow Connection ID for the Slack credentials.
         :param start_date: Start date for the DAG.
-        :param schedule_interval: Schedule interval for the DAG.
+        :param schedule: Schedule interval for the DAG.
         :param kwargs: to catch any extra kwargs passed during DAG creation.
         """
 
         super().__init__(
             dag_id=dag_id,
             start_date=start_date,
-            schedule_interval=schedule_interval,
+            schedule=schedule,
             catchup=False,
             max_active_runs=1,
             airflow_conns=[terraform_conn_id, slack_conn_id],

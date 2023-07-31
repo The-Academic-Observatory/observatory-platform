@@ -67,7 +67,7 @@ def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
 
     with DAG(
         dag_id=dag_id,
-        schedule_interval="@weekly",
+        schedule="@weekly",
         default_args={"owner": "airflow", "start_date": execution_date},
         catchup=False,
     ) as dag:

@@ -234,9 +234,9 @@ class TestAirflow(unittest.TestCase):
             (datetime.timedelta(days=1), datetime.timedelta(days=1)),
         ]
         for test in schedule_intervals:
-            schedule_interval = test[0]
+            schedule = test[0]
             expected_n_schedule_interval = test[1]
-            actual_n_schedule_interval = normalized_schedule_interval(schedule_interval)
+            actual_n_schedule_interval = normalized_schedule_interval(schedule)
 
             self.assertEqual(expected_n_schedule_interval, actual_n_schedule_interval)
 
@@ -253,7 +253,7 @@ class TestAirflow(unittest.TestCase):
             execution_date = pendulum.datetime(2021, 9, 5)
             with DAG(
                 dag_id="hello_world_dag",
-                schedule_interval="@daily",
+                schedule="@daily",
                 default_args={"owner": "airflow", "start_date": execution_date},
                 catchup=True,
             ) as dag:
@@ -295,7 +295,7 @@ class TestAirflow(unittest.TestCase):
             first_execution_date = pendulum.datetime(2021, 9, 5)
             with DAG(
                 dag_id="hello_world_dag",
-                schedule_interval="@daily",
+                schedule="@daily",
                 default_args={"owner": "airflow", "start_date": first_execution_date},
                 catchup=True,
             ) as dag:
@@ -368,7 +368,7 @@ class TestAirflow(unittest.TestCase):
             first_execution_date = pendulum.datetime(2021, 9, 5)
             with DAG(
                 dag_id="hello_world_dag",
-                schedule_interval="@daily",
+                schedule="@daily",
                 default_args={"owner": "airflow", "start_date": first_execution_date},
                 catchup=True,
             ) as dag:

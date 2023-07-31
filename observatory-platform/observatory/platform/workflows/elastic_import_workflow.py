@@ -290,7 +290,7 @@ class ElasticImportWorkflow(Workflow):
         num_threads: int = 2,
         num_workers: int = cpu_count(),
         start_date: Optional[pendulum.DateTime] = pendulum.datetime(2020, 11, 1),
-        schedule_interval: Optional[str] = "@weekly",
+        schedule: Optional[str] = "@weekly",
         tags: List[str] = None,
         **kwargs,
     ):
@@ -310,7 +310,7 @@ class ElasticImportWorkflow(Workflow):
         :param num_threads:
         :param num_workers:
         :param start_date: the start date.
-        :param schedule_interval: the schedule interval.
+        :param schedule: the schedule interval.
         :param tags: List of dag tags.
         """
 
@@ -320,7 +320,7 @@ class ElasticImportWorkflow(Workflow):
         super().__init__(
             dag_id=dag_id,
             start_date=start_date,
-            schedule_interval=schedule_interval,
+            schedule=schedule,
             catchup=False,
             airflow_conns=[elastic_conn_id, kibana_conn_id],
             tags=tags,
