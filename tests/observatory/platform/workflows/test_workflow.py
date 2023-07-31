@@ -237,7 +237,7 @@ class TestWorkflow(ObservatoryTestCase):
 
     def test_add_operator(self):
         workflow = MockWorkflow(
-            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule="daily"
+            dag_id="1", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc), schedule="@daily"
         )
         op1 = ExternalTaskSensor(
             external_dag_id="1", task_id="test", start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
@@ -258,7 +258,7 @@ class TestWorkflow(ObservatoryTestCase):
         workflow = MockWorkflow(
             dag_id="1",
             start_date=datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc),
-            schedule="daily",
+            schedule="@daily",
             tags=["oaebu"],
         )
 
@@ -413,9 +413,9 @@ class TestWorkflow(ObservatoryTestCase):
                     env.run_task(workflow.check_dependencies.__name__)
 
                 _, callkwargs = mock_send_slack_msg.call_args
-                self.assertEqual(
-                    callkwargs["comments"],
-                    "Task failed, exception:\nairflow.exceptions.AirflowNotFoundException: The conn_id `orcid_bucket` isn't defined",
+                self.assertTrue(
+                    "airflow.exceptions.AirflowNotFoundException: The conn_id `orcid_bucket` isn't defined"
+                    in callkwargs["comments"]
                 )
 
         # Reset mock
