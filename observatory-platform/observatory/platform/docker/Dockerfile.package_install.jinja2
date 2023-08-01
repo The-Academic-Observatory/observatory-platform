@@ -43,7 +43,7 @@ RUN ./requirements.sh
 USER ${INSTALL_USER}
 
 # Install Python package
-RUN pip3 install {{ package.docker_package }} --user --constraint https://raw.githubusercontent.com/apache/airflow/constraints-{{ airflow_version }}/constraints-no-providers-{{ python_version }}.txt
+RUN pip3 install {{ package.docker_package }} --constraint https://raw.githubusercontent.com/apache/airflow/constraints-{{ airflow_version }}/constraints-no-providers-{{ python_version }}.txt
 {% endif %}
 
 {% elif package.type == 'pypi' %}

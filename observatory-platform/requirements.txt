@@ -14,9 +14,6 @@ google-auth-oauthlib>=0.4.5,<1
 # AWS
 boto3>=1.15.0,<2
 
-# Elasticsearch
-elasticsearch>=8.0.0,<9
-
 # Docker
 docker>6,<7
 

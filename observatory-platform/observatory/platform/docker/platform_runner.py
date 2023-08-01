@@ -88,6 +88,7 @@ class PlatformRunner(ComposeRunner):
         self.add_template(
             path=os.path.join(self.docker_module_path, "Dockerfile.apiserver.jinja2"),
             config=self.config,
+            airflow_version=airflow_version,
             python_version=python_version,
         )
         self.add_template(path=os.path.join(self.docker_module_path, "entrypoint-api.sh.jinja2"), config=self.config)
