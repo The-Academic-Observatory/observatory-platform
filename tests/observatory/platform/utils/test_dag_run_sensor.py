@@ -147,7 +147,7 @@ class TestDagRunSensor(ObservatoryTestCase):
         dag = make_dummy_dag(self.ext_dag_id, execution_date)
 
         # Add DagModel to db
-        self.add_dummy_dag_model(env.temp_dir, dag.dag_id, dag.schedule)
+        self.add_dummy_dag_model(env.temp_dir, dag.dag_id, dag.schedule_interval)
 
         # Run DAG
         with env.create_dag_run(dag, execution_date):
