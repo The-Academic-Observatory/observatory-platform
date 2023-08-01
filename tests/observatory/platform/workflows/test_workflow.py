@@ -166,7 +166,7 @@ class TestWorkflowFunctions(ObservatoryTestCase):
             execution_date = kwargs["execution_date"]
             ti.xcom_push("topic", {"snapshot_date": execution_date.format("YYYYMMDD"), "something": "info"})
 
-        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        env = ObservatoryEnvironment(enable_api=False)
         with env.create():
             execution_date = pendulum.datetime(2023, 1, 1)
             with DAG(
