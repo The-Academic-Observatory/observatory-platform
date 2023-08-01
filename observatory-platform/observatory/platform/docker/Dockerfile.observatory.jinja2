@@ -23,6 +23,7 @@ ARG INSTALL_USER=airflow
 # Install git which is required when installing dependencies with pip
 USER root
 RUN apt-get update -yqq
+RUN apt-get install git -yqq
 
 # Change airflow user's user id to the hosts user id
 RUN usermod -u ${HOST_USER_ID} ${INSTALL_USER}
