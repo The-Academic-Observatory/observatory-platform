@@ -13,7 +13,7 @@ fi
 
 if ! command -v observatory-api &> /dev/null
 then
-  pip install -e observatory-api
+  pip install -e observatory-api --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.6.3/constraints-no-providers-3.8.txt
 fi
 
 # Directories

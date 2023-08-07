@@ -80,7 +80,7 @@ class TelescopeTest(Workflow):
         self,
         dag_id: str = DAG_ID,
         start_date: pendulum.DateTime = pendulum.datetime(2020, 9, 1, tz="UTC"),
-        schedule_interval: str = "@weekly",
+        schedule: str = "@weekly",
         setup_task_result: bool = True,
     ):
         airflow_vars = [
@@ -88,7 +88,7 @@ class TelescopeTest(Workflow):
             MY_VAR_ID,
         ]
         airflow_conns = [MY_CONN_ID]
-        super().__init__(dag_id, start_date, schedule_interval, airflow_vars=airflow_vars, airflow_conns=airflow_conns)
+        super().__init__(dag_id, start_date, schedule, airflow_vars=airflow_vars, airflow_conns=airflow_conns)
         self.setup_task_result = setup_task_result
         self.add_setup_task(self.check_dependencies)
         self.add_setup_task(self.setup_task)
@@ -375,7 +375,7 @@ class TestObservatoryEnvironment(unittest.TestCase):
     def test_create_dag_run_timedelta(self):
         env = ObservatoryEnvironment(self.project_id, self.data_location)
 
-        telescope = TelescopeTest(schedule_interval=timedelta(days=1))
+        telescope = TelescopeTest(schedule=timedelta(days=1))
         dag = telescope.make_dag()
         execution_date = pendulum.datetime(2021, 1, 1)
         expected_dag_date = pendulum.datetime(2021, 1, 2)

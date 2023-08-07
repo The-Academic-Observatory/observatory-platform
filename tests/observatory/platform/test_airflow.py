@@ -79,7 +79,7 @@ class TestAirflow(unittest.TestCase):
 
         dags_module_names_val = '["academic_observatory_workflows.dags", "oaebu_workflows.dags"]'
         expected = ["academic_observatory_workflows.dags", "oaebu_workflows.dags"]
-        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        env = ObservatoryEnvironment(enable_api=False)
         with env.create():
             # Test when no variable set
             with self.assertRaises(KeyError):
@@ -90,7 +90,7 @@ class TestAirflow(unittest.TestCase):
             actual = fetch_dags_modules()
             self.assertEqual(expected, actual)
 
-        with ObservatoryEnvironment(enable_api=False, enable_elastic=False).create():
+        with ObservatoryEnvironment(enable_api=False).create():
             # Set environment variable
             new_env = env.new_env
             new_env["AIRFLOW_VAR_DAGS_MODULE_NAMES"] = dags_module_names_val
@@ -103,7 +103,7 @@ class TestAirflow(unittest.TestCase):
     def test_fetch_dag_bag(self):
         """Test fetch_dag_bag"""
 
-        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        env = ObservatoryEnvironment(enable_api=False)
         with env.create() as t:
             # No DAGs found
             dag_bag = fetch_dag_bag(t)
@@ -129,7 +129,7 @@ class TestAirflow(unittest.TestCase):
             self.assertSetEqual(expected_dag_ids, actual_dag_ids)
 
     @patch("observatory.platform.airflow.SlackWebhookHook")
-    @patch("airflow.hooks.base_hook.BaseHook.get_connection")
+    @patch("airflow.hooks.base.BaseHook.get_connection")
     def test_send_slack_msg(self, mock_get_connection, m_slack):
         mock_get_connection.return_value = Connection(uri=f"https://:key@https%3A%2F%2Fhooks.slack.com%2Fservices")
 
@@ -192,7 +192,7 @@ class TestAirflow(unittest.TestCase):
             self.assertEqual(url, expected_url)
 
     def test_get_airflow_connection_password(self):
-        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        env = ObservatoryEnvironment(enable_api=False)
         with env.create():
             # Assert that we can get a connection password
             conn_id = "conn_1"
@@ -207,7 +207,7 @@ class TestAirflow(unittest.TestCase):
                 get_airflow_connection_password(conn_id)
 
     def test_get_airflow_connection_login(self):
-        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        env = ObservatoryEnvironment(enable_api=False)
         with env.create():
             # Assert that we can get a connection login
             conn_id = "conn_1"
@@ -234,9 +234,9 @@ class TestAirflow(unittest.TestCase):
             (datetime.timedelta(days=1), datetime.timedelta(days=1)),
         ]
         for test in schedule_intervals:
-            schedule_interval = test[0]
+            schedule = test[0]
             expected_n_schedule_interval = test[1]
-            actual_n_schedule_interval = normalized_schedule_interval(schedule_interval)
+            actual_n_schedule_interval = normalized_schedule_interval(schedule)
 
             self.assertEqual(expected_n_schedule_interval, actual_n_schedule_interval)
 
@@ -248,12 +248,12 @@ class TestAirflow(unittest.TestCase):
             execution_date = kwargs["execution_date"]
             ti.xcom_push("topic", {"snapshot_date": execution_date.format("YYYYMMDD"), "something": "info"})
 
-        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        env = ObservatoryEnvironment(enable_api=False)
         with env.create():
             execution_date = pendulum.datetime(2021, 9, 5)
             with DAG(
                 dag_id="hello_world_dag",
-                schedule_interval="@daily",
+                schedule="@daily",
                 default_args={"owner": "airflow", "start_date": execution_date},
                 catchup=True,
             ) as dag:
@@ -290,12 +290,12 @@ class TestAirflow(unittest.TestCase):
             ).with_entities(XCom.value)
             return msgs.all()
 
-        env = ObservatoryEnvironment(enable_api=False, enable_elastic=False)
+        env = ObservatoryEnvironment(enable_api=False)
         with env.create():
             first_execution_date = pendulum.datetime(2021, 9, 5)
             with DAG(
                 dag_id="hello_world_dag",
-                schedule_interval="@daily",
+                schedule="@daily",
                 default_args={"owner": "airflow", "start_date": first_execution_date},
                 catchup=True,
             ) as dag:
@@ -368,7 +368,7 @@ class TestAirflow(unittest.TestCase):
             first_execution_date = pendulum.datetime(2021, 9, 5)
             with DAG(
                 dag_id="hello_world_dag",
-                schedule_interval="@daily",
+                schedule="@daily",
                 default_args={"owner": "airflow", "start_date": first_execution_date},
                 catchup=True,
             ) as dag:

@@ -38,7 +38,7 @@ class TestObservatoryAPI(ObservatoryTestCase):
         self.api = ObservatoryApi(api_client=api_client)  # noqa: E501
         self.env = ObservatoryApiEnvironment(host=self.host, port=self.port)
 
-    @patch("airflow.hooks.base_hook.BaseHook.get_connection")
+    @patch("airflow.hooks.base.BaseHook.get_connection")
     def test_make_observatory_api(self, mock_get_connection):
         """Test make_observatory_api"""
 

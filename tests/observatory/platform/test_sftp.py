@@ -25,7 +25,7 @@ from observatory.platform.sftp import make_sftp_connection
 
 class TestSFTP(unittest.TestCase):
     @patch.object(pysftp, "Connection")
-    @patch("airflow.hooks.base_hook.BaseHook.get_connection")
+    @patch("airflow.hooks.base.BaseHook.get_connection")
     def test_make_sftp_connection(self, mock_airflow_conn, mock_pysftp_connection):
         """Test that sftp connection is initialized correctly"""
 

@@ -398,7 +398,7 @@ class Workflow(AbstractWorkflow):
         self,
         dag_id: str,
         start_date: pendulum.DateTime,
-        schedule_interval: str,
+        schedule: str,
         catchup: bool = False,
         queue: str = "default",
         max_retries: int = 3,
@@ -411,7 +411,7 @@ class Workflow(AbstractWorkflow):
 
         :param dag_id: the id of the DAG.
         :param start_date: the start date of the DAG.
-        :param schedule_interval: the schedule interval of the DAG.
+        :param schedule: the schedule interval of the DAG.
         :param catchup: whether to catchup the DAG or not.
         :param queue: the Airflow queue name.
         :param max_retries: the number of times to retry each task.
@@ -423,7 +423,7 @@ class Workflow(AbstractWorkflow):
 
         self.dag_id = dag_id
         self.start_date = start_date
-        self.schedule_interval = schedule_interval
+        self.schedule = schedule
         self.catchup = catchup
         self.queue = queue
         self.max_retries = max_retries
@@ -442,7 +442,7 @@ class Workflow(AbstractWorkflow):
         self.description = self.__doc__
         self.dag = DAG(
             dag_id=self.dag_id,
-            schedule_interval=self.schedule_interval,
+            schedule=self.schedule,
             default_args=self.default_args,
             catchup=self.catchup,
             max_active_runs=self.max_active_runs,

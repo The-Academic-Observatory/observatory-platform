@@ -118,7 +118,6 @@ from observatory.platform.bigquery import (
     bq_delete_old_datasets_with_prefix,
 )
 from observatory.platform.config import module_file_path, AirflowVars, AirflowConns
-from observatory.platform.elastic.elastic_environment import ElasticEnvironment
 from observatory.platform.files import crc32c_base64_hash, get_file_hash, gzip_file_crc, save_jsonl_gz
 from observatory.platform.gcs import (
     gcs_blob_uri,
@@ -230,9 +229,6 @@ class ObservatoryEnvironment:
         api_host: str = "localhost",
         api_port: int = 5000,
         enable_api: bool = True,
-        enable_elastic: bool = False,
-        elastic_port: int = 9200,
-        kibana_port: int = 5601,
         prefix: Optional[str] = "obsenv_tests",
         age_to_delete: int = 12,
         workflows: List[Workflow] = None,
@@ -249,9 +245,6 @@ class ObservatoryEnvironment:
         :param api_host: the Observatory API host.
         :param api_port: the Observatory API port.
         :param enable_api: whether to enable the observatory API or not.
-        :param enable_elastic: whether to enable the Elasticsearch and Kibana test services.
-        :param elastic_port: the Elastic port.
-        :param kibana_port: the Kibana port.
         :param prefix: prefix for buckets and datsets created for the testing environment.
         :param age_to_delete: age of buckets and datasets to delete that share the same prefix, in hours
         """
@@ -268,11 +261,7 @@ class ObservatoryEnvironment:
         self.api_env = None
         self.api_session = None
         self.enable_api = enable_api
-        self.enable_elastic = enable_elastic
-        self.elastic_port = elastic_port
-        self.kibana_port = kibana_port
         self.dag_run: DagRun = None
-        self.elastic_env: ElasticEnvironment = None
         self.prefix = prefix
         self.age_to_delete = age_to_delete
         self.workflows = workflows
@@ -448,8 +437,7 @@ class ObservatoryEnvironment:
         run_id = self.dag_run.run_id
         task = dag.get_task(task_id=task_id)
         ti = TaskInstance(task, run_id=run_id)
-        ti.dag_run = self.dag_run
-        ti.init_run_context(raw=True)
+        ti.refresh_from_db()
         ti.run(ignore_ti_state=True)
 
         return ti
@@ -556,13 +544,7 @@ class ObservatoryEnvironment:
                     var = workflows_to_json_string(self.workflows)
                     self.add_variable(Variable(key=AirflowVars.WORKFLOWS, val=var))
 
-                # Start elastic
-                if self.enable_elastic:
-                    elastic_build_path = os.path.join(self.temp_dir, "elastic")
-                    self.elastic_env = ElasticEnvironment(
-                        build_path=elastic_build_path, elastic_port=self.elastic_port, kibana_port=self.kibana_port
-                    )
-                    self.elastic_env.start()
+                # Reset dag run
                 self.dag_run: DagRun = None
 
                 # Create ObservatoryApiEnvironment
@@ -597,10 +579,6 @@ class ObservatoryEnvironment:
                     # Remove BigQuery datasets
                     for dataset_id in self.datasets:
                         self._delete_dataset(dataset_id)
-
-                # Stop elastic
-                if self.enable_elastic:
-                    self.elastic_env.stop()
 
 
 def load_and_parse_json(file_path: str, date_fields: Set[str] = None):
@@ -1119,7 +1097,7 @@ def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
 
     with DAG(
         dag_id=dag_id,
-        schedule_interval="@weekly",
+        schedule="@weekly",
         default_args={"owner": "airflow", "start_date": execution_date},
         catchup=False,
     ) as dag:

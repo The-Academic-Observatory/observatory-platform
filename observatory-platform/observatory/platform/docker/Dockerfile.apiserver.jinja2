@@ -28,10 +28,6 @@ RUN usermod -u ${HOST_USER_ID} ${INSTALL_USER}
 
 USER ${INSTALL_USER}
 
-# Clean up default installed Python packages
-RUN python -m pip install --upgrade pip
-RUN pip cache purge
-
 # Install dependencies for all projects
 {% for package in config.python_packages %}
 {% if package.name == 'observatory-api' %}
