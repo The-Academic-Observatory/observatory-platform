@@ -27,16 +27,29 @@ from observatory.platform.observatory_config import Config
 
 HOST_UID = os.getuid()
 DEBUG = False
+PYTHON_VERSION = "3.8"
+AIRFLOW_VERSION = "2.6.3"
 
 
 class PlatformRunner(ComposeRunner):
-    def __init__(self, *, config: Config, host_uid: int = HOST_UID, docker_build_path: str = None, debug: bool = DEBUG):
+    def __init__(
+        self,
+        *,
+        config: Config,
+        host_uid: int = HOST_UID,
+        docker_build_path: str = None,
+        debug: bool = DEBUG,
+        python_version: str = PYTHON_VERSION,
+        airflow_version: str = AIRFLOW_VERSION,
+    ):
         """Create a PlatformRunner instance, which is used to build, start and stop an Observatory Platform instance.
 
         :param config: the config.
         :param host_uid: The user id of the host system. Used to set the user id in the Docker containers.
         :param docker_build_path: the Docker build path.
         :param debug: Print debugging information.
+        :param python_version: Python version.
+        :param airflow_version: Airflow version.
         """
 
         self.config = config
@@ -51,18 +64,33 @@ class PlatformRunner(ComposeRunner):
         super().__init__(
             compose_template_path=os.path.join(self.docker_module_path, "docker-compose.observatory.yml.jinja2"),
             build_path=docker_build_path,
-            compose_template_kwargs={"config": self.config},
+            compose_template_kwargs={
+                "config": self.config,
+                "airflow_version": airflow_version,
+                "python_version": python_version,
+            },
             debug=debug,
         )
 
         # Add files
         self.add_template(
-            path=os.path.join(self.docker_module_path, "Dockerfile.observatory.jinja2"), config=self.config
+            path=os.path.join(self.docker_module_path, "Dockerfile.observatory.jinja2"),
+            config=self.config,
+            airflow_version=airflow_version,
+            python_version=python_version,
         )
         self.add_template(
-            path=os.path.join(self.docker_module_path, "entrypoint-airflow.sh.jinja2"), config=self.config
+            path=os.path.join(self.docker_module_path, "entrypoint-airflow.sh.jinja2"),
+            config=self.config,
+            airflow_version=airflow_version,
+            python_version=python_version,
         )
-        self.add_template(path=os.path.join(self.docker_module_path, "Dockerfile.apiserver.jinja2"), config=self.config)
+        self.add_template(
+            path=os.path.join(self.docker_module_path, "Dockerfile.apiserver.jinja2"),
+            config=self.config,
+            airflow_version=airflow_version,
+            python_version=python_version,
+        )
         self.add_template(path=os.path.join(self.docker_module_path, "entrypoint-api.sh.jinja2"), config=self.config)
         self.add_file(
             path=os.path.join(self.docker_module_path, "entrypoint-root.sh"), output_file_name="entrypoint-root.sh"

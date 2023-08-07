@@ -71,9 +71,6 @@ paths:
             $ref: '#/definitions/DatasetRelease'
         400:
           description: bad input parameter
-        401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
     post:
       tags:
       - {{ dataset_release_tag }}
@@ -97,9 +94,6 @@ paths:
           description: DatasetRelease created, returning the created object with an id
           schema:
             $ref: '#/definitions/DatasetRelease'
-        401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
     put:
       tags:
       - {{ dataset_release_tag }}
@@ -128,9 +122,6 @@ paths:
           description: DatasetRelease created, returning the created object with an id
           schema:
             $ref: '#/definitions/DatasetRelease'
-        401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
       - {{ dataset_release_tag }}
@@ -151,9 +142,6 @@ paths:
       responses:
         200:
           description: DatasetRelease deleted
-        401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
 
   /v1/dataset_releases:
     get:
@@ -185,9 +173,6 @@ paths:
               $ref: '#/definitions/DatasetRelease'
         400:
           description: bad input parameter
-        401:
-          {% if api_client -%}description: API key is missing or invalid{%- endif %}
-          $ref: '#/responses/UnauthorizedError'
 
 definitions:
   DatasetRelease:
@@ -256,10 +241,3 @@ definitions:
         minLength: 1
         maxLength: 512
         x-nullable: true
-
-responses:
-  UnauthorizedError:
-    description: API key is missing or invalid
-    headers:
-      WWW_Authenticate:
-        type: string

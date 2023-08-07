@@ -182,7 +182,7 @@ observatory platform start --host-gid 5000
 You may override the host ports for Redis, Flower UI, Airflow UI, Elasticsearch and Kibana. An example is given
 below:
 ```bash
-observatory platform start --redis-port 6380 --flower-ui-port 5556 --airflow-ui-port 8081 --elastic-port 9201 --kibana-port 5602
+observatory platform start --redis-port 6380 --flower-ui-port 5556 --airflow-ui-port 8081
 ```
 
 ### Specify an existing Docker network

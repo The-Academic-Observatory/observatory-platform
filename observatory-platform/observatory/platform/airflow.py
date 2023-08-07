@@ -355,12 +355,14 @@ def delete_old_xcoms(
     """
 
     cut_off_date = execution_date.subtract(days=retention_days)
-    session.query(XCom).filter(
+    results = session.query(XCom).filter(
         and_(
             XCom.dag_id == dag_id,
             XCom.execution_date <= cut_off_date,
         )
-    ).delete()
+    )
+    # set synchronize_session="fetch" to prevent the following error: sqlalchemy.exc.InvalidRequestError: Could not evaluate current criteria in Python: "Cannot evaluate SelectStatementGrouping". Specify 'fetch' or False for the synchronize_session execution option.
+    results.delete(synchronize_session="fetch")
 
 
 def is_first_dag_run(dag_run: DagRun) -> bool:

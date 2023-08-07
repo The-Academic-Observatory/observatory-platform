@@ -2,42 +2,28 @@
 observatory-api
 
 # Airflow
-apache-airflow==2.2.1
-apache-airflow-providers-redis==2.0.1
-apache-airflow-providers-celery==2.1.0
-apache-airflow-providers-slack==4.0.0
-apache-airflow-providers-http==2.0.0
-WTForms<3 # Fix ModuleNotFoundError: No module named 'wtforms.compat' error
-Markdown==3.3.4 # prevent error: INSTALLED_EXTENSIONS = metadata.entry_points(group='markdown.extensions') TypeError: entry_points() got an unexpected keyword argument 'group'
-SQLAlchemy==1.3.24 # https://github.com/apache/airflow/issues/21661
-alembic<=1.9.4 # prevent alembic errors
+apache-airflow[redis,celery,slack,http]==2.6.3
 
 # Google Cloud
 google-crc32c>=1.1.0,<2
-google-cloud-bigquery==3.3.*
-google-api-python-client==2.0.*
-google-cloud-storage==1.35.*
+google-cloud-bigquery>=3,<4
+google-api-python-client>=2,<3
+google-cloud-storage>=1,<2
 google-auth-oauthlib>=0.4.5,<1
-google-cloud-secret-manager<2.0.0,>=0.2.0 # for Google Cloud Secret Manager backend
-google-api-core==1.33.2 # fix TypeError: _blocking_poll() got an unexpected keyword argument 'retry'
 
 # AWS
 boto3>=1.15.0,<2
-
-# Elasticsearch
-elasticsearch>=8.0.0,<9
 
 # Docker
 docker>6,<7
 
 # Command line interface, config files and templates
-click>=7.1.2,<8
-pyyaml>=5.1,<6
+click>=8,<9
+pyyaml>=6,<7
 cerberus>=1.3.4,<2
-Jinja2>=2.10.1,<3
+Jinja2>=3,<4
 stringcase>=1.2.0,<2
 pyhcl>=0.4.4,<1
-Sphinx>=4,<5
 
 # Reading and writing jsonlines files
 jsonlines>=2.0.0,<3  # Writing
@@ -58,7 +44,7 @@ pyftpdlib>=1.5.7,<2
 
 # Utils
 natsort>=7.1.1,<8
-backoff>=1.11.0,<2
+backoff>=2,<3
 timeout-decorator
 validators
 xmltodict
@@ -73,12 +59,7 @@ sftpserver>=0.3,<1
 # Backports
 typing-extensions>=3.10.0.1,<4; python_version<'3.8'
 
-# To remove in future
-numpy>=1.20.3,<2
-six>=1.16.0,<2
-
-oauth2client==4.1.*
-importlib-metadata==3.7.3
+oauth2client>=4.1.0,<5
 
 deprecation>2,<3
 

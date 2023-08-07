@@ -1,6 +1,8 @@
 #!/bin/bash
 
 venv_observatory_platform="observatory_venv"
+airflow_version="2.6.3"
+python_version="3.8"
 
 function set_os_arch() {
     os=$(uname -s)
@@ -256,13 +258,13 @@ function install_ubuntu_system_deps() {
     echo "====================================="
 
     sudo apt update
-    sudo apt-get install -y software-properties-common curl git python3.8 python3.8-dev python3-pip python3-virtualenv
+    sudo apt-get install -y software-properties-common curl git python${python_version} python${python_version}-dev python3-pip python3-virtualenv
 
     echo "--------------------------"
     echo "Creating Python virtualenv"
     echo "--------------------------"
 
-    virtualenv -p python3.8 $venv_observatory_platform
+    virtualenv -p python${python_version} $venv_observatory_platform
 
     echo "-----------------"
     echo "Installing docker"
@@ -291,11 +293,11 @@ function install_macos_system_deps() {
     fi
 
     echo "---------------------"
-    echo "Installing Python 3.8"
+    echo "Installing Python ${python_version}"
     echo "---------------------"
 
-    brew install python@3.8
-    echo 'export PATH="/usr/local/opt/python@3.8/bin:$PATH"' >> ~/.bash_profile
+    brew install python@${python_version}
+    echo 'export PATH="/usr/local/opt/python@${python_version}/bin:$PATH"' >> ~/.bash_profile
 
     echo "------------------------------"
     echo "Installing Python dependencies"
@@ -307,7 +309,7 @@ function install_macos_system_deps() {
     echo "Creating Python virtualenv"
     echo "--------------------------"
 
-    virtualenv -p /usr/local/opt/python@3.8/Frameworks/Python.framework/Versions/3.8/bin/python3 $venv_observatory_platform
+    virtualenv -p /usr/local/opt/python@${python_version}/Frameworks/Python.framework/Versions/${python_version}/bin/python3 $venv_observatory_platform
 
     echo "-----------------"
     echo "Installing Docker"
@@ -344,7 +346,8 @@ function install_observatory_platform() {
         cd observatory-platform
     fi
 
-    pip3 install ${pip_install_env_flag} observatory-platform${test_suffix}
+    pip3 install ${pip_install_env_flag} observatory-api${test_suffix} --constraint https://raw.githubusercontent.com/apache/airflow/constraints-${airflow_version}/constraints-no-providers-${python_version}.txt
+    pip3 install ${pip_install_env_flag} observatory-platform${test_suffix} --constraint https://raw.githubusercontent.com/apache/airflow/constraints-${airflow_version}/constraints-no-providers-${python_version}.txt
 }
 
 function install_observatory_api() {
@@ -356,7 +359,7 @@ function install_observatory_api() {
     echo "Installing Observatory API"
     echo "=========================="
 
-    pip3 install ${pip_install_env_flag} observatory-api${test_suffix}
+
 
 }
 
@@ -379,7 +382,7 @@ function install_academic_observatory_workflows() {
         prefix="workflows/"
     fi
 
-    pip3 install ${pip_install_env_flag} ${prefix}academic-observatory-workflows${test_suffix}
+    pip3 install ${pip_install_env_flag} ${prefix}academic-observatory-workflows${test_suffix} --constraint https://raw.githubusercontent.com/apache/airflow/constraints-${airflow_version}/constraints-no-providers-${python_version}.txt
 }
 
 function install_oaebu_workflows() {
@@ -401,7 +404,7 @@ function install_oaebu_workflows() {
         prefix="workflows/"
     fi
 
-    pip3 install ${pip_install_env_flag} ${prefix}oaebu-workflows${test_suffix}
+    pip3 install ${pip_install_env_flag} ${prefix}oaebu-workflows${test_suffix} --constraint https://raw.githubusercontent.com/apache/airflow/constraints-${airflow_version}/constraints-no-providers-${python_version}.txt
 }
 
 function generate_observatory_config() {
@@ -459,7 +462,6 @@ install_system_deps
 source $venv_observatory_platform/bin/activate
 
 install_observatory_platform
-install_observatory_api
 install_academic_observatory_workflows
 install_oaebu_workflows
 

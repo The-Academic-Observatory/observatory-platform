@@ -255,5 +255,5 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
                             execution_date=execution_date,
                             dag_ids=workflow.dag_id,
                         ),
-                        3,
+                        5,
                     )

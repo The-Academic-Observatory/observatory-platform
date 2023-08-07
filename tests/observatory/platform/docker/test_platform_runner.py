@@ -86,6 +86,7 @@ class TestPlatformRunner(unittest.TestCase):
     def setUp(self) -> None:
         self.is_env_local = True
         self.observatory_platform_path = module_file_path("observatory.platform", nav_back_steps=-3)
+        self.observatory_api_path = module_file_path("observatory.api", nav_back_steps=-3)
 
     def get_config(self, t: str):
         return ObservatoryConfig(
@@ -96,6 +97,8 @@ class TestPlatformRunner(unittest.TestCase):
                 airflow_fernet_key="ez2TjBjFXmWhLyVZoZHQRTvBcX2xY7L4A7Wjwgr6SJU=",
                 airflow_secret_key="a" * 16,
                 observatory_home=t,
+                api_package=self.observatory_api_path,
+                api_package_type="editable"
             ),
         )
 

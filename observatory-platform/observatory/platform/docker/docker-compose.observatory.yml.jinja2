@@ -18,7 +18,7 @@ version: '3.8'
 x-environment: &environment
   # Airflow settings
   AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
   AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
   AIRFLOW__CORE__LOAD_EXAMPLES: "False"
   AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
@@ -28,7 +28,7 @@ x-environment: &environment
   AIRFLOW__CELERY__BROKER_URL: "redis://:@${REDIS_HOSTNAME}:6379/0"
   AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/airflow"
   AIRFLOW__CELERY_BROKER_TRANSPORT_OPTIONS__VISIBILITY_TIMEOUT: 259200
-  AIRFLOW__API__AUTH_BACKEND: airflow.api.auth.backend.basic_auth
+  AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
   {%- if config.backend.type.value == 'terraform' %}
   AIRFLOW__LOGGING__REMOTE_LOGGING: "True"
   AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: "gs://${AIRFLOW_LOGGING_BUCKET}/logs"
@@ -122,12 +122,11 @@ services:
       retries: 50
 
   flower:
-    image: apache/airflow:2.2.1-python3.8
+    image: apache/airflow:{{ airflow_version }}-python{{ python_version }}
     environment: *environment
     restart: always
     networks:
       - {{ config.observatory.docker_network_name }}
-    depends_on: *depends-on
     ports:
       - ${HOST_FLOWER_UI_PORT}:5555
     command: celery flower
@@ -140,14 +139,17 @@ services:
     secrets:
       - google_application_credentials.json
     {%- endif %}
+    depends_on:
+      <<: *depends-on
+      airflow_init:
+        condition: service_completed_successfully
 
   webserver:
-    image: apache/airflow:2.2.1-python3.8
+    image: apache/airflow:{{ airflow_version }}-python{{ python_version }}
     environment: *environment
     restart: always
     networks:
       - {{ config.observatory.docker_network_name }}
-    depends_on: *depends-on
     {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
@@ -160,9 +162,13 @@ services:
       interval: 30s
       timeout: 30s
       retries: 30
+    depends_on:
+      <<: *depends-on
+      airflow_init:
+        condition: service_completed_successfully
 
   airflow_init:
-    image: apache/airflow:2.2.1-python3.8
+    image: apache/airflow:{{ airflow_version }}-python{{ python_version }}
     environment:
       <<: *environment
       _AIRFLOW_DB_UPGRADE: "true"
@@ -171,8 +177,8 @@ services:
       _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_UI_USER_PASSWORD}
     networks:
       - {{ config.observatory.docker_network_name }}
-    depends_on: *depends-on
     command: version
+    depends_on: *depends-on
 
   scheduler:
     build: *build
@@ -181,14 +187,15 @@ services:
     restart: always
     networks:
       - {{ config.observatory.docker_network_name }}
-    depends_on:
-      webserver:
-        condition: service_healthy
     {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
     {%- endif %}
     command: scheduler
+    depends_on:
+      <<: *depends-on
+      airflow_init:
+        condition: service_completed_successfully
 
   worker_local:
     build: *build
@@ -196,13 +203,15 @@ services:
     volumes: *volumes
     restart: always
     <<: *networks
-    depends_on:
-      - scheduler
     {% if (config.google_cloud is not none) and (config.google_cloud.credentials is not none) -%}
     secrets:
       - google_application_credentials.json
     {%- endif %}
     command: celery worker -q default
+    depends_on:
+      <<: *depends-on
+      airflow_init:
+        condition: service_completed_successfully
 
   worker_remote:
     build: *build
@@ -215,6 +224,12 @@ services:
       - google_application_credentials.json
     {%- endif %}
     command: celery worker -q remote_queue
+    {% if config.backend.type.value == 'local' %}
+    depends_on:
+      <<: *depends-on
+      airflow_init:
+        condition: service_completed_successfully
+    {% endif %}
 
   apiserver:
     build:
@@ -233,17 +248,17 @@ services:
       - ${HOST_API_SERVER_PORT}:5002
     networks:
       - {{ config.observatory.docker_network_name }}
-    {% if config.backend.type.value == 'local' %} 
-    depends_on:
-      postgres:
-        condition: service_healthy
-    {% endif %}
     healthcheck:
       test: ["CMD", "nc", "-z", "-v", "apiserver", "5002"]
       interval: 30s
       retries: 20
     command: apiserver
     entrypoint: /entrypoint-api.sh
+    {% if config.backend.type.value == 'local' %}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    {% endif %}
 
 {% if config.backend.type.value == 'local' %}
   postgres:

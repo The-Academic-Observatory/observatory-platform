@@ -18,7 +18,7 @@ import os
 import unittest
 
 from click.testing import CliRunner
-from openapi_spec_validator import validate_v2_spec
+from openapi_spec_validator import validate_spec
 from openapi_spec_validator.readers import read_from_filename
 
 from observatory.api.server.openapi_renderer import OpenApiRenderer
@@ -50,4 +50,4 @@ class TestOpenApiSchema(unittest.TestCase):
                 f.write(render)
 
             spec_dict, spec_url = read_from_filename(file_name)
-            validate_v2_spec(spec_dict)
+            validate_spec(spec_dict)
