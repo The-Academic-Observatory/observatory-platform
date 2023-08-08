@@ -29,7 +29,7 @@ import requests
 import time
 import xmltodict
 from airflow import AirflowException
-from importlib_metadata import metadata
+from importlib.metadata import metadata
 from requests.adapters import HTTPAdapter
 from tenacity import Retrying, stop_after_attempt, before_sleep_log, wait_exponential_jitter
 from tenacity.wait import wait_base, wait_fixed
@@ -49,7 +49,7 @@ def parse_retry_after(retry_after: Optional[str]) -> Optional[int]:
             delay = int(retry_after)
         except ValueError:
             retry_date = parsedate_to_datetime(retry_after)
-            delay = max(0., (retry_date - datetime.now(pytz.utc)).total_seconds())
+            delay = max(0.0, (retry_date - datetime.now(pytz.utc)).total_seconds())
     return delay
 
 
