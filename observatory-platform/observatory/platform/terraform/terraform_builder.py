@@ -15,12 +15,13 @@
 # Author: James Diprose
 
 
-import distutils.dir_util
 import os
+import re
 import shutil
 import subprocess
 from subprocess import Popen
-from typing import Tuple
+from typing import Tuple, Optional, List
+
 from observatory.platform.cli.cli_utils import indent, INDENT1
 from observatory.platform.config import module_file_path
 from observatory.platform.docker.platform_runner import PlatformRunner
@@ -29,8 +30,30 @@ from observatory.platform.utils.jinja2_utils import render_template
 from observatory.platform.utils.proc_utils import stream_process
 
 
-def copy_dir(source_path: str, destination_path: str):
-    distutils.dir_util.copy_tree(source_path, destination_path)
+def should_ignore(name, patterns):
+    """Check if a name matches any of the provided regex patterns."""
+    return any(re.search(pattern, name) for pattern in patterns)
+
+
+def copy_dir(src: str, dst: str, ignore_patterns: Optional[List] = None, verbose: bool = False):
+    if ignore_patterns is None:
+        ignore_patterns = set()
+
+    if not os.path.exists(dst):
+        os.makedirs(dst)
+    for item in os.listdir(src):
+        s = os.path.join(src, item)
+        d = os.path.join(dst, item)
+        if os.path.isdir(s):
+            if not should_ignore(item, ignore_patterns):
+                copy_dir(s, d, ignore_patterns, verbose)
+            else:
+                if verbose:
+                    print(f"Ignored: {s}")
+        else:
+            if verbose:
+                print(f"Copy {s} -> {d}")
+            shutil.copy2(s, d)
 
 
 class TerraformBuilder:
@@ -91,7 +114,20 @@ class TerraformBuilder:
         for package in self.config.python_packages:
             if package.type == "editable":
                 destination_path = os.path.join(self.packages_build_path, package.name)
-                copy_dir(package.host_package, destination_path)
+                copy_dir(
+                    package.host_package,
+                    destination_path,
+                    ignore_patterns=[
+                        r"^\.git$",
+                        r"^\.eggs$",
+                        r"^__pycache__$",
+                        r"^venv$",
+                        r".*\.egg-info$",
+                        r"^fixtures$",
+                        r"^\.idea$",
+                    ],
+                    verbose=self.debug,
+                )
 
         # Clear terraform/terraform path, but keep the .terraform folder and other hidden files necessary for terraform.
         if os.path.exists(self.terraform_build_path):
@@ -106,7 +142,12 @@ class TerraformBuilder:
             os.makedirs(self.terraform_build_path)
 
         # Copy terraform files into build/terraform
-        copy_dir(self.terraform_path, self.terraform_build_path)
+        copy_dir(
+            self.terraform_path,
+            self.terraform_build_path,
+            ignore_patterns=[r"^\.git$", r"^\.eggs$", r"^__pycache__$", r"^venv$", r".*\.egg-info$", r"^\.idea$"],
+            verbose=self.debug,
+        )
 
         # Make startup scripts
         self.make_startup_script(True, "startup-main.tpl")
