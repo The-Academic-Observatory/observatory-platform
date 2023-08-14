@@ -109,6 +109,8 @@ x-build: &build
 
 services:
   redis:
+    container_name: redis
+    hostname: redis
     image: redis:latest
     restart: always
     ports:
@@ -122,6 +124,8 @@ services:
       retries: 50
 
   flower:
+    container_name: flower
+    hostname: flower
     image: apache/airflow:{{ airflow_version }}-python{{ python_version }}
     environment: *environment
     restart: always
@@ -145,7 +149,10 @@ services:
         condition: service_completed_successfully
 
   webserver:
+    container_name: webserver
+    hostname: webserver 
     image: apache/airflow:{{ airflow_version }}-python{{ python_version }}
+    volumes: *volumes
     environment: *environment
     restart: always
     networks:
@@ -168,6 +175,8 @@ services:
         condition: service_completed_successfully
 
   airflow_init:
+    container_name: airflow_init
+    hostname: airflow_init
     image: apache/airflow:{{ airflow_version }}-python{{ python_version }}
     environment:
       <<: *environment
@@ -180,7 +189,9 @@ services:
     command: version
     depends_on: *depends-on
 
-  scheduler:
+  scheduler:  
+    container_name: scheduler
+    hostname: scheduler
     build: *build
     environment: *environment
     volumes: *volumes
@@ -198,6 +209,8 @@ services:
         condition: service_completed_successfully
 
   worker_local:
+    container_name: worker_local
+    hostname: worker_local
     build: *build
     environment: *environment
     volumes: *volumes
@@ -214,6 +227,8 @@ services:
         condition: service_completed_successfully
 
   worker_remote:
+    container_name: worker_remote
+    hostname: worker_remote
     build: *build
     environment: *environment
     volumes: *volumes
@@ -232,6 +247,8 @@ services:
     {% endif %}
 
   apiserver:
+    container_name: apiserver
+    hostname: apiserver
     build:
       context: .
       dockerfile: Dockerfile.apiserver
@@ -262,6 +279,8 @@ services:
 
 {% if config.backend.type.value == 'local' %}
   postgres:
+    container_name: postgres
+    hostname: postgres
     image: postgres:12.2
     environment:
       - POSTGRES_DB=airflow
