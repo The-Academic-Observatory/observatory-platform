@@ -44,6 +44,7 @@ from observatory.platform.gcs import (
     gcs_list_blobs,
     gcs_delete_old_buckets_with_prefix,
     gcs_blob_name_from_path,
+    gcs_hmac_key,
 )
 from observatory.platform.observatory_environment import random_id, aws_bucket_test_env
 
@@ -530,6 +531,6 @@ class TestGoogleCloudStorage(unittest.TestCase):
         with gcs_hmac_key(project_id, gcs_creds.service_account_email) as (key, secret):
             self.assertIsInstance(secret, str)
             self.assertIsInstance(key.access_id, str)
-            self.assertIsInstance(key, credentials.Signature)
+            self.assertIsInstance(key, storage.hmac_key.HMACKeyMetadata)
             self.assertEqual(key.state, "ACTIVE")
-        self.assertEqual(key.state, "DELETED")
+        self.assertEqual(key.state, "INACTIVE")
