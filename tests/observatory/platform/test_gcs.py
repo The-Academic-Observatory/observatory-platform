@@ -480,6 +480,17 @@ class TestGoogleCloudStorage(unittest.TestCase):
             self.assertTrue(isinstance(result[0], storage.Blob))
             self.assertEqual(result[0].name, "folder/blob1")
 
+            # Call the function with match_blobs
+            result = gcs_list_blobs(bucket_id, match_glob="folder/bl*")
+            self.assertEqual(len(result), 1)
+            self.assertTrue(isinstance(result[0], storage.Blob))
+            self.assertEqual(result[0].name, "folder/blob1")
+            result = gcs_list_blobs(bucket_id, match_glob="**blob*")
+            self.assertEqual(len(result), 2)
+            self.assertTrue(isinstance(result[0], storage.Blob))
+            self.assertEqual(result[0].name, "blob2")
+            self.assertEqual(result[1].name, "folder/blob1")
+
         finally:
             # Delete testing bucket
             bucket = client.get_bucket(bucket_id)
