@@ -207,8 +207,8 @@ function install_google_cloud_sdk() {
 function install_terraform_deps() {
     ## Package versions to install
 
-    terraform_version="1.0.5"
-    packer_version="1.6.0"
+    terraform_version="1.5.5"
+    packer_version="1.9.2"
     google_cloud_sdk_version="330.0.0"
 
     terraform_arch=$arch

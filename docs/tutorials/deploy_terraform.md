@@ -17,7 +17,7 @@ If you wish to manually install the dependencies yourself, see the details below
 ### Linux
 Install Packer:
 ```bash
-sudo curl -L "https://releases.hashicorp.com/packer/1.6.0/packer_1.6.0_linux_amd64.zip" -o /usr/local/bin/packer
+sudo curl -L "https://releases.hashicorp.com/packer/1.9.2/packer_1.9.2_linux_amd64.zip" -o /usr/local/bin/packer
 # When asked to replace, answer 'y'
 unzip /usr/local/bin/packer -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/packer
@@ -34,7 +34,7 @@ sudo chmod +x /usr/local/bin/google-cloud-sdk
 
 Install Terraform:
 ```bash
-sudo curl -L "https://releases.hashicorp.com/terraform/1.0.5/terraform_1.0.5_linux_amd64.zip" -o /usr/local/bin/terraform
+sudo curl -L "https://releases.hashicorp.com/terraform/1.5.5/terraform_1.5.5_linux_amd64.zip" -o /usr/local/bin/terraform
 # When asked to replace, answer 'y'
 sudo unzip /usr/local/bin/terraform -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/terraform
@@ -43,7 +43,7 @@ sudo chmod +x /usr/local/bin/terraform
 ### Mac
 Install Packer:
 ```bash
-sudo curl -L "https://releases.hashicorp.com/packer/1.6.0/packer_1.6.0_darwin_amd64.zip" -o /usr/local/bin/packer
+sudo curl -L "https://releases.hashicorp.com/packer/1.9.2/packer_1.9.2_darwin_amd64.zip" -o /usr/local/bin/packer
 # When asked to replace, answer 'y'
 unzip /usr/local/bin/packer -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/packer
@@ -61,7 +61,7 @@ sudo chmod +x /usr/local/bin/google-cloud-sdk
 
 Install Terraform:
 ```bash
-sudo curl -L "https://releases.hashicorp.com/terraform/1.0.5/terraform_1.0.5_darwin_amd64.zip" -o /usr/local/bin/terraform
+sudo curl -L "https://releases.hashicorp.com/terraform/1.5.5/terraform_1.5.5_darwin_amd64.zip" -o /usr/local/bin/terraform
 # When asked to replace, answer 'y'
 unzip /usr/local/bin/terraform -d /usr/local/bin/
 sudo chmod +x /usr/local/bin/terraform
