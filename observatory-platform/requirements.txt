@@ -46,7 +46,7 @@ pyftpdlib>=1.5.7,<2
 natsort>=7.1.1,<8
 backoff>=2,<3
 timeout-decorator
-validators
+validators<=0.20.0
 xmltodict
 pandas
 tenacity
