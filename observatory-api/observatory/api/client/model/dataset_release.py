@@ -79,7 +79,7 @@ class DatasetRelease(ModelNormal):
             'id': (int,),  # noqa: E501, F821
             'dag_id': (str,),  # noqa: E501, F821
             'dataset_id': (str,),  # noqa: E501, F821
-            'dag_run_id': (str,),  # noqa: E501, F821
+            'dag_run_id': (str, none_type,),  # noqa: E501, F821
             'data_interval_start': (datetime, none_type,),  # noqa: E501, F821
             'data_interval_end': (datetime, none_type,),  # noqa: E501, F821
             'snapshot_date': (datetime, none_type,),  # noqa: E501, F821
@@ -162,7 +162,7 @@ class DatasetRelease(ModelNormal):
             id (int): [optional]  # noqa: E501
             dag_id (str): [optional]  # noqa: E501
             dataset_id (str): [optional]  # noqa: E501
-            dag_run_id (str): [optional]  # noqa: E501
+            dag_run_id (str, none_type): [optional]  # noqa: E501
             data_interval_start (datetime, none_type): [optional]  # noqa: E501
             data_interval_end (datetime, none_type): [optional]  # noqa: E501
             snapshot_date (datetime, none_type): [optional]  # noqa: E501
@@ -262,7 +262,7 @@ class DatasetRelease(ModelNormal):
             id (int): [optional]  # noqa: E501
             dag_id (str): [optional]  # noqa: E501
             dataset_id (str): [optional]  # noqa: E501
-            dag_run_id (str): [optional]  # noqa: E501
+            dag_run_id (str, none_type): [optional]  # noqa: E501
             data_interval_start (datetime, none_type): [optional]  # noqa: E501
             data_interval_end (datetime, none_type): [optional]  # noqa: E501
             snapshot_date (datetime, none_type): [optional]  # noqa: E501

@@ -56,9 +56,6 @@ paths:
             $ref: '#/definitions/DatasetRelease'
         400:
           description: bad input parameter
-        401:
-          description: API key is missing or invalid
-          $ref: '#/responses/UnauthorizedError'
     post:
       tags:
       - Observatory
@@ -82,9 +79,6 @@ paths:
           description: DatasetRelease created, returning the created object with an id
           schema:
             $ref: '#/definitions/DatasetRelease'
-        401:
-          description: API key is missing or invalid
-          $ref: '#/responses/UnauthorizedError'
     put:
       tags:
       - Observatory
@@ -113,9 +107,6 @@ paths:
           description: DatasetRelease created, returning the created object with an id
           schema:
             $ref: '#/definitions/DatasetRelease'
-        401:
-          description: API key is missing or invalid
-          $ref: '#/responses/UnauthorizedError'
     delete:
       tags:
       - Observatory
@@ -136,9 +127,6 @@ paths:
       responses:
         200:
           description: DatasetRelease deleted
-        401:
-          description: API key is missing or invalid
-          $ref: '#/responses/UnauthorizedError'
 
   /v1/dataset_releases:
     get:
@@ -170,9 +158,6 @@ paths:
               $ref: '#/definitions/DatasetRelease'
         400:
           description: bad input parameter
-        401:
-          description: API key is missing or invalid
-          $ref: '#/responses/UnauthorizedError'
 
 definitions:
   DatasetRelease:
@@ -189,6 +174,7 @@ definitions:
       dag_run_id:
         type: string
         example: "YYYY-MM-DDTHH:mm:ss.ssssss"
+        x-nullable: true
       data_interval_start:
         type: string
         format: date-time
@@ -241,10 +227,3 @@ definitions:
         minLength: 1
         maxLength: 512
         x-nullable: true
-
-responses:
-  UnauthorizedError:
-    description: API key is missing or invalid
-    headers:
-      WWW_Authenticate:
-        type: string
