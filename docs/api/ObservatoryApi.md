@@ -154,11 +154,6 @@ void (empty response body)
     <td>DatasetRelease deleted</td>
     <td> - </td>
 </tr>
-<tr>
-    <td><strong>401</strong></td>
-    <td>API key is missing or invalid</td>
-    <td> * WWW_Authenticate -  <br> </td>
-</tr>
 
 </tbody>
 </table></div>
@@ -276,11 +271,6 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td><strong>400</strong></td>
     <td>bad input parameter</td>
     <td> - </td>
-</tr>
-<tr>
-    <td><strong>401</strong></td>
-    <td>API key is missing or invalid</td>
-    <td> * WWW_Authenticate -  <br> </td>
 </tr>
 
 </tbody>
@@ -405,11 +395,6 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td><strong>400</strong></td>
     <td>bad input parameter</td>
     <td> - </td>
-</tr>
-<tr>
-    <td><strong>401</strong></td>
-    <td>API key is missing or invalid</td>
-    <td> * WWW_Authenticate -  <br> </td>
 </tr>
 
 </tbody>
@@ -537,11 +522,6 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td><strong>201</strong></td>
     <td>DatasetRelease created, returning the created object with an id</td>
     <td> - </td>
-</tr>
-<tr>
-    <td><strong>401</strong></td>
-    <td>API key is missing or invalid</td>
-    <td> * WWW_Authenticate -  <br> </td>
 </tr>
 
 </tbody>
@@ -674,11 +654,6 @@ with observatory.api.client.ApiClient(configuration) as api_client:
     <td><strong>201</strong></td>
     <td>DatasetRelease created, returning the created object with an id</td>
     <td> - </td>
-</tr>
-<tr>
-    <td><strong>401</strong></td>
-    <td>API key is missing or invalid</td>
-    <td> * WWW_Authenticate -  <br> </td>
 </tr>
 
 </tbody>

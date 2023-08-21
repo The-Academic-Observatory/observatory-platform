@@ -37,7 +37,7 @@
 </tr>
 <tr>
     <td><strong>dag_run_id</strong></td>
-    <td><strong>str</strong></td>
+    <td><strong>str, none_type</strong></td>
     <td></td>
     <td>[optional] </td>
 </tr>
