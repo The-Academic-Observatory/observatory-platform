@@ -746,15 +746,16 @@ def gcs_list_buckets_with_prefix(*, prefix: str = "") -> List[bucket.Bucket]:
     return bucket_list
 
 
-def gcs_list_blobs(bucket_name: str, prefix: str = None) -> List[storage.Blob]:
+def gcs_list_blobs(bucket_name: str, prefix: str = None, match_glob: str = None) -> List[storage.Blob]:
     """List blobs in a bucket using a gcs_uri.
 
     :param bucket_name: The name of the bucket
     :param prefix: The prefix to filter by
+    :param match_glob: The glob pattern to filter by
     :return: A list of blob objects in the bucket
     """
     storage_client = storage.Client()
-    return list(storage_client.list_blobs(bucket_name, prefix=prefix))
+    return list(storage_client.list_blobs(bucket_name, prefix=prefix, match_glob=match_glob))
 
 
 def gcs_delete_old_buckets_with_prefix(*, prefix: str, age_to_delete: int):
