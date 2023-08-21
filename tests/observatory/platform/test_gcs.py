@@ -25,6 +25,7 @@ import pendulum
 from azure.storage.blob import BlobClient, BlobServiceClient
 from click.testing import CliRunner
 from google.cloud import storage
+from google.auth import default
 
 from observatory.platform.bigquery import bq_delete_old_datasets_with_prefix
 from observatory.platform.files import crc32c_base64_hash, hex_to_base64_str
@@ -43,6 +44,7 @@ from observatory.platform.gcs import (
     gcs_list_blobs,
     gcs_delete_old_buckets_with_prefix,
     gcs_blob_name_from_path,
+    gcs_hmac_key,
 )
 from observatory.platform.observatory_environment import random_id, aws_bucket_test_env
 
@@ -522,3 +524,13 @@ class TestGoogleCloudStorage(unittest.TestCase):
                 for test_bucket in test_buckets:
                     bucket = client.get_bucket(test_bucket)
                     bucket.delete(force=True)
+
+    def test_gcs_hmac_key(self):
+        """Test that we can get a hmac key from a service account"""
+        gcs_creds, project_id = default()
+        with gcs_hmac_key(project_id, gcs_creds.service_account_email) as (key, secret):
+            self.assertIsInstance(secret, str)
+            self.assertIsInstance(key.access_id, str)
+            self.assertIsInstance(key, storage.hmac_key.HMACKeyMetadata)
+            self.assertEqual(key.state, "ACTIVE")
+        self.assertEqual(key.state, "INACTIVE")
