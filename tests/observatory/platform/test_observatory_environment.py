@@ -20,12 +20,13 @@ import contextlib
 import logging
 import os
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Union
 from unittest.mock import patch
 from ftplib import FTP
-import re
+import tempfile
+import json
 
 import croniter
 import httpretty
@@ -50,6 +51,7 @@ from observatory.platform.observatory_environment import (
     random_id,
     test_fixtures_path,
     find_free_port,
+    load_and_parse_json,
 )
 from observatory.platform.utils.http_download import (
     DownloadInfo,
@@ -798,3 +800,48 @@ class TestHttpserver(ObservatoryTestCase):
                 dst_file = os.path.join(tmpdir, "testfile.txt")
                 download_file(url=url, filename=dst_file)
                 self.assert_file_integrity(dst_file, expected_hash, algorithm)
+
+
+class TestLoadAndParseJson(unittest.TestCase):
+    def test_load_and_parse_json(self):
+        # Create a temporary JSON file
+        with tempfile.NamedTemporaryFile() as temp_file:
+            # Create the data dictionary and write to temp file
+            data = {
+                "date1": "2022-01-01",
+                "timestamp1": "2022-01-01 12:00:00.100000 UTC",
+                "date2": "20230101",
+                "timestamp2": "2023-01-01 12:00:00",
+            }
+            with open(temp_file.name, "w") as f:
+                json.dump(data, f)
+
+            # Test case 1: Parsing date fields with default date formats. Not specifying timestamp fields
+            expected_result = data.copy()
+            expected_result["date1"] = datetime(2022, 1, 1).date()
+            expected_result["date2"] = datetime(2023, 1, 1).date()  # Should be converted by pendulum
+            result = load_and_parse_json(temp_file.name, date_fields=["date1", "date2"], date_formats=["%Y-%m-%d"])
+            self.assertEqual(result, expected_result)
+
+            # Test case 2: Parsing timestamp fields with custom timestamp format, not specifying date field
+            expected_result = data.copy()
+            expected_result["timestamp1"] = datetime(2022, 1, 1, 12, 0, 0, 100000)
+            expected_result["timestamp2"] = datetime(
+                2023, 1, 1, 12, 0, 0, tzinfo=pendulum.tz.timezone("UTC")
+            )  # Converted by pendulum
+            result = load_and_parse_json(
+                temp_file.name,
+                timestamp_fields=["timestamp1", "timestamp2"],
+                timestamp_formats=["%Y-%m-%d %H:%M:%S.%f %Z"],
+            )
+            self.assertEqual(result, expected_result)
+
+            # Test case 3: Default date and timestamp formats
+            expected_result = {
+                "date1": datetime(2022, 1, 1).date(),
+                "date2": "20230101",
+                "timestamp1": datetime(2022, 1, 1, 12, 0, 0, 100000),
+                "timestamp2": "2023-01-01 12:00:00",
+            }
+            result = load_and_parse_json(temp_file.name, date_fields=["date1"], timestamp_fields=["timestamp1"])
+            self.assertEqual(result, expected_result)
