@@ -26,6 +26,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
 from typing import List, Tuple
+import contextlib
 
 import pendulum
 import time
@@ -791,3 +792,20 @@ def gcs_delete_old_buckets_with_prefix(*, prefix: str, age_to_delete: int):
         logging.info(
             f"Deleted the following buckets with prefix '{prefix}' older than {age_to_delete} hours: {buckets_deleted}"
         )
+
+@contextlib.contextmanager
+def gcs_hmac_key(project_id, service_account_email):
+    """Generates a new HMAC key using the given project and service account.
+    Deletes it when context closes.
+
+    :param project_id: The Google Cloud project ID
+    :param service_account_email: The service account used to generate the HMAC key
+    """
+    storage_client = storage.Client(project=project_id)
+    key, secret = storage_client.create_hmac_key(service_account_email=service_account_email, project_id=project_id)
+    try:
+        yield key, secret
+    finally:
+        key.state = "INACTIVE"
+        key.update()
+        key.delete()
