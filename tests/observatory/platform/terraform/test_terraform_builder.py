@@ -120,7 +120,7 @@ class TestTerraformBuilder(unittest.TestCase):
             root_files = [
                 "build.sh",
                 "main.tf",
-                "observatory-image.json",
+                "observatory-image.json.pkr.hcl",
                 "outputs.tf",
                 "startup-main.tpl",
                 "startup-worker.tpl",

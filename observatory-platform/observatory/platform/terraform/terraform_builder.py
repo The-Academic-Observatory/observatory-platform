@@ -194,7 +194,7 @@ class TerraformBuilder:
             variables.append(f"{key}={val}")
 
         # Build the containers first
-        args = ["packer", "build"] + variables + ["-force", "observatory-image.json"]
+        args = ["packer", "build"] + variables + ["-force", "observatory-image.json.pkr.hcl"]
 
         if self.debug:
             print("Executing subprocess:")
