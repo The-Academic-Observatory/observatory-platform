@@ -604,7 +604,17 @@ class TestBigQuery(unittest.TestCase):
         with bq_dataset_test_env(
             project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
         ) as dataset_id:
-            # Test loading from memory
+            # Test loading from memory - without a schema
+            table_id = bq_table_id(self.gc_project_id, dataset_id, random_id())
+            result = bq_load_from_memory(
+                records=test_data,
+                table_id=table_id,
+                schema_file_path=None,
+            )
+            self.assertTrue(result)
+            self.assertTrue(bq_table_exists(table_id=table_id))
+
+            # Test loading from memory - with a schema
             table_id = bq_table_id(self.gc_project_id, dataset_id, random_id())
             result = bq_load_from_memory(
                 records=test_data,
