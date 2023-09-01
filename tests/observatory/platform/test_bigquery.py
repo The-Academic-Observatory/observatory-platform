@@ -43,6 +43,7 @@ from observatory.platform.bigquery import (
     bq_create_view,
     bq_create_empty_table,
     bq_load_table,
+    bq_load_from_memory,
     bq_run_query,
     bq_select_table_shard_dates,
     bq_delete_old_datasets_with_prefix,
@@ -51,6 +52,7 @@ from observatory.platform.bigquery import (
     bq_export_table,
     bq_query_bytes_budget_check,
 )
+from observatory.platform.files import load_jsonl
 from observatory.platform.gcs import gcs_delete_old_buckets_with_prefix, gcs_upload_file
 from observatory.platform.observatory_environment import random_id, test_fixtures_path, bq_dataset_test_env
 
@@ -591,6 +593,52 @@ class TestBigQuery(unittest.TestCase):
                     blob = bucket.blob(path)
                     if blob.exists():
                         blob.delete()
+
+    def test_bq_load_from_memory(self):
+        test_data_path = test_fixtures_path("utils")
+        json_file_path = os.path.join(test_data_path, "people.jsonl")
+        test_data = load_jsonl(json_file_path)
+
+        schema_file_path = os.path.join(test_data_path, "people_schema.json")
+
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
+            # Test loading from memory
+            table_id = bq_table_id(self.gc_project_id, dataset_id, random_id())
+            result = bq_load_from_memory(
+                records=test_data,
+                table_id=table_id,
+                schema_file_path=schema_file_path,
+            )
+            self.assertTrue(result)
+            self.assertTrue(bq_table_exists(table_id=table_id))
+
+            # Test loading time partitioned table
+            table_id = bq_table_id(self.gc_project_id, dataset_id, random_id())
+            result = bq_load_from_memory(
+                records=test_data,
+                table_id=table_id,
+                schema_file_path=schema_file_path,
+                partition=True,
+                partition_field="dob",
+            )
+            self.assertTrue(result)
+            self.assertTrue(bq_table_exists(table_id=table_id))
+
+            # Test loading time partitioned and clustered table
+            table_id = bq_table_id(self.gc_project_id, dataset_id, random_id())
+            result = bq_load_from_memory(
+                records=test_data,
+                table_id=table_id,
+                schema_file_path=schema_file_path,
+                partition=True,
+                partition_field="dob",
+                cluster=True,
+                clustering_fields=["first_name"],
+            )
+            self.assertTrue(result)
+            self.assertTrue(bq_table_exists(table_id=table_id))
 
     def test_bq_select_columns(self):
         columns = bq_select_columns(table_id=self.patents_table_id)

@@ -416,38 +416,91 @@ def bq_load_table(
     return state
 
 
-def bq_load_from_memory(table_id: str, records: List[Dict]) -> bool:
+def bq_load_from_memory(
+    table_id: str,
+    records: List[Dict],
+    schema_file_path: str = None,
+    partition: bool = False,
+    partition_field: Union[None, str] = None,
+    partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
+    require_partition_filter=False,
+    write_disposition: str = bigquery.WriteDisposition.WRITE_EMPTY,
+    table_description: str = "",
+    cluster: bool = False,
+    clustering_fields=None,
+    ignore_unknown_values: bool = False,
+) -> bool:
     """Load data into BigQuery from memory.
 
-    :param table_id: the full table_id, including project id, dataset id and table name.
+    :param table_id: the fully qualified BigQuery table identifier.
     :param records: the records to load.
-    :return: whether the table loaded or not.
+    :param schema_file_path: path on local file system to BigQuery table schema.
+    :param partition: whether to partition the table.
+    :param partition_field: the name of the partition field.
+    :param partition_type: the type of partitioning.
+    :param require_partition_filter: whether the partition filter is required or not when querying the table.
+    :param write_disposition: whether to append, overwrite or throw an error when data already exists in the table.
+    :param table_description: the description of the table.
+    :param cluster: whether to cluster the table or not.
+    :param clustering_fields: what fields to cluster on.
+    Default is to overwrite.
+    :param ignore_unknown_values: whether to ignore unknown values or not.
+    :return: True if the load job was successful, False otherwise.
     """
 
-    # Save as JSON Lines in memory
-    with io.BytesIO() as bytes_io:
-        with gzip.GzipFile(fileobj=bytes_io, mode="w") as gzip_file:
-            with jsonlines.Writer(gzip_file) as writer:
-                writer.write_all(records)
+    func_name = bq_load_from_memory.__name__
 
-        # Load into BigQuery
-        client = bigquery.Client()
-        job_config = LoadJobConfig(
-            source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
-            write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
-            autodetect=True,
+    assert_table_id(table_id)
+
+    # Handle mutable default arguments
+    if clustering_fields is None:
+        clustering_fields = []
+
+    # Create load job
+    client = bigquery.Client()
+    job_config = LoadJobConfig()
+
+    if schema_file_path is not None:
+        job_config.schema = client.schema_from_json(schema_file_path)
+    else:
+        job_config.autodetect = True
+
+    # Set global options
+    job_config.source_format = SourceFormat.NEWLINE_DELIMITED_JSON
+    job_config.write_disposition = write_disposition
+    job_config.destination_table_description = table_description
+    job_config.ignore_unknown_values = ignore_unknown_values
+
+    # Set partitioning settings
+    if partition:
+        job_config.time_partitioning = bigquery.TimePartitioning(
+            type_=partition_type, field=partition_field, require_partition_filter=require_partition_filter
         )
+    # Set clustering settings
+    if cluster:
+        job_config.clustering_fields = clustering_fields
 
-        try:
+    load_job = None
+    try:
+        # Save as JSON Lines in memory
+        with io.BytesIO() as bytes_io:
+            with gzip.GzipFile(fileobj=bytes_io, mode="w") as gzip_file:
+                with jsonlines.Writer(gzip_file) as writer:
+                    writer.write_all(records)
+
             load_job: LoadJob = client.load_table_from_file(bytes_io, table_id, job_config=job_config, rewind=True)
-            success = load_job.result().state == "DONE"
-        except BadRequest as e:
-            logging.error(f"Load bigquery table {table_id} failed: {e}.")
-            if load_job:
-                logging.error(f"Errors:\n{load_job.errors}")
-            success = False
 
-    return success
+        result = load_job.result()
+        state = result.state == "DONE"
+
+        logging.info(f"{func_name}: load bigquery table result.state={result.state}")
+    except BadRequest as e:
+        logging.error(f"{func_name}: load bigquery table failed: {e}.")
+        if load_job:
+            logging.error(f"Error collection:\n{load_job.errors}")
+        state = False
+
+    return state
 
 
 def bq_query_bytes_estimate(query: str, *args, **kwargs) -> int:
