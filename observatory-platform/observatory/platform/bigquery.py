@@ -424,7 +424,7 @@ def bq_load_from_memory(
     partition_field: Union[None, str] = None,
     partition_type: bigquery.TimePartitioningType = bigquery.TimePartitioningType.DAY,
     require_partition_filter=False,
-    write_disposition: str = bigquery.WriteDisposition.WRITE_EMPTY,
+    write_disposition: str = bigquery.WriteDisposition.WRITE_TRUNCATE,
     table_description: str = "",
     cluster: bool = False,
     clustering_fields=None,
