@@ -604,7 +604,7 @@ def load_and_parse_json(
         timestamp_fields = set()
 
     if date_formats is None:
-        date_formats = set(["%Y-%m-%d", "%Y%m%d"])
+        date_formats = {"%Y-%m-%d", "%Y%m%d"}
 
     if timestamp_formats is None:
         timestamp_formats = set(["%Y-%m-%d %H:%M:%S.%f %Z"])
