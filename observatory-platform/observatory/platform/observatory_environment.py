@@ -607,7 +607,7 @@ def load_and_parse_json(
         date_formats = {"%Y-%m-%d", "%Y%m%d"}
 
     if timestamp_formats is None:
-        timestamp_formats = set(["%Y-%m-%d %H:%M:%S.%f %Z"])
+        timestamp_formats = {"%Y-%m-%d %H:%M:%S.%f %Z"}
 
     def parse_datetime(obj):
         for key, value in obj.items():
