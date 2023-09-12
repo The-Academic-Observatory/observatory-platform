@@ -232,6 +232,7 @@ class ObservatoryEnvironment:
         prefix: Optional[str] = "obsenv_tests",
         age_to_delete: int = 12,
         workflows: List[Workflow] = None,
+        gcs_bucket_roles: Union[Set[str], str] = None,
     ):
         """Constructor for an Observatory environment.
 
@@ -267,8 +268,8 @@ class ObservatoryEnvironment:
         self.workflows = workflows
 
         if self.create_gcp_env:
-            self.download_bucket = self.add_bucket()
-            self.transform_bucket = self.add_bucket()
+            self.download_bucket = self.add_bucket(roles=gcs_bucket_roles)
+            self.transform_bucket = self.add_bucket(roles=gcs_bucket_roles)
             self.storage_client = storage.Client()
             self.bigquery_client = bigquery.Client()
         else:
