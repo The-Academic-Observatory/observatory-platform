@@ -634,7 +634,7 @@ def load_and_parse_json(
                                 dt.second,
                                 dt.microsecond,
                                 tzinfo=dt.tzinfo,
-                            )
+                            ).date()
                             obj[key] = dt
                         except (ValueError, TypeError):
                             pass
