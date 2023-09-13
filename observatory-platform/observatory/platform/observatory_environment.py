@@ -591,10 +591,10 @@ def load_and_parse_json(
     """Load a JSON file for testing purposes. It parses string dates and datetimes into date and datetime instances.
 
     :param file_path: the path to the JSON file.
-    date_fields: The fields to parse as a date.
-    timestamp_fields: The fields to parse as a timestamp.
-    date_formats: The date formats to use. If none, will use [%Y-%m-%d, %Y%m%d].
-    timestamp_formats: The timestamp formats to use. If none, will use [%Y-%m-%d %H:%M:%S.%f %Z].
+    :param date_fields: The fields to parse as a date.
+    :param timestamp_fields: The fields to parse as a timestamp.
+    :param date_formats: The date formats to use. If none, will use [%Y-%m-%d, %Y%m%d].
+    :param timestamp_formats: The timestamp formats to use. If none, will use [%Y-%m-%d %H:%M:%S.%f %Z].
     """
 
     if date_fields is None:
