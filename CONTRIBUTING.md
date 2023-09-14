@@ -242,7 +242,9 @@ This section explains the development workflow used in the Observatory Platform 
 The [observatory-platform](https://github.com/The-Academic-Observatory/observatory-platform) and its dependent repositories each have only one long-lived branch - `main`. This branch is in continuous development; all official releases are made from a point in time of the `main` branch. The branching strategy employed is not unlike the popular [GitHub Flow](https://docs.github.com/en/get-started/quickstart/github-flow) and [trunk-based development](https://trunkbaseddevelopment.com/) strategies whereby all feature branches are created from and merged into `main`.
 
 ### 5.2. Developing a feature
-The general workflow for working on a feature is as follows:
+GitHub has and [official guide](https://docs.github.com/en/get-started/quickstart/contributing-to-projects) on how to contribute to open-source projects when you do not have direct access to the repository.
+ 
+If you do have direct repository access, the general workflow for working on a feature is as follows:
 
 1. Clone the project locally.
 2. Create a feature branch, branching off the `main` branch. The branch name should be descriptive of its changes.
