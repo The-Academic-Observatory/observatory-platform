@@ -24,11 +24,7 @@ to make the API definition as clear as possible to end users of the library. The
 [typing — Support for type hints](https://docs.python.org/3/library/typing.html) provides a good starting point for 
 learning how to use type hints.
 * A maximum line length of 120 characters.
-
-A number of IDEs provide support for automatically formatting code so that it confirms to the PEP 8 specification. 
-Guides for popular Python IDEs are listed below.
-* Visual Studio Code with the [Microsoft Python extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=ms-python.python): see [Linting Python in Visual Studio Code](https://code.visualstudio.com/docs/python/linting).
-* PyCharm: see [Reformat and rearrange code](https://www.jetbrains.com/help/pycharm/reformat-and-rearrange-code.html).
+* Formatting with [Black](https://black.readthedocs.io/en/stable/).
 
 ## 2. Documentation
 
@@ -156,6 +152,13 @@ How to enable popular IDEs to run the unittests:
 * PyCharm: PyCharm supports test discovery and execution for the Python unittest framework. You may need to configure
 PyCharm to use the unittest framework. Click PyCharm > Preferences > Tools > Python Integrated Tools and under the 
 Testing heading, choose `Unittests` from the `Default test runner` dropdown.
+* VSCode: VSCode supports test discovery and execution for the Pytyhon unittest framework. Under the *Testing* panel, configure the tests to use the unittest framework and search for tests beginning with *test_**. 
+  
+A *.env* file will also need to be configured with the following variables set:
+* GOOGLE_APPLICATION_CREDENTIALS - The path to your Google Cloud Project credentials
+* TEST_GCP_PROJECT_ID - Your GCP Project ID
+* TEST_GCP_DATA_LOCATION - The location of your GCP Project
+* TEST_GCP_BUCKET_NAME - The name of your GCP testing bucket 
 
 ## 4. License and Copyright
 Contributors agree to release their source code under the Apache 2.0 license. Contributors retain their copyright.
@@ -233,26 +236,20 @@ Creative Commons "Attribution-NoDerivs" (CC BY-ND), the GNU GPL and the A-GPL. T
 Apache 2.0 license that the Observatory Platform is released with. 
 
 ## 5. Development Workflow
-This section explains the development workflow used in the Observatory Platform project.
+This section explains the development workflow used in the Observatory Platform project and its dependent repositories.
 
 ### 5.1. Branches
-The [observatory-platform](https://github.com/The-Academic-Observatory/observatory-platform) project has two main 
-branches `master` and `develop`. The `master` branch contains the most up to date version of 
-the code base running in production whilst the `develop` branch contains code that is ready to be delivered 
-in the next release. The article [A successful Git branching model](https://nvie.com/posts/a-successful-git-branching-model/)
-provides a much richer overview of this approach.
+The [observatory-platform](https://github.com/The-Academic-Observatory/observatory-platform) and its dependent repositories each have only one long-lived branch - `main`. This branch is in continuous development; all official releases are made from a point in time of the `main` branch. The branching strategy employed is not unlike the popular [GitHub Flow](https://docs.github.com/en/get-started/quickstart/github-flow) and [trunk-based development](https://trunkbaseddevelopment.com/) strategies whereby all feature branches are created from and merged into `main`.
 
 ### 5.2. Developing a feature
 The general workflow for working on a feature is as follows:
 
-1. Clone the [observatory-platform](https://github.com/The-Academic-Observatory/observatory-platform) project locally.
-2. Create a feature branch, branching off the `develop` branch. The branch should begin with the word `feature-`.
-3. Once your feature is ready, before making your pull request, make sure to [rebase](https://help.github.com/en/github/using-git/about-git-rebase) 
-your changes onto the latest `origin/develop` commit. It is a good idea to rebase regularly. 
+1. Clone the project locally.
+2. Create a feature branch, branching off the `main` branch. The branch name should be descriptive of its changes.
+3. Once your feature is ready and before making your pull request, make sure to [rebase](https://help.github.com/en/github/using-git/about-git-rebase) your changes onto the latest `origin/main` commit. It is a good idea to rebase regularly. It is preferred that bloated commits are squashed using the interactive tag when rebasing. 
 4. Make your pull request:
-    * Tag a reviewer in the pull request, so that they receive a notification and know to review it.
-    * The guide on [How to write the perfect pull request](https://github.blog/2015-01-21-how-to-write-the-perfect-pull-request/)
-might be helpful.
+    * Tag at least one reviewer in the pull request, so that they receive a notification and know to review it.
+    * The guide on [How to write the perfect pull request](https://github.blog/2015-01-21-how-to-write-the-perfect-pull-request/) might be helpful.
 
 Detailed instructions on how to use Git to accomplish this process are given below.
 
