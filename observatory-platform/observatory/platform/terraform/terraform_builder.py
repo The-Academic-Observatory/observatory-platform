@@ -175,7 +175,7 @@ class TerraformBuilder:
     def install_packer_plugins(self) -> Tuple[str, str, int]:
         """Install the necessary plugins for packer."""
 
-        # Install the Packer plugins by doing an init on the observatory image config
+        # Install the Packer plugins by doing an init on the observatory image config file
         args = ["packer", "init", "observatory-image.json.pkr.hcl"]
 
         if self.debug:

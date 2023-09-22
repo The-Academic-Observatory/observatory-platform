@@ -167,12 +167,12 @@ class TestTerraformBuilder(unittest.TestCase):
             cfg = self.get_terraform_config(t)
             cmd = TerraformBuilder(config=cfg)
 
-            # Build the image
+            # Install the packer plugins
             output, error, return_code = cmd.install_packer_plugins()
 
             print(output, error, return_code)
 
-            # Assert that the image built
+            # Assert the install was successful
             expected_return_code = 0
             self.assertEqual(expected_return_code, return_code)
 
