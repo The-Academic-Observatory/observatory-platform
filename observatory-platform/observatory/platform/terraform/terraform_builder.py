@@ -172,6 +172,27 @@ class TerraformBuilder:
         self.make_files()
         self.platform_runner.make_files()
 
+    def install_packer_plugins(self) -> Tuple[str, str, int]:
+        """Install the necessary plugins for packer."""
+
+        # Install the Packer plugins by doing an init on the observatory image config
+        args = ["packer", "init", "observatory-image.json.pkr.hcl"]
+
+        if self.debug:
+            print("Executing subprocess:")
+            print(indent(f"Command: {subprocess.list2cmdline(args)}", INDENT1))
+            print(indent(f"Cwd: {self.terraform_build_path}", INDENT1))
+
+        proc: Popen = subprocess.Popen(
+            args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.terraform_build_path
+        )
+
+        # Wait for results
+        # Debug always true here because otherwise nothing gets printed and you don't know what the state of the
+        # image building is
+        output, error = stream_process(proc, True)
+        return output, error, proc.returncode
+
     def build_image(self) -> Tuple[str, str, int]:
         """Build the Observatory Platform Google Compute image with Packer.
 
@@ -192,6 +213,9 @@ class TerraformBuilder:
         for key, val in template_vars.items():
             variables.append("-var")
             variables.append(f"{key}={val}")
+
+        # Install the necessary Packer plugins
+        self.install_packer_plugins()
 
         # Build the containers first
         args = ["packer", "build"] + variables + ["-force", "observatory-image.json.pkr.hcl"]
