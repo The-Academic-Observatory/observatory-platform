@@ -154,11 +154,16 @@ PyCharm to use the unittest framework. Click PyCharm > Preferences > Tools > Pyt
 Testing heading, choose `Unittests` from the `Default test runner` dropdown.
 * VSCode: VSCode supports test discovery and execution for the Pytyhon unittest framework. Under the *Testing* panel, configure the tests to use the unittest framework and search for tests beginning with *test_**. 
   
-A *.env* file will also need to be configured with the following variables set:
+A `.env` file will also need to be configured with the following variables set:
 * GOOGLE_APPLICATION_CREDENTIALS - The path to your Google Cloud Project credentials
 * TEST_GCP_PROJECT_ID - Your GCP Project ID
 * TEST_GCP_DATA_LOCATION - The location of your GCP Project
 * TEST_GCP_BUCKET_NAME - The name of your GCP testing bucket 
+
+Some tests may also require access to Amazon Web Services. For these tests, the following additional envrionment variables are required:
+* AWS_ACCESS_KEY_ID - Your AWS secret key ID
+* AWS_SECRET_ACCESS_KEY - Your AWS secret key
+* AWS_DEFAULT_REGION - The AWS region
 
 ## 4. License and Copyright
 Contributors agree to release their source code under the Apache 2.0 license. Contributors retain their copyright.
@@ -267,34 +272,34 @@ git clone git@github.com:The-Academic-Observatory/observatory-platform.git
 ```
 
 #### 2) Create a feature branch
-Checkout develop:
+Checkout main:
 ```bash
-git checkout -b develop origin/develop
+git checkout -b main origin/main
 ```
 
-Then, create a new feature branch from develop:
+Then, create a new feature branch from main:
 ```bash
 git checkout -b <your-feature-name>
 ``` 
 
 #### 3) Rebase
 
-##### 3.1) Sync develop
-Before rebasing, make sure that you have the latest changes from the origin develop branch.
+##### 3.1) Sync main
+Before rebasing, make sure that you have the latest changes from the origin main branch.
 
 Fetch the latest changes from origin:
 ```bash
 git fetch --all
 ```
 
-Checkout the local develop branch:
+Checkout the local main branch:
 ```bash
-git checkout -b develop origin/develop
+git checkout -b main origin/main
 ```
 
-Merge the changes from upstream develop onto your local branch:
+Merge the changes from upstream main onto your local branch:
 ```bash
-git merge upstream/develop
+git merge upstream/main
 ```
 
 Git should just need to fast forward the changes, because we make our changes from feature branches.
@@ -307,9 +312,9 @@ Checkout your feature branch:
 git checkout <your-feature-name>
 ```
 
-Rebase your feature branch (the branch currently checked out) onto develop.
+Rebase your feature branch (the branch currently checked out) onto main.
 ```bash
-git rebase -i develop
+git rebase -i main
 ```
 
 ## 6. Deployment (Maintainers Only)
