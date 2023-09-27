@@ -67,6 +67,7 @@ import shutil
 import socket
 import socketserver
 import threading
+import time
 import unittest
 import uuid
 from dataclasses import dataclass
@@ -82,7 +83,6 @@ import httpretty
 import paramiko
 import pendulum
 import requests
-import time
 from airflow import DAG, settings
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
@@ -90,7 +90,6 @@ from airflow.models.connection import Connection
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
-from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import db
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -103,10 +102,10 @@ from deepdiff import DeepDiff
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
 from pendulum import DateTime
-from sftpserver.stub_sftp import StubServer, StubSFTPServer
 from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import ThreadedFTPServer
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.bigquery import bq_create_dataset
@@ -217,6 +216,33 @@ def aws_bucket_test_env(*, prefix: str, region_name: str, expiration_days=1) -> 
         bucket.delete()
 
         print(f"Bucket {bucket_name} deleted")
+
+
+def make_taskgroup_tasks(namespace: str, task_ids: List[str]) -> List[str]:
+    """Make a set of Airflow TaskGroup task_ids.
+
+    :param namespace: the TaskGroup namespace.
+    :param task_ids: the task ids inside the TaskGroup.
+    :return: a list of namespaced task ids.
+    """
+
+    return [f"{namespace}.{task_id}" for task_id in task_ids]
+
+
+def make_taskgroup_to_merge_task(
+    namespace: str,
+    task_ids: List[str],
+    merge_task_id: str,
+) -> dict:
+    """Make a mapping from a list of namespaced TaskGroup task_ids to a merge_task_id.
+
+    :param namespace: the TaskGroup namespace.
+    :param task_ids: the task ids inside the TaskGroup.
+    :param merge_task_id: the merge task task_id.
+    :return: the mapping.
+    """
+
+    return {f"{namespace}.{task_id}": [merge_task_id] for task_id in task_ids}
 
 
 class ObservatoryEnvironment:
@@ -440,6 +466,21 @@ class ObservatoryEnvironment:
         ti.refresh_from_db()
         ti.run(ignore_ti_state=True)
 
+        return ti
+
+    def get_task_instance(self, task_id: str) -> TaskInstance:
+        """Get an up-to-date TaskInstance.
+
+        :param task_id: the task id.
+        :return: up-to-date TaskInstance instance.
+        """
+
+        assert self.dag_run is not None, "with create_dag_run must be called before get_task_instance"
+
+        run_id = self.dag_run.run_id
+        task = self.dag_run.dag.get_task(task_id=task_id)
+        ti = TaskInstance(task, run_id=run_id)
+        ti.refresh_from_db()
         return ti
 
     @contextlib.contextmanager
