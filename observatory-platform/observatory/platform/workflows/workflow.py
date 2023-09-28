@@ -511,7 +511,9 @@ class Workflow(AbstractWorkflow):
         :return: None.
         """
 
-        op = self.make_python_operator(func, make_task_id(func, kwargs), **kwargs)
+        kwargs_ = copy.copy(kwargs)
+        kwargs_["task_id"] = make_task_id(func, kwargs)
+        op = PythonOperator(python_callable=partial(self.task_callable, func), **kwargs_)
         self.add_operator(op)
 
     def make_python_operator(

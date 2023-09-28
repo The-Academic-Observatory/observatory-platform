@@ -90,6 +90,7 @@ from airflow.models.connection import Connection
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import db
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -1195,7 +1196,7 @@ def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
         default_args={"owner": "airflow", "start_date": execution_date},
         catchup=False,
     ) as dag:
-        task1 = DummyOperator(task_id="dummy_task")
+        task1 = EmptyOperator(task_id="dummy_task")
 
     return dag
 
