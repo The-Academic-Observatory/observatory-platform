@@ -219,33 +219,6 @@ def aws_bucket_test_env(*, prefix: str, region_name: str, expiration_days=1) -> 
         print(f"Bucket {bucket_name} deleted")
 
 
-def make_taskgroup_tasks(namespace: str, task_ids: List[str]) -> List[str]:
-    """Make a set of Airflow TaskGroup task_ids.
-
-    :param namespace: the TaskGroup namespace.
-    :param task_ids: the task ids inside the TaskGroup.
-    :return: a list of namespaced task ids.
-    """
-
-    return [f"{namespace}.{task_id}" for task_id in task_ids]
-
-
-def make_taskgroup_to_merge_task(
-    namespace: str,
-    task_ids: List[str],
-    merge_task_id: str,
-) -> dict:
-    """Make a mapping from a list of namespaced TaskGroup task_ids to a merge_task_id.
-
-    :param namespace: the TaskGroup namespace.
-    :param task_ids: the task ids inside the TaskGroup.
-    :param merge_task_id: the merge task task_id.
-    :return: the mapping.
-    """
-
-    return {f"{namespace}.{task_id}": [merge_task_id] for task_id in task_ids}
-
-
 class ObservatoryEnvironment:
     OBSERVATORY_HOME_KEY = "OBSERVATORY_HOME"
 
