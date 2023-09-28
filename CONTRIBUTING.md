@@ -274,7 +274,7 @@ git clone git@github.com:The-Academic-Observatory/observatory-platform.git
 #### 2) Create a feature branch
 Checkout main:
 ```bash
-git checkout -b main origin/main
+git checkout main
 ```
 
 Then, create a new feature branch from main:
@@ -294,7 +294,7 @@ git fetch --all
 
 Checkout the local main branch:
 ```bash
-git checkout -b main origin/main
+git checkout main
 ```
 
 Merge the changes from upstream main onto your local branch:
