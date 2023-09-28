@@ -438,6 +438,7 @@ class Workflow(AbstractWorkflow):
             "start_date": self.start_date,
             "on_failure_callback": on_failure_callback,
             "retries": self.max_retries,
+            "queue": self.queue,
         }
         self.description = self.__doc__
         self.dag = DAG(
