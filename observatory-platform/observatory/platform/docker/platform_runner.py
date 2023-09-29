@@ -27,7 +27,7 @@ from observatory.platform.observatory_config import Config
 
 HOST_UID = os.getuid()
 DEBUG = False
-PYTHON_VERSION = "3.8"
+PYTHON_VERSION = "3.10"
 AIRFLOW_VERSION = "2.6.3"
 
 
