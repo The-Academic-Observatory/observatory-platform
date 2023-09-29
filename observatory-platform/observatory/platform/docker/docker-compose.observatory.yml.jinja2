@@ -36,7 +36,7 @@ x-environment: &environment
   {%- endif %}
   # Set Airflow DAGs folder to installed observatory platform dags
   {%- if config.observatory.package_type != 'editable' %}
-  AIRFLOW__CORE__DAGS_FOLDER: "/home/airflow/.local/lib/python3.8/site-packages/observatory/platform/dags"
+  AIRFLOW__CORE__DAGS_FOLDER: "/home/airflow/.local/lib/python3.10/site-packages/observatory/platform/dags"
   {%- endif %}
 
   # Paths to google credentials and UI user settings
