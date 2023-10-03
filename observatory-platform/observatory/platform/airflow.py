@@ -196,7 +196,7 @@ def on_failure_callback(context):
     exception = context.get("exception")
     if isinstance(exception, Exception):
         formatted_exception = "".join(
-            traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
+            traceback.format_exception(type(exception), value=exception, tb=exception.__traceback__)
         ).strip()
     else:
         formatted_exception = exception

@@ -1,4 +1,4 @@
-# Copyright 2020 Curtin University
+# Copyright 2023 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 # Author: Tuan Chien
 
-FROM python:3.9.16-bullseye
+FROM python:3.10-bullseye
 
 ARG HOST_USER_ID
 ARG OBSERVATORY_HOME=/opt/observatory
@@ -41,7 +41,7 @@ RUN chown -R ${INSTALL_USER} ${WORKING_DIR}
 USER ${INSTALL_USER}
 
 {% with install_deps=true %}
-  {% include 'Dockerfile.package_install.jinja2' %}
+{% include 'Dockerfile.package_install.jinja2' %}
 {% endwith %}
 
 # Set working directory back to airflow home
