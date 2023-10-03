@@ -438,6 +438,7 @@ class Workflow(AbstractWorkflow):
             "start_date": self.start_date,
             "on_failure_callback": on_failure_callback,
             "retries": self.max_retries,
+            "queue": self.queue,
         }
         self.description = self.__doc__
         self.dag = DAG(
@@ -515,6 +516,25 @@ class Workflow(AbstractWorkflow):
         kwargs_["task_id"] = make_task_id(func, kwargs)
         op = PythonOperator(python_callable=partial(self.task_callable, func), **kwargs_)
         self.add_operator(op)
+
+    def make_python_operator(
+        self,
+        func: Callable,
+        task_id: str,
+        **kwargs,
+    ):
+        """Make a PythonOperator which is used to process releases.
+
+        :param func: the function that will be called by the PythonOperator task.
+        :param task_id: the task id.
+        :param kwargs: the context passed from the PythonOperator. See https://airflow.apache.org/docs/stable/macros-ref.html
+        for a list of the keyword arguments that are passed to this argument.
+        :return: PythonOperator instance.
+        """
+
+        kwargs_ = copy.copy(kwargs)
+        kwargs_["task_id"] = task_id
+        return PythonOperator(python_callable=partial(self.task_callable, func), **kwargs_)
 
     @contextlib.contextmanager
     def parallel_tasks(self):
