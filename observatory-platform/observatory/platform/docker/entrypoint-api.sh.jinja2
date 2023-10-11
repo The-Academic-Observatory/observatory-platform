@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright 2020 Curtin University
+# Copyright 2020-2023 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@
 ########################################
 # Install editable mode Python packages
 ########################################
+
+export PATH=/home/apiserver/.local/bin:$PATH
 
 {% for package in config.python_packages %}
 {% if package.name == 'observatory-api' %}
