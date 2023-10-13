@@ -74,7 +74,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from multiprocessing import Process
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Union
 
 import boto3
 import croniter
@@ -232,6 +232,7 @@ class ObservatoryEnvironment:
         prefix: Optional[str] = "obsenv_tests",
         age_to_delete: int = 12,
         workflows: List[Workflow] = None,
+        gcs_bucket_roles: Union[Set[str], str] = None,
     ):
         """Constructor for an Observatory environment.
 
@@ -253,7 +254,7 @@ class ObservatoryEnvironment:
         self.data_location = data_location
         self.api_host = api_host
         self.api_port = api_port
-        self.buckets = []
+        self.buckets = {}
         self.datasets = []
         self.data_path = None
         self.session = None
@@ -267,8 +268,8 @@ class ObservatoryEnvironment:
         self.workflows = workflows
 
         if self.create_gcp_env:
-            self.download_bucket = self.add_bucket()
-            self.transform_bucket = self.add_bucket()
+            self.download_bucket = self.add_bucket(roles=gcs_bucket_roles)
+            self.transform_bucket = self.add_bucket(roles=gcs_bucket_roles)
             self.storage_client = storage.Client()
             self.bigquery_client = bigquery.Client()
         else:
@@ -303,7 +304,7 @@ class ObservatoryEnvironment:
 
         assert self.create_gcp_env, "Please specify the Google Cloud project_id and data_location"
 
-    def add_bucket(self, prefix: Optional[str] = None) -> str:
+    def add_bucket(self, prefix: Optional[str] = None, roles: Optional[Union[Set[str], str]] = None) -> str:
         """Add a Google Cloud Storage Bucket to the Observatory environment.
 
         The bucket will be created when create() is called and deleted when the Observatory
@@ -325,20 +326,31 @@ class ObservatoryEnvironment:
         if len(bucket_name) > 63:
             raise Exception(f"Bucket name cannot be longer than 63 characters: {bucket_name}")
         else:
-            self.buckets.append(bucket_name)
+            self.buckets[bucket_name] = roles
 
         return bucket_name
 
-    def _create_bucket(self, bucket_id: str) -> None:
+    def _create_bucket(self, bucket_id: str, roles: Optional[Union[str, Set[str]]] = None) -> None:
         """Create a Google Cloud Storage Bucket.
 
         :param bucket_id: the bucket identifier.
+        :param roles: Create bucket with custom roles if required.
         :return: None.
         """
 
         self.assert_gcp_dependencies()
-        self.storage_client.create_bucket(bucket_id, location=self.data_location)
+        bucket = self.storage_client.create_bucket(bucket_id, location=self.data_location)
         logging.info(f"Created bucket with name: {bucket_id}")
+
+        if roles:
+            roles = set(roles) if isinstance(roles, str) else roles
+
+            # Get policy of bucket and add roles.
+            policy = bucket.get_iam_policy()
+            for role in roles:
+                policy.bindings.append({"role": role, "members": {"allUsers"}})
+            bucket.set_iam_policy(policy)
+            logging.info(f"Added permission {role} to bucket {bucket_id} for allUsers.")
 
     def _create_dataset(self, dataset_id: str) -> None:
         """Create a BigQuery dataset.
@@ -541,8 +553,8 @@ class ObservatoryEnvironment:
 
                 # Create buckets and datasets
                 if self.create_gcp_env:
-                    for bucket_id in self.buckets:
-                        self._create_bucket(bucket_id)
+                    for bucket_id, roles in self.buckets.items():
+                        self._create_bucket(bucket_id, roles)
 
                     for dataset_id in self.datasets:
                         self._create_dataset(dataset_id)
@@ -588,7 +600,7 @@ class ObservatoryEnvironment:
 
                 if self.create_gcp_env:
                     # Remove Google Cloud Storage buckets
-                    for bucket_id in self.buckets:
+                    for bucket_id, roles in self.buckets.items():
                         self._delete_bucket(bucket_id)
 
                     # Remove BigQuery datasets

@@ -121,13 +121,15 @@ class TestObservatoryEnvironment(unittest.TestCase):
         env = ObservatoryEnvironment(self.project_id, self.data_location)
 
         # The download and transform buckets are added in the constructor
-        self.assertEqual(2, len(env.buckets))
-        self.assertEqual(env.download_bucket, env.buckets[0])
-        self.assertEqual(env.transform_bucket, env.buckets[1])
+        buckets = list(env.buckets.keys())
+        self.assertEqual(2, len(buckets))
+        self.assertEqual(env.download_bucket, buckets[0])
+        self.assertEqual(env.transform_bucket, buckets[1])
 
         # Test that calling add bucket adds a new bucket to the buckets list
         name = env.add_bucket()
-        self.assertEqual(name, env.buckets[-1])
+        buckets = list(env.buckets.keys())
+        self.assertEqual(name, buckets[-1])
 
         # No Google Cloud variables raises error
         with self.assertRaises(AssertionError):
@@ -151,6 +153,14 @@ class TestObservatoryEnvironment(unittest.TestCase):
 
         # Test double delete is handled gracefully
         env._delete_bucket(bucket_id)
+
+        # Test create a bucket with a set of roles
+        roles = {"roles/storage.objectViewer", "roles/storage.legacyBucketWriter"}
+        env._create_bucket(bucket_id, roles=roles)
+        bucket = env.storage_client.bucket(bucket_id)
+        bucket_policy = bucket.get_iam_policy()
+        for role in roles:
+            self.assertTrue({"role": role, "members": {"allUsers"}} in bucket_policy)
 
         # No Google Cloud variables raises error
         bucket_id = "obsenv_tests_" + random_id()
