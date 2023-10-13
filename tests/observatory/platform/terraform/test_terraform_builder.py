@@ -155,6 +155,29 @@ class TestTerraformBuilder(unittest.TestCase):
 
     @patch("subprocess.Popen")
     @patch("observatory.platform.terraform.terraform_builder.stream_process")
+    def install_packer_plugins(self, mock_stream_process, mock_subprocess):
+        """Test installing the necessary plugins for Packer."""
+
+        # Check that the environment variables are set properly for the default config
+        with CliRunner().isolated_filesystem() as t:
+            mock_subprocess.return_value = Popen()
+            mock_stream_process.return_value = ("", "")
+
+            # Save default config file
+            cfg = self.get_terraform_config(t)
+            cmd = TerraformBuilder(config=cfg)
+
+            # Install the packer plugins
+            output, error, return_code = cmd.install_packer_plugins()
+
+            print(output, error, return_code)
+
+            # Assert the install was successful
+            expected_return_code = 0
+            self.assertEqual(expected_return_code, return_code)
+
+    @patch("subprocess.Popen")
+    @patch("observatory.platform.terraform.terraform_builder.stream_process")
     def test_build_image(self, mock_stream_process, mock_subprocess):
         """Test building of the observatory platform"""
 

@@ -67,6 +67,7 @@ import shutil
 import socket
 import socketserver
 import threading
+import time
 import unittest
 import uuid
 from dataclasses import dataclass
@@ -82,7 +83,6 @@ import httpretty
 import paramiko
 import pendulum
 import requests
-import time
 from airflow import DAG, settings
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
@@ -90,7 +90,7 @@ from airflow.models.connection import Connection
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
-from airflow.operators.empty import EmptyOperator as DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import db
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -103,10 +103,10 @@ from deepdiff import DeepDiff
 from google.cloud import bigquery, storage
 from google.cloud.exceptions import NotFound
 from pendulum import DateTime
-from sftpserver.stub_sftp import StubServer, StubSFTPServer
 from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import ThreadedFTPServer
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
 
 from observatory.api.testing import ObservatoryApiEnvironment
 from observatory.platform.bigquery import bq_create_dataset
@@ -454,6 +454,21 @@ class ObservatoryEnvironment:
 
         return ti
 
+    def get_task_instance(self, task_id: str) -> TaskInstance:
+        """Get an up-to-date TaskInstance.
+
+        :param task_id: the task id.
+        :return: up-to-date TaskInstance instance.
+        """
+
+        assert self.dag_run is not None, "with create_dag_run must be called before get_task_instance"
+
+        run_id = self.dag_run.run_id
+        task = self.dag_run.dag.get_task(task_id=task_id)
+        ti = TaskInstance(task, run_id=run_id)
+        ti.refresh_from_db()
+        return ti
+
     @contextlib.contextmanager
     def create_dag_run(
         self,
@@ -593,38 +608,91 @@ class ObservatoryEnvironment:
                         self._delete_dataset(dataset_id)
 
 
-def load_and_parse_json(file_path: str, date_fields: Set[str] = None):
-    """Load a JSON file for testing purposes. It parses string dates and datetimes into date and datetime instances."""
+def load_and_parse_json(
+    file_path: str,
+    date_fields: Set[str] = None,
+    timestamp_fields: Set[str] = None,
+    date_formats: Set[str] = None,
+    timestamp_formats: str = None,
+):
+    """Load a JSON file for testing purposes. It parses string dates and datetimes into date and datetime instances.
+
+    :param file_path: the path to the JSON file.
+    :param date_fields: The fields to parse as a date.
+    :param timestamp_fields: The fields to parse as a timestamp.
+    :param date_formats: The date formats to use. If none, will use [%Y-%m-%d, %Y%m%d].
+    :param timestamp_formats: The timestamp formats to use. If none, will use [%Y-%m-%d %H:%M:%S.%f %Z].
+    """
 
     if date_fields is None:
         date_fields = set()
+
+    if timestamp_fields is None:
+        timestamp_fields = set()
+
+    if date_formats is None:
+        date_formats = {"%Y-%m-%d", "%Y%m%d"}
+
+    if timestamp_formats is None:
+        timestamp_formats = {"%Y-%m-%d %H:%M:%S.%f %Z"}
 
     def parse_datetime(obj):
         for key, value in obj.items():
             # Try to parse into a date or datetime
             if key in date_fields:
                 if isinstance(value, str):
-                    try:
-                        obj[key] = datetime.strptime(value, "%Y-%m-%d").date()
-                    except (ValueError, TypeError):
+                    format_found = False
+                    for format in date_formats:
                         try:
-                            obj[key] = datetime.strptime(value, "%Y%m%d").date()
+                            obj[key] = datetime.strptime(value, format).date()
+                            format_found = True
+                            break
                         except (ValueError, TypeError):
-                            try:
-                                dt = pendulum.parse(value)
-                                dt = datetime(
-                                    dt.year,
-                                    dt.month,
-                                    dt.day,
-                                    dt.hour,
-                                    dt.minute,
-                                    dt.second,
-                                    dt.microsecond,
-                                    tzinfo=dt.tzinfo,
-                                )
-                                obj[key] = dt
-                            except (ValueError, TypeError):
-                                pass
+                            pass
+                    if not format_found:
+                        try:
+                            dt = pendulum.parse(value)
+                            dt = datetime(
+                                dt.year,
+                                dt.month,
+                                dt.day,
+                                dt.hour,
+                                dt.minute,
+                                dt.second,
+                                dt.microsecond,
+                                tzinfo=dt.tzinfo,
+                            ).date()
+                            obj[key] = dt
+                        except (ValueError, TypeError):
+                            pass
+
+            if key in timestamp_fields:
+                if isinstance(value, str):
+                    format_found = False
+                    for format in timestamp_formats:
+                        try:
+                            obj[key] = datetime.strptime(value, format)
+                            format_found = True
+                            break
+                        except (ValueError, TypeError):
+                            pass
+                    if not format_found:
+                        try:
+                            dt = pendulum.parse(value)
+                            dt = datetime(
+                                dt.year,
+                                dt.month,
+                                dt.day,
+                                dt.hour,
+                                dt.minute,
+                                dt.second,
+                                dt.microsecond,
+                                tzinfo=dt.tzinfo,
+                            )
+                            obj[key] = dt
+                        except (ValueError, TypeError):
+                            pass
+
         return obj
 
     with open(file_path, mode="r") as f:
@@ -1113,7 +1181,7 @@ def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
         default_args={"owner": "airflow", "start_date": execution_date},
         catchup=False,
     ) as dag:
-        task1 = DummyOperator(task_id="dummy_task")
+        task1 = EmptyOperator(task_id="dummy_task")
 
     return dag
 
