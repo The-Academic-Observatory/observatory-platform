@@ -96,14 +96,16 @@ class TestString(unittest.TestCase):
 ```
 
 ### 3.1. Unit test location
-Where to put the unit tests:
-* The unit tests should be kept in the folder called `tests` at the root level of the project. The `tests` directory
-mimics the folder structure of the `observatory_platform` Python package folder. For example, as illustrated in the
-figure below, the tests for the code in the file `observatory-platform/observatory_platform/utils/gc_utils.py` are 
-contained in the file `observatory-platform/tests/observatory_platform/utils/test_gc_utils.py`. 
 * Test datasets should be kept in the `observatory-platform/fixtures` folder, which are stored in [Git LFS](https://git-lfs.github.com/).
 * The Python unittest framework looks for files named test*.py, so make sure to put "test_" at the start of your test
 filename. For example, the unit tests for the file `gc_utils.py` are contained in the file called `test_gc_utils.py`.
+
+#### 3.1.1 Observatory Platform
+The unit tests should be kept in the folder called `tests` at the root level of the project. The `tests` directory
+mimics the folder structure of the `observatory_platform` Python package folder. For example, as illustrated in the
+figure below, the tests for the code in the file `observatory-platform/observatory_platform/utils/gc_utils.py` are 
+contained in the file `observatory-platform/tests/observatory_platform/utils/test_gc_utils.py`. 
+
 
 An example of project and test directory structure:
 ```bash
@@ -131,6 +133,34 @@ An example of project and test directory structure:
     |-- .gitignore
     |-- CONTRIBUTING.md
     ...
+```
+
+#### 3.1.2 Dependent Repositories
+Unit tests for the Observatory Platform's dependent repositories ([oaebu-workflows](https://github.com/The-Academic-Observatory/oaebu-workflows), [academic-observatory-workflows](https://github.com/The-Academic-Observatory/academic-observatory-workflows)) are stored differently. Tests for any code should be stored in a directory named `tests` which shares a directory with the code it is testing. For example, as illustrated in thefigure below, the tests for the code in the file `oaebu-workflows/oaebu_workflows/telescopes/oapen_metadata_telescpe.py` are contained in the file `oaebu-workflows/oaebu_workflows/telescopes/tests/test_oapen_metadata_telescpe.py`.
+
+An example of project and test directory structure:
+```bash
+|-- oaebu-workflows
+    |-- .github
+    |-- .gitignore
+    |-- oaebu_workflows
+        |-- onix.py
+        |-- telescopes
+            |-- __init__.py
+            |-- oapen_metadata_telescope.py
+            |-- tests
+            |-- __init__.py
+                |-- test_oapen_metadata_telescope.py
+        |-- tests
+            |-- __init__.py
+            |-- test_onix.py
+        |-- fixtures
+            |-- oapen_metadata
+                |-- test_data.json
+            |-- onix
+                |-- test_data.json
+    |-- CONTRIBUTING.md
+
 ```
 
 ### 3.2. Testing code that makes HTTP requests
