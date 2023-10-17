@@ -14,7 +14,7 @@ We welcome contributions to the project, please see below for details about how 
 The Observatory Platform is written in [Python](https://www.python.org/).
 
 ### 1.1. Version
-A minimum version of Python 3.7 is required.
+A minimum version of Python 3.10 is required.
 
 ### 1.2. Code Style
 The code style should conform to the Python [PEP 8 Style Guide for Python Code](https://www.python.org/dev/peps/pep-0008/).

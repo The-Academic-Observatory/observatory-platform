@@ -1,4 +1,4 @@
-# Copyright 2021 Curtin University
+# Copyright 2021-2023 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -237,7 +237,11 @@ class TestCliFunctional(unittest.TestCase):
         """
 
         # Expected values
-        expected_ports = [observatory.airflow_ui_port, observatory.flower_ui_port, f'{observatory.api_port}/swagger.json']
+        expected_ports = [
+            observatory.airflow_ui_port,
+            observatory.flower_ui_port,
+            f"{observatory.api_port}/swagger.json",
+        ]
 
         # Verify that ports are active
         urls = []

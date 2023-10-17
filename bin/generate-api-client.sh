@@ -3,17 +3,15 @@
 export PATH=$PATH:~/bin/openapitools/
 export OPENAPI_GENERATOR_VERSION=6.1.0
 
-if ! command -v openapi-generator-cli &> /dev/null
-then
+if ! command -v openapi-generator-cli &>/dev/null; then
   mkdir -p ~/bin/openapitools
-  curl https://raw.githubusercontent.com/OpenAPITools/openapi-generator/master/bin/utils/openapi-generator-cli.sh > ~/bin/openapitools/openapi-generator-cli
+  curl https://raw.githubusercontent.com/OpenAPITools/openapi-generator/master/bin/utils/openapi-generator-cli.sh >~/bin/openapitools/openapi-generator-cli
   chmod u+x ~/bin/openapitools/openapi-generator-cli
   openapi-generator-cli version
 fi
 
-if ! command -v observatory-api &> /dev/null
-then
-  pip install -e observatory-api --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.6.3/constraints-no-providers-3.8.txt
+if ! command -v observatory-api &>/dev/null; then
+  pip install -e observatory-api --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.6.3/constraints-no-providers-3.10.txt
 fi
 
 # Directories
