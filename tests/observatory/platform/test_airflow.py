@@ -167,9 +167,6 @@ class TestAirflow(unittest.TestCase):
         m_slack.assert_called_once_with(slack_webhook_conn_id=slack_webhook_conn_id)
         m_slack.return_value.send_text.assert_called_once_with(message)
 
-    # ':red_circle: Task Alert.\n            *Task*: task_id\n            *Dag*: dag_id\n            *Execution Time*: 2023-10-17T16:21:40.257787+13:00\n            *Log Url*: log_url\n            *Comments*: comment'
-    # ':red_circle: Task Alert.\n        *Task*: task_id\n        *Dag*: dag_id\n        *Execution Time*: 2023-10-17T16:21:40.257787+13:00\n        *Log Url*: log_url\n        *Comments*: comment'
-
     def test_get_airflow_connection_url_invalid(self):
         with patch("observatory.platform.airflow.BaseHook") as m_basehook:
             m_basehook.get_connection = MagicMock(return_value=MockConnection(""))
