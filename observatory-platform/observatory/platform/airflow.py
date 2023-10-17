@@ -1,4 +1,4 @@
-# Copyright 2020 Curtin University
+# Copyright 2020-2023 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -196,7 +196,7 @@ def on_failure_callback(context):
     exception = context.get("exception")
     if isinstance(exception, Exception):
         formatted_exception = "".join(
-            traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
+            traceback.format_exception(type(exception), value=exception, tb=exception.__traceback__)
         ).strip()
     else:
         formatted_exception = exception

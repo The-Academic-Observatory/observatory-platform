@@ -1,8 +1,8 @@
 # Installation
-Observatory Platform supports Python 3.8, Ubuntu Linux 20.04 and MacOS 10.14, on x86 architecture.  
+Observatory Platform supports Python 3.10, Ubuntu Linux 20.04 and MacOS 10.14, on x86 architecture.  
 
 ## System dependencies
-* Python 3.8
+* Python 3.10
 * Pip
 * Docker
 * Docker Compose V2

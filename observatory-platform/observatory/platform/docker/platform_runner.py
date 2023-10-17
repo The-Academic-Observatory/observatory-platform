@@ -1,4 +1,4 @@
-# Copyright 2020 Curtin University
+# Copyright 2020-2023 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ from observatory.platform.observatory_config import Config
 
 HOST_UID = os.getuid()
 DEBUG = False
-PYTHON_VERSION = "3.8"
+PYTHON_VERSION = "3.10"
 AIRFLOW_VERSION = "2.6.3"
 
 

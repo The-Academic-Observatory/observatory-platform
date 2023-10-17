@@ -2,7 +2,7 @@
 
 venv_observatory_platform="observatory_venv"
 airflow_version="2.6.3"
-python_version="3.8"
+python_version="3.10"
 
 function set_os_arch() {
     os=$(uname -s)
@@ -23,22 +23,20 @@ function lower_case() {
     echo $(echo $1 | tr '[:upper:]' '[:lower:]')
 }
 
-function ask_question () {
+function ask_question() {
     local question="$1"
     shift
     local default_option="$1"
     shift
     local options=("$@")
 
-    while :
-    do
+    while :; do
         local response
         read -p "$question" response
         response=${response:-$default_option}
         response=$(lower_case $response)
 
-        for option in "${options[@]}"
-        do
+        for option in "${options[@]}"; do
             if [ "$response" = "$option" ]; then
                 break 2
             fi
@@ -144,8 +142,7 @@ function configure_install_options() {
     echo "Configuring installation options"
     echo "================================"
 
-    while :
-    do
+    while :; do
         # Configure options
         install_oapi="y"
 
@@ -175,8 +172,7 @@ function configure_install_options() {
         echo -e "\n"
 
         local correct=""
-        while [ "$correct" != "y" ] && [ "$correct" != "n" ]
-        do
+        while [ "$correct" != "y" ] && [ "$correct" != "n" ]; do
             read -p "Are these options correct? (y, n) [y]: " correct
             correct=${correct:-Y}
             correct=$(lower_case $correct)
@@ -297,7 +293,7 @@ function install_macos_system_deps() {
     echo "---------------------"
 
     brew install python@${python_version}
-    echo 'export PATH="/usr/local/opt/python@${python_version}/bin:$PATH"' >> ~/.bash_profile
+    echo 'export PATH="/usr/local/opt/python@${python_version}/bin:$PATH"' >>~/.bash_profile
 
     echo "------------------------------"
     echo "Installing Python dependencies"
@@ -358,8 +354,6 @@ function install_observatory_api() {
     echo "=========================="
     echo "Installing Observatory API"
     echo "=========================="
-
-
 
 }
 
