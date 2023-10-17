@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import textwrap
 import traceback
 from datetime import timedelta
 from pydoc import locate
@@ -30,7 +31,7 @@ import validators
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import TaskInstance, DagBag, Variable, XCom, DagRun
-from airflow.providers.slack.operators.slack_webhook import SlackWebhookHook
+from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
@@ -105,26 +106,27 @@ def send_slack_msg(
     :param slack_conn_id: the Airflow connection id for the Slack connection.
     """
 
-    message = """
-    :red_circle: Task Alert.
-    *Task*: {task}
-    *Dag*: {dag}
-    *Execution Time*: {exec_date}
-    *Log Url*: {log_url}
-    *Comments*: {comments}
-    """.format(
+    message = textwrap.dedent(
+        """
+        :red_circle: Task Alert.
+        *Task*: {task}
+        *Dag*: {dag}
+        *Execution Time*: {exec_date}
+        *Log Url*: {log_url}
+        *Comments*: {comments}
+        """
+    ).format(
         task=ti.task_id,
         dag=ti.dag_id,
         exec_date=execution_date,
         log_url=ti.log_url,
         comments=comments,
     )
-    slack_conn = BaseHook.get_connection(slack_conn_id)
-    slack_hook = SlackWebhookHook(http_conn_id=slack_conn.conn_id, webhook_token=slack_conn.password, message=message)
+    hook = SlackWebhookHook(slack_webhook_conn_id=slack_conn_id)
 
     # http_hook outputs the secret token, suppressing logging 'info' by setting level to 'warning'
     old_levels = change_task_log_level(logging.WARNING)
-    slack_hook.execute()
+    hook.send_text(message)
     # change back to previous levels
     change_task_log_level(old_levels)
 

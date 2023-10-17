@@ -17,6 +17,7 @@
 import datetime
 import os
 import shutil
+import textwrap
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -131,7 +132,10 @@ class TestAirflow(unittest.TestCase):
     @patch("observatory.platform.airflow.SlackWebhookHook")
     @patch("airflow.hooks.base.BaseHook.get_connection")
     def test_send_slack_msg(self, mock_get_connection, m_slack):
-        mock_get_connection.return_value = Connection(uri=f"https://:key@https%3A%2F%2Fhooks.slack.com%2Fservices")
+        slack_webhook_conn_id = "slack_conn"
+        mock_get_connection.return_value = Connection(
+            conn_id=slack_webhook_conn_id, uri=f"https://:key@https%3A%2F%2Fhooks.slack.com%2Fservices"
+        )
 
         class MockTI:
             def __init__(self):
@@ -146,25 +150,22 @@ class TestAirflow(unittest.TestCase):
             ti=ti,
             execution_date=execution_date,
             comments="comment",
+            slack_conn_id=slack_webhook_conn_id,
         )
 
-        expected_message = """
-    :red_circle: Task Alert.
-    *Task*: {task}
-    *Dag*: {dag}
-    *Execution Time*: {exec_date}
-    *Log Url*: {log_url}
-    *Comments*: {comments}
-    """.format(
-            task="task_id",
-            dag="dag_id",
-            exec_date=execution_date.isoformat(),
-            log_url="log_url",
-            comments="comment",
-            project_id="project-id",
-        )
+        message = textwrap.dedent(
+            """
+            :red_circle: Task Alert.
+            *Task*: task_id
+            *Dag*: dag_id
+            *Execution Time*: {exec_date}
+            *Log Url*: log_url
+            *Comments*: comment
+            """
+        ).format(exec_date=execution_date.isoformat())
 
-        m_slack.assert_called_once_with(http_conn_id=None, webhook_token="key", message=expected_message)
+        m_slack.assert_called_once_with(slack_webhook_conn_id=slack_webhook_conn_id)
+        m_slack.return_value.send_text.assert_called_once_with(message)
 
     def test_get_airflow_connection_url_invalid(self):
         with patch("observatory.platform.airflow.BaseHook") as m_basehook:
