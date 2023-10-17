@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import textwrap
 import traceback
 from datetime import timedelta
 from pydoc import locate
@@ -105,14 +106,16 @@ def send_slack_msg(
     :param slack_conn_id: the Airflow connection id for the Slack connection.
     """
 
-    message = """
-    :red_circle: Task Alert.
-    *Task*: {task}
-    *Dag*: {dag}
-    *Execution Time*: {exec_date}
-    *Log Url*: {log_url}
-    *Comments*: {comments}
-    """.format(
+    message = textwrap.dedent(
+        """
+        :red_circle: Task Alert.
+        *Task*: {task}
+        *Dag*: {dag}
+        *Execution Time*: {exec_date}
+        *Log Url*: {log_url}
+        *Comments*: {comments}
+        """
+    ).format(
         task=ti.task_id,
         dag=ti.dag_id,
         exec_date=execution_date,
