@@ -164,7 +164,7 @@ An example of project and test directory structure:
 ```
 
 ### 3.2. Testing code that makes HTTP requests
-To test test code that makes HTTP requests:
+To test code that makes HTTP requests:
 * [VCR.py](https://vcrpy.readthedocs.io/en/latest/) is used to test code that makes HTTP requests, enabling the tests 
 to work offline without calling the real endpoints. VCR.py records  the HTTP requests made by a section of code and 
 stores the results in a file called a 'cassette'. When the same section of code is run again, the HTTP requests are read 
@@ -173,7 +173,7 @@ from the cassette, rather than calling the real endpoint.
 
 ### 3.3. Running unit tests
 To run the unittests from the command line, execute the following command from the root of the project, it should
-automatically discover all of the unit tests:
+automatically discover all the unit tests:
 ```bash
 python -m unittest
 ```
@@ -182,7 +182,7 @@ How to enable popular IDEs to run the unittests:
 * PyCharm: PyCharm supports test discovery and execution for the Python unittest framework. You may need to configure
 PyCharm to use the unittest framework. Click PyCharm > Preferences > Tools > Python Integrated Tools and under the 
 Testing heading, choose `Unittests` from the `Default test runner` dropdown.
-* VSCode: VSCode supports test discovery and execution for the Pytyhon unittest framework. Under the *Testing* panel, configure the tests to use the unittest framework and search for tests beginning with *test_**. 
+* VSCode: VSCode supports test discovery and execution for the Python unittest framework. Under the *Testing* panel, configure the tests to use the unittest framework and search for tests beginning with *test_**. 
   
 A `.env` file will also need to be configured with the following variables set:
 * GOOGLE_APPLICATION_CREDENTIALS - The path to your Google Cloud Project credentials
@@ -333,8 +333,6 @@ git merge upstream/main
 ```
 
 Git should just need to fast forward the changes, because we make our changes from feature branches.
-
-See more details on the [Syncing a fork](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/syncing-a-fork) Github page. 
 
 ##### 3.2) Rebase feature branch
 Checkout your feature branch:
