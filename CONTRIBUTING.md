@@ -24,11 +24,7 @@ to make the API definition as clear as possible to end users of the library. The
 [typing — Support for type hints](https://docs.python.org/3/library/typing.html) provides a good starting point for 
 learning how to use type hints.
 * A maximum line length of 120 characters.
-
-A number of IDEs provide support for automatically formatting code so that it confirms to the PEP 8 specification. 
-Guides for popular Python IDEs are listed below.
-* Visual Studio Code with the [Microsoft Python extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=ms-python.python): see [Linting Python in Visual Studio Code](https://code.visualstudio.com/docs/python/linting).
-* PyCharm: see [Reformat and rearrange code](https://www.jetbrains.com/help/pycharm/reformat-and-rearrange-code.html).
+* Formatting with [Black](https://black.readthedocs.io/en/stable/).
 
 ## 2. Documentation
 
@@ -100,14 +96,16 @@ class TestString(unittest.TestCase):
 ```
 
 ### 3.1. Unit test location
-Where to put the unit tests:
-* The unit tests should be kept in the folder called `tests` at the root level of the project. The `tests` directory
-mimics the folder structure of the `observatory_platform` Python package folder. For example, as illustrated in the
-figure below, the tests for the code in the file `observatory-platform/observatory_platform/utils/gc_utils.py` are 
-contained in the file `observatory-platform/tests/observatory_platform/utils/test_gc_utils.py`. 
 * Test datasets should be kept in the `observatory-platform/fixtures` folder, which are stored in [Git LFS](https://git-lfs.github.com/).
 * The Python unittest framework looks for files named test*.py, so make sure to put "test_" at the start of your test
 filename. For example, the unit tests for the file `gc_utils.py` are contained in the file called `test_gc_utils.py`.
+
+#### 3.1.1 Observatory Platform
+The unit tests should be kept in the folder called `tests` at the root level of the project. The `tests` directory
+mimics the folder structure of the `observatory_platform` Python package folder. For example, as illustrated in the
+figure below, the tests for the code in the file `observatory-platform/observatory_platform/utils/gc_utils.py` are 
+contained in the file `observatory-platform/tests/observatory_platform/utils/test_gc_utils.py`. 
+
 
 An example of project and test directory structure:
 ```bash
@@ -137,8 +135,36 @@ An example of project and test directory structure:
     ...
 ```
 
+#### 3.1.2 Dependent Repositories
+Unit tests for the Observatory Platform's dependent repositories ([oaebu-workflows](https://github.com/The-Academic-Observatory/oaebu-workflows), [academic-observatory-workflows](https://github.com/The-Academic-Observatory/academic-observatory-workflows)) are stored differently. Tests for any code should be stored in a directory named `tests` which shares a directory with the code it is testing. For example, as illustrated in thefigure below, the tests for the code in the file `oaebu-workflows/oaebu_workflows/telescopes/oapen_metadata_telescpe.py` are contained in the file `oaebu-workflows/oaebu_workflows/telescopes/tests/test_oapen_metadata_telescpe.py`.
+
+An example of project and test directory structure:
+```bash
+|-- oaebu-workflows
+    |-- .github
+    |-- .gitignore
+    |-- oaebu_workflows
+        |-- onix.py
+        |-- telescopes
+            |-- __init__.py
+            |-- oapen_metadata_telescope.py
+            |-- tests
+            |-- __init__.py
+                |-- test_oapen_metadata_telescope.py
+        |-- tests
+            |-- __init__.py
+            |-- test_onix.py
+        |-- fixtures
+            |-- oapen_metadata
+                |-- test_data.json
+            |-- onix
+                |-- test_data.json
+    |-- CONTRIBUTING.md
+
+```
+
 ### 3.2. Testing code that makes HTTP requests
-To test test code that makes HTTP requests:
+To test code that makes HTTP requests:
 * [VCR.py](https://vcrpy.readthedocs.io/en/latest/) is used to test code that makes HTTP requests, enabling the tests 
 to work offline without calling the real endpoints. VCR.py records  the HTTP requests made by a section of code and 
 stores the results in a file called a 'cassette'. When the same section of code is run again, the HTTP requests are read 
@@ -147,7 +173,7 @@ from the cassette, rather than calling the real endpoint.
 
 ### 3.3. Running unit tests
 To run the unittests from the command line, execute the following command from the root of the project, it should
-automatically discover all of the unit tests:
+automatically discover all the unit tests:
 ```bash
 python -m unittest
 ```
@@ -156,6 +182,18 @@ How to enable popular IDEs to run the unittests:
 * PyCharm: PyCharm supports test discovery and execution for the Python unittest framework. You may need to configure
 PyCharm to use the unittest framework. Click PyCharm > Preferences > Tools > Python Integrated Tools and under the 
 Testing heading, choose `Unittests` from the `Default test runner` dropdown.
+* VSCode: VSCode supports test discovery and execution for the Python unittest framework. Under the *Testing* panel, configure the tests to use the unittest framework and search for tests beginning with *test_**. 
+  
+A `.env` file will also need to be configured with the following variables set:
+* GOOGLE_APPLICATION_CREDENTIALS - The path to your Google Cloud Project credentials
+* TEST_GCP_PROJECT_ID - Your GCP Project ID
+* TEST_GCP_DATA_LOCATION - The location of your GCP Project
+* TEST_GCP_BUCKET_NAME - The name of your GCP testing bucket 
+
+Some tests may also require access to Amazon Web Services. For these tests, the following additional envrionment variables are required:
+* AWS_ACCESS_KEY_ID - Your AWS secret key ID
+* AWS_SECRET_ACCESS_KEY - Your AWS secret key
+* AWS_DEFAULT_REGION - The AWS region
 
 ## 4. License and Copyright
 Contributors agree to release their source code under the Apache 2.0 license. Contributors retain their copyright.
@@ -233,26 +271,22 @@ Creative Commons "Attribution-NoDerivs" (CC BY-ND), the GNU GPL and the A-GPL. T
 Apache 2.0 license that the Observatory Platform is released with. 
 
 ## 5. Development Workflow
-This section explains the development workflow used in the Observatory Platform project.
+This section explains the development workflow used in the Observatory Platform project and its dependent repositories.
 
 ### 5.1. Branches
-The [observatory-platform](https://github.com/The-Academic-Observatory/observatory-platform) project has two main 
-branches `master` and `develop`. The `master` branch contains the most up to date version of 
-the code base running in production whilst the `develop` branch contains code that is ready to be delivered 
-in the next release. The article [A successful Git branching model](https://nvie.com/posts/a-successful-git-branching-model/)
-provides a much richer overview of this approach.
+The [observatory-platform](https://github.com/The-Academic-Observatory/observatory-platform) and its dependent repositories each have only one long-lived branch - `main`. This branch is in continuous development; all official releases are made from a point in time of the `main` branch. The branching strategy employed is not unlike the popular [GitHub Flow](https://docs.github.com/en/get-started/quickstart/github-flow) and [trunk-based development](https://trunkbaseddevelopment.com/) strategies whereby all feature branches are created from and merged into `main`.
 
 ### 5.2. Developing a feature
-The general workflow for working on a feature is as follows:
+GitHub has and [official guide](https://docs.github.com/en/get-started/quickstart/contributing-to-projects) on how to contribute to open-source projects when you do not have direct access to the repository.
+ 
+If you do have direct repository access, the general workflow for working on a feature is as follows:
 
-1. Clone the [observatory-platform](https://github.com/The-Academic-Observatory/observatory-platform) project locally.
-2. Create a feature branch, branching off the `develop` branch. The branch should begin with the word `feature-`.
-3. Once your feature is ready, before making your pull request, make sure to [rebase](https://help.github.com/en/github/using-git/about-git-rebase) 
-your changes onto the latest `origin/develop` commit. It is a good idea to rebase regularly. 
+1. Clone the project locally.
+2. Create a feature branch, branching off the `main` branch. The branch name should be descriptive of its changes.
+3. Once your feature is ready and before making your pull request, make sure to [rebase](https://help.github.com/en/github/using-git/about-git-rebase) your changes onto the latest `origin/main` commit. It is a good idea to rebase regularly. It is preferred that bloated commits are squashed using the interactive tag when rebasing. 
 4. Make your pull request:
-    * Tag a reviewer in the pull request, so that they receive a notification and know to review it.
-    * The guide on [How to write the perfect pull request](https://github.blog/2015-01-21-how-to-write-the-perfect-pull-request/)
-might be helpful.
+    * Tag at least one reviewer in the pull request, so that they receive a notification and know to review it.
+    * The guide on [How to write the perfect pull request](https://github.blog/2015-01-21-how-to-write-the-perfect-pull-request/) might be helpful.
 
 Detailed instructions on how to use Git to accomplish this process are given below.
 
@@ -268,39 +302,37 @@ git clone git@github.com:The-Academic-Observatory/observatory-platform.git
 ```
 
 #### 2) Create a feature branch
-Checkout develop:
+Checkout main:
 ```bash
-git checkout -b develop origin/develop
+git checkout main
 ```
 
-Then, create a new feature branch from develop:
+Then, create a new feature branch from main:
 ```bash
 git checkout -b <your-feature-name>
 ``` 
 
 #### 3) Rebase
 
-##### 3.1) Sync develop
-Before rebasing, make sure that you have the latest changes from the origin develop branch.
+##### 3.1) Sync main
+Before rebasing, make sure that you have the latest changes from the origin main branch.
 
 Fetch the latest changes from origin:
 ```bash
 git fetch --all
 ```
 
-Checkout the local develop branch:
+Checkout the local main branch:
 ```bash
-git checkout -b develop origin/develop
+git checkout main
 ```
 
-Merge the changes from upstream develop onto your local branch:
+Merge the changes from upstream main onto your local branch:
 ```bash
-git merge upstream/develop
+git merge upstream/main
 ```
 
 Git should just need to fast forward the changes, because we make our changes from feature branches.
-
-See more details on the [Syncing a fork](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/syncing-a-fork) Github page. 
 
 ##### 3.2) Rebase feature branch
 Checkout your feature branch:
@@ -308,9 +340,9 @@ Checkout your feature branch:
 git checkout <your-feature-name>
 ```
 
-Rebase your feature branch (the branch currently checked out) onto develop.
+Rebase your feature branch (the branch currently checked out) onto main.
 ```bash
-git rebase -i develop
+git rebase -i main
 ```
 
 ## 6. Deployment (Maintainers Only)

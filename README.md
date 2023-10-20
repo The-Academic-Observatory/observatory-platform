@@ -9,6 +9,7 @@ and [OAeBU Workflows](https://github.com/The-Academic-Observatory/oaebu-workflow
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/badge/python-3.10-blue)](https://img.shields.io/badge/python-3.10-blue)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 ![Python package](https://github.com/The-Academic-Observatory/observatory-platform/workflows/Unit%20Tests/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/observatory-platform/badge/?version=latest)](https://observatory-platform.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/The-Academic-Observatory/observatory-platform/branch/develop/graph/badge.svg)](https://codecov.io/gh/The-Academic-Observatory/observatory-platform)
@@ -16,3 +17,8 @@ and [OAeBU Workflows](https://github.com/The-Academic-Observatory/oaebu-workflow
 
 ## Documentation
 For more detailed documentation about the Observatory Platform see the Read the Docs website [https://observatory-platform.readthedocs.io](https://observatory-platform.readthedocs.io)
+
+## Dependent Repositories
+The Observatory Platform is a dependency for other repositories developed and maintained by [The Academic Observatory](https://github.com/The-Academic-Observatory):
+* [Academic Observatory Workflows](https://github.com/The-Academic-Observatory/academic-observatory-workflows)
+* [OAeBU Workflows](https://github.com/The-Academic-Observatory/oaebu-workflows)
