@@ -28,7 +28,15 @@ import jsonlines
 import pendulum
 from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud import bigquery
-from google.cloud.bigquery import LoadJob, LoadJobConfig, QueryJob, SourceFormat, CopyJobConfig, CopyJob
+from google.cloud.bigquery import (
+    LoadJob,
+    LoadJobConfig,
+    QueryJob,
+    SourceFormat,
+    CopyJobConfig,
+    CopyJob,
+    Table as BQTable,
+)
 from google.cloud.bigquery import dataset
 from google.cloud.bigquery.job import QueryJobConfig
 from google.cloud.bigquery.table import Table
@@ -96,21 +104,12 @@ def bq_table_id_parts(table_id: str) -> Tuple[str, str, str, str, Optional[pendu
     parts = table_id.split(".")
     project_id = parts[0]
     dataset_id = parts[1]
-    table_id = parts[2]
-    table_name, shard_date = bq_table_shard_info(table_id)
+    table_id = parts[2]  # Changes table_id
+    shard_date = None
+    if bool(re.search(r"\d{8}$", table_id)):
+        table_id, shard_date = bq_table_shard_info(parts[2])
 
-    return project_id, dataset_id, table_id, table_name, shard_date
-
-
-def bq_table_name(table_id: str):
-    """Remove the date from a table_id.
-
-    :param table_id: the table_id including a shard date.
-    :return: the table name.
-    """
-
-    # -8 is removing the date from the string.
-    return table_id[:-8]
+    return project_id, dataset_id, table_id, shard_date
 
 
 def bq_table_shard_info(table_id: str) -> Tuple[str, Optional[pendulum.Date]]:
@@ -125,7 +124,7 @@ def bq_table_shard_info(table_id: str) -> Tuple[str, Optional[pendulum.Date]]:
     if results is None:
         return table_id, None
 
-    return bq_table_name(table_id), pendulum.parse(results.group(0))
+    return table_id[:-8], pendulum.parse(results.group(0))
 
 
 def bq_table_exists(table_id: str) -> bool:
@@ -783,6 +782,33 @@ def bq_list_tables(project_id: str, dataset_id: str) -> List[str]:
     return table_ids
 
 
+def bq_get_table(full_table_id: str) -> Optional[BQTable]:
+    """Get a single Bigqury table object from the Google Bigquery API.
+
+    :param full_table_id: Fully qualified table id.
+    :return: The table obecjt from the Bigqury API."""
+
+    bq_client = bigquery.Client()
+    try:
+        table = bq_client.get_table(full_table_id)
+        return table
+    except NotFound:
+        logging.info(f"Table is not found! {full_table_id}")
+        return None
+
+
+def bq_get_table_shards(dataset_id: str, base_name: str) -> List[BQTable]:
+    """Return a list of Biguqery table objects that are shards from the Google Bigquery API.
+
+    :param dataset_id: The name of the dataset.
+    :param table_name: Name of the sharded table.
+    :return: List of table objects that share the same name."""
+
+    bq_client = bigquery.Client()
+    tables = bq_client.list_tables(dataset_id)
+    return [bq_client.get_table(table) for table in tables if re.search(rf"{base_name}\d{{8}}$", table.table_id)]
+
+
 def bq_export_table(*, table_id: str, file_type: str, destination_uri: str) -> bool:
     """Export a BigQuery table.
 
@@ -937,7 +963,10 @@ def bq_select_columns(
     """
 
     assert_table_id(table_id)
-    project_id, dataset_id, table_id, _, _ = bq_table_id_parts(table_id)
+    project_id, dataset_id, table_id, shard_date = bq_table_id_parts(table_id)
+    if shard_date is not None:
+        table_id = f"{table_id}{shard_date.format('YYYYMMDD')}"
+
     template_path = os.path.join(sql_templates_path(), "select_columns.sql.jinja2")
     query = render_template(
         template_path,
