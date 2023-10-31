@@ -24,7 +24,7 @@ from unittest.mock import patch
 import pendulum
 import time
 from click.testing import CliRunner
-from google.api_core.exceptions import Conflict, NotFound
+from google.api_core.exceptions import Conflict
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import SourceFormat, Table as BQTable
 
@@ -56,7 +56,6 @@ from observatory.platform.bigquery import (
     bq_list_datasets_with_prefix,
     bq_list_tables,
     bq_get_table,
-    bq_get_table_shards,
     bq_export_table,
     bq_query_bytes_budget_check,
 )
@@ -563,34 +562,6 @@ class TestBigQuery(unittest.TestCase):
             self.assertEqual(table.num_rows, len(test_data))
             self.assertEqual(str(table.reference), full_table_id)
             self.assertEqual(table.num_bytes, 128)
-
-    def test_bq_get_table_shards(self):
-        """Test if a list of table shards can be reliably grabbed using the Bigquery API"""
-
-        test_data_path = test_fixtures_path("utils")
-        json_file_path = os.path.join(test_data_path, "people.jsonl")
-        test_data = load_jsonl(json_file_path)
-
-        base_name = "table_shards"
-        list_table_ids = ["list_table_shards20200101", "list_table_shards20200102"]
-
-        with bq_dataset_test_env(
-            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
-        ) as dataset_id:
-            # Load the test table from memory to Bigquery.
-            for table_id in list_table_ids:
-                full_table_id = bq_table_id(self.gc_project_id, dataset_id, table_id)
-                success = bq_load_from_memory(table_id=full_table_id, records=test_data)
-                self.assertTrue(success)
-
-            # Get table object from Bigquery API
-            tables = bq_get_table_shards(dataset_id=dataset_id, base_name=base_name)
-
-            # Check metadata of table objects
-            for table, table_id in zip(tables, list_table_ids):
-                self.assertEqual(table.num_rows, len(test_data))
-                self.assertEqual(table.table_id, table_id)
-                self.assertEqual(table.num_bytes, 128)
 
     def test_bq_export_table(self):
         client = storage.Client()

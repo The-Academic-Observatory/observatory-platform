@@ -797,18 +797,6 @@ def bq_get_table(full_table_id: str) -> Optional[BQTable]:
         return None
 
 
-def bq_get_table_shards(dataset_id: str, base_name: str) -> List[BQTable]:
-    """Return a list of Biguqery table objects that are shards from the Google Bigquery API.
-
-    :param dataset_id: The name of the dataset.
-    :param table_name: Name of the sharded table.
-    :return: List of table objects that share the same name."""
-
-    bq_client = bigquery.Client()
-    tables = bq_client.list_tables(dataset_id)
-    return [bq_client.get_table(table) for table in tables if re.search(rf"{base_name}\d{{8}}$", table.table_id)]
-
-
 def bq_export_table(*, table_id: str, file_type: str, destination_uri: str) -> bool:
     """Export a BigQuery table.
 
