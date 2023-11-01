@@ -50,6 +50,7 @@ validators<=0.20.0
 xmltodict
 pandas
 tenacity
+bigquery_schema_generator>=1.5.1
 
 # Test utils
 time_machine>=2.0.0,<3

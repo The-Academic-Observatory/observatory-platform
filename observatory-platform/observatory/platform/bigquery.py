@@ -14,6 +14,7 @@
 
 # Author: James Diprose, Aniek Roelofs
 
+import json
 import datetime
 import glob
 import gzip
@@ -22,7 +23,10 @@ import logging
 import os
 import re
 from copy import deepcopy
+from deepdiff import DeepDiff
 from typing import Dict, Tuple, Union, List, Optional
+from click.testing import CliRunner
+from bigquery_schema_generator.generate_schema import SchemaGenerator
 
 import jsonlines
 import pendulum
@@ -48,6 +52,7 @@ from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
 )
+from observatory.platform import observatory_environment
 
 # BigQuery single query byte limit.
 # Daily limit is set in Terraform
@@ -92,12 +97,12 @@ def bq_sharded_table_id(
     return f"{project_id}.{dataset_id}.{table_name}{date.strftime('%Y%m%d')}"
 
 
-def bq_table_id_parts(table_id: str) -> Tuple[str, str, str, str, Optional[pendulum.Date]]:
+def bq_table_id_parts(table_id: str) -> Tuple[str, str, str, Optional[pendulum.Date]]:
     """Convert a BigQuery fully qualified table identifier into its parts which consist of project_id, dataset_id,
     and table_id, table_name and shard_date.
 
     :param table_id: the fully qualified BigQuery table identifier.
-    :return: project_id, dataset_id and table_id and the table_name and optional shard date.
+    :return: project_id, dataset_id and table_id and optional shard date.
     """
 
     assert_table_id(table_id)
@@ -291,6 +296,71 @@ def bq_find_schema(
     # No schemas were found
     logging.error("No schema found.")
     return None
+
+
+def bq_generate_schema_from_data(data_path: str) -> List[dict]:
+    """
+    Generates a Biguqery style schema based on a *.jsonl.gz data file.
+
+    :param expected_schema_path: Path to the expected schema of the data.
+    :param data_path: Path to the *.jsonl.gz data file.
+    :param check_data_types: Optional, set to True to check the data type for expected vs generated.
+    :return: True if the expected and generated schemas match.
+    """
+
+    with CliRunner().isolated_filesystem() as temp_file_path:
+        generator = SchemaGenerator()
+        random_id = observatory_environment.random_id()
+        generated_schema_path = os.path.join(temp_file_path, f"generated_schema_{random_id}.json")
+        with gzip.open(data_path, "rb") as f_in, open(generated_schema_path, "w") as f_out:
+            generator.run(input_file=f_in, output_file=f_out, schema_map=None)
+        with open(generated_schema_path, "r") as f_in:
+            generated = json.load(f_in)
+
+    return generated
+
+
+def bq_compare_schemas(expected: List[dict], actual: List[dict], check_types_match: Optional[bool] = False) -> bool:
+    """Compare two Bigquery schemas for if they have the same fields and/or data types.
+
+    :param expected: the expected schema.
+    :param actual: the actual schema.
+    :check_types_match: Optional, if checking data types of fields is required.
+    :return: whether the expected and actual match.
+    """
+
+    expected.sort(key=lambda c: c["name"], reverse=False)
+    actual.sort(key=lambda c: c["name"], reverse=False)
+
+    exp_names = [field_def["name"] for field_def in expected]
+    act_names = [field_def["name"] for field_def in actual]
+
+    if len(exp_names) != len(act_names):
+        logging.error("Fields do not match:")
+        logging.error(f"Only in expected: {set(exp_names) - set(act_names)}")
+        logging.error(f"Only in actual: {set(act_names) - set(exp_names)}")
+        return False
+
+    # Check data types of fields
+    if check_types_match:
+        for exp_field, act_field in zip(expected, actual):
+            if exp_field["type"] != act_field["type"]:
+                logging.error(
+                    f"Field types do not match for field  '{exp_field['name']}' ! Actual: {act_field['type']} vs Expected: {exp_field['type']}"
+                )
+            all_matched = False
+
+    # Check for sub-fields within the schema.
+    all_matched = True
+    for exp_field, act_field in zip(expected, actual):
+        # Ignore the "mode" and "description" definitions in fields as they are not required for check.
+        diff = DeepDiff(exp_field, act_field, ignore_order=True, exclude_regex_paths=r"\s*(description|mode)")
+        logging.info(f"Differeneces in the fields: {exp_field}")
+        for diff_type, changes in diff.items():
+            all_matched = False
+            observatory_environment.log_diff(diff_type, changes)
+
+    return all_matched
 
 
 def bq_update_table_description(*, table_id: str, description: str):
