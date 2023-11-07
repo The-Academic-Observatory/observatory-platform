@@ -724,24 +724,35 @@ def compare_lists_of_dicts(expected: List[Dict], actual: List[Dict], primary_key
         logging.info(f"primary_key: {key}")
         for diff_type, changes in diff.items():
             all_matched = False
-            if diff_type == "values_changed":
-                for key_path, change in changes.items():
-                    logging.error(
-                        f"(expected) != (actual) {key_path}: {change['old_value']} (expected) != (actual) {change['new_value']}"
-                    )
-            elif diff_type == "dictionary_item_added":
-                for change in changes:
-                    logging.error(f"dictionary_item_added: {change}")
-            elif diff_type == "dictionary_item_removed":
-                for change in changes:
-                    logging.error(f"dictionary_item_removed: {change}")
-            elif diff_type == "type_changes":
-                for key_path, change in changes.items():
-                    logging.error(
-                        f"(expected) != (actual) {key_path}: {change['old_type']} (expected) != (actual) {change['new_type']}"
-                    )
+            log_diff(diff_type, changes)
 
     return all_matched
+
+
+def log_diff(diff_type, changes):
+    """Log the DeepDiff changes.
+
+    :param diff_type: the diff type.
+    :param changes: the changes.
+    :return: None.
+    """
+
+    if diff_type == "values_changed":
+        for key_path, change in changes.items():
+            logging.error(
+                f"(expected) != (actual) {key_path}: {change['old_value']} (expected) != (actual) {change['new_value']}"
+            )
+    elif diff_type == "dictionary_item_added":
+        for change in changes:
+            logging.error(f"dictionary_item_added: {change}")
+    elif diff_type == "dictionary_item_removed":
+        for change in changes:
+            logging.error(f"dictionary_item_removed: {change}")
+    elif diff_type == "type_changes":
+        for key_path, change in changes.items():
+            logging.error(
+                f"(expected) != (actual) {key_path}: {change['old_type']} (expected) != (actual) {change['new_type']}"
+            )
 
 
 class ObservatoryTestCase(unittest.TestCase):
