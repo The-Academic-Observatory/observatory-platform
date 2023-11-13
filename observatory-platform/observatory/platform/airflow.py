@@ -131,6 +131,18 @@ def send_slack_msg(
     change_task_log_level(old_levels)
 
 
+def get_gcp_credentials(conn_id: str = AirflowConns.GCP_CONN_ID):
+    from airflow.providers.google.cloud.hooks.base import GoogleCloudBaseHook
+
+    # Create a hook to access the connection
+    hook = GoogleCloudBaseHook(gcp_conn_id=conn_id)
+
+    # Retrieve credentials from the connection
+    credentials = hook.get_credentials()
+
+    return credentials
+
+
 def get_airflow_connection_url(conn_id: str) -> str:
     """Get the Airflow connection host, validate it is a valid url, and return it if it is, with a trailing /,
         otherwise throw an exception.  Assumes the connection_id exists.

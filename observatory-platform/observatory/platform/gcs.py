@@ -39,7 +39,8 @@ from google.cloud.storage import Blob, bucket
 from googleapiclient import discovery as gcp_api
 from requests.exceptions import ChunkedEncodingError
 
-from observatory.platform.airflow import get_data_path
+from observatory.platform.airflow import get_data_path, get_gcp_credentials
+from observatory.platform.config import AirflowConns
 from observatory.platform.files import crc32c_base64_hash
 
 # The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
@@ -53,6 +54,19 @@ class TransferStatus(Enum):
     success = "SUCCESS"
     aborted = "ABORTED"
     failed = "FAILED"
+
+
+def gcs_client(conn_id: str = AirflowConns.GCP_CONN_ID, project_id: Optional[str] = None) -> storage.Client:
+    # Retrieve credentials from the connection
+    credentials = get_gcp_credentials(conn_id=conn_id)
+
+    if project_id is None:
+        project_id = credentials.project_id
+
+    # Create a client for Google Cloud Storage using these credentials
+    client = storage.Client(credentials=credentials, project=project_id)
+
+    return client
 
 
 def gcs_blob_uri(bucket_name: str, blob_name: str) -> str:
