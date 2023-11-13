@@ -14,6 +14,7 @@
 
 # Author: James Diprose, Aniek Roelofs
 
+import contextlib
 import csv
 import datetime
 import json
@@ -22,16 +23,16 @@ import multiprocessing
 import os
 import pathlib
 import tempfile
+import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
-from typing import List, Tuple
-import contextlib
+from typing import List, Tuple, Optional
 
 import pendulum
-import time
 from airflow import AirflowException
 from google.api_core.exceptions import Conflict
+from google.auth.credentials import Credentials
 from google.cloud import storage
 from google.cloud.exceptions import Conflict
 from google.cloud.storage import Blob, bucket
@@ -102,13 +103,15 @@ def gcs_blob_name_from_path(local_filepath: str) -> str:
     return blob_path
 
 
-def gcs_bucket_exists(bucket_name: str):
+def gcs_bucket_exists(bucket_name: str, client: Optional[storage.Client] = None):
     """Check whether the Google Cloud Storage bucket exists
 
     :param bucket_name: Bucket name (without gs:// prefix)
+    :param client: Storage client. If None default Client is created.
     :return: Whether the bucket exists or not
     """
-    client = storage.Client()
+    if client is None:
+        client = storage.Client()
     bucket = client.bucket(bucket_name)
 
     exists = bucket.exists()
@@ -117,7 +120,12 @@ def gcs_bucket_exists(bucket_name: str):
 
 
 def gcs_create_bucket(
-    *, bucket_name: str, location: str = None, project_id: str = None, lifecycle_delete_age: int = None
+    *,
+    bucket_name: str,
+    location: str = None,
+    project_id: str = None,
+    lifecycle_delete_age: int = None,
+    client: storage.Client = None,
 ) -> bool:
     """Create a cloud storage bucket
 
@@ -126,6 +134,7 @@ def gcs_create_bucket(
     :param project_id: The project which the client acts on behalf of. Will be passed when creating a topic. If not
     passed, falls back to the default inferred from the environment.
     :param lifecycle_delete_age: Days until files in bucket are deleted
+    :param client: Storage client. If None default Client is created.
     :return: Whether creating bucket was successful or not.
     """
     func_name = gcs_create_bucket.__name__
@@ -133,7 +142,9 @@ def gcs_create_bucket(
 
     success = False
 
-    client = storage.Client(project=project_id)
+    if client is None:
+        client = storage.Client()
+    client.project = project_id
     bucket = storage.Bucket(client, name=bucket_name)
     if lifecycle_delete_age:
         bucket.add_lifecycle_delete_rule(age=lifecycle_delete_age)
@@ -148,19 +159,23 @@ def gcs_create_bucket(
     return success
 
 
-def gcs_copy_blob(*, blob_name: str, src_bucket: str, dst_bucket: str, new_name: str = None) -> bool:
+def gcs_copy_blob(
+    *, blob_name: str, src_bucket: str, dst_bucket: str, new_name: str = None, client: storage.Client = None
+) -> bool:
     """Copy a blob from one bucket to another
 
     :param blob_name: The name of the blob. This corresponds to the unique path of the object in the bucket.
     :param src_bucket: The bucket to which the blob belongs.
     :param dst_bucket: The bucket into which the blob should be copied.
     :param new_name:  (Optional) The new name for the copied file.
+    :param client: Storage client. If None default Client is created.
     :return: Whether copy was successful.
     """
     func_name = gcs_copy_blob.__name__
     logging.info(f"{func_name}: {os.path.join(src_bucket, blob_name)}")
 
-    client = storage.Client()
+    if client is None:
+        client = storage.Client()
 
     # source blob and bucket
     bucket = storage.Bucket(client, name=src_bucket)
@@ -184,6 +199,7 @@ def gcs_download_blob(
     retries: int = 3,
     connection_sem: BoundedSemaphore = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
+    client: storage.Client = None,
 ) -> bool:
     """Download a blob to a file.
 
@@ -193,6 +209,7 @@ def gcs_download_blob(
     :param retries: the number of times to retry downloading the blob.
     :param connection_sem: a BoundedSemaphore to limit the number of download connections that can run at once.
     :param chunk_size: the chunk size to use when downloading a blob in multiple parts, must be a multiple of 256 KB.
+    :param client: Storage client. If None default Client is created.
     :return: whether the download was successful or not.
     """
 
@@ -200,7 +217,8 @@ def gcs_download_blob(
     logging.info(f"{func_name}: {file_path}")
 
     # Get blob
-    client = storage.Client()
+    if client is None:
+        client = storage.Client()
     bucket = client.bucket(bucket_name)
     blob: Blob = bucket.blob(blob_name)
 
@@ -261,6 +279,7 @@ def gcs_download_blobs(
     max_connections: int = cpu_count(),
     retries: int = 3,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
+    client: storage.Client = None,
 ) -> bool:
     """Download all blobs on a Google Cloud Storage bucket that are within a prefixed path, to a destination on the
     local file system.
@@ -272,14 +291,16 @@ def gcs_download_blobs(
     :param max_connections: the maximum number of download connections at once.
     :param retries: the number of times to retry downloading the blob.
     :param chunk_size: the chunk size to use when downloading a blob in multiple parts, must be a multiple of 256 KB.
+    :param client: Storage client. If None default Client is created.
     :return: whether the files were downloaded successfully or not.
     """
 
     func_name = gcs_download_blobs.__name__
 
     # Get bucket
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_name)
+    if client is None:
+        client = storage.Client()
+    bucket = client.get_bucket(bucket_name)
 
     # List blobs
     blobs: List[Blob] = list(bucket.list_blobs(prefix=prefix))
@@ -338,6 +359,7 @@ def gcs_upload_files(
     max_connections: int = cpu_count(),
     retries: int = 3,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
+    credentials: Optional[Credentials] = None,
 ) -> bool:
     """Upload a list of files to Google Cloud storage.
 
@@ -349,6 +371,7 @@ def gcs_upload_files(
     :param max_connections: the maximum number of upload connections at once.
     :param retries: the number of times to retry uploading a file if an error occurs.
     :param chunk_size: the chunk size to use when uploading a blob in multiple parts, must be a multiple of 256 KB.
+    :param credentials: the credentials to use with the Google Cloud Storage client.
     :return: whether the files were uploaded successfully or not.
     """
 
@@ -373,7 +396,7 @@ def gcs_upload_files(
 
     # Upload each file in parallel
     manager = multiprocessing.Manager()
-    connection_sem = manager.BoundedSemaphore(value=max_connections)
+    connection_sem: BoundedSemaphore = manager.BoundedSemaphore(value=max_connections)
     with ProcessPoolExecutor(max_workers=max_processes) as executor:
         # Create tasks
         futures = []
@@ -384,11 +407,12 @@ def gcs_upload_files(
             future = executor.submit(
                 gcs_upload_file,
                 bucket_name=bucket_name,
-                blob_name=blob_name,
+                blob_name=str(blob_name),
                 file_path=str(file_path),
                 retries=retries,
                 connection_sem=connection_sem,
                 chunk_size=chunk_size,
+                credentials=credentials,
             )
             futures.append(future)
             futures_msgs[future] = msg
@@ -414,10 +438,11 @@ def gcs_upload_file(
     blob_name: str,
     file_path: str,
     retries: int = 3,
-    connection_sem: BoundedSemaphore = None,
+    connection_sem: Optional[BoundedSemaphore] = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
-    project_id: str = None,
     check_blob_hash: bool = True,
+    client: storage.Client = None,
+    credentials: Optional[Credentials] = None,
 ) -> Tuple[bool, bool]:
     """Upload a file to Google Cloud Storage.
 
@@ -427,8 +452,9 @@ def gcs_upload_file(
     :param retries: the number of times to retry uploading a file if an error occurs.
     :param connection_sem: a BoundedSemaphore to limit the number of upload connections that can run at once.
     :param chunk_size: the chunk size to use when uploading a blob in multiple parts, must be a multiple of 256 KB.
-    :param project_id: the project in which the bucket is located, defaults to inferred from the environment.
     :param check_blob_hash: check whether the blob exists and if the crc32c hashes match, in which case skip uploading.
+    :param client: Storage client. If None default Client is created.
+    :param credentials: the credentials to use with the Google Cloud Storage client.
     :return: whether the task was successful or not and whether the file was uploaded.
     """
     func_name = gcs_upload_file.__name__
@@ -439,8 +465,10 @@ def gcs_upload_file(
     success = False
 
     # Get blob
-    storage_client = storage.Client(project=project_id)
-    bucket = storage_client.get_bucket(bucket_name)
+    if client is None:
+        client = storage.Client(credentials=credentials)
+
+    bucket = client.get_bucket(bucket_name)
     blob = bucket.blob(blob_name)
 
     # Check if blob exists already and matches the file we are uploading
@@ -487,15 +515,22 @@ def gcs_upload_file(
     return success, upload
 
 
-def gcs_create_transfer_job(*, job: dict, func_name: str, gc_project_id: str) -> Tuple[bool, int]:
+def gcs_create_transfer_job(
+    *,
+    job: dict,
+    func_name: str,
+    gc_project_id: str,
+    credentials: Optional[Credentials] = None,
+) -> Tuple[bool, int]:
     """Start a google cloud storage transfer job
 
     :param job: contains the details of the transfer job
     :param func_name: function name used for detailed logging info
     :param gc_project_id: the Google Cloud project id that holds the Google Cloud Storage bucket.
+    :param credentials: the credentials to use with the Google Cloud Storage client.
     :return: whether the transfer was a success or not and the number of objects transferred.
     """
-    client = gcp_api.build("storagetransfer", "v1")
+    client = gcp_api.build("storagetransfer", "v1", credentials=credentials)
     create_result = client.transferJobs().create(body=job).execute()
     transfer_job_name = create_result["name"]
 
@@ -557,6 +592,7 @@ def gcs_create_azure_transfer(
     description: str,
     gc_bucket_path: str = None,
     start_date: pendulum.DateTime = pendulum.now("UTC"),
+    credentials: Optional[Credentials] = None,
 ) -> bool:
     """Transfer files from an Azure blob container to a Google Cloud Storage bucket.
 
@@ -569,6 +605,7 @@ def gcs_create_azure_transfer(
     :param description: a description for the transfer job.
     :param gc_bucket_path: the path in the Google Cloud bucket to save the objects.
     :param start_date: the date that the transfer job will start.
+    :param credentials: the credentials to use with the Google Cloud Storage client.
     :return: whether the transfer was a success or not.
     """
 
@@ -602,7 +639,9 @@ def gcs_create_azure_transfer(
 
         job["transferSpec"]["gcsDataSink"]["path"] = gc_bucket_path
 
-    success, objects_count = gcs_create_transfer_job(job=job, func_name=func_name, gc_project_id=gc_project_id)
+    success, objects_count = gcs_create_transfer_job(
+        job=job, func_name=func_name, gc_project_id=gc_project_id, credentials=credentials
+    )
     return success
 
 
@@ -618,6 +657,7 @@ def gcs_create_aws_transfer(
     last_modified_before: pendulum.DateTime = None,
     transfer_manifest: str = None,
     start_date: pendulum.DateTime = pendulum.now("UTC"),
+    credentials: Optional[Credentials] = None,
 ) -> Tuple[bool, int]:
     """Transfer files from an AWS bucket to a Google Cloud Storage bucket.
 
@@ -631,6 +671,7 @@ def gcs_create_aws_transfer(
     :param last_modified_before:
     :param transfer_manifest: Path to manifest file in Google Cloud bucket (incl gs://).
     :param start_date: the date that the transfer job will start.
+    :param credentials: the credentials to use with the Google Cloud Storage client.
     :return: whether the transfer was a success or not.
     """
 
@@ -672,7 +713,9 @@ def gcs_create_aws_transfer(
     if transfer_manifest:
         job["transferSpec"]["transferManifest"] = {"location": transfer_manifest}
 
-    success, objects_count = gcs_create_transfer_job(job=job, func_name=func_name, gc_project_id=gc_project_id)
+    success, objects_count = gcs_create_transfer_job(
+        job=job, func_name=func_name, gc_project_id=gc_project_id, credentials=credentials
+    )
     return success, objects_count
 
 
@@ -684,13 +727,17 @@ def _is_utf8_str(s: str) -> bool:
     return True
 
 
-def gcs_upload_transfer_manifest(object_paths: List[str], blob_uri: str):
+def gcs_upload_transfer_manifest(object_paths: List[str], blob_uri: str, client: storage.Client = None):
     """Save a GCS transfer manifest CSV file.
 
     :param object_paths: the object paths excluding bucket name.
     :param blob_uri: the full URI on GCS where the manifest should be uploaded to.
+    :param client: Storage client. If None default Client is created.
     :return: None.
     """
+
+    if client is None:
+        client = storage.Client()
 
     # Write temp file
     with tempfile.NamedTemporaryFile(mode="w", delete=True) as file:
@@ -710,18 +757,20 @@ def gcs_upload_transfer_manifest(object_paths: List[str], blob_uri: str):
 
         # Upload to cloud storage
         bucket_name, blob_path = gcs_uri_parts(blob_uri)
-        success = gcs_upload_file(bucket_name=bucket_name, blob_name=blob_path, file_path=file_path)
+        success = gcs_upload_file(bucket_name=bucket_name, blob_name=blob_path, file_path=file_path, client=client)
         assert success, f"gcs_upload_transfer_manifest: error uploading manifest to {blob_uri}"
 
 
-def gcs_delete_bucket_dir(*, bucket_name: str, prefix: str):
+def gcs_delete_bucket_dir(*, bucket_name: str, prefix: str, client: storage.Client = None):
     """Recursively delete blobs from a GCS bucket with a folder prefix.
 
     :param bucket_name: Bucket name.
     :param prefix: Directory prefix.
+    :param client: Storage client. If None default Client is created.
     """
 
-    client = storage.Client()
+    if client is None:
+        client = storage.Client()
     bucket = client.get_bucket(bucket_name)
     blobs = bucket.list_blobs(prefix=prefix)
 
@@ -729,15 +778,17 @@ def gcs_delete_bucket_dir(*, bucket_name: str, prefix: str):
         blob.delete()
 
 
-def gcs_list_buckets_with_prefix(*, prefix: str = "") -> List[bucket.Bucket]:
+def gcs_list_buckets_with_prefix(*, prefix: str = "", client: storage.Client = None) -> List[bucket.Bucket]:
     """List all Google Cloud buckets with prefix.
 
     :param prefix: Prefix of the buckets to list
+    :param client: Storage client. If None default Client is created.
     :return: A list of bucket objects that are under the project.
     """
 
-    storage_client = storage.Client()
-    buckets = list(storage_client.list_buckets())
+    if client is None:
+        client = storage.Client()
+    buckets = list(client.list_buckets())
     bucket_list = []
     for bucket in buckets:
         if bucket.name.startswith(prefix):
@@ -746,19 +797,23 @@ def gcs_list_buckets_with_prefix(*, prefix: str = "") -> List[bucket.Bucket]:
     return bucket_list
 
 
-def gcs_list_blobs(bucket_name: str, prefix: str = None, match_glob: str = None) -> List[storage.Blob]:
+def gcs_list_blobs(
+    bucket_name: str, prefix: str = None, match_glob: str = None, client: storage.Client = None
+) -> List[storage.Blob]:
     """List blobs in a bucket using a gcs_uri.
 
     :param bucket_name: The name of the bucket
     :param prefix: The prefix to filter by
     :param match_glob: The glob pattern to filter by
+    :param client: Storage client. If None default Client is created.
     :return: A list of blob objects in the bucket
     """
-    storage_client = storage.Client()
-    return list(storage_client.list_blobs(bucket_name, prefix=prefix, match_glob=match_glob))
+    if client is None:
+        client = storage.Client()
+    return list(client.list_blobs(bucket_name, prefix=prefix, match_glob=match_glob))
 
 
-def gcs_delete_old_buckets_with_prefix(*, prefix: str, age_to_delete: int):
+def gcs_delete_old_buckets_with_prefix(*, prefix: str, age_to_delete: int, client: storage.Client = None):
     """Deletes buckets that share the same prefix and if it is older than "age_to_delete" hours.
 
     Due to multiple unit tests being run at once, need to include a try and except as
@@ -767,10 +822,14 @@ def gcs_delete_old_buckets_with_prefix(*, prefix: str, age_to_delete: int):
 
     :param prefix: The identifying prefix of the buckets to delete.
     :param age_to_delete: Delete if the age of the bucket is older than this amount.
+    :param client: Storage client. If None default Client is created.
     """
 
+    if client is None:
+        client = storage.Client()
+
     # List all buckets in the project.
-    bucket_list = gcs_list_buckets_with_prefix(prefix=prefix)
+    bucket_list = gcs_list_buckets_with_prefix(prefix=prefix, client=client)
 
     buckets_deleted = []
     for bucket in bucket_list:
@@ -794,16 +853,21 @@ def gcs_delete_old_buckets_with_prefix(*, prefix: str, age_to_delete: int):
             f"Deleted the following buckets with prefix '{prefix}' older than {age_to_delete} hours: {buckets_deleted}"
         )
 
+
 @contextlib.contextmanager
-def gcs_hmac_key(project_id, service_account_email):
+def gcs_hmac_key(project_id, service_account_email, client: storage.Client = None):
     """Generates a new HMAC key using the given project and service account.
     Deletes it when context closes.
 
     :param project_id: The Google Cloud project ID
     :param service_account_email: The service account used to generate the HMAC key
+    :param client: Storage client. If None default Client is created.
     """
-    storage_client = storage.Client(project=project_id)
-    key, secret = storage_client.create_hmac_key(service_account_email=service_account_email, project_id=project_id)
+
+    if client is None:
+        client = storage.Client(project=project_id)
+
+    key, secret = client.create_hmac_key(service_account_email=service_account_email, project_id=project_id)
     try:
         yield key, secret
     finally:

@@ -267,45 +267,32 @@ def get_data_path() -> str:
 
 
 def fetch_workflows() -> List[Workflow]:
-    """Get the workflows from the Airflow Variable
-
-    :return: the workflows to create.
-    """
-
+    workflows = []
     workflows_str = Variable.get(AirflowVars.WORKFLOWS)
     logging.info(f"workflows_str: {workflows_str}")
 
-    try:
-        workflows = json_string_to_workflows(workflows_str)
-        logging.info(f"workflows: {workflows}")
-    except json.decoder.JSONDecodeError as e:
-        e.msg = f"workflows_str: {workflows_str}\n\n{e.msg}"
-        raise e
+    if workflows_str is not None and workflows_str.strip() != "":
+        try:
+            workflows = json_string_to_workflows(workflows_str)
+            logging.info(f"workflows: {workflows}")
+        except json.decoder.JSONDecodeError as e:
+            e.msg = f"workflows_str: {workflows_str}\n\n{e.msg}"
 
     return workflows
 
 
-def fetch_dags_modules() -> dict:
-    """Get the dags modules from the Airflow Variable
+def load_dags_from_config():
+    for workflow in fetch_workflows():
+        dag_id = workflow.dag_id
+        logging.info(f"Making Workflow: {workflow.name}, dag_id={dag_id}")
+        dag = make_dag(workflow)
 
-    :return: Dags modules
-    """
-
-    dags_modules_str = Variable.get(AirflowVars.DAGS_MODULE_NAMES)
-    logging.info(f"dags_modules_str: {dags_modules_str}")
-
-    try:
-        dags_modules_ = json.loads(dags_modules_str)
-        logging.info(f"dags_modules: {dags_modules_}")
-    except json.decoder.JSONDecodeError as e:
-        e.msg = f"dags_modules_str: {dags_modules_str}\n\n{e.msg}"
-        raise e
-
-    return dags_modules_
+        logging.info(f"Adding DAG: dag_id={dag_id}, dag={dag}")
+        globals()[dag_id] = dag
 
 
-def make_workflow(workflow: Workflow):
-    """Make a workflow instance.
+def make_dag(workflow: Workflow):
+    """Make a DAG instance from a Workflow config.
     :param workflow: the workflow configuration.
     :return: the workflow instance.
     """

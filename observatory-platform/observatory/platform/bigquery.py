@@ -128,15 +128,17 @@ def bq_table_shard_info(table_id: str) -> Tuple[str, Optional[pendulum.Date]]:
     return bq_table_name(table_id), pendulum.parse(results.group(0))
 
 
-def bq_table_exists(table_id: str) -> bool:
+def bq_table_exists(table_id: str, client: Optional[bigquery.Client] = None) -> bool:
     """Checks whether a BigQuery table exists or not.
 
-    :param table_id: the fully qualified BigQuery table identifier
+    :param table_id: the fully qualified BigQuery table identifier.
+    :param client: BigQuery client. If None default Client is created.
     :return: whether the table exists or not.
     """
 
     assert_table_id(table_id)
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
     table_exists = True
 
     try:
@@ -148,7 +150,11 @@ def bq_table_exists(table_id: str) -> bool:
 
 
 def bq_select_table_shard_dates(
-    *, table_id: str, end_date: Union[pendulum.DateTime, pendulum.Date], limit: int = 1
+    *,
+    table_id: str,
+    end_date: Union[pendulum.DateTime, pendulum.Date],
+    limit: int = 1,
+    client: Optional[bigquery.Client] = None,
 ) -> List[pendulum.Date]:
     """Returns a list of table shard dates, sorted from the most recent to the oldest date. By default it returns
     the first result.
@@ -156,6 +162,7 @@ def bq_select_table_shard_dates(
     :param table_id: the fully qualified BigQuery table identifier, excluding any shard date.
     :param end_date: the end date of the table suffixes to search for (most recent date).
     :param limit: the number of results to return.
+    :param client: BigQuery client. If None default Client is created.
     :return:
     """
 
@@ -167,7 +174,9 @@ def bq_select_table_shard_dates(
         end_date=end_date.strftime("%Y-%m-%d"),
         limit=limit,
     )
-    rows = bq_run_query(query)
+    if client is None:
+        client = bigquery.Client()
+    rows = bq_run_query(query, client=client)
     dates = []
     for row in rows:
         py_date = row["suffix"]
@@ -177,23 +186,24 @@ def bq_select_table_shard_dates(
 
 
 def bq_select_latest_table(
-    *,
-    table_id: str,
-    end_date: Union[pendulum.DateTime, pendulum.Date],
-    sharded: bool,
+    *, table_id: str, end_date: Union[pendulum.DateTime, pendulum.Date], sharded: bool, client: bigquery.Client = None
 ):
     """Select the latest fully qualified BigQuery table identifier.
 
     :param table_id: the fully qualified BigQuery table identifier, excluding a shard date.
     :param end_date: latest date considered.
     :param sharded: whether the table is sharded or not.
+    :param client: BigQuery client. If None default Client is created.
     """
 
     assert_table_id(table_id)
     if sharded:
+        if client is None:
+            client = bigquery.Client()
         table_date = bq_select_table_shard_dates(
             table_id=table_id,
             end_date=end_date,
+            client=client,
         )[0]
         table_id = f"{table_id}{table_date.strftime('%Y%m%d')}"
 
@@ -294,16 +304,18 @@ def bq_find_schema(
     return None
 
 
-def bq_update_table_description(*, table_id: str, description: str):
+def bq_update_table_description(*, table_id: str, description: str, client: Optional[bigquery.Client] = None):
     """Update a BigQuery table's description.
 
     :param table_id: the fully qualified BigQuery table identifier.
     :param description: the description.
+    :param client: BigQuery client. If None default Client is created.
     :return: None.
     """
 
     # Construct a BigQuery client object.
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
 
     # Set description on table
     table = bigquery.Table(table_id)
@@ -332,6 +344,7 @@ def bq_load_table(
     cluster: bool = False,
     clustering_fields=None,
     ignore_unknown_values: bool = False,
+    client: Optional[bigquery.Client] = None,
 ) -> bool:
     """Load a BigQuery table from an object on Google Cloud Storage.
 
@@ -353,6 +366,7 @@ def bq_load_table(
     :param clustering_fields: what fields to cluster on.
     Default is to overwrite.
     :param ignore_unknown_values: whether to ignore unknown values or not.
+    :param client: BigQuery client. If None default Client is created.
     :return: True if the load job was successful, False otherwise.
     """
 
@@ -373,7 +387,8 @@ def bq_load_table(
         clustering_fields = []
 
     # Create load job
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
     job_config = LoadJobConfig()
 
     # Set global options
@@ -429,6 +444,7 @@ def bq_load_from_memory(
     cluster: bool = False,
     clustering_fields=None,
     ignore_unknown_values: bool = False,
+    client: Optional[bigquery.Client] = None,
 ) -> bool:
     """Load data into BigQuery from memory.
 
@@ -445,6 +461,7 @@ def bq_load_from_memory(
     :param clustering_fields: what fields to cluster on.
     Default is to overwrite.
     :param ignore_unknown_values: whether to ignore unknown values or not.
+    :param client: BigQuery client. If None default Client is created.
     :return: True if the load job was successful, False otherwise.
     """
 
@@ -457,7 +474,8 @@ def bq_load_from_memory(
         clustering_fields = []
 
     # Create load job
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
     job_config = LoadJobConfig()
 
     if schema_file_path is not None:
@@ -503,11 +521,12 @@ def bq_load_from_memory(
     return state
 
 
-def bq_query_bytes_estimate(query: str, *args, **kwargs) -> int:
+def bq_query_bytes_estimate(query: str, *args, client: bigquery.Client = None, **kwargs) -> int:
     """Do a dry run of a BigQuery query to estimate the bytes processed.
 
     :param query: the query string.
     :param args: Positional arguments to pass onto the bigquery.Client().query function.
+    :param client: BigQuery client. If None default Client is created.
     :param kwargs: Named arguments to pass onto the bigquery.Client().query function.
     :return: Query bytes estimate.
     """
@@ -519,7 +538,9 @@ def bq_query_bytes_estimate(query: str, *args, **kwargs) -> int:
     config.dry_run = True
     kwargs["job_config"] = config
 
-    bytes_estimate = bigquery.Client().query(query, *args, **kwargs).total_bytes_processed
+    if client is None:
+        client = bigquery.Client()
+    bytes_estimate = client.query(query, *args, **kwargs).total_bytes_processed
     return bytes_estimate
 
 
@@ -544,18 +565,23 @@ def bq_query_bytes_budget_check(*, bytes_budget: int, bytes_estimate: int):
         raise Exception(f"Bytes estimate {bytes_estimate} exceeds the budget {bytes_budget}.")
 
 
-def bq_run_query(query: str, bytes_budget: int = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT) -> list:
+def bq_run_query(
+    query: str, bytes_budget: int = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT, client: Optional[bigquery.Client] = None
+) -> list:
     """Run a BigQuery query.  Defaults to 1 TiB query budget.
 
     :param query: the query to run.
     :param bytes_budget: Maximum bytes allowed to be processed by the query.
+    :param client: BigQuery client. If None default Client is created.
     :return: the results.
     """
 
-    bytes_estimate = bq_query_bytes_estimate(query)
+    if client is None:
+        client = bigquery.Client()
+
+    bytes_estimate = bq_query_bytes_estimate(query, client=client)
     bq_query_bytes_budget_check(bytes_budget=bytes_budget, bytes_estimate=bytes_estimate)
 
-    client = bigquery.Client()
     query_job = client.query(query)
     rows = query_job.result()
     success = query_job.errors is None  # throws error when query didn't work
@@ -568,12 +594,14 @@ def bq_copy_table(
     src_table_id: Union[str, list],
     dst_table_id: str,
     write_disposition: bigquery.WriteDisposition = bigquery.WriteDisposition.WRITE_TRUNCATE,
+    client: Optional[bigquery.Client] = None,
 ) -> bool:
     """Copy a BigQuery table.
 
     :param src_table_id: the fully qualified BigQuery table identifier the source table.
     :param dst_table_id: the fully qualified BigQuery table identifier of the destination table.
     :param write_disposition: whether to append, overwrite or throw an error when data already exists in the table.
+    :param client: BigQuery client. If None default Client is created.
     :return: whether the table was copied successfully or not.
     """
 
@@ -584,9 +612,9 @@ def bq_copy_table(
     assert_table_id(src_table_id)
     assert_table_id(dst_table_id)
 
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
     job_config = bigquery.CopyJobConfig()
-
     job_config.write_disposition = write_disposition
 
     job = client.copy_table(src_table_id, dst_table_id, job_config=job_config)
@@ -594,18 +622,22 @@ def bq_copy_table(
     return result.done()
 
 
-def bq_create_view(*, view_id: str, query: str, update_if_exists: bool = True) -> Table:
+def bq_create_view(
+    *, view_id: str, query: str, update_if_exists: bool = True, client: Optional[bigquery.Client] = None
+) -> Table:
     """Create a BigQuery view.
 
     :param view_id: the fully qualified BigQuery table identifier for the view.
     :param query: the query for the view.
-    :param update_if_exists: whether to update the view with the input query if it already exists
+    :param update_if_exists: whether to update the view with the input query if it already exists.
+    :param client: BigQuery client. If None default Client is created.
     :return: The bigquery table object of the view created/updated
     """
 
     assert_table_id(view_id)
 
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
     view = bigquery.Table(view_id)
     view.view_query = query
     try:
@@ -627,6 +659,7 @@ def bq_create_table_from_query(
     clustering_fields=None,
     bytes_budget: int = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT,
     schema_file_path: str = None,
+    client: Optional[bigquery.Client] = None,
 ) -> bool:
     """Create a BigQuery dataset from a provided query. Defaults to 0.5 TiB query budget.
     If a schema file path is given and the table does not exist yet, then an empty table will be created with this
@@ -639,6 +672,7 @@ def bq_create_table_from_query(
     :param clustering_fields: what fields to cluster on.
     :param bytes_budget: Maximum bytes allowed to be processed by query.
     :param schema_file_path: path on local file system to BigQuery table schema.
+    :param client: BigQuery client. If None default Client is created.
     :return: whether successful or not.
     """
 
@@ -655,7 +689,8 @@ def bq_create_table_from_query(
     logging.info(f"{func_name}: create bigquery table from query, {msg}")
 
     # Create empty table with schema. Delete the original table if it exists.
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
     write_disposition = bigquery.WriteDisposition.WRITE_TRUNCATE
     table = bigquery.Table(table_id)
     if schema_file_path:
@@ -696,7 +731,9 @@ def bq_create_table_from_query(
     return success
 
 
-def bq_create_dataset(*, project_id: str, dataset_id: str, location: str, description: str = "") -> bigquery.Dataset:
+def bq_create_dataset(
+    *, project_id: str, dataset_id: str, location: str, description: str = "", client: Optional[bigquery.Client] = None
+) -> bigquery.Dataset:
     """Create a BigQuery dataset.
 
     :param project_id: the Google Cloud project id.
@@ -704,6 +741,7 @@ def bq_create_dataset(*, project_id: str, dataset_id: str, location: str, descri
     :param location: the location where the dataset will be stored:
     https://cloud.google.com/compute/docs/regions-zones/#locations
     :param description: a description for the dataset
+    :param client: BigQuery client. If None default Client is created.
     :return: None
     """
 
@@ -713,7 +751,8 @@ def bq_create_dataset(*, project_id: str, dataset_id: str, location: str, descri
     dataset_ref = f"{project_id}.{dataset_id}"
 
     # Make dataset handle
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
     ds = bigquery.Dataset(dataset_ref)
 
     # Set properties
@@ -734,6 +773,7 @@ def bq_create_empty_table(
     table_id: str,
     schema_file_path: str = None,
     clustering_fields: List = None,
+    client: Optional[bigquery.Client] = None,
 ):
     """Creates an empty BigQuery table. If a path to a schema file is given the table will be created using this
     schema.
@@ -741,6 +781,7 @@ def bq_create_empty_table(
     :param table_id: the fully qualified BigQuery table identifier of the table we will create.
     :param schema_file_path: path on local file system to BigQuery table schema.
     :param clustering_fields: what fields to cluster on.
+    :param client: BigQuery client. If None default Client is created.
     :return: The table instance if the request was successful.
     """
 
@@ -748,7 +789,8 @@ def bq_create_empty_table(
     msg = f"table_id={table_id}, schema_file_path={schema_file_path}"
     logging.info(f"{func_name}: creating empty bigquery table {msg}")
 
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
     if schema_file_path:
         schema = client.schema_from_json(schema_file_path)
         table = bigquery.Table(table_id, schema=schema)
@@ -763,19 +805,21 @@ def bq_create_empty_table(
     return table
 
 
-def bq_list_tables(project_id: str, dataset_id: str) -> List[str]:
+def bq_list_tables(project_id: str, dataset_id: str, client: Optional[bigquery.Client] = None) -> List[str]:
     """List all the tables within a BigQuery dataset.
 
     :param project_id: the Google Cloud project id.
     :param dataset_id: the BigQuery dataset id.
+    :param client: BigQuery client. If None default Client is created.
     :return: the fully qualified BigQuery table ids.
     """
 
-    src_client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
     table_ids = []
     ds = bigquery.Dataset(f"{project_id}.{dataset_id}")
 
-    tables = src_client.list_tables(ds, max_results=10000)
+    tables = client.list_tables(ds, max_results=10000)
     for table in tables:
         table_id = str(table.reference)
         table_ids.append(table_id)
@@ -783,12 +827,15 @@ def bq_list_tables(project_id: str, dataset_id: str) -> List[str]:
     return table_ids
 
 
-def bq_export_table(*, table_id: str, file_type: str, destination_uri: str) -> bool:
+def bq_export_table(
+    *, table_id: str, file_type: str, destination_uri: str, client: Optional[bigquery.Client] = None
+) -> bool:
     """Export a BigQuery table.
 
     :param table_id: the fully qualified BigQuery table identifier.
     :param file_type: the type of file to save the exported data as; csv or jsonl.
     :param destination_uri: the Google Cloud storage bucket destination URI.
+    :param client: BigQuery client. If None default Client is created.
     :return: whether the dataset was exported successfully or not.
     """
 
@@ -803,7 +850,8 @@ def bq_export_table(*, table_id: str, file_type: str, destination_uri: str) -> b
         raise ValueError(f"export_bigquery_table: file type '{file_type}' is not supported")
 
     # Create and run extraction job
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
     extract_job_config = bigquery.ExtractJobConfig()
 
     # Set gz compression if file type ends in .gz
@@ -817,7 +865,9 @@ def bq_export_table(*, table_id: str, file_type: str, destination_uri: str) -> b
     return extract_job.state == "DONE"
 
 
-def bq_list_datasets_with_prefix(*, prefix: str = "") -> List[dataset.Dataset]:
+def bq_list_datasets_with_prefix(
+    *, prefix: str = "", client: Optional[bigquery.Client] = None
+) -> List[dataset.Dataset]:
     """List all BigQuery datasets with prefix.
 
     Due to multiple unit tests being run at once, need to include
@@ -825,10 +875,12 @@ def bq_list_datasets_with_prefix(*, prefix: str = "") -> List[dataset.Dataset]:
     that it is listed and then that grabbed by the API.
 
     :param prefix: Prefix of datasets to list.
+    :param client: BigQuery client. If None default Client is created.
     :return: A list of dataset objects that are under the project.
     """
 
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
     datasets = list(client.list_datasets())
     dataset_list = []
     for dataset in datasets:
@@ -845,7 +897,7 @@ def bq_list_datasets_with_prefix(*, prefix: str = "") -> List[dataset.Dataset]:
     return dataset_list
 
 
-def bq_delete_old_datasets_with_prefix(*, prefix: str, age_to_delete: int):
+def bq_delete_old_datasets_with_prefix(*, prefix: str, age_to_delete: int, client: Optional[bigquery.Client] = None):
     """Deletes datasets that share the same prefix and if it is older than "age_to_delete" hours.
 
     Due to multiple unit tests being run at once, need to include a try and except as
@@ -854,9 +906,11 @@ def bq_delete_old_datasets_with_prefix(*, prefix: str, age_to_delete: int):
 
     :param prefix: The identifying prefix of the datasets to delete.
     :param age_to_delete: Delete if the age of the bucket is older than this amount.
+    :param client: BigQuery client. If None default Client is created.
     """
 
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
 
     # List all datsets in the project with prefix
     dataset_list = bq_list_datasets_with_prefix(prefix=prefix)
@@ -896,12 +950,14 @@ def bq_snapshot(
     src_table_id: str,
     dst_table_id: str,
     expiry_date: pendulum.DateTime = None,
+    client: Optional[bigquery.Client] = None,
 ):
     """Create a BigQuery snapshot of a table.
 
     :param src_table_id: the BigQuery table name of the table to snapshot.
     :param dst_table_id: the date to give the snapshot table.
     :param expiry_date: the datetime for when the table should expire, e.g. datetime.datetime.now() + datetime.timedelta(minutes=60). If None then table will be permanent.
+    :param client: BigQuery client. If None default Client is created.
     :return: if the request was successful.
     """
 
@@ -911,7 +967,8 @@ def bq_snapshot(
     assert_table_id(src_table_id)
     assert_table_id(dst_table_id)
 
-    client = bigquery.Client()
+    if client is None:
+        client = bigquery.Client()
     job_config = CopyJobConfig(
         operation_type="SNAPSHOT", write_disposition="WRITE_EMPTY", destination_expiration_time=expiry_date.isoformat()
     )
@@ -925,14 +982,13 @@ def bq_snapshot(
 
 
 def bq_select_columns(
-    *,
-    table_id: str,
-    bytes_budget: Optional[int] = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT,
+    *, table_id: str, bytes_budget: Optional[int] = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT, client: bigquery.Client = None
 ) -> List[Dict]:
     """Select columns from a BigQuery table.
 
     :param table_id: the fully qualified BigQuery table identifier.
     :param bytes_budget: the BigQuery bytes budget.
+    :param client: BigQuery client. If None default Client is created.
     :return: the columns, which includes column_name and data_type.
     """
 
@@ -945,7 +1001,9 @@ def bq_select_columns(
         dataset_id=dataset_id,
         table_id=table_id,
     )
-    rows = bq_run_query(query, bytes_budget=bytes_budget)
+    if client is None:
+        client = bigquery.Client()
+    rows = bq_run_query(query, bytes_budget=bytes_budget, client=client)
     return [dict(row) for row in rows]
 
 
@@ -955,6 +1013,7 @@ def bq_upsert_records(
     upsert_table_id: str,
     primary_key: Union[str, List[str]],
     bytes_budget: Optional[int] = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT,
+    client: bigquery.Client = None,
 ):
     """Upserts records (updates and inserts) from an upsert_table into a main_table based on a primary_key.
 
@@ -962,16 +1021,20 @@ def bq_upsert_records(
     :param upsert_table_id: the fully qualified table identifier for the BigQuery table containing the upserts.
     :param primary_key: A single key or a list of keys to use to determine which records to upsert.
     :param bytes_budget: the BigQuery bytes budget.
+    :param client: BigQuery client. If None default Client is created.
     :return: whether the upsert was successful or not.
     """
 
     assert_table_id(main_table_id)
     assert_table_id(upsert_table_id)
 
+    if client is None:
+        client = bigquery.Client()
+
     # Fetch column names in main and upsert table which are used for the update part of the merge
     # and to check that the columns match
-    main_columns = bq_select_columns(table_id=main_table_id)
-    upsert_columns = bq_select_columns(table_id=upsert_table_id)
+    main_columns = bq_select_columns(table_id=main_table_id, client=client)
+    upsert_columns = bq_select_columns(table_id=upsert_table_id, client=client)
 
     # Assert that the column names and data types in main_table and upsert_table are the same and in the same order
     # Must be in same order for upsert to work
@@ -1002,7 +1065,7 @@ def bq_upsert_records(
         keys=keys,
         columns=main_top_level_cols,
     )
-    bq_run_query(query, bytes_budget=bytes_budget)
+    bq_run_query(query, bytes_budget=bytes_budget, client=client)
 
 
 def bq_delete_records(
@@ -1014,6 +1077,7 @@ def bq_delete_records(
     main_table_primary_key_prefix: str = "",
     delete_table_primary_key_prefix: str = "",
     bytes_budget: Optional[int] = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT,
+    client: bigquery.Client = None,
 ):
     """Deletes records from a main_table based on records in a delete_table.
 
@@ -1024,16 +1088,22 @@ def bq_delete_records(
     :param main_table_primary_key_prefix: an optional prefix to add to the primary key main table cells.
     :param delete_table_primary_key_prefix: an optional prefix to add to the primary key delete table cells.
     :param bytes_budget: the bytes budget.
+    :param client: BigQuery client. If None default Client is created.
     :return:
     """
 
     assert_table_id(main_table_id)
     assert_table_id(delete_table_id)
 
+    if client is None:
+        client = bigquery.Client()
+
     # Fetch column names in main and delete table to check if primary keys match
-    main_column_index = {item["column_name"]: item["data_type"] for item in bq_select_columns(table_id=main_table_id)}
+    main_column_index = {
+        item["column_name"]: item["data_type"] for item in bq_select_columns(table_id=main_table_id, client=client)
+    }
     delete_column_index = {
-        item["column_name"]: item["data_type"] for item in bq_select_columns(table_id=delete_table_id)
+        item["column_name"]: item["data_type"] for item in bq_select_columns(table_id=delete_table_id, client=client)
     }
 
     # Check that primary_keys are in tables and that data types match
@@ -1071,4 +1141,4 @@ def bq_delete_records(
         delete_table_primary_key_prefix=delete_table_primary_key_prefix,
         zip=zip,
     )
-    bq_run_query(query, bytes_budget=bytes_budget)
+    bq_run_query(query, bytes_budget=bytes_budget, client=client)
