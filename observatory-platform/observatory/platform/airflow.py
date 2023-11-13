@@ -132,10 +132,10 @@ def send_slack_msg(
 
 
 def get_gcp_credentials(conn_id: str = AirflowConns.GCP_CONN_ID):
-    from airflow.providers.google.cloud.hooks.base import GoogleCloudBaseHook
+    from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
     # Create a hook to access the connection
-    hook = GoogleCloudBaseHook(gcp_conn_id=conn_id)
+    hook = GoogleBaseHook(gcp_conn_id=conn_id)
 
     # Retrieve credentials from the connection
     credentials = hook.get_credentials()

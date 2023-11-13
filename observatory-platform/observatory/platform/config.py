@@ -29,7 +29,7 @@ class AirflowConns:
     SLACK = "slack"
     TERRAFORM = "terraform"
     OBSERVATORY_API = "observatory_api"
-    GCP_CONN_ID = "google_service_account"
+    GCP_CONN_ID = "google_cloud_default"
 
 
 class Tag:
