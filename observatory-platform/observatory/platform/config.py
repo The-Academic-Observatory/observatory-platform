@@ -21,9 +21,8 @@ import pathlib
 
 
 class AirflowVars:
-    DATA_PATH = "data_path"
-    WORKFLOWS = "workflows"
-    DAGS_MODULE_NAMES = "dags_module_names"
+    DATA_PATH = "DATA_PATH"
+    WORKFLOWS = "WORKFLOWS"
 
 
 class AirflowConns:
