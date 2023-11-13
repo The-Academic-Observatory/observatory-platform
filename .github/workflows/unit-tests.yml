@@ -4,36 +4,33 @@ on: [push]
 
 jobs:
   build:
-
     runs-on: ${{ matrix.os }}
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [ "3.10" ]
-        os: [ ubuntu-latest ]
+        python-version: ["3.10"]
+        os: [ubuntu-latest]
 
     steps:
       - name: Checkout ${{ matrix.python-version }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           lfs: true
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e observatory-api[tests] --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-no-providers-${{ matrix.python-version }}.txt
-          pip install -e observatory-platform[tests] --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-no-providers-${{ matrix.python-version }}.txt
+          pip install -e .[tests] --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-no-providers-${{ matrix.python-version }}.txt
 
       - name: Check licenses
         run: |
           # stop the build if there are licensing issues
-          liccheck --sfile strategy.ini --rfile observatory-api/requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
-          liccheck --sfile strategy.ini --rfile observatory-platform/requirements.txt --level CAUTIOUS --reporting liccheck-output.txt --no-deps
+          liccheck
 
       - name: Lint with flake8
         run: |
