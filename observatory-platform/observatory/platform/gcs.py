@@ -19,14 +19,14 @@ import csv
 import datetime
 import json
 import logging
-import multiprocessing
 import os
 import pathlib
 import tempfile
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
-from multiprocessing import BoundedSemaphore, cpu_count
+from multiprocessing import cpu_count
 from typing import List, Tuple, Optional
 
 import pendulum
@@ -211,7 +211,7 @@ def gcs_download_blob(
     blob_name: str,
     file_path: str,
     retries: int = 3,
-    connection_sem: BoundedSemaphore = None,
+    connection_sem: threading.BoundedSemaphore = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     client: storage.Client = None,
 ) -> bool:
@@ -321,8 +321,7 @@ def gcs_download_blobs(
     logging.info(f"{func_name}: {blobs}")
 
     # Download each blob in parallel
-    manager = multiprocessing.Manager()
-    connection_sem = manager.BoundedSemaphore(value=max_connections)
+    connection_sem = threading.BoundedSemaphore(value=max_connections)
     with ThreadPoolExecutor(max_workers=max_processes) as executor:
         # Create tasks
         futures = []
@@ -409,8 +408,7 @@ def gcs_upload_files(
     assert len(file_paths) == len(blob_names), f"{func_name}: file_paths and blob_names have different lengths"
 
     # Upload each file in parallel
-    manager = multiprocessing.Manager()
-    connection_sem: BoundedSemaphore = manager.BoundedSemaphore(value=max_connections)
+    connection_sem = threading.BoundedSemaphore(value=max_connections)
     with ThreadPoolExecutor(max_workers=max_processes) as executor:
         # Create tasks
         futures = []
@@ -452,7 +450,7 @@ def gcs_upload_file(
     blob_name: str,
     file_path: str,
     retries: int = 3,
-    connection_sem: Optional[BoundedSemaphore] = None,
+    connection_sem: Optional[threading.BoundedSemaphore] = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     check_blob_hash: bool = True,
     client: storage.Client = None,
