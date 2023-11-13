@@ -33,19 +33,17 @@ author = "Curtin University"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "pbr.sphinxext",
     "sphinx_rtd_theme",
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     "autoapi.extension",
     "recommonmark",
-    "sphinxcontrib.openapi",
 ]
 
 # Auto API settings: https://github.com/readthedocs/sphinx-autoapi
 autoapi_type = "python"
-autoapi_dirs = ["../observatory-api", "../observatory-platform"]
-autoapi_ignore = ["*.eggs*"]
+autoapi_dirs = ["../observatory_platform"]
+autoapi_ignore = ["*.eggs*", "**/tests/**"]
 autoapi_add_toctree_entry = True
 autoapi_python_use_implicit_namespaces = False
 

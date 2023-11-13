@@ -1,11 +1,11 @@
 ![Observatory Platform](https://raw.githubusercontent.com/The-Academic-Observatory/observatory-platform/develop/logo.jpg)
 
-The Observatory Platform is an environment for fetching, processing and analysing data to understand how well 
-universities operate as Open Knowledge Institutions. 
+The Observatory Platform is a set of dependencies used by the Curtin Open Knowledge Initiative (COKI) for running its 
+Airflow based workflows to fetch, process and analyse bibliometric datasets.
 
-The Observatory Platform is built with Apache Airflow. The workflows for the project can be seen in the
-[Academic Observatory Workflows](https://github.com/The-Academic-Observatory/academic-observatory-workflows)
-and [OAeBU Workflows](https://github.com/The-Academic-Observatory/oaebu-workflows) projects.
+The workflows for the project can be seen in at:
+* [Academic Observatory Workflows](https://github.com/The-Academic-Observatory/academic-observatory-workflows)
+* [OAeBU Workflows](https://github.com/The-Academic-Observatory/oaebu-workflows)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/badge/python-3.10-blue)](https://img.shields.io/badge/python-3.10-blue)
@@ -15,8 +15,17 @@ and [OAeBU Workflows](https://github.com/The-Academic-Observatory/oaebu-workflow
 [![codecov](https://codecov.io/gh/The-Academic-Observatory/observatory-platform/branch/develop/graph/badge.svg)](https://codecov.io/gh/The-Academic-Observatory/observatory-platform)
 [![DOI](https://zenodo.org/badge/227744539.svg)](https://zenodo.org/badge/latestdoi/227744539)
 
-## Documentation
-For more detailed documentation about the Observatory Platform see the Read the Docs website [https://observatory-platform.readthedocs.io](https://observatory-platform.readthedocs.io)
+## Dependencies
+Observatory Platform supports Python 3.10, Ubuntu Linux 22.04 and MacOS 10.14, on x86 architecture.
+
+System dependencies:
+* Python 3.10
+* Pip
+* virtualenv
+* Google Cloud SDK (optional): https://cloud.google.com/sdk/docs/install-sdk
+
+## Python Package Reference
+See the Read the Docs website for documentation on the Python package [https://observatory-platform.readthedocs.io](https://observatory-platform.readthedocs.io)
 
 ## Dependent Repositories
 The Observatory Platform is a dependency for other repositories developed and maintained by [The Academic Observatory](https://github.com/The-Academic-Observatory):
