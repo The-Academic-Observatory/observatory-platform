@@ -24,7 +24,7 @@ import os
 import pathlib
 import tempfile
 import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
 from multiprocessing import BoundedSemaphore, cpu_count
 from typing import List, Tuple, Optional
@@ -323,7 +323,7 @@ def gcs_download_blobs(
     # Download each blob in parallel
     manager = multiprocessing.Manager()
     connection_sem = manager.BoundedSemaphore(value=max_connections)
-    with ProcessPoolExecutor(max_workers=max_processes) as executor:
+    with ThreadPoolExecutor(max_workers=max_processes) as executor:
         # Create tasks
         futures = []
         futures_msgs = {}
@@ -411,7 +411,7 @@ def gcs_upload_files(
     # Upload each file in parallel
     manager = multiprocessing.Manager()
     connection_sem: BoundedSemaphore = manager.BoundedSemaphore(value=max_connections)
-    with ProcessPoolExecutor(max_workers=max_processes) as executor:
+    with ThreadPoolExecutor(max_workers=max_processes) as executor:
         # Create tasks
         futures = []
         futures_msgs = {}
