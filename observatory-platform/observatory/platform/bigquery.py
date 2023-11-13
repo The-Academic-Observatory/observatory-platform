@@ -49,13 +49,13 @@ BIGQUERY_SINGLE_QUERY_BYTE_LIMIT = int(2 * 2**40)  # 2 TiB
 
 def bq_client(conn_id: str = AirflowConns.GCP_CONN_ID, project_id: Optional[str] = None) -> bigquery.Client:
     # Retrieve credentials from the connection
-    credentials = get_gcp_credentials(conn_id=conn_id)
+    gcp_credentials, gcp_project_id = get_gcp_credentials(conn_id=conn_id)
 
     if project_id is None:
-        project_id = credentials.project_id
+        project_id = gcp_project_id
 
     # Create a client for Bigquery using these credentials
-    client = bigquery.Client(credentials=credentials, project=project_id)
+    client = bigquery.Client(credentials=gcp_credentials, project=project_id)
 
     return client
 

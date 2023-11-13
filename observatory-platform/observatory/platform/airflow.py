@@ -139,8 +139,9 @@ def get_gcp_credentials(conn_id: str = AirflowConns.GCP_CONN_ID):
 
     # Retrieve credentials from the connection
     credentials = hook.get_credentials()
+    project_id = hook.project_id
 
-    return credentials
+    return credentials, project_id
 
 
 def get_airflow_connection_url(conn_id: str) -> str:
