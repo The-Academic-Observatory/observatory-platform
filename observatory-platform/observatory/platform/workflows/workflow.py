@@ -156,6 +156,28 @@ class Release:
     def workflow_folder(self):
         return make_workflow_folder(self.dag_id, self.run_id)
 
+    @property
+    def release_folder(self):
+        raise NotImplementedError("self.release_folder should be implemented by subclasses")
+
+    @property
+    def download_folder(self):
+        path = os.path.join(self.release_folder, "download")
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    @property
+    def extract_folder(self):
+        path = os.path.join(self.release_folder, "extract")
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    @property
+    def transform_folder(self):
+        path = os.path.join(self.release_folder, "transform")
+        os.makedirs(path, exist_ok=True)
+        return path
+
     def __str__(self):
         return f"Release(dag_id={self.dag_id}, run_id={self.run_id})"
 
@@ -181,24 +203,6 @@ class SnapshotRelease(Release):
     @property
     def release_folder(self):
         return make_workflow_folder(self.dag_id, self.run_id, f"snapshot_{self.snapshot_date.format(DATE_TIME_FORMAT)}")
-
-    @property
-    def download_folder(self):
-        path = os.path.join(self.release_folder, "download")
-        os.makedirs(path, exist_ok=True)
-        return path
-
-    @property
-    def extract_folder(self):
-        path = os.path.join(self.release_folder, "extract")
-        os.makedirs(path, exist_ok=True)
-        return path
-
-    @property
-    def transform_folder(self):
-        path = os.path.join(self.release_folder, "transform")
-        os.makedirs(path, exist_ok=True)
-        return path
 
     def __str__(self):
         return f"SnapshotRelease(dag_id={self.dag_id}, run_id={self.run_id}, snapshot_date={self.snapshot_date})"
@@ -227,24 +231,6 @@ class PartitionRelease(Release):
         return make_workflow_folder(
             self.dag_id, self.run_id, f"partition_{self.partition_date.format(DATE_TIME_FORMAT)}"
         )
-
-    @property
-    def download_folder(self):
-        path = os.path.join(self.release_folder, "download")
-        os.makedirs(path, exist_ok=True)
-        return path
-
-    @property
-    def extract_folder(self):
-        path = os.path.join(self.release_folder, "extract")
-        os.makedirs(path, exist_ok=True)
-        return path
-
-    @property
-    def transform_folder(self):
-        path = os.path.join(self.release_folder, "transform")
-        os.makedirs(path, exist_ok=True)
-        return path
 
     def __str__(self):
         return f"PartitionRelease(dag_id={self.dag_id}, run_id={self.run_id}, partition_date={self.partition_date})"
@@ -284,24 +270,6 @@ class ChangefileRelease(Release):
             self.run_id,
             f"changefile_{self.start_date.format(DATE_TIME_FORMAT)}_to_{self.end_date.format(DATE_TIME_FORMAT)}",
         )
-
-    @property
-    def download_folder(self):
-        path = os.path.join(self.release_folder, "download")
-        os.makedirs(path, exist_ok=True)
-        return path
-
-    @property
-    def extract_folder(self):
-        path = os.path.join(self.release_folder, "extract")
-        os.makedirs(path, exist_ok=True)
-        return path
-
-    @property
-    def transform_folder(self):
-        path = os.path.join(self.release_folder, "transform")
-        os.makedirs(path, exist_ok=True)
-        return path
 
     def __str__(self):
         return (

@@ -39,8 +39,7 @@ from google.cloud.storage import Blob, bucket
 from googleapiclient import discovery as gcp_api
 from requests.exceptions import ChunkedEncodingError
 
-from observatory.platform.airflow import get_data_path, get_gcp_credentials
-from observatory.platform.config import AirflowConns
+from observatory.platform.airflow import get_data_path
 from observatory.platform.files import crc32c_base64_hash
 
 # The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.
@@ -54,19 +53,6 @@ class TransferStatus(Enum):
     success = "SUCCESS"
     aborted = "ABORTED"
     failed = "FAILED"
-
-
-def gcs_client(conn_id: str = AirflowConns.GCP_CONN_ID, project_id: Optional[str] = None) -> storage.Client:
-    # Retrieve credentials from the connection
-    gcp_credentials, gcp_project_id = get_gcp_credentials(conn_id=conn_id)
-
-    if project_id is None:
-        project_id = gcp_project_id
-
-    # Create a client for Google Cloud Storage using these credentials
-    client = storage.Client(credentials=gcp_credentials, project=project_id)
-
-    return client
 
 
 def gcs_blob_uri(bucket_name: str, blob_name: str) -> str:
@@ -276,7 +262,9 @@ def gcs_download_blob(
                 success = True
                 break
             except ChunkedEncodingError as e:
-                logging.error(f"{func_name}: exception downloading file: try={i}, file_path={file_path}, uri={uri}, exception={e}")
+                logging.error(
+                    f"{func_name}: exception downloading file: try={i}, file_path={file_path}, uri={uri}, exception={e}"
+                )
 
         # Release connection semaphore
         if connection_sem is not None:
@@ -500,9 +488,7 @@ def gcs_upload_file(
             f"{func_name}: files_match={files_match}, expected_hash={expected_hash}, " f"actual_hash={actual_hash}"
         )
         if files_match:
-            logging.info(
-                f"{func_name}: skipping upload as files match. uri={uri}, file_path={file_path}"
-            )
+            logging.info(f"{func_name}: skipping upload as files match. uri={uri}, file_path={file_path}")
             upload = False
             success = True
 
@@ -519,7 +505,9 @@ def gcs_upload_file(
                 success = True
                 break
             except ChunkedEncodingError as e:
-                logging.error(f"{func_name}: exception uploading file: try={i}, file_path={file_path}, uri={uri}, exception={e}")
+                logging.error(
+                    f"{func_name}: exception uploading file: try={i}, file_path={file_path}, uri={uri}, exception={e}"
+                )
 
         # Release connection semaphore
         if connection_sem is not None:

@@ -35,8 +35,7 @@ from google.cloud.bigquery.table import Table
 from google.cloud.exceptions import Conflict, NotFound
 from natsort import natsorted
 
-from observatory.platform.airflow import get_gcp_credentials
-from observatory.platform.config import sql_templates_path, AirflowConns
+from observatory.platform.config import sql_templates_path
 from observatory.platform.utils.jinja2_utils import (
     make_sql_jinja2_filename,
     render_template,
@@ -45,19 +44,6 @@ from observatory.platform.utils.jinja2_utils import (
 # BigQuery single query byte limit.
 # Daily limit is set in Terraform
 BIGQUERY_SINGLE_QUERY_BYTE_LIMIT = int(2 * 2**40)  # 2 TiB
-
-
-def bq_client(conn_id: str = AirflowConns.GCP_CONN_ID, project_id: Optional[str] = None) -> bigquery.Client:
-    # Retrieve credentials from the connection
-    gcp_credentials, gcp_project_id = get_gcp_credentials(conn_id=conn_id)
-
-    if project_id is None:
-        project_id = gcp_project_id
-
-    # Create a client for Bigquery using these credentials
-    client = bigquery.Client(credentials=gcp_credentials, project=project_id)
-
-    return client
 
 
 def assert_table_id(table_id: str):
