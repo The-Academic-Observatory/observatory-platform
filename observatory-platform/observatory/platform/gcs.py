@@ -235,6 +235,7 @@ def gcs_download_blob(
         client = storage.Client()
     bucket = client.bucket(bucket_name)
     blob: Blob = bucket.blob(blob_name)
+    uri = gcs_blob_uri(bucket_name, blob_name)
 
     # State
     download = True
@@ -275,7 +276,7 @@ def gcs_download_blob(
                 success = True
                 break
             except ChunkedEncodingError as e:
-                logging.error(f"{func_name}: exception downloading file: try={i}, file_path={file_path}, exception={e}")
+                logging.error(f"{func_name}: exception downloading file: try={i}, file_path={file_path}, uri={uri}, exception={e}")
 
         # Release connection semaphore
         if connection_sem is not None:
@@ -482,6 +483,7 @@ def gcs_upload_file(
 
     bucket = client.get_bucket(bucket_name)
     blob = bucket.blob(blob_name)
+    uri = gcs_blob_uri(bucket_name, blob_name)
 
     # Check if blob exists already and matches the file we are uploading
     if check_blob_hash and blob.exists():
@@ -499,8 +501,7 @@ def gcs_upload_file(
         )
         if files_match:
             logging.info(
-                f"{func_name}: skipping upload as files match. bucket_name={bucket_name}, blob_name={blob_name}, "
-                f"file_path={file_path}"
+                f"{func_name}: skipping upload as files match. uri={uri}, file_path={file_path}"
             )
             upload = False
             success = True
@@ -518,7 +519,7 @@ def gcs_upload_file(
                 success = True
                 break
             except ChunkedEncodingError as e:
-                logging.error(f"{func_name}: exception uploading file: try={i}, exception={e}")
+                logging.error(f"{func_name}: exception uploading file: try={i}, file_path={file_path}, uri={uri}, exception={e}")
 
         # Release connection semaphore
         if connection_sem is not None:
