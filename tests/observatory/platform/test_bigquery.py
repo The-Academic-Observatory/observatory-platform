@@ -647,7 +647,7 @@ class TestBigQuery(unittest.TestCase):
             bq_update_table_description(table_id=full_table_id, description=updated_table_description)
 
             # Check that the strings match.
-            table: BQTable = bq_get_table(full_table_id=full_table_id)
+            table: BQTable = bq_get_table(table_id=full_table_id)
             self.assertEqual(table.description, updated_table_description)
 
     def test_bq_load_table(self):
