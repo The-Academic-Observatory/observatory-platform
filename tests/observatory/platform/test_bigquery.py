@@ -37,8 +37,6 @@ from observatory.platform.bigquery import (
     bq_update_table_description,
     bq_sharded_table_id,
     bq_find_schema,
-    bq_generate_schema_from_data,
-    bq_compare_schemas,
     bq_table_exists,
     bq_create_dataset,
     bq_query_bytes_estimate,
@@ -626,89 +624,6 @@ class TestBigQuery(unittest.TestCase):
         table_name = "table_c"
         result = bq_find_schema(path=test_schemas_path, table_name=table_name)
         self.assertIsNone(result)
-
-    def test_bq_generate_schema_from_data(self):
-        """Test if a Biguqery schema can be reliably generated from a *.jsonl.gz file."""
-
-        test_data_path = test_fixtures_path("utils")
-        json_gz_file_path = os.path.join(test_data_path, "people.jsonl.gz")
-        expected = [
-            {"mode": "REQUIRED", "name": "first_name", "type": "STRING"},
-            {"mode": "REQUIRED", "name": "last_name", "type": "STRING"},
-            {"mode": "REQUIRED", "name": "dob", "type": "DATE"},
-        ]
-
-        result = bq_generate_schema_from_data(json_gz_file_path)
-        self.assertTrue(bq_compare_schemas(expected, result))
-
-    def test_bq_compare_schemas(self):
-        # Test with matching fields and types.
-        expected = [
-            {"name": "field1", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "field2", "type": "INTEGER", "mode": "REQUIRED"},
-            {"name": "field3", "type": "FLOAT", "mode": "REQUIRED"},
-        ]
-        actual = [
-            {"name": "field1", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "field2", "type": "INTEGER", "mode": "REQUIRED"},
-            {"name": "field3", "type": "FLOAT", "mode": "REQUIRED", "description": ""},
-        ]
-
-        self.assertTrue(bq_compare_schemas(expected, actual, True))
-
-        # Test with non-matching number of fields.
-        expected = [
-            {"name": "field1", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "field2", "type": "INTEGER", "mode": "REQUIRED"},
-        ]
-        actual = [
-            {"name": "field1", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "field2", "type": "FLOAT", "mode": "REQUIRED"},
-            {"name": "field3", "type": "INTEGER", "mode": "REQUIRED"},
-        ]
-
-        self.assertFalse(bq_compare_schemas(expected, actual, True))
-
-        # Test with non-matching field names
-        expected = [
-            {"name": "field1", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "field2", "type": "INTEGER", "mode": "REQUIRED"},
-        ]
-        actual = [
-            {"name": "field1", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "field3", "type": "FLOAT", "mode": "REQUIRED"},
-        ]
-
-        self.assertFalse(bq_compare_schemas(expected, actual, True))
-
-        # Test with non-matching data types
-        expected = [
-            {"name": "field1", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "field2", "type": "INTEGER", "mode": "REQUIRED"},
-        ]
-        actual = [
-            {"name": "field1", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "field2", "type": "FLOAT", "mode": "REQUIRED"},
-        ]
-
-        self.assertFalse(bq_compare_schemas(expected, actual, True))
-
-        # Test with non-matching sub fields
-        expected = [
-            {
-                "name": "field1",
-                "type": "STRING",
-                "mode": "REQUIRED",
-                "fields": [{"name": "field3", "type": "FLOAT", "mode": "REQUIRED"}],
-            },
-            {"name": "field2", "type": "INTEGER", "mode": "REQUIRED"},
-        ]
-        actual = [
-            {"name": "field1", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "field2", "type": "INTEGER", "mode": "REQUIRED"},
-        ]
-
-        self.assertFalse(bq_compare_schemas(expected, actual, True))
 
     def test_bq_update_table_description(self):
         """Test that the description of a table can be updated."""
