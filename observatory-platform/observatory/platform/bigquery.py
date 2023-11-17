@@ -1,4 +1,4 @@
-# Copyright 2020 Curtin University
+# Copyright 2020-2023 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose, Aniek Roelofs
+# Author: James Diprose, Aniek Roelofs, Alex Massen-Hane
 
 import datetime
 import glob
@@ -22,10 +22,7 @@ import logging
 import os
 import re
 from copy import deepcopy
-from deepdiff import DeepDiff
 from typing import Dict, Tuple, Union, List, Optional
-from click.testing import CliRunner
-from bigquery_schema_generator.generate_schema import SchemaGenerator
 
 import jsonlines
 import pendulum
@@ -785,18 +782,18 @@ def bq_list_tables(project_id: str, dataset_id: str) -> List[str]:
     return table_ids
 
 
-def bq_get_table(full_table_id: str) -> Optional[BQTable]:
+def bq_get_table(table_id: str) -> Optional[BQTable]:
     """Get a single Bigqury table object from the Google Bigquery API.
 
-    :param full_table_id: Fully qualified table id.
+    :param table_id: Fully qualified table id.
     :return: The table obecjt from the Bigqury API."""
 
     bq_client = bigquery.Client()
     try:
-        table = bq_client.get_table(full_table_id)
+        table = bq_client.get_table(table_id)
         return table
     except NotFound:
-        logging.info(f"Table is not found! {full_table_id}")
+        logging.info(f"Table is not found! {table_id}")
         return None
 
 
