@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
+import kubernetes
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from kubernetes import client
 
@@ -47,6 +50,7 @@ def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int
     v1.create_persistent_volume(body=pv)
 
     # Create PersistentVolumeClaim
+    namespace = hook.get_namespace()
     pvc = client.V1PersistentVolumeClaim(
         api_version="v1",
         kind="PersistentVolumeClaim",
@@ -57,7 +61,7 @@ def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int
             storage_class_name="standard",
         ),
     )
-    v1.create_namespaced_persistent_volume_claim(namespace=hook.get_namespace(), body=pvc)
+    v1.create_namespaced_persistent_volume_claim(namespace=namespace, body=pvc)
 
 
 def gke_delete_volume(*, kubernetes_conn_id: str, volume_name: str):
@@ -75,5 +79,21 @@ def gke_delete_volume(*, kubernetes_conn_id: str, volume_name: str):
     v1 = client.CoreV1Api(api_client=api_client)
 
     # Delete VolumeClaim and Volume
-    v1.delete_namespaced_persistent_volume_claim(name=volume_name, namespace=hook.get_namespace())
-    v1.delete_persistent_volume(name=volume_name)
+    namespace = hook.get_namespace()
+    try:
+        v1.delete_namespaced_persistent_volume_claim(name=volume_name, namespace=namespace)
+    except kubernetes.client.exceptions.ApiException as e:
+        if e.status == 404:
+            logging.info(
+                f"gke_delete_volume: PersistentVolumeClaim with name={volume_name}, namespace={namespace} does not exist"
+            )
+        else:
+            raise e
+
+    try:
+        v1.delete_persistent_volume(name=volume_name)
+    except kubernetes.client.exceptions.ApiException as e:
+        if e.status == 404:
+            logging.info(f"gke_delete_volume: PersistentVolume with name={volume_name} does not exist")
+        else:
+            raise e
