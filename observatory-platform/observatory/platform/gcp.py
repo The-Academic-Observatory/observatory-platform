@@ -20,9 +20,11 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 from typing import Any
 
+from google.api_core.exceptions import NotFound
 from google.api_core.extended_operation import ExtendedOperation
 from google.cloud import compute_v1
 
@@ -70,8 +72,11 @@ def gcp_delete_disk(*, project_id: str, zone: str, disk_name: str) -> None:
     """
 
     disk_client = compute_v1.DisksClient()
-    operation = disk_client.delete(project=project_id, zone=zone, disk=disk_name)
-    wait_for_extended_operation(operation, "disk deletion")
+    try:
+        operation = disk_client.delete(project=project_id, zone=zone, disk=disk_name)
+        wait_for_extended_operation(operation, "disk deletion")
+    except NotFound:
+        logging.info(f"gcp_delete_disk: disk with name={disk_name} does not exist")
 
 
 def wait_for_extended_operation(
