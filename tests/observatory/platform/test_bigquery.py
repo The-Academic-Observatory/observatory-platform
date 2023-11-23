@@ -1,4 +1,4 @@
-# Copyright 2020 Curtin University. All Rights Reserved.
+# Copyright 2020-2023 Curtin University. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose, Aniek Roelofs
+# Author: James Diprose, Aniek Roelofs, Alex Massen-Hane
 
+import re
 import datetime
 import json
 import os
@@ -25,12 +26,17 @@ import time
 from click.testing import CliRunner
 from google.api_core.exceptions import Conflict
 from google.cloud import bigquery, storage
-from google.cloud.bigquery import SourceFormat
+from google.cloud.bigquery import SourceFormat, Table as BQTable
 
 from observatory.platform.bigquery import (
+    assert_table_id,
     bq_table_id,
+    bq_table_id_parts,
+    bq_table_shard_info,
     bq_select_latest_table,
+    bq_update_table_description,
     bq_sharded_table_id,
+    bq_find_schema,
     bq_table_exists,
     bq_create_dataset,
     bq_query_bytes_estimate,
@@ -49,21 +55,13 @@ from observatory.platform.bigquery import (
     bq_delete_old_datasets_with_prefix,
     bq_list_datasets_with_prefix,
     bq_list_tables,
+    bq_get_table,
     bq_export_table,
     bq_query_bytes_budget_check,
 )
 from observatory.platform.files import load_jsonl
 from observatory.platform.gcs import gcs_delete_old_buckets_with_prefix, gcs_upload_file
 from observatory.platform.observatory_environment import random_id, test_fixtures_path, bq_dataset_test_env
-
-
-class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
-    def test_bigquery_sharded_table_id(self):
-        expected = "project_id.dataset_id.my_table20200315"
-        actual = bq_sharded_table_id(
-            "project_id", "dataset_id", "my_table", pendulum.datetime(year=2020, month=3, day=15)
-        )
-        self.assertEqual(expected, actual)
 
 
 class TestBigQuery(unittest.TestCase):
@@ -85,6 +83,86 @@ class TestBigQuery(unittest.TestCase):
             bq_delete_old_datasets_with_prefix(prefix=self.prefix, age_to_delete=12)
             gcs_delete_old_buckets_with_prefix(prefix=self.prefix, age_to_delete=12)
             __class__.__init__already = True
+
+    def test_assert_table_id(self):
+        """Test that the table ID can be checked reliably."""
+
+        # Correct
+        cases = ["project_id.dataset_id.table_id", "project_id.dataset_id.table_id20200101"]
+        for table_id in cases:
+            self.assertIsNone(assert_table_id(table_id))
+
+        # Incorrect
+        cases = ["project_id.dataset_id", "project_id.datset_id.table_id.extra_id"]
+        with self.assertRaises(AssertionError):
+            for table_id in cases:
+                assert_table_id(table_id)
+
+    def test_bq_table_id(self):
+        """Test that a fully qualified table identifier can be reliably created."""
+
+        dataset_id = random_id()
+        table_id = random_id()
+        result = bq_table_id(self.gc_project_id, dataset_id=dataset_id, table_id=table_id)
+
+        self.assertEqual(result, f"{self.gc_project_id}.{dataset_id}.{table_id}")
+
+    def test_bq_sharded_table_id(self):
+        """Test the reliable creation of a sharded table identifier for a BigQuery table."""
+
+        shard_date = pendulum.now()
+        dataset_id = random_id()
+        table_id = random_id()
+        result = bq_sharded_table_id(self.gc_project_id, dataset_id=dataset_id, table_name=table_id, date=shard_date)
+
+        self.assertEqual(result, f"{self.gc_project_id}.{dataset_id}.{table_id}{shard_date.strftime('%Y%m%d')}")
+
+    def test_bq_table_id_parts(self):
+        """Test whether the fully qualified table name can be separated into its individual components."""
+
+        dataset_id = random_id()
+        table_id = random_id()
+        full_table_id = bq_table_id(self.gc_project_id, dataset_id=dataset_id, table_id=table_id)
+
+        res_project_id, res_dataset_id, res_table_id, res_date = bq_table_id_parts(full_table_id)
+        self.assertEqual(self.gc_project_id, res_project_id)
+        self.assertEqual(dataset_id, res_dataset_id)
+        self.assertEqual(table_id, res_table_id)
+        self.assertEqual(None, res_date)
+
+        date = pendulum.today(tz="UTC")
+        full_table_id = bq_sharded_table_id(self.gc_project_id, dataset_id=dataset_id, table_name=table_id, date=date)
+        res_project_id, res_dataset_id, res_table_id, res_date = bq_table_id_parts(full_table_id)
+        self.assertEqual(self.gc_project_id, res_project_id)
+        self.assertEqual(dataset_id, res_dataset_id)
+        self.assertEqual(table_id, res_table_id)
+        self.assertEqual(date, res_date)
+
+    def test_bq_table_shard_info(self):
+        """Test that the shard date can be reliably pulled from a table name."""
+
+        table_id = re.sub(r"\d", "", random_id())
+        result = bq_table_shard_info(table_id=table_id)
+        self.assertEqual((table_id, None), result)
+
+        table_name = re.sub(r"\d", "", random_id())
+        date = pendulum.today(tz="UTC")
+        table_id = f"{table_name}{date.format('YYYYMMDD')}"
+        result = bq_table_shard_info(table_id=table_id)
+        self.assertEqual((table_id[:-8], date), result)
+
+    def test_bq_table_exists(self):
+        """Test that the Bigquery API can reliably check if a table exists in Bigquery."""
+
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
+            table_id = bq_table_id(self.gc_project_id, dataset_id, "exists")
+            bq_create_empty_table(table_id=table_id)
+            self.assertTrue(bq_table_exists(table_id=table_id))
+
+            table_id = bq_table_id(self.gc_project_id, dataset_id, "not_exists")
+            self.assertFalse(bq_table_exists(table_id=table_id))
 
     @patch("observatory.platform.bigquery.bq_select_table_shard_dates")
     def test_bq_select_latest_table(self, mock_sel_table_suffixes):
@@ -456,6 +534,35 @@ class TestBigQuery(unittest.TestCase):
             set(table_ids),
         )
 
+    def test_bq_get_table(self):
+        """Test if a table can be reliably grabbed from the Bogquery API."""
+
+        test_data_path = test_fixtures_path("utils")
+        json_file_path = os.path.join(test_data_path, "people.jsonl")
+        test_data = load_jsonl(json_file_path)
+
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
+            full_table_id = bq_table_id(self.gc_project_id, dataset_id, random_id())
+
+            # Get table object from Bigquery API - this should return None since the table does not exist
+            table = bq_get_table(full_table_id)
+            self.assertIsNone(table)
+
+            # Load the test table from memory to Bigquery.
+            success = bq_load_from_memory(table_id=full_table_id, records=test_data)
+            self.assertTrue(success)
+
+            # Get table object from Bigquery API
+            table = bq_get_table(full_table_id)
+
+            # Make sure that metadata for the table is correct.+
+            self.assertTrue(isinstance(table, BQTable))
+            self.assertEqual(table.num_rows, len(test_data))
+            self.assertEqual(str(table.reference), full_table_id)
+            self.assertEqual(table.num_bytes, 128)
+
     def test_bq_export_table(self):
         client = storage.Client()
         csv_blob_name = f"figures_{random_id()}.csv"
@@ -481,6 +588,67 @@ class TestBigQuery(unittest.TestCase):
                 blob = bucket.blob(path)
                 if blob.exists():
                     blob.delete()
+
+    def test_bq_find_schema(self):
+        """Test that the schema of a table can be found locally."""
+
+        test_schemas_path = test_fixtures_path("schemas")
+
+        # No date
+        table_name = "table_a"
+        expected_schema_path = os.path.join(test_schemas_path, "table_a.json")
+        result = bq_find_schema(path=test_schemas_path, table_name=table_name)
+        self.assertEqual(expected_schema_path, result)
+
+        # With date
+        table_name = "table_b"
+        date = pendulum.datetime(year=1900, month=1, day=1)
+        expected_schema_path = os.path.join(test_schemas_path, "table_b_1900-01-01.json")
+        result = bq_find_schema(path=test_schemas_path, table_name=table_name, release_date=date)
+        self.assertEqual(expected_schema_path, result)
+
+        # With date - prior to the release date
+        table_name = "table_b"
+        date = pendulum.datetime(year=2020, month=1, day=1)
+        expected_schema_path = os.path.join(test_schemas_path, "table_b_2000-01-01.json")
+        result = bq_find_schema(path=test_schemas_path, table_name=table_name, release_date=date)
+        self.assertEqual(expected_schema_path, result)
+
+        # No schema found with matching date
+        table_name = "table_b"
+        date = pendulum.datetime(year=1800, month=1, day=1)
+        result = bq_find_schema(path=test_schemas_path, table_name=table_name, release_date=date)
+        self.assertIsNone(result)
+
+        # No schema found with matching table name
+        table_name = "table_c"
+        result = bq_find_schema(path=test_schemas_path, table_name=table_name)
+        self.assertIsNone(result)
+
+    def test_bq_update_table_description(self):
+        """Test that the description of a table can be updated."""
+
+        test_data_path = test_fixtures_path("utils")
+        json_file_path = os.path.join(test_data_path, "people.jsonl")
+        test_data = load_jsonl(json_file_path)
+
+        table_id = random_id()
+        updated_table_description = random_id()
+
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
+            # Create a table with no description
+            full_table_id = bq_table_id(self.gc_project_id, dataset_id, table_id)
+            success = bq_load_from_memory(table_id=full_table_id, records=test_data, table_description="")
+            self.assertTrue(success)
+
+            # Update the description.
+            bq_update_table_description(table_id=full_table_id, description=updated_table_description)
+
+            # Check that the strings match.
+            table: BQTable = bq_get_table(table_id=full_table_id)
+            self.assertEqual(table.description, updated_table_description)
 
     def test_bq_load_table(self):
         test_data_path = test_fixtures_path("utils")
@@ -651,17 +819,41 @@ class TestBigQuery(unittest.TestCase):
             self.assertTrue(bq_table_exists(table_id=table_id))
 
     def test_bq_select_columns(self):
-        columns = bq_select_columns(table_id=self.patents_table_id)
-        self.assertEqual(
-            [
-                dict(column_name="gcs_path", data_type="STRING"),
-                dict(column_name="x_relative_min", data_type="FLOAT64"),
-                dict(column_name="y_relative_min", data_type="FLOAT64"),
-                dict(column_name="x_relative_max", data_type="FLOAT64"),
-                dict(column_name="y_relative_max", data_type="FLOAT64"),
-            ],
-            columns,
-        )
+        test_data_path = test_fixtures_path("utils")
+        json_file_path = os.path.join(test_data_path, "people.jsonl")
+        test_data = load_jsonl(json_file_path)
+        schema_file_path = os.path.join(test_data_path, "people_schema.json")
+
+        expected_columns = [
+            dict(column_name="first_name", data_type="STRING"),
+            dict(column_name="last_name", data_type="STRING"),
+            dict(column_name="dob", data_type="DATE"),
+        ]
+
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
+            # Test with a non sharded table
+            full_table_id = bq_table_id(self.gc_project_id, dataset_id, "people")
+            result = bq_load_from_memory(
+                records=test_data,
+                table_id=full_table_id,
+                schema_file_path=schema_file_path,
+            )
+            self.assertTrue(result)
+            columns = bq_select_columns(table_id=full_table_id)
+            self.assertEqual(expected_columns, columns)
+
+            # Test with a sharded table
+            full_table_id = bq_table_id(self.gc_project_id, dataset_id, "people20200101")
+            result = bq_load_from_memory(
+                records=test_data,
+                table_id=full_table_id,
+                schema_file_path=schema_file_path,
+            )
+            self.assertTrue(result)
+            columns = bq_select_columns(table_id=full_table_id)
+            self.assertEqual(expected_columns, columns)
 
     def test_bq_upsert_records(self):
         with bq_dataset_test_env(
