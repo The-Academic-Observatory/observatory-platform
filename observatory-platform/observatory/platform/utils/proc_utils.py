@@ -14,6 +14,7 @@
 
 # Author: James Diprose
 
+import logging
 from subprocess import Popen
 from typing import Tuple
 
@@ -30,27 +31,28 @@ def wait_for_process(proc: Popen) -> Tuple[str, str]:
     return output, error
 
 
-def stream_process(proc: Popen, debug: bool) -> Tuple[str, str]:
+def stream_process(proc: Popen) -> bool:
     """Print output while a process is running, returning the std output and std error streams as strings.
 
     :param proc: the process object.
-    :param debug: whether debug info should be displayed.
-    :return: std output and std error streams as strings.
+    :return: whether the command was successful or not.
     """
-    output_concat = ""
-    error_concat = ""
+
     while True:
-        if proc.stdout:
-            for line in proc.stdout:
-                output = line.decode("utf-8")
-                if debug:
-                    print(output, end="")
-                output_concat += output
-        if proc.stderr:
-            for line in proc.stderr:
-                error = line.decode("utf-8")
-                print(error, end="")
-                error_concat += error
         if proc.poll() is not None:
             break
-    return output_concat, error_concat
+
+        if proc.stdout:
+            output = proc.stdout.readline()
+            logging.debug(output)
+
+        if proc.stderr:
+            error = proc.stderr.readline()
+            logging.error(error)
+
+    # Check if the process had a non-zero exit code (indicating an error)
+    if proc.returncode != 0:
+        logging.error(f"Command failed with return code {proc.returncode}")
+        return False
+
+    return True
