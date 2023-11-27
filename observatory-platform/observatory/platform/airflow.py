@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import textwrap
 import traceback
 from datetime import timedelta
@@ -259,11 +260,19 @@ def get_data_path() -> str:
     :raises AirflowException: Raised if the variable does not exist
     :return: DATA_PATH variable contents
     """
-    # Try to get value from env variable first, saving costs from GC secret usage
+
+    # Try to get environment variable from environment variable first
+    data_path = os.environ.get(AirflowVars.DATA_PATH)
+    if data_path is not None:
+        return data_path
+
+    # Try to get from Airflow Variable
     data_path = Variable.get(AirflowVars.DATA_PATH)
-    if not data_path:
-        raise AirflowException("DATA_PATH variable could not be found.")
-    return data_path
+    if data_path is not None:
+        return data_path
+
+    raise AirflowException("DATA_PATH variable could not be found.")
+
 
 
 def fetch_workflows() -> List[Workflow]:
