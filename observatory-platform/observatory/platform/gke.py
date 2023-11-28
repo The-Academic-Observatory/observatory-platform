@@ -19,7 +19,7 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from kubernetes import client
 
 
-def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int):
+def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int, uid: int):
     """
 
     :param kubernetes_conn_id:
@@ -38,7 +38,9 @@ def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int
     pv = client.V1PersistentVolume(
         api_version="v1",
         kind="PersistentVolume",
-        metadata=client.V1ObjectMeta(name=volume_name),
+        metadata=client.V1ObjectMeta(
+            name=volume_name, annotations={"pv.beta.kubernetes.io/uid": f"{uid}", "pv.beta.kubernetes.io/gid": f"{uid}"}
+        ),
         spec=client.V1PersistentVolumeSpec(
             capacity=capacity,
             access_modes=["ReadWriteOnce"],
