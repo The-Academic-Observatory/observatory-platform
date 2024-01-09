@@ -22,7 +22,6 @@ ARG INSTALL_USER=airflow
 
 # Install git which is required when installing dependencies with pip
 USER root
-RUN rm /etc/apt/sources.list.d/mysql.list # Temporary fix due to incorrect MYSQL GPG Key: https://github.com/apache/airflow/issues/36231
 RUN apt-get update -yqq
 RUN apt-get install git -yqq
 
