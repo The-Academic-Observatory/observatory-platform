@@ -10,6 +10,7 @@ google-cloud-bigquery>=3,<4
 google-api-python-client>=2,<3
 google-cloud-storage>=2.7.0,<3
 google-auth-oauthlib>=0.4.5,<1
+google-cloud-compute >=1.16.0,<2.0
 
 # AWS
 boto3>=1.15.0,<2
