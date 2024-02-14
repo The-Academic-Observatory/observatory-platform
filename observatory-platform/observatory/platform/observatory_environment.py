@@ -830,14 +830,15 @@ class ObservatoryTestCase(unittest.TestCase):
 
             self.assertGreaterEqual(len(dag.tasks), 1)
 
-    def assert_dag_load_from_config(self, dag_id: str):
+    def assert_dag_load_from_config(self, dag_id: str, dag_file: str):
         """Assert that the given DAG loads from a config file.
 
         :param dag_id: the DAG id.
+        :param dag_file: the path to the dag loader
         :return: None.
         """
 
-        self.assert_dag_load(dag_id, os.path.join(module_file_path("observatory.platform.dags"), "load_workflows.py"))
+        self.assert_dag_load(dag_id, dag_file)
 
     def assert_blob_exists(self, bucket_id: str, blob_name: str):
         """Assert whether a blob exists or not.
