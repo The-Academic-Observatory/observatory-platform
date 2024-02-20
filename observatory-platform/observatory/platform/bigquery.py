@@ -721,7 +721,7 @@ def bq_create_table_from_query(
     if clustering_fields:
         job_config.clustering_fields = clustering_fields
 
-    bytes_estimate = bq_query_bytes_estimate(sql, job_config=job_config)
+    bytes_estimate = bq_query_bytes_estimate(sql, job_config=job_config, client=client)
     bq_query_bytes_budget_check(bytes_budget=bytes_budget, bytes_estimate=bytes_estimate)
 
     query_job: QueryJob = client.query(sql, job_config=job_config)
