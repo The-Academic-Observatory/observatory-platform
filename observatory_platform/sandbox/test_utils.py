@@ -41,7 +41,6 @@ from google.cloud.exceptions import NotFound
 from pendulum import DateTime
 
 from observatory_platform.airflow.workflow import CloudWorkspace
-from observatory_platform.config import module_file_path
 from observatory_platform.files import crc32c_base64_hash, get_file_hash, gzip_file_crc, save_jsonl_gz
 from observatory_platform.google.bigquery import (
     bq_sharded_table_id,
@@ -305,16 +304,6 @@ def random_id():
     :return: a random string id.
     """
     return str(uuid.uuid5(uuid.uuid4(), socket.gethostname())).replace("-", "")
-
-
-def test_fixtures_path(*subdirs) -> str:
-    """Get the path to the Observatory Platform test data directory.
-
-    :return: he Observatory Platform test data directory.
-    """
-
-    base_path = module_file_path("tests.fixtures")
-    return os.path.join(base_path, *subdirs)
 
 
 def find_free_port(host: str = "localhost") -> int:

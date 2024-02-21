@@ -45,7 +45,6 @@ def create_dag(
     dag_id: str = DAG_ID,
     start_date: pendulum.DateTime = pendulum.datetime(2020, 9, 1, tz="UTC"),
     schedule: ScheduleArg = "@weekly",
-    task2_result: bool = True,
 ):
     # Define the DAG (workflow)
     @dag(
