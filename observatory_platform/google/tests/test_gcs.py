@@ -111,7 +111,7 @@ class TestGoogleCloudStorage(unittest.TestCase):
             gcs_delete_old_buckets_with_prefix(prefix=self.prefix, age_to_delete=12)
             __class__.__init__already = True
 
-    @patch("observatory_platform.airflow.airflow.Variable.get")
+    @patch("observatory_platform.airflow.workflow.Variable.get")
     def test_gcs_blob_name_from_path(self, mock_get_variable):
         """Tests the blob_name from_path function"""
 
@@ -188,7 +188,7 @@ class TestGoogleCloudStorage(unittest.TestCase):
                     if blob.exists():
                         blob.delete()
 
-    @patch("observatory_platform.airflow.airflow.Variable.get")
+    @patch("observatory_platform.airflow.workflow.Variable.get")
     def test_upload_download_blobs_from_cloud_storage(self, mock_get_variable):
         runner = CliRunner()
         with runner.isolated_filesystem() as t:

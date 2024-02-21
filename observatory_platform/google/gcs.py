@@ -39,7 +39,7 @@ from google.cloud.storage import Blob, bucket
 from googleapiclient import discovery as gcp_api
 from requests.exceptions import ChunkedEncodingError
 
-from observatory_platform.airflow import get_data_path
+from observatory_platform.airflow.workflow import get_data_path
 from observatory_platform.files import crc32c_base64_hash
 
 # The chunk size to use when uploading / downloading a blob in multiple parts, must be a multiple of 256 KB.

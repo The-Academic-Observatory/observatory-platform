@@ -86,7 +86,7 @@ class TestBigQuery(unittest.TestCase):
             gcs_delete_old_buckets_with_prefix(prefix=self.prefix, age_to_delete=12)
             __class__.__init__already = True
 
-    @patch("observatory_platform.bigquery.bq_select_table_shard_dates")
+    @patch("observatory_platform.google.bigquery.bq_select_table_shard_dates")
     def test_bq_select_latest_table(self, mock_sel_table_suffixes):
         """Test make_table_name"""
         dt = pendulum.datetime(2021, 1, 1)
