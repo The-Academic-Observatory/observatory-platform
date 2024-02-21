@@ -1,4 +1,4 @@
-# Copyright 2020 Curtin University
+# Copyright 2020-2024 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,8 +24,13 @@ from typing import List, Optional, Dict, Union
 import pendulum
 from google.cloud import bigquery
 
-from observatory_platform.bigquery import bq_load_from_memory, bq_create_dataset, bq_create_empty_table, bq_run_query
 from observatory_platform.config import module_file_path
+from observatory_platform.google.bigquery import (
+    bq_load_from_memory,
+    bq_create_dataset,
+    bq_create_empty_table,
+    bq_run_query,
+)
 
 
 @dataclasses.dataclass
@@ -149,6 +154,14 @@ class DatasetAPI:
         table_id: str = "dataset_releases",
         location: str = "us",
     ):
+        """Create a DatasetAPI instance.
+
+        :param project_id: the BigQuery project ID.
+        :param dataset_id: the BigQuery dataset ID.
+        :param table_id: the BigQuery table ID.
+        :param location: the BigQuery dataset location.
+        """
+
         parts = []
         if project_id is None:
             project_id = get_bigquery_default_project()
@@ -164,6 +177,11 @@ class DatasetAPI:
         self.schema_file_path = os.path.join(module_file_path("observatory_platform.schema"), "dataset_release.json")
 
     def seed_db(self):
+        """Seed the BigQuery dataset and dataset release table.
+
+        :return: None.
+        """
+
         # Create BigQuery dataset if it does not exist
         bq_create_dataset(
             project_id=self.project_id,
@@ -180,6 +198,12 @@ class DatasetAPI:
         )
 
     def add_dataset_release(self, release: DatasetRelease):
+        """Adds a DatasetRelease.
+
+        :param release: the release.
+        :return: None.
+        """
+
         # Load data
         success = bq_load_from_memory(
             table_id=self.full_table_id,
@@ -191,13 +215,15 @@ class DatasetAPI:
             raise Exception("Failed to add dataset release")
 
     def get_dataset_releases(
-        self, *, dag_id: str, dataset_id: str, date_key: str = "created", limit: int = None
+        self, *, dag_id: str, dataset_id: str, date_key: str = "created", limit: int | None = None
     ) -> List[DatasetRelease]:
         """Get a list of dataset releases for a given dataset.
 
         :param dag_id: dag id.
         :param dataset_id: Dataset id.
-        :param date_key: the key to use when sorting by date.
+        :param date_key: the date key to use when sorting by date. One of: "created", "modified", "data_interval_start",
+        "data_interval_end", "snapshot_date", "partition_date", "changefile_start_date" or "changefile_end_date".
+        :param limit: the maximum number of rows to return.
         :return: List of dataset releases.
         """
 
@@ -228,6 +254,15 @@ class DatasetAPI:
         return results
 
     def get_latest_dataset_release(self, *, dag_id: str, dataset_id: str, date_key: str) -> Optional[DatasetRelease]:
+        """Get the latest dataset release.
+
+        :param dag_id: the Airflow DAG id.
+        :param dataset_id: the dataset id.
+        :param date_key: the date key. One of: "created", "modified", "data_interval_start", "data_interval_end",
+        "snapshot_date", "partition_date", "changefile_start_date" or "changefile_end_date".
+        :return: the latest release or None if there is no release.
+        """
+
         releases = self.get_dataset_releases(dag_id=dag_id, dataset_id=dataset_id, date_key=date_key, limit=1)
         if len(releases) == 0:
             return None
@@ -272,6 +307,12 @@ def build_schedule(sched_start_date: pendulum.DateTime, sched_end_date: pendulum
 
 
 def bq_timestamp_to_pendulum(obj: any) -> pendulum.DateTime | None:
+    """Convert a BigQuery timestamp to a pendulum DateTime object.
+
+    :param obj: None, a string or datetime.datetime instance.
+    :return: pendulum.DateTime or None.
+    """
+
     if obj is None:
         return obj
     elif isinstance(obj, datetime.datetime):
@@ -282,9 +323,20 @@ def bq_timestamp_to_pendulum(obj: any) -> pendulum.DateTime | None:
 
 
 def pendulum_to_bq_timestamp(dt: pendulum.DateTime | None) -> str:
+    """Convert a pendulum instance to a BigQuery timestamp string.
+
+    :param dt: the pendulum DateTime instance or None.
+    :return: the string.
+    """
+
     return None if dt is None else dt.to_iso8601_string()
 
 
-def get_bigquery_default_project():
+def get_bigquery_default_project() -> str:
+    """Get the default BigQuery project ID.
+
+    :return: BigQuery project ID.
+    """
+
     client = bigquery.Client()
     return client.project

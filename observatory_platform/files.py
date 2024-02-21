@@ -26,19 +26,18 @@ import pathlib
 import re
 import shutil
 import subprocess
+import zlib
 from _hashlib import HASH
 from datetime import datetime
 from functools import partial
 from pathlib import Path
 from subprocess import Popen
-from typing import Any, List
-from typing import BinaryIO, Dict
+from typing import BinaryIO, Dict, Any, List
 
 import json_lines
 import jsonlines
 import numpy as np
 import pandas as pd
-import zlib
 from google.cloud import bigquery
 from google_crc32c import Checksum as Crc32cChecksum
 

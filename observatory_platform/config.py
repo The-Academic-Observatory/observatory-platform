@@ -74,15 +74,6 @@ def observatory_home(*subdirs) -> str:
     return path
 
 
-def terraform_credentials_path() -> str:
-    """Get the path to the terraform credentials file that is created with 'terraform login'.
-
-    :return: the path to the terraform credentials file
-    """
-
-    return os.path.join(pathlib.Path.home(), ".terraform.d/credentials.tfrc.json")
-
-
 def sql_templates_path() -> str:
     """Return the path to the SQL templates.
 

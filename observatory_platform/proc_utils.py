@@ -30,7 +30,9 @@ def wait_for_process(proc: Popen) -> Tuple[str, str]:
     error = error.decode("utf-8")
     return output, error
 
+
 import select
+
 
 def stream_process(proc: Popen) -> bool:
     """Print output while a process is running, returning the std output and std error streams as strings.

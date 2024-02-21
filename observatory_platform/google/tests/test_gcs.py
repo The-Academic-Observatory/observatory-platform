@@ -24,12 +24,12 @@ import boto3
 import pendulum
 from azure.storage.blob import BlobClient, BlobServiceClient
 from click.testing import CliRunner
-from google.cloud import storage
 from google.auth import default
+from google.cloud import storage
 
-from observatory_platform.bigquery import bq_delete_old_datasets_with_prefix
 from observatory_platform.files import crc32c_base64_hash, hex_to_base64_str
-from observatory_platform.gcs import (
+from observatory_platform.google.bigquery import bq_delete_old_datasets_with_prefix
+from observatory_platform.google.gcs import (
     gcs_blob_uri,
     gcs_create_aws_transfer,
     gcs_create_azure_transfer,
@@ -46,7 +46,7 @@ from observatory_platform.gcs import (
     gcs_blob_name_from_path,
     gcs_hmac_key,
 )
-from observatory_platform.observatory_environment import random_id, aws_bucket_test_env
+from observatory_platform.sandbox.test_utils import random_id, aws_bucket_test_env
 
 
 def make_account_url(account_name: str) -> str:
@@ -111,7 +111,7 @@ class TestGoogleCloudStorage(unittest.TestCase):
             gcs_delete_old_buckets_with_prefix(prefix=self.prefix, age_to_delete=12)
             __class__.__init__already = True
 
-    @patch("observatory_platform.airflow.Variable.get")
+    @patch("observatory_platform.airflow.airflow.Variable.get")
     def test_gcs_blob_name_from_path(self, mock_get_variable):
         """Tests the blob_name from_path function"""
 
@@ -188,7 +188,7 @@ class TestGoogleCloudStorage(unittest.TestCase):
                     if blob.exists():
                         blob.delete()
 
-    @patch("observatory_platform.airflow.Variable.get")
+    @patch("observatory_platform.airflow.airflow.Variable.get")
     def test_upload_download_blobs_from_cloud_storage(self, mock_get_variable):
         runner = CliRunner()
         with runner.isolated_filesystem() as t:

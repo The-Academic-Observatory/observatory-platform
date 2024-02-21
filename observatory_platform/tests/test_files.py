@@ -45,7 +45,7 @@ from observatory_platform.files import (
     split_file_and_compress,
 )
 from observatory_platform.files import validate_file_hash, load_jsonl, list_files
-from observatory_platform.observatory_environment import test_fixtures_path
+from observatory_platform.sandbox.test_utils import test_fixtures_path
 
 
 class TestFileUtils(unittest.TestCase):

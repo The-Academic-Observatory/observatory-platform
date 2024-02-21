@@ -23,13 +23,9 @@ import pendulum
 from click.testing import CliRunner
 
 import observatory_platform.tests as platform_utils_tests
-from observatory_platform.bigquery import bq_find_schema
-from observatory_platform.config import (
-    module_file_path,
-    observatory_home,
-    terraform_credentials_path,
-)
-from observatory_platform.observatory_environment import test_fixtures_path
+from observatory_platform.config import module_file_path, observatory_home
+from observatory_platform.google.bigquery import bq_find_schema
+from observatory_platform.sandbox.test_utils import test_fixtures_path
 
 
 class TestConfig(unittest.TestCase):
@@ -63,11 +59,6 @@ class TestConfig(unittest.TestCase):
                 path = observatory_home("subfolder")
                 self.assertTrue(os.path.exists(path))
                 self.assertEqual(f"{home_path}/.observatory/subfolder", path)
-
-    def test_terraform_credentials_path(self):
-        expected_path = os.path.expanduser("~/.terraform.d/credentials.tfrc.json")
-        actual_path = terraform_credentials_path()
-        self.assertEqual(expected_path, actual_path)
 
     def test_find_schema(self):
         schemas_path = test_fixtures_path("schemas")

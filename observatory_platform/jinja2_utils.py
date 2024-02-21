@@ -15,8 +15,9 @@
 
 # Author: James Diprose
 
-from jinja2 import Environment, FileSystemLoader
 import os
+
+from jinja2 import Environment, FileSystemLoader
 
 
 def render_template(template_path: str, **kwargs) -> str:

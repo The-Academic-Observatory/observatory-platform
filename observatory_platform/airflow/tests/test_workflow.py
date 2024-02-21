@@ -30,59 +30,95 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.sensors.external_task import ExternalTaskSensor
 
-from observatory_platform.observatory_config import CloudWorkspace
-from observatory_platform.observatory_environment import (
-    ObservatoryEnvironment,
-    ObservatoryTestCase,
-    find_free_port,
-)
-from observatory_platform.workflow import (
+from observatory_platform.airflow.workflow import CloudWorkspace, cleanup
+from observatory_platform.sandbox.sandbox_environment import SandboxEnvironment
+from observatory_platform.sandbox.test_utils import SandboxTestCase, find_free_port
+
+from observatory_platform.airflow.release import (
     Release,
-    make_task_id,
-    make_workflow_folder,
     make_snapshot_date,
-    cleanup,
     set_task_state,
     check_workflow_inputs,
 )
 
 
-class MockWorkflow(Workflow):
-    """
-    Generic Workflow telescope for running tasks.
-    """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class TestAirflow(unittest.TestCase):
+    @patch("observatory_platform.airflow.airflow.Variable.get")
+    def test_get_data_path(self, mock_variable_get):
+        """Tests the function that retrieves the data_path airflow variable"""
+        # 1 - no variable available
+        mock_variable_get.return_value = None
+        self.assertRaises(AirflowException, get_data_path)
 
-    def make_release(self, **kwargs) -> Release:
-        return Release(dag_id=self.dag_id, run_id=kwargs["run_id"])
+        # 2 - available in Airflow variable
+        mock_variable_get.return_value = "env_return"
+        self.assertEqual("env_return", get_data_path())
 
-    def setup_task(self, **kwargs) -> bool:
-        return True
+    def test_fetch_dag_bag(self):
+        """Test fetch_dag_bag"""
 
-    def task(self, release: Release, **kwargs):
-        pass
+        env = SandboxEnvironment()
+        with env.create() as t:
+            # No DAGs found
+            dag_bag = fetch_dag_bag(t)
+            print(f"DAGS found on path: {t}")
+            for dag_id in dag_bag.dag_ids:
+                print(f"  {dag_id}")
+            self.assertEqual(0, len(dag_bag.dag_ids))
 
-    def task5(self, release: Release, **kwargs):
-        pass
+            # Bad DAG
+            src = test_fixtures_path("utils", "bad_dag.py")
+            shutil.copy(src, os.path.join(t, "dags.py"))
+            with self.assertRaises(Exception):
+                fetch_dag_bag(t)
 
-    def task6(self, release: Release, **kwargs):
-        pass
+            # Copy Good DAGs to folder
+            src = test_fixtures_path("utils", "good_dag.py")
+            shutil.copy(src, os.path.join(t, "dags.py"))
+
+            # DAGs found
+            expected_dag_ids = {"hello", "world"}
+            dag_bag = fetch_dag_bag(t)
+            actual_dag_ids = set(dag_bag.dag_ids)
+            self.assertSetEqual(expected_dag_ids, actual_dag_ids)
+#
+# class MockWorkflow(Workflow):
+#     """
+#     Generic Workflow telescope for running tasks.
+#     """
+#
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#
+#     def make_release(self, **kwargs) -> Release:
+#         return Release(dag_id=self.dag_id, run_id=kwargs["run_id"])
+#
+#     def setup_task(self, **kwargs) -> bool:
+#         return True
+#
+#     def task(self, release: Release, **kwargs):
+#         pass
+#
+#     def task5(self, release: Release, **kwargs):
+#         pass
+#
+#     def task6(self, release: Release, **kwargs):
+#         pass
+#
+#
+# class TestCallbackWorkflow(Workflow):
+#     def __init__(
+#         self, dag_id: str, start_date: pendulum.DateTime, schedule: str, max_retries: int, airflow_conns: list
+#     ):
+#         super().__init__(dag_id, start_date, schedule, max_retries=max_retries, airflow_conns=airflow_conns)
+#         self.add_setup_task(self.check_dependencies)
+#
+#     def make_release(self, **kwargs):
+#         return
 
 
-class TestCallbackWorkflow(Workflow):
-    def __init__(
-        self, dag_id: str, start_date: pendulum.DateTime, schedule: str, max_retries: int, airflow_conns: list
-    ):
-        super().__init__(dag_id, start_date, schedule, max_retries=max_retries, airflow_conns=airflow_conns)
-        self.add_setup_task(self.check_dependencies)
-
-    def make_release(self, **kwargs):
-        return
-
-
-class TestWorkflowFunctions(ObservatoryTestCase):
+class TestWorkflowFunctions(SandboxTestCase):
     def test_set_task_state(self):
         """Test set_task_state"""
 
@@ -91,7 +127,7 @@ class TestWorkflowFunctions(ObservatoryTestCase):
         with self.assertRaises(AirflowException):
             set_task_state(False, task_id)
 
-    @patch("observatory_platform.airflow.Variable.get")
+    @patch("observatory_platform.airflow.airflow.Variable.get")
     def test_make_workflow_folder(self, mock_get_variable):
         """Tests the make_workflow_folder function"""
         with TemporaryDirectory() as tempdir:
@@ -102,48 +138,6 @@ class TestWorkflowFunctions(ObservatoryTestCase):
                 path,
                 os.path.join(tempdir, f"test_dag/scheduled__2023-03-26T00:00:00+00:00/sub_folder/subsub_folder"),
             )
-
-    def test_check_workflow_inputs(self):
-        """Test check_workflow_inputs"""
-        # Test Dag ID validity
-        wf = MagicMock(dag_id="valid")
-        check_workflow_inputs(wf, check_cloud_workspace=False)  # Should pass
-        for dag_id in ["", None, 42]:  # Should all fail
-            wf.dag_id = dag_id
-            with self.assertRaises(AirflowException) as cm:
-                check_workflow_inputs(wf, check_cloud_workspace=False)
-            msg = cm.exception.args[0]
-            self.assertIn("dag_id", msg)
-
-        # Test when cloud workspace is of wrong type
-        wf = MagicMock(dag_id="valid", cloud_workspace="invalid")
-        with self.assertRaisesRegex(AirflowException, "cloud_workspace"):
-            check_workflow_inputs(wf)
-
-        # Test validity of each part of the cloud workspace
-        valid_cloud_workspace = CloudWorkspace(
-            project_id="project_id",
-            download_bucket="download_bucket",
-            transform_bucket="transform_bucket",
-            data_location="data_location",
-            output_project_id="output_project_id",
-        )
-        wf = MagicMock(dag_id="valid", cloud_workspace=deepcopy(valid_cloud_workspace))
-        check_workflow_inputs(wf)  # Should pass
-        for attr, invalid_val in [
-            ("project_id", ""),
-            ("download_bucket", None),
-            ("transform_bucket", 42),
-            ("data_location", MagicMock()),
-            ("output_project_id", ""),
-        ]:
-            wf = MagicMock(dag_id="valid", cloud_workspace=deepcopy(valid_cloud_workspace))
-            setattr(wf.cloud_workspace, attr, invalid_val)
-            with self.assertRaisesRegex(AirflowException, f"cloud_workspace.{attr}"):
-                check_workflow_inputs(wf)
-        wf = MagicMock(dag_id="valid", cloud_workspace=deepcopy(valid_cloud_workspace))
-        wf.cloud_workspace.output_project_id = None
-        check_workflow_inputs(wf)  # This one should pass
 
     def test_make_snapshot_date(self):
         """Test make_table_name"""
@@ -165,7 +159,7 @@ class TestWorkflowFunctions(ObservatoryTestCase):
             execution_date = kwargs["execution_date"]
             ti.xcom_push("topic", {"snapshot_date": execution_date.format("YYYYMMDD"), "something": "info"})
 
-        env = ObservatoryEnvironment(enable_api=False)
+        env = SandboxEnvironment(enable_api=False)
         with env.create():
             execution_date = pendulum.datetime(2023, 1, 1)
             with DAG(
@@ -195,7 +189,7 @@ class TestWorkflowFunctions(ObservatoryTestCase):
                     self.assertEqual(os.path.isdir(workflow_dir), False)
 
 
-class TestWorkflow(ObservatoryTestCase):
+class TestWorkflow(SandboxTestCase):
     """Tests the Telescope."""
 
     def __init__(self, *args, **kwargs):
@@ -356,7 +350,7 @@ class TestWorkflow(ObservatoryTestCase):
     def test_telescope(self):
         """Basic test to make sure that the Workflow class can execute in an Airflow environment."""
         # Setup Observatory environment
-        env = ObservatoryEnvironment(self.project_id, self.data_location, api_host=self.host, api_port=self.port)
+        env = SandboxEnvironment(self.project_id, self.data_location, api_host=self.host, api_port=self.port)
 
         # Create the Observatory environment and run tests
         with env.create(task_logging=True):
@@ -380,7 +374,7 @@ class TestWorkflow(ObservatoryTestCase):
                 ti = env.run_task(task2)
                 self.assertEqual(expected_date, ti.state)
 
-    @patch("observatory_platform.airflow.send_slack_msg")
+    @patch("observatory_platform.airflow.airflow.send_slack_msg")
     def test_callback(self, mock_send_slack_msg):
         """Test that the on_failure_callback function is successfully called in a production environment when a task
         fails
@@ -391,7 +385,7 @@ class TestWorkflow(ObservatoryTestCase):
         # mock_send_slack_msg.return_value = Mock(spec=SlackWebhookHook)
 
         # Setup Observatory environment
-        env = ObservatoryEnvironment(self.project_id, self.data_location)
+        env = SandboxEnvironment(self.project_id, self.data_location)
 
         # Setup Workflow with 0 retries and missing airflow variable, so it will fail the task
         execution_date = pendulum.datetime(2020, 1, 1)
@@ -426,3 +420,87 @@ class TestWorkflow(ObservatoryTestCase):
                 env.add_connection(Connection(conn_id=conn_id, uri="https://orcid.org/"))
                 env.run_task(workflow.check_dependencies.__name__)
                 mock_send_slack_msg.assert_not_called()
+
+
+# Copyright 2019 Curtin University. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: James Diprose, Aniek Roelofs
+
+import random
+import string
+import unittest
+
+import pendulum
+import yaml
+
+from observatory_platform.observatory_config import (
+    Workflow,
+    workflows_to_json_string,
+    json_string_to_workflows,
+)
+
+
+class TestObservatoryConfigValidator(unittest.TestCase):
+    def setUp(self) -> None:
+        self.schema = dict()
+        self.schema["google_cloud"] = {
+            "required": True,
+            "type": "dict",
+            "schema": {"credentials": {"required": True, "type": "string", "google_application_credentials": True}},
+        }
+
+    def test_workflows_to_json_string(self):
+        workflows = [
+            Workflow(
+                dag_id="my_dag",
+                name="My DAG",
+                class_name="observatory_platform.workflows.vm_workflow.VmCreateWorkflow",
+                kwargs=dict(dt=pendulum.datetime(2021, 1, 1)),
+            )
+        ]
+        json_string = workflows_to_json_string(workflows)
+        self.assertEqual(
+            '[{"dag_id": "my_dag", "name": "My DAG", "class_name": "observatory_platform.workflows.vm_workflow.VmCreateWorkflow", "cloud_workspace": null, "kwargs": {"dt": "2021-01-01T00:00:00+00:00"}}]',
+            json_string,
+        )
+
+    def test_json_string_to_workflows(self):
+        json_string = '[{"dag_id": "my_dag", "name": "My DAG", "class_name": "observatory_platform.workflows.vm_workflow.VmCreateWorkflow", "cloud_workspace": null, "kwargs": {"dt": "2021-01-01T00:00:00+00:00"}}]'
+        actual_workflows = json_string_to_workflows(json_string)
+        self.assertEqual(
+            [
+                Workflow(
+                    dag_id="my_dag",
+                    name="My DAG",
+                    class_name="observatory_platform.workflows.vm_workflow.VmCreateWorkflow",
+                    kwargs=dict(dt=pendulum.datetime(2021, 1, 1)),
+                )
+            ],
+            actual_workflows,
+        )
+
+
+def tmp_config_file(dict_: dict) -> str:
+    """
+    Dumps dict into a yaml file that is saved in a randomly named file. Used to as config file to create
+    ObservatoryConfig instance.
+    :param dict_: config dict
+    :return: path of temporary file
+    """
+    content = yaml.safe_dump(dict_).replace("'!", "!").replace("':", ":")
+    file_name = "".join(random.choices(string.ascii_lowercase, k=10))
+    with open(file_name, "w") as f:
+        f.write(content)
+    return file_name

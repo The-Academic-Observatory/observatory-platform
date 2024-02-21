@@ -17,22 +17,20 @@ import os
 
 import pendulum
 
-from observatory_platform.bigquery import bq_run_query
 from observatory_platform.dataset_api import build_schedule, DatasetAPI, DatasetRelease
-from observatory_platform.observatory_environment import (
-    ObservatoryEnvironment,
-    ObservatoryTestCase,
-)
+from observatory_platform.google.bigquery import bq_run_query
+from observatory_platform.sandbox.sandbox_environment import SandboxEnvironment
+from observatory_platform.sandbox.test_utils import SandboxTestCase
 
 
-class TestDatasetAPI(ObservatoryTestCase):
+class TestDatasetAPI(SandboxTestCase):
     def __init__(self, *args, **kwargs):
         super(TestDatasetAPI, self).__init__(*args, **kwargs)
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
 
     def test_add_dataset_release(self):
-        env = ObservatoryEnvironment(project_id=self.project_id, data_location=self.data_location)
+        env = SandboxEnvironment(project_id=self.project_id, data_location=self.data_location)
         bq_dataset_id = env.add_dataset(prefix="dataset_api")
         api = DatasetAPI(project_id=self.project_id, dataset_id=bq_dataset_id, location=self.data_location)
         with env.create():
@@ -68,7 +66,7 @@ class TestDatasetAPI(ObservatoryTestCase):
             self.assertEqual(expected, actual)
 
     def test_get_dataset_releases(self):
-        env = ObservatoryEnvironment(project_id=self.project_id, data_location=self.data_location)
+        env = SandboxEnvironment(project_id=self.project_id, data_location=self.data_location)
         bq_dataset_id = env.add_dataset(prefix="dataset_api")
         api = DatasetAPI(project_id=self.project_id, dataset_id=bq_dataset_id, location=self.data_location)
         expected = []
@@ -98,7 +96,7 @@ class TestDatasetAPI(ObservatoryTestCase):
             self.assertListEqual(expected, actual)
 
     def test_is_first_release(self):
-        env = ObservatoryEnvironment(project_id=self.project_id, data_location=self.data_location)
+        env = SandboxEnvironment(project_id=self.project_id, data_location=self.data_location)
         bq_dataset_id = env.add_dataset(prefix="dataset_api")
         api = DatasetAPI(project_id=self.project_id, dataset_id=bq_dataset_id, location=self.data_location)
         with env.create():
@@ -154,7 +152,7 @@ class TestDatasetAPI(ObservatoryTestCase):
                 snapshot_date=pendulum.datetime(2024, 1, 1),
             ),
         ]
-        env = ObservatoryEnvironment(project_id=self.project_id, data_location=self.data_location)
+        env = SandboxEnvironment(project_id=self.project_id, data_location=self.data_location)
         bq_dataset_id = env.add_dataset(prefix="dataset_api")
         api = DatasetAPI(project_id=self.project_id, dataset_id=bq_dataset_id, location=self.data_location)
 

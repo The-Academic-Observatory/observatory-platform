@@ -28,7 +28,8 @@ from airflow.exceptions import AirflowException
 from click.testing import CliRunner
 from tenacity import wait_fixed
 
-from observatory_platform.observatory_environment import HttpServer, test_fixtures_path
+from observatory_platform.sandbox.http_server import HttpServer
+from observatory_platform.sandbox.test_utils import test_fixtures_path
 from observatory_platform.url_utils import (
     get_filename_from_url,
     get_http_response_json,

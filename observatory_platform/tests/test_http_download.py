@@ -20,16 +20,13 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from observatory_platform.observatory_environment import (
-    HttpServer,
-    ObservatoryTestCase,
-    test_fixtures_path,
-)
 from observatory_platform.http_download import (
     DownloadInfo,
     download_file,
     download_files,
 )
+from observatory_platform.sandbox.http_server import HttpServer
+from observatory_platform.sandbox.test_utils import SandboxTestCase, test_fixtures_path
 from observatory_platform.url_utils import get_observatory_http_header
 
 
@@ -44,7 +41,7 @@ class MockVersionData:
             return "test@test"
 
 
-class TestAsyncHttpFileDownloader(ObservatoryTestCase):
+class TestAsyncHttpFileDownloader(SandboxTestCase):
     def test_download_files(self):
         # Spin up http server
         directory = test_fixtures_path("utils")
@@ -169,14 +166,14 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
                 self.assert_file_integrity(file1, hash1, algorithm)
 
                 # Skip download because exists
-                with patch("observatory_platform.utils.http_download.download_http_file_") as m_down:
+                with patch("observatory_platform.http_download.download_http_file_") as m_down:
                     success = download_file(url=url1, filename=file1, hash=hash1, hash_algorithm="md5")
                     self.assertTrue(success)
                     self.assert_file_integrity(file1, hash1, algorithm)
                     self.assertEqual(m_down.call_count, 0)
 
                 # Skip download because exists (with prefix dir)
-                with patch("observatory_platform.utils.http_download.download_http_file_") as m_down:
+                with patch("observatory_platform.http_download.download_http_file_") as m_down:
                     success, download_info = download_file(
                         url=url1, filename=file1, hash=hash1, hash_algorithm="md5", prefix_dir=tmpdir
                     )
@@ -186,7 +183,7 @@ class TestAsyncHttpFileDownloader(ObservatoryTestCase):
 
             # Get filename from Content-Disposition
             with CliRunner().isolated_filesystem() as tmpdir:
-                with patch("observatory_platform.utils.http_download.parse_header") as m_header:
+                with patch("observatory_platform.http_download.parse_header") as m_header:
                     m_header.return_value = (None, {"filename": "testfile"})
                     success, download_info = download_file(url=url1, hash=hash1, hash_algorithm="md5")
                     self.assertTrue(success)

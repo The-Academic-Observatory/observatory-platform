@@ -18,18 +18,18 @@ import cgi
 import json
 import logging
 import os
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime
 from email.utils import parsedate_to_datetime
+from importlib.metadata import metadata
 from typing import Dict, List, Tuple, Union, Optional
 
 import pytz
 import requests
-import time
 import xmltodict
 from airflow import AirflowException
-from importlib.metadata import metadata
 from requests.adapters import HTTPAdapter
 from tenacity import Retrying, stop_after_attempt, before_sleep_log, wait_exponential_jitter
 from tenacity.wait import wait_base, wait_fixed

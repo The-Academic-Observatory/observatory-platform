@@ -15,8 +15,6 @@
 # Author: James Diprose, Aniek Roelofs
 
 import datetime
-import os
-import shutil
 import textwrap
 import unittest
 from unittest.mock import MagicMock, patch
@@ -31,22 +29,17 @@ from airflow.operators.python import PythonOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
-from observatory_platform.airflow import (
+from observatory_platform.airflow.airflow import (
     get_airflow_connection_login,
     get_airflow_connection_password,
     get_airflow_connection_url,
     send_slack_msg,
-    fetch_dag_bag,
     delete_old_xcoms,
     on_failure_callback,
-    get_data_path,
     normalized_schedule_interval,
     is_first_dag_run,
 )
-from observatory_platform.observatory_environment import (
-    ObservatoryEnvironment,
-    test_fixtures_path,
-)
+from observatory_platform.sandbox.sandbox_environment import SandboxEnvironment
 
 
 class MockConnection:
@@ -62,46 +55,7 @@ class MockConnection:
 
 
 class TestAirflow(unittest.TestCase):
-    @patch("observatory_platform.airflow.Variable.get")
-    def test_get_data_path(self, mock_variable_get):
-        """Tests the function that retrieves the data_path airflow variable"""
-        # 1 - no variable available
-        mock_variable_get.return_value = None
-        self.assertRaises(AirflowException, get_data_path)
-
-        # 2 - available in Airflow variable
-        mock_variable_get.return_value = "env_return"
-        self.assertEqual("env_return", get_data_path())
-
-    def test_fetch_dag_bag(self):
-        """Test fetch_dag_bag"""
-
-        env = ObservatoryEnvironment(enable_api=False)
-        with env.create() as t:
-            # No DAGs found
-            dag_bag = fetch_dag_bag(t)
-            print(f"DAGS found on path: {t}")
-            for dag_id in dag_bag.dag_ids:
-                print(f"  {dag_id}")
-            self.assertEqual(0, len(dag_bag.dag_ids))
-
-            # Bad DAG
-            src = test_fixtures_path("utils", "bad_dag.py")
-            shutil.copy(src, os.path.join(t, "dags.py"))
-            with self.assertRaises(Exception):
-                fetch_dag_bag(t)
-
-            # Copy Good DAGs to folder
-            src = test_fixtures_path("utils", "good_dag.py")
-            shutil.copy(src, os.path.join(t, "dags.py"))
-
-            # DAGs found
-            expected_dag_ids = {"hello", "world"}
-            dag_bag = fetch_dag_bag(t)
-            actual_dag_ids = set(dag_bag.dag_ids)
-            self.assertSetEqual(expected_dag_ids, actual_dag_ids)
-
-    @patch("observatory_platform.airflow.SlackWebhookHook")
+    @patch("observatory_platform.airflow.airflow.SlackWebhookHook")
     @patch("airflow.hooks.base.BaseHook.get_connection")
     def test_send_slack_msg(self, mock_get_connection, m_slack):
         slack_webhook_conn_id = "slack_conn"
@@ -140,7 +94,7 @@ class TestAirflow(unittest.TestCase):
         m_slack.return_value.send_text.assert_called_once_with(message)
 
     def test_get_airflow_connection_url_invalid(self):
-        with patch("observatory_platform.airflow.BaseHook") as m_basehook:
+        with patch("observatory_platform.airflow.airflow.BaseHook") as m_basehook:
             m_basehook.get_connection = MagicMock(return_value=MockConnection(""))
             self.assertRaises(AirflowException, get_airflow_connection_url, "some_connection")
 
@@ -151,7 +105,7 @@ class TestAirflow(unittest.TestCase):
         expected_url = "http://localhost/"
         fake_conn = "some_connection"
 
-        with patch("observatory_platform.airflow.BaseHook") as m_basehook:
+        with patch("observatory_platform.airflow.airflow.BaseHook") as m_basehook:
             # With trailing /
             input_url = "http://localhost/"
             m_basehook.get_connection = MagicMock(return_value=MockConnection(input_url))
@@ -165,7 +119,7 @@ class TestAirflow(unittest.TestCase):
             self.assertEqual(url, expected_url)
 
     def test_get_airflow_connection_password(self):
-        env = ObservatoryEnvironment(enable_api=False)
+        env = SandboxEnvironment()
         with env.create():
             # Assert that we can get a connection password
             conn_id = "conn_1"
@@ -180,7 +134,7 @@ class TestAirflow(unittest.TestCase):
                 get_airflow_connection_password(conn_id)
 
     def test_get_airflow_connection_login(self):
-        env = ObservatoryEnvironment(enable_api=False)
+        env = SandboxEnvironment()
         with env.create():
             # Assert that we can get a connection login
             conn_id = "conn_1"
@@ -221,7 +175,7 @@ class TestAirflow(unittest.TestCase):
             execution_date = kwargs["execution_date"]
             ti.xcom_push("topic", {"snapshot_date": execution_date.format("YYYYMMDD"), "something": "info"})
 
-        env = ObservatoryEnvironment(enable_api=False)
+        env = SandboxEnvironment()
         with env.create():
             execution_date = pendulum.datetime(2021, 9, 5)
             with DAG(
@@ -263,7 +217,7 @@ class TestAirflow(unittest.TestCase):
             ).with_entities(XCom.value)
             return msgs.all()
 
-        env = ObservatoryEnvironment(enable_api=False)
+        env = SandboxEnvironment()
         with env.create():
             first_execution_date = pendulum.datetime(2021, 9, 5)
             with DAG(
@@ -307,7 +261,7 @@ class TestAirflow(unittest.TestCase):
                 msg = XCom.deserialize_value(xcoms[0])
                 self.assertEqual(msg["snapshot_date"], second_execution_date.format("YYYYMMDD"))
 
-    @patch("observatory_platform.airflow.send_slack_msg")
+    @patch("observatory_platform.airflow.airflow.send_slack_msg")
     def test_on_failure_callback(self, mock_send_slack_msg):
         # Fake Airflow ti instance
         class MockTI:
@@ -336,7 +290,7 @@ class TestAirflow(unittest.TestCase):
     def test_is_first_dag_run(self):
         """Test is_first_dag_run"""
 
-        env = ObservatoryEnvironment(enable_api=False)
+        env = SandboxEnvironment()
         with env.create():
             first_execution_date = pendulum.datetime(2021, 9, 5)
             with DAG(

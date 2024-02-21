@@ -27,7 +27,7 @@ from google.api_core.exceptions import Conflict
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import SourceFormat
 
-from observatory_platform.bigquery import (
+from observatory_platform.google.bigquery import (
     bq_table_id,
     bq_select_latest_table,
     bq_sharded_table_id,
@@ -53,8 +53,8 @@ from observatory_platform.bigquery import (
     bq_query_bytes_budget_check,
 )
 from observatory_platform.files import load_jsonl
-from observatory_platform.gcs import gcs_delete_old_buckets_with_prefix, gcs_upload_file
-from observatory_platform.observatory_environment import random_id, test_fixtures_path, bq_dataset_test_env
+from observatory_platform.google.gcs import gcs_delete_old_buckets_with_prefix, gcs_upload_file
+from observatory_platform.sandbox.test_utils import random_id, test_fixtures_path, bq_dataset_test_env
 
 
 class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
