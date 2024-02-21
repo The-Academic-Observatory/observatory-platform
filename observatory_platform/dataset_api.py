@@ -153,6 +153,7 @@ class DatasetAPI:
         dataset_id: str = "dataset_api",
         table_id: str = "dataset_releases",
         location: str = "us",
+        client: Optional[bigquery.Client] = None,
     ):
         """Create a DatasetAPI instance.
 
@@ -160,6 +161,7 @@ class DatasetAPI:
         :param dataset_id: the BigQuery dataset ID.
         :param table_id: the BigQuery table ID.
         :param location: the BigQuery dataset location.
+        :param client: Optional BigQuery client.
         """
 
         parts = []
@@ -173,6 +175,7 @@ class DatasetAPI:
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.location = location
+        self.client = client
         self.full_table_id = ".".join(parts)
         self.schema_file_path = os.path.join(module_file_path("observatory_platform.schema"), "dataset_release.json")
 
@@ -188,6 +191,7 @@ class DatasetAPI:
             dataset_id=self.dataset_id,
             location=self.location,
             description="Observatory Platform Dataset Release API",
+            client=self.client,
         )
 
         # Load empty table
@@ -195,6 +199,7 @@ class DatasetAPI:
             table_id=self.full_table_id,
             schema_file_path=self.schema_file_path,
             exists_ok=True,
+            client=self.client,
         )
 
     def add_dataset_release(self, release: DatasetRelease):
@@ -210,6 +215,7 @@ class DatasetAPI:
             records=[release.to_dict()],
             write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
             schema_file_path=self.schema_file_path,
+            client=self.client,
         )
         if not success:
             raise Exception("Failed to add dataset release")
@@ -246,7 +252,7 @@ class DatasetAPI:
             sql.append(f"LIMIT {limit}")
 
         # Fetch results
-        results = bq_run_query("\n".join(sql))
+        results = bq_run_query("\n".join(sql), client=self.client)
 
         # Convert to DatasetRelease objects
         results = [DatasetRelease.from_dict(dict(result)) for result in results]
@@ -277,7 +283,8 @@ class DatasetAPI:
         """
 
         results = bq_run_query(
-            f"SELECT COUNT(*) as count FROM `{self.full_table_id}` WHERE dag_id = '{dag_id}' AND dataset_id = '{dataset_id}'"
+            f"SELECT COUNT(*) as count FROM `{self.full_table_id}` WHERE dag_id = '{dag_id}' AND dataset_id = '{dataset_id}'",
+            client=self.client,
         )
         count = results[0]["count"]
         return count == 0
