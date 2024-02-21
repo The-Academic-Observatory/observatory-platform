@@ -25,7 +25,6 @@ from click.testing import CliRunner
 import observatory_platform.tests as platform_utils_tests
 from observatory_platform.config import module_file_path, observatory_home
 from observatory_platform.google.bigquery import bq_find_schema
-from observatory_platform.sandbox.test_utils import test_fixtures_path
 
 
 class TestConfig(unittest.TestCase):
@@ -61,7 +60,8 @@ class TestConfig(unittest.TestCase):
                 self.assertEqual(f"{home_path}/.observatory/subfolder", path)
 
     def test_find_schema(self):
-        schemas_path = test_fixtures_path("schemas")
+        schemas_path = os.path.join(module_file_path("observatory_platform.tests.fixtures"), "schema")
+
         test_release_date = pendulum.datetime(2022, 11, 11)
         previous_release_date = pendulum.datetime(1950, 11, 11)
 

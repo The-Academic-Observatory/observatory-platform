@@ -1,4 +1,4 @@
-# Copyright 2019, 2020 Curtin University
+# Copyright 2019-2024 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,12 +17,132 @@
 
 from __future__ import annotations
 
-import base64
 import json
+import logging
+import os
+import shutil
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Dict, List, Optional
+from pydoc import locate
+from typing import Any, Dict, List, Optional
 
 import pendulum
+from airflow import AirflowException
+from airflow.models import DagBag, Variable
+
+from observatory_platform.airflow.airflow import delete_old_xcoms
+from observatory_platform.config import AirflowVars
+
+
+def get_data_path() -> str:
+    """Grabs the DATA_PATH airflow vairable
+
+    :raises AirflowException: Raised if the variable does not exist
+    :return: DATA_PATH variable contents
+    """
+
+    # Try to get environment variable from environment variable first
+    data_path = os.environ.get(AirflowVars.DATA_PATH)
+    if data_path is not None:
+        return data_path
+
+    # Try to get from Airflow Variable
+    data_path = Variable.get(AirflowVars.DATA_PATH)
+    if data_path is not None:
+        return data_path
+
+    raise AirflowException("DATA_PATH variable could not be found.")
+
+
+def fetch_workflows() -> List[Workflow]:
+    workflows = []
+    workflows_str = Variable.get(AirflowVars.WORKFLOWS)
+    logging.info(f"workflows_str: {workflows_str}")
+
+    if workflows_str is not None and workflows_str.strip() != "":
+        try:
+            workflows = json_string_to_workflows(workflows_str)
+            logging.info(f"workflows: {workflows}")
+        except json.decoder.JSONDecodeError as e:
+            e.msg = f"workflows_str: {workflows_str}\n\n{e.msg}"
+
+    return workflows
+
+
+def load_dags_from_config():
+    for workflow in fetch_workflows():
+        dag_id = workflow.dag_id
+        logging.info(f"Making Workflow: {workflow.name}, dag_id={dag_id}")
+        dag = make_dag(workflow)
+
+        logging.info(f"Adding DAG: dag_id={dag_id}, dag={dag}")
+        globals()[dag_id] = dag
+
+
+def make_dag(workflow: Workflow):
+    """Make a DAG instance from a Workflow config.
+    :param workflow: the workflow configuration.
+    :return: the workflow instance.
+    """
+
+    cls = locate(workflow.class_name)
+    if cls is None:
+        raise ModuleNotFoundError(f"dag_id={workflow.dag_id}: could not locate class_name={workflow.class_name}")
+
+    return cls(dag_id=workflow.dag_id, cloud_workspace=workflow.cloud_workspace, **workflow.kwargs)
+
+
+def make_workflow_folder(dag_id: str, run_id: str, *subdirs: str) -> str:
+    """Return the path to this dag release's workflow folder. Will also create it if it doesn't exist
+
+    :param dag_id: The ID of the dag. This is used to find/create the workflow folder
+    :param run_id: The Airflow DAGs run ID. Examples: "scheduled__2023-03-26T00:00:00+00:00" or "manual__2023-03-26T00:00:00+00:00".
+    :param subdirs: The folder path structure (if any) to create inside the workspace. e.g. 'download' or 'transform'
+    :return: the path of the workflow folder
+    """
+
+    path = os.path.join(get_data_path(), dag_id, run_id, *subdirs)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def fetch_dag_bag(path: str, include_examples: bool = False) -> DagBag:
+    """Load a DAG Bag from a given path.
+
+    :param path: the path to the DAG bag.
+    :param include_examples: whether to include example DAGs or not.
+    :return: None.
+    """
+    logging.info(f"Loading DAG bag from path: {path}")
+    dag_bag = DagBag(path, include_examples=include_examples)
+
+    if dag_bag is None:
+        raise Exception(f"DagBag could not be loaded from path: {path}")
+
+    if len(dag_bag.import_errors):
+        # Collate loading errors as single string and raise it as exception
+        results = []
+        for path, exception in dag_bag.import_errors.items():
+            results.append(f"DAG import exception: {path}\n{exception}\n\n")
+        raise Exception("\n".join(results))
+
+    return dag_bag
+
+
+def cleanup(dag_id: str, execution_date: str, workflow_folder: str = None, retention_days=31) -> None:
+    """Delete all files, folders and XComs associated from a release.
+
+    :param dag_id: The ID of the DAG to remove XComs
+    :param execution_date: The execution date of the DAG run
+    :param workflow_folder: The top-level workflow folder to clean up
+    :param retention_days: How many days of Xcom messages to retain
+    """
+    if workflow_folder:
+        try:
+            shutil.rmtree(workflow_folder)
+        except FileNotFoundError as e:
+            logging.warning(f"No such file or directory {workflow_folder}: {e}")
+
+    delete_old_xcoms(dag_id=dag_id, execution_date=execution_date, retention_days=retention_days)
 
 
 class CloudWorkspace:
@@ -250,31 +370,3 @@ def json_string_to_workflows(json_string: str) -> List[Workflow]:
 
     data = json.loads(json_string, object_hook=parse_datetime)
     return Workflow.parse_workflows(data)
-
-
-def parse_dict_to_list(dict_: Dict, cls: ClassVar) -> List[Any]:
-    """Parse the key, value pairs in a dictionary into a list of class instances.
-
-    :param dict_: the dictionary.
-    :param cls: the type of class to construct.
-    :return: a list of class instances.
-    """
-
-    parsed_items = []
-    for key, val in dict_.items():
-        parsed_items.append(cls(key, val))
-    return parsed_items
-
-
-def is_base64(text: bytes) -> bool:
-    """Check if the string is base64.
-    :param text: Text to check.
-    :return: Whether it is base64.
-    """
-
-    try:
-        base64.decodebytes(text)
-    except:
-        return False
-
-    return True

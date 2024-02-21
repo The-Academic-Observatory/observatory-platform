@@ -27,12 +27,13 @@ import pendulum
 from click.testing import CliRunner
 from google.cloud.bigquery import SourceFormat
 
+from observatory_platform.config import module_file_path
 from observatory_platform.google.bigquery import bq_create_dataset, bq_load_table, bq_table_id
 from observatory_platform.google.gcs import gcs_upload_file, gcs_blob_uri
 from observatory_platform.sandbox.sandbox_environment import SandboxEnvironment
-from observatory_platform.sandbox.test_utils import SandboxTestCase, load_and_parse_json, test_fixtures_path, random_id
-from observatory_platform.url_utils import retry_session
+from observatory_platform.sandbox.test_utils import SandboxTestCase, load_and_parse_json, random_id
 from observatory_platform.sandbox.tests.test_sandbox_environment import create_dag
+from observatory_platform.url_utils import retry_session
 
 DAG_ID = "my-dag"
 DAG_FILE_CONTENT = """
@@ -53,6 +54,7 @@ class TestSandboxTestCase(unittest.TestCase):
         super(TestSandboxTestCase, self).__init__(*args, **kwargs)
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
+        self.test_fixtures_path = module_file_path("observatory_platform.sandbox.tests.fixtures")
 
     def test_assert_dag_structure(self):
         """Test assert_dag_structure"""
@@ -96,7 +98,7 @@ class TestSandboxTestCase(unittest.TestCase):
 
             # Import errors
             with self.assertRaises(AssertionError):
-                test_case.assert_dag_load("no dag found", test_fixtures_path("utils", "bad_dag.py"))
+                test_case.assert_dag_load("no dag found", os.path.join(self.test_fixtures_path, "bad_dag.py"))
 
             # No dag
             with self.assertRaises(AssertionError):
@@ -112,7 +114,7 @@ class TestSandboxTestCase(unittest.TestCase):
         with env.create():
             # Upload file to download bucket and check gzip-crc
             blob_name = "people.csv"
-            file_path = test_fixtures_path("utils", blob_name)
+            file_path = os.path.join(self.test_fixtures_path, blob_name)
             result, upload = gcs_upload_file(bucket_name=env.download_bucket, blob_name=blob_name, file_path=file_path)
             self.assertTrue(result)
 
@@ -132,7 +134,7 @@ class TestSandboxTestCase(unittest.TestCase):
         with env.create():
             # Upload file to download bucket and check gzip-crc
             blob_name = "people.jsonl"
-            file_path = test_fixtures_path("utils", blob_name)
+            file_path = os.path.join(self.test_fixtures_path, blob_name)
             result, upload = gcs_upload_file(bucket_name=env.download_bucket, blob_name=blob_name, file_path=file_path)
             self.assertTrue(result)
 
@@ -142,7 +144,7 @@ class TestSandboxTestCase(unittest.TestCase):
 
             # Test loading JSON newline table
             table_name = random_id()
-            schema_path = test_fixtures_path("utils", "people_schema.json")
+            schema_path = os.path.join(self.test_fixtures_path, "people_schema.json")
             uri = gcs_blob_uri(env.download_bucket, blob_name)
             table_id = bq_table_id(self.project_id, dataset_id, table_name)
             result = bq_load_table(
@@ -181,7 +183,7 @@ class TestSandboxTestCase(unittest.TestCase):
         with env.create():
             # Upload file to download bucket and check gzip-crc
             blob_name = "people.jsonl"
-            file_path = test_fixtures_path("utils", blob_name)
+            file_path = os.path.join(self.test_fixtures_path, blob_name)
             result, upload = gcs_upload_file(bucket_name=env.download_bucket, blob_name=blob_name, file_path=file_path)
             self.assertTrue(result)
 
@@ -191,7 +193,7 @@ class TestSandboxTestCase(unittest.TestCase):
 
             # Test loading JSON newline table
             table_name = random_id()
-            schema_path = test_fixtures_path("utils", "people_schema.json")
+            schema_path = os.path.join(self.test_fixtures_path, "people_schema.json")
             uri = gcs_blob_uri(env.download_bucket, blob_name)
             table_id = bq_table_id(self.project_id, dataset_id, table_name)
             result = bq_load_table(
@@ -247,16 +249,15 @@ class TestSandboxTestCase(unittest.TestCase):
         """Test assert_file_integrity"""
 
         test_case = SandboxTestCase()
-        tests_path = test_fixtures_path("utils")
 
         # Test md5
-        file_path = os.path.join(tests_path, "people.csv")
+        file_path = os.path.join(self.test_fixtures_path, "people.csv")
         expected_hash = "ad0d7ad3dc3434337cebd5fb543420e7"
         algorithm = "md5"
         test_case.assert_file_integrity(file_path, expected_hash, algorithm)
 
         # Test gzip-crc
-        file_path = os.path.join(tests_path, "people.csv.gz")
+        file_path = os.path.join(self.test_fixtures_path, "people.csv.gz")
         expected_hash = "3beea5ac"
         algorithm = "gzip_crc"
         test_case.assert_file_integrity(file_path, expected_hash, algorithm)

@@ -28,8 +28,8 @@ from airflow.exceptions import AirflowException
 from click.testing import CliRunner
 from tenacity import wait_fixed
 
+from observatory_platform.config import module_file_path
 from observatory_platform.sandbox.http_server import HttpServer
-from observatory_platform.sandbox.test_utils import test_fixtures_path
 from observatory_platform.url_utils import (
     get_filename_from_url,
     get_http_response_json,
@@ -66,6 +66,7 @@ class TestUrlUtils(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fixtures_path = module_file_path("observatory_platform.tests.fixtures")
 
     def __create_mock_request_sequence(self, url: str, status_codes: List[int], bodies: List[str], sleep: float = 0):
         self.sequence = 0
@@ -288,7 +289,7 @@ class TestUrlUtils(unittest.TestCase):
 
     def test_get_http_response_json(self):
         with CliRunner().isolated_filesystem():
-            httpserver = HttpServer(test_fixtures_path("utils"))
+            httpserver = HttpServer(self.fixtures_path)
 
             with httpserver.create():
                 url = f"http://{httpserver.host}:{httpserver.port}/get_http_response_json.json"
@@ -299,7 +300,7 @@ class TestUrlUtils(unittest.TestCase):
 
     def test_get_http_response_xml_to_dict(self):
         with CliRunner().isolated_filesystem():
-            httpserver = HttpServer(test_fixtures_path("utils"))
+            httpserver = HttpServer(self.fixtures_path)
 
             with httpserver.create():
                 url = f"http://{httpserver.host}:{httpserver.port}/get_http_response_xml_to_dict.xml"

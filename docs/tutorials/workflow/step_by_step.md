@@ -329,13 +329,13 @@ To ensure that the workflow works as expected and to pick up any changes in the 
  workflow, it is required to add unit tests that cover the code in the developed workflow. 
 
 The test files for workflows are stored in `my-dags/tests/workflows`. 
-The `ObservatoryTestCase` class in the `observatory-platform/observatory/platform/utils/test_utils.py` file contains
+The `SandboxTestCase` class in the `observatory-platform/observatory/platform/utils/test_utils.py` file contains
  common test methods and should be used as a parent class for the unit tests instead of `unittest.TestCase`. 
-Additionally, the `ObservatoryEnvironment` class in the `test_utils.py` can be used to simulate the Airflow
+Additionally, the `SandboxEnvironment` class in the `test_utils.py` can be used to simulate the Airflow
  environment and the different workflow tasks can be run and tested inside this environment. 
 
 ### Testing DAG structure
-The workflow's DAG structure can be tested through the `assert_dag_structure` method of `ObservatoryTestCase`.  
+The workflow's DAG structure can be tested through the `assert_dag_structure` method of `SandboxTestCase`.  
 The DAG object is compared against a dictionary, where the key is the source node, and the value is a list of sink
  nodes. 
 This expresses the relationship that the source node task is a dependency of all of the sink node tasks.  
@@ -344,7 +344,7 @@ Example:
 ```python
 import pendulum
 
-from observatory.platform.utils.test_utils import ObservatoryTestCase
+from observatory.platform.utils.test_utils import SandboxTestCase
 from observatory.platform.workflows.workflow import Release, Workflow
 
 
@@ -371,7 +371,7 @@ class MyWorkflow(Workflow):
         pass
 
 
-class MyTestClass(ObservatoryTestCase):
+class MyTestClass(SandboxTestCase):
     """Tests for the workflow"""
 
     def __init__(self, *args, **kwargs):
@@ -394,7 +394,7 @@ class MyTestClass(ObservatoryTestCase):
 ```
 
 ### Testing DAG loading
-To test if a DAG loads from a DagBag, the `assert_dag_load` method can be used within an `ObservatoryEnvironment`.  
+To test if a DAG loads from a DagBag, the `assert_dag_load` method can be used within an `SandboxEnvironment`.  
 
 Example:
 ```python
@@ -402,7 +402,7 @@ import os
 import pendulum
 
 from observatory.platform.utils.config_utils import module_file_path
-from observatory.platform.utils.test_utils import ObservatoryTestCase, ObservatoryEnvironment
+from observatory.platform.utils.test_utils import SandboxTestCase, SandboxEnvironment
 from observatory.platform.workflows.workflow import Release, Workflow
 
 
@@ -429,7 +429,7 @@ class MyWorkflow(Workflow):
         pass
 
 
-class MyTestClass(ObservatoryTestCase):
+class MyTestClass(SandboxTestCase):
     """Tests for the workflow"""
 
     def __init__(self, *args, **kwargs):
@@ -445,15 +445,15 @@ class MyTestClass(ObservatoryTestCase):
 
         :return: None
         """
-        with ObservatoryEnvironment().create():
+        with SandboxEnvironment().create():
             dag_file = os.path.join(module_file_path("my_dags.dags"), "my_workflow.py")
             self.assert_dag_load("my_workflow", dag_file)
 ```
 
 ### Testing workflow tasks
-To run and test a workflow task, the `run_task` method can be used within an `ObservatoryEnvironment`. 
+To run and test a workflow task, the `run_task` method can be used within an `SandboxEnvironment`. 
 
-The ObservatoryEnvironment is used to simulate the Airflow environment.
+The SandboxEnvironment is used to simulate the Airflow environment.
 
 To ensure that a workflow can be run from end to end the Observatory Environment creates additional resources, it will:
 * Create a temporary local directory.
@@ -482,7 +482,7 @@ Example:
 ```python
 import pendulum
 
-from observatory.platform.utils.test_utils import ObservatoryTestCase, ObservatoryEnvironment
+from observatory.platform.utils.test_utils import SandboxTestCase, SandboxEnvironment
 from observatory.platform.workflows.workflow import Release, Workflow
 
 
@@ -509,7 +509,7 @@ class MyWorkflow(Workflow):
         pass
 
 
-class MyTestClass(ObservatoryTestCase):
+class MyTestClass(SandboxTestCase):
     """Tests for the workflow"""
 
     def __init__(self, *args, **kwargs):
@@ -525,7 +525,7 @@ class MyTestClass(ObservatoryTestCase):
         :return: None.
         """
         # Setup Observatory environment
-        env = ObservatoryEnvironment()
+        env = SandboxEnvironment()
 
         # Setup Workflow
         workflow = MyWorkflow()
@@ -542,15 +542,15 @@ class MyTestClass(ObservatoryTestCase):
 Unit testing frameworks often run tests in parallel, so there is no guarantee of execution order. 
 When running code that modifies datasets or tables in the Google Cloud, it is recommended to create temporary
  datasets for each task to prevent any bugs caused by race conditions. 
-The `ObservatoryEnvironment` has a method called `add_dataset` that can be used to create a new dataset in the linked
+The `SandboxEnvironment` has a method called `add_dataset` that can be used to create a new dataset in the linked
  project for the duration of the environment.
 
 ### Observatory Platform API
 Some workflows make use of the Observatory Platform API in order to fetch necessary metadata. 
 When writing unit tests for workflows that use the platform API, it is necessary to use an isolated API environment
  where the relevant WorkflowType, Organisations and Telescope exist. 
-The ObservatoryEnvironment that is mentioned above can be used to achieve this. 
-An API session is started when creating the ObservatoryEnvironment and the WorkflowType, Organisations and Telescope
+The SandboxEnvironment that is mentioned above can be used to achieve this. 
+An API session is started when creating the SandboxEnvironment and the WorkflowType, Organisations and Telescope
  can all be added to this session.  
  
 Example:
@@ -561,12 +561,12 @@ from airflow.models.connection import Connection
 from my_dags.utils.identifiers import WorkflowTypes
 from observatory.api.server import orm
 from observatory.platform.utils.airflow_utils import AirflowConns
-from observatory.platform.utils.test_utils import ObservatoryEnvironment
+from observatory.platform.utils.test_utils import SandboxEnvironment
 
 dt = pendulum.now("UTC")
 
 # Create observatory environment
-env = ObservatoryEnvironment()
+env = SandboxEnvironment()
 
 # Add the Observatory API connection, used from make_observatory_api() in DAG file
 conn = Connection(conn_id=AirflowConns.OBSERVATORY_API, uri=f"http://:password@host:port")

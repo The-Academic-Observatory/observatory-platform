@@ -15,12 +15,14 @@
 # Author: James Diprose, Aniek Roelofs
 
 import datetime
+import os
 import textwrap
 import unittest
 from unittest.mock import MagicMock, patch
 
 import pendulum
-from airflow.exceptions import AirflowException
+from airflow.decorators import dag
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.xcom import XCom
@@ -39,6 +41,7 @@ from observatory_platform.airflow.airflow import (
     normalized_schedule_interval,
     is_first_dag_run,
 )
+from observatory_platform.airflow.tasks import check_dependencies
 from observatory_platform.sandbox.sandbox_environment import SandboxEnvironment
 
 
@@ -286,6 +289,64 @@ class TestAirflow(unittest.TestCase):
             comments="Task failed, exception:\n" "airflow.exceptions.AirflowException: Exception message",
             slack_conn_id="slack",
         )
+
+    @patch("observatory_platform.airflow.airflow.send_slack_msg")
+    def test_callback(self, mock_send_slack_msg):
+        """Test that the on_failure_callback function is successfully called in a production environment when a task
+        fails
+
+        :param mock_send_slack_msg: Mock send_slack_msg function
+        :return: None.
+        """
+
+        def create_dag(dag_id: str, start_date: pendulum.DateTime, schedule: str, retries: int, airflow_conns: list):
+            @dag(
+                dag_id=dag_id,
+                start_date=start_date,
+                schedule=schedule,
+                default_args=dict(retries=retries, on_failure_callback=on_failure_callback),
+            )
+            def callback_test_dag():
+                check_dependencies(airflow_conns=airflow_conns)
+            return callback_test_dag()
+
+        # Setup Observatory environment
+        project_id = os.getenv("TEST_GCP_PROJECT_ID")
+        data_location = os.getenv("TEST_GCP_DATA_LOCATION")
+        env = SandboxEnvironment(project_id, data_location)
+
+        # Setup Workflow with 0 retries and missing airflow variable, so it will fail the task
+        execution_date = pendulum.datetime(2020, 1, 1)
+        conn_id = "orcid_bucket"
+        my_dag = create_dag(
+            "test_callback",
+            execution_date,
+            "@weekly",
+            retries=0,
+            airflow_conns=[conn_id],
+        )
+
+        # Create the Observatory environment and run task, expecting slack webhook call in production environment
+        with env.create(task_logging=True):
+            with env.create_dag_run(my_dag, execution_date):
+                with self.assertRaises(AirflowNotFoundException):
+                    env.run_task("check_dependencies")
+
+                _, callkwargs = mock_send_slack_msg.call_args
+                self.assertTrue(
+                    "airflow.exceptions.AirflowNotFoundException: Required variables or connections are missing"
+                    in callkwargs["comments"]
+                )
+
+        # Reset mock
+        mock_send_slack_msg.reset_mock()
+
+        # Add orcid_bucket connection and test that Slack Web Hook did not get triggered
+        with env.create(task_logging=True):
+            with env.create_dag_run(my_dag, execution_date):
+                env.add_connection(Connection(conn_id=conn_id, uri="https://orcid.org/"))
+                env.run_task("check_dependencies")
+                mock_send_slack_msg.assert_not_called()
 
     def test_is_first_dag_run(self):
         """Test is_first_dag_run"""

@@ -15,14 +15,17 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+import logging
+from typing import Optional, List
 
+import airflow
 from airflow.decorators import task
-from airflow.exceptions import AirflowSkipException
+from airflow.exceptions import AirflowNotFoundException
+from airflow.hooks.base import BaseHook
+from airflow.models import Variable
 
-from observatory_platform.airflow import check_variables, check_connections
-from observatory_platform.gcp import gcp_delete_disk, gcp_create_disk
-from observatory_platform.gke import gke_create_volume, gke_delete_volume
+from observatory_platform.google.gcp import gcp_delete_disk, gcp_create_disk
+from observatory_platform.google.gke import gke_create_volume, gke_delete_volume
 
 
 @task
@@ -42,7 +45,39 @@ def check_dependencies(airflow_vars: Optional[List[str]] = None, airflow_conns: 
         conns_valid = check_connections(*airflow_conns)
 
     if not vars_valid or not conns_valid:
-        raise AirflowSkipException("Required variables or connections are missing")
+        raise AirflowNotFoundException("Required variables or connections are missing")
+
+
+def check_variables(*variables):
+    """Checks whether all given airflow variables exist.
+
+    :param variables: name of airflow variable
+    :return: True if all variables are valid
+    """
+    is_valid = True
+    for name in variables:
+        try:
+            Variable.get(name)
+        except AirflowNotFoundException:
+            logging.error(f"Airflow variable '{name}' not set.")
+            is_valid = False
+    return is_valid
+
+
+def check_connections(*connections):
+    """Checks whether all given airflow connections exist.
+
+    :param connections: name of airflow connection
+    :return: True if all connections are valid
+    """
+    is_valid = True
+    for name in connections:
+        try:
+            BaseHook.get_connection(name)
+        except airflow.exceptions.AirflowNotFoundException:
+            logging.error(f"Airflow connection '{name}' not set.")
+            is_valid = False
+    return is_valid
 
 
 @task

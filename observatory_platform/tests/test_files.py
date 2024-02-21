@@ -30,6 +30,7 @@ import jsonlines
 from click.testing import CliRunner
 from google.cloud import bigquery
 
+from observatory_platform.config import module_file_path
 from observatory_platform.files import add_partition_date, find_replace_file, get_chunks
 from observatory_platform.files import (
     get_file_hash,
@@ -45,18 +46,17 @@ from observatory_platform.files import (
     split_file_and_compress,
 )
 from observatory_platform.files import validate_file_hash, load_jsonl, list_files
-from observatory_platform.sandbox.test_utils import test_fixtures_path
 
 
 class TestFileUtils(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestFileUtils, self).__init__(*args, **kwargs)
 
-        fixtures_path = test_fixtures_path("elastic")
-        self.csv_gz_file_path = os.path.join(fixtures_path, "load_csv_gz.csv.gz")
-        self.jsonl_gz_file_path = os.path.join(fixtures_path, "load_jsonl_gz.jsonl.gz")
-        self.csv_file_path = os.path.join(fixtures_path, "load_csv.csv")
-        self.jsonl_file_path = os.path.join(fixtures_path, "load_jsonl.jsonl")
+        self.fixtures_path = module_file_path("observatory_platform.tests.fixtures")
+        self.csv_gz_file_path = os.path.join(self.fixtures_path, "load_csv_gz.csv.gz")
+        self.jsonl_gz_file_path = os.path.join(self.fixtures_path, "load_jsonl_gz.jsonl.gz")
+        self.csv_file_path = os.path.join(self.fixtures_path, "load_csv.csv")
+        self.jsonl_file_path = os.path.join(self.fixtures_path, "load_jsonl.jsonl")
         self.expected_records = [
             {"first_name": "Jim", "last_name": "Holden"},
             {"first_name": "Alex", "last_name": "Kamal"},
@@ -151,24 +151,21 @@ class TestFileUtils(unittest.TestCase):
 
     def test_get_file_hash(self):
         expected_hash = "f299060e0383392ebeac64b714eca7e3"
-        fixtures_dir = test_fixtures_path("utils")
-        file_path = os.path.join(fixtures_dir, "test_hasher.txt")
+        file_path = os.path.join(self.fixtures_path, "test_hasher.txt")
         computed_hash = get_file_hash(file_path=file_path)
         self.assertEqual(expected_hash, computed_hash)
 
     def test_validate_file_hash(self):
         expected_hash = "f299060e0383392ebeac64b714eca7e3"
-        fixtures_dir = test_fixtures_path("utils")
-        file_path = os.path.join(fixtures_dir, "test_hasher.txt")
+        file_path = os.path.join(self.fixtures_path, "test_hasher.txt")
 
         self.assertTrue(validate_file_hash(file_path=file_path, expected_hash=expected_hash))
 
     def test_gunzip_files(self):
-        fixture_dir = test_fixtures_path("utils")
         filename = "testzip.txt.gz"
         expected_hash = "62d83685cff9cd962ac5abb563c61f38"
         output_file = "testzip.txt"
-        src = os.path.join(fixture_dir, filename)
+        src = os.path.join(self.fixtures_path, filename)
 
         # Save in same dir
         with CliRunner().isolated_filesystem() as tmpdir:
@@ -187,7 +184,7 @@ class TestFileUtils(unittest.TestCase):
         # Skip non gz files
         with CliRunner().isolated_filesystem() as tmpdir:
             dst = os.path.join(tmpdir, filename)
-            src_path = os.path.join(fixture_dir, output_file)
+            src_path = os.path.join(self.fixtures_path, output_file)
             gunzip_files(file_list=[src_path], output_dir=tmpdir)
             self.assertFalse(os.path.exists(dst))
 
@@ -329,8 +326,7 @@ class TestFileUtils(unittest.TestCase):
             self.assertEqual(expected_data, data)
 
     def test_find_replace_file(self):
-        fixture_dir = test_fixtures_path("utils")
-        src = os.path.join(fixture_dir, "find_replace.txt")
+        src = os.path.join(self.fixtures_path, "find_replace.txt")
         expected_hash = "ffa623201cb9538bd3c030cd0b9f6b66"
 
         with CliRunner().isolated_filesystem():

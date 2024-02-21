@@ -27,6 +27,7 @@ from google.api_core.exceptions import Conflict
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import SourceFormat
 
+from observatory_platform.config import module_file_path
 from observatory_platform.google.bigquery import (
     bq_table_id,
     bq_select_latest_table,
@@ -54,7 +55,7 @@ from observatory_platform.google.bigquery import (
 )
 from observatory_platform.files import load_jsonl
 from observatory_platform.google.gcs import gcs_delete_old_buckets_with_prefix, gcs_upload_file
-from observatory_platform.sandbox.test_utils import random_id, test_fixtures_path, bq_dataset_test_env
+from observatory_platform.sandbox.test_utils import random_id, bq_dataset_test_env
 
 
 class TestGoogleCloudUtilsNoAuth(unittest.TestCase):
@@ -77,8 +78,8 @@ class TestBigQuery(unittest.TestCase):
         self.data = "hello world"
         self.expected_crc32c = "yZRlqg=="
         self.prefix = "bq_tests"
-
         self.patents_table_id = f"bigquery-public-data.labeled_patents.figures"
+        self.test_data_path = module_file_path("observatory_platform.google.tests.fixtures")
 
         # Save time and only have this run once.
         if not __class__.__init__already:
@@ -115,8 +116,7 @@ class TestBigQuery(unittest.TestCase):
             client.delete_dataset(dataset_id, not_found_ok=True)
 
     def test_bq_create_empty_table(self):
-        test_data_path = test_fixtures_path("utils")
-        schema_file_path = os.path.join(test_data_path, "people_schema.json")
+        schema_file_path = os.path.join(self.test_data_path, "people_schema.json")
 
         with bq_dataset_test_env(
             project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
@@ -483,17 +483,16 @@ class TestBigQuery(unittest.TestCase):
                     blob.delete()
 
     def test_bq_load_table(self):
-        test_data_path = test_fixtures_path("utils")
-        schema_file_path = os.path.join(test_data_path, "people_schema.json")
+        schema_file_path = os.path.join(self.test_data_path, "people_schema.json")
 
         # CSV file
-        csv_file_path = os.path.join(test_data_path, "people.csv")
+        csv_file_path = os.path.join(self.test_data_path, "people.csv")
         csv_blob_name = f"people_{random_id()}.csv"
 
         # JSON files
-        json_file_path = os.path.join(test_data_path, "people.jsonl")
+        json_file_path = os.path.join(self.test_data_path, "people.jsonl")
         json_blob_name = f"people_{random_id()}.jsonl"
-        json_extra_file_path = os.path.join(test_data_path, "people_extra.jsonl")
+        json_extra_file_path = os.path.join(self.test_data_path, "people_extra.jsonl")
         json_extra_blob_name = f"people_{random_id()}.jsonl"
 
         with bq_dataset_test_env(
@@ -595,11 +594,10 @@ class TestBigQuery(unittest.TestCase):
                         blob.delete()
 
     def test_bq_load_from_memory(self):
-        test_data_path = test_fixtures_path("utils")
-        json_file_path = os.path.join(test_data_path, "people.jsonl")
+        json_file_path = os.path.join(self.test_data_path, "people.jsonl")
         test_data = load_jsonl(json_file_path)
 
-        schema_file_path = os.path.join(test_data_path, "people_schema.json")
+        schema_file_path = os.path.join(self.test_data_path, "people_schema.json")
 
         with bq_dataset_test_env(
             project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix

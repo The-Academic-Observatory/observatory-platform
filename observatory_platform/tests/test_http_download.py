@@ -20,13 +20,14 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
+from observatory_platform.config import module_file_path
 from observatory_platform.http_download import (
     DownloadInfo,
     download_file,
     download_files,
 )
 from observatory_platform.sandbox.http_server import HttpServer
-from observatory_platform.sandbox.test_utils import SandboxTestCase, test_fixtures_path
+from observatory_platform.sandbox.test_utils import SandboxTestCase
 from observatory_platform.url_utils import get_observatory_http_header
 
 
@@ -44,7 +45,7 @@ class MockVersionData:
 class TestAsyncHttpFileDownloader(SandboxTestCase):
     def test_download_files(self):
         # Spin up http server
-        directory = test_fixtures_path("utils")
+        directory = module_file_path("observatory_platform.tests.fixtures")
         http_server = HttpServer(directory=directory)
         with http_server.create():
             file1 = "http_testfile.txt"

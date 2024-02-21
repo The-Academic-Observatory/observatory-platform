@@ -21,16 +21,21 @@ from unittest.mock import patch
 import timeout_decorator
 from click.testing import CliRunner
 
+from observatory_platform.config import module_file_path
 from observatory_platform.http_download import (
     DownloadInfo,
     download_file,
     download_files,
 )
 from observatory_platform.sandbox.http_server import HttpServer
-from observatory_platform.sandbox.test_utils import test_fixtures_path, SandboxTestCase
+from observatory_platform.sandbox.test_utils import SandboxTestCase
 
 
 class TestHttpserver(SandboxTestCase):
+    def __init__(self, *args, **kwargs):
+        super(TestHttpserver, self).__init__(*args, **kwargs)
+        self.fixtures_path = module_file_path("observatory_platform.sandbox.tests.fixtures")
+
     def test_serve(self):
         """Make sure the server can be constructed."""
         with patch("observatory_platform.sandbox.http_server.ThreadingHTTPServer.serve_forever") as m_serve:
@@ -57,8 +62,7 @@ class TestHttpserver(SandboxTestCase):
     def test_server(self):
         """Test the webserver can serve a directory"""
 
-        directory = test_fixtures_path("utils")
-        server = HttpServer(directory=directory)
+        server = HttpServer(directory=self.fixtures_path)
         server.start()
 
         test_file = "http_testfile.txt"
@@ -77,8 +81,7 @@ class TestHttpserver(SandboxTestCase):
         server.stop()
 
     def test_context_manager(self):
-        directory = test_fixtures_path("utils")
-        server = HttpServer(directory=directory)
+        server = HttpServer(directory=self.fixtures_path)
 
         with server.create():
             test_file = "http_testfile.txt"
