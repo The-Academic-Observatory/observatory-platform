@@ -35,8 +35,8 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(expected_path, actual_path)
 
         # Go back two steps
-        expected_path = str(pathlib.Path(*pathlib.Path(platform_utils_tests.__file__).resolve().parts[:-2]).resolve())
-        actual_path = module_file_path("observatory_platform", nav_back_steps=-2)
+        expected_path = str(pathlib.Path(*pathlib.Path(platform_utils_tests.__file__).resolve().parts[:-1]).resolve())
+        actual_path = module_file_path("observatory_platform.tests.fixtures", nav_back_steps=-2)
         self.assertEqual(expected_path, actual_path)
 
     @patch("observatory_platform.config.pathlib.Path.home")
