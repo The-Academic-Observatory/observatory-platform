@@ -20,7 +20,7 @@ import unittest
 
 import pysftp
 
-from observatory_platform.sandbox.stfp_server import SftpServer
+from observatory_platform.sandbox.sftp_server import SftpServer
 from observatory_platform.sandbox.test_utils import find_free_port
 
 
