@@ -28,10 +28,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[tests] --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-no-providers-${{ matrix.python-version }}.txt
 
-      # - name: Check licenses
-      #   run: |
-      #     stop the build if there are licensing issues
-      #     liccheck --sfile strategy.ini --rfile pyproject.toml --level CAUTIOUS --reporting liccheck-output.txt --no-deps
+      - name: Check licenses
+        run: |
+          # stop the build if there are licensing issues
+          # liccheck --sfile strategy.ini --rfile pyproject.toml --level CAUTIOUS --reporting liccheck-output.txt --no-deps
 
       - name: Lint with flake8
         run: |
