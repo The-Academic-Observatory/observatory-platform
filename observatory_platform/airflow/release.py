@@ -17,17 +17,12 @@
 from __future__ import annotations
 
 import logging
-
-try:
-    from typing import Protocol
-except ImportError:
-    from typing_extensions import Protocol
 import os
+
 import pendulum
-
 from airflow.exceptions import AirflowException
-from observatory_platform.airflow.workflow import make_workflow_folder
 
+from observatory_platform.airflow.workflow import make_workflow_folder
 
 DATE_TIME_FORMAT = "YYYY-MM-DD_HH:mm:ss"
 

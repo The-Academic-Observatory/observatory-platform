@@ -36,10 +36,7 @@ from google.cloud.exceptions import Conflict, NotFound
 from natsort import natsorted
 
 from observatory_platform.config import sql_templates_path
-from observatory_platform.jinja2_utils import (
-    make_sql_jinja2_filename,
-    render_template,
-)
+from observatory_platform.jinja2_utils import make_sql_jinja2_filename, render_template
 
 # BigQuery single query byte limit.
 # Daily limit is set in Terraform
