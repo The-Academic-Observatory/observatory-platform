@@ -104,7 +104,7 @@ authorized_licenses = [
     "bsd-2-clause or apache-2.0",
     "isc license (iscl)",
     "isc",
-#    "mit",
+    "mit",
     "python software foundation",
     "psfl",
     "zpl 2.1",
@@ -119,8 +119,6 @@ authorized_licenses = [
     "lgplv3+"
 ]
 unauthorized_licenses = [
-    "mit", # just to check it is working
-
     # Restricted licenses: https://opensource.google/docs/thirdparty/licenses/#restricted
     "gpl v1",
     "gpl v2",
