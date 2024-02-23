@@ -37,18 +37,13 @@ from airflow.operators.empty import EmptyOperator
 from click.testing import CliRunner
 from deepdiff import DeepDiff
 from google.cloud import bigquery, storage
+from google.cloud.bigquery import SourceFormat
 from google.cloud.exceptions import NotFound
 from pendulum import DateTime
 
 from observatory_platform.airflow.workflow import CloudWorkspace
 from observatory_platform.files import crc32c_base64_hash, get_file_hash, gzip_file_crc, save_jsonl_gz
-from observatory_platform.google.bigquery import (
-    bq_sharded_table_id,
-    bq_load_table,
-    bq_table_id,
-    SourceFormat,
-    bq_create_dataset,
-)
+from observatory_platform.google.bigquery import bq_sharded_table_id, bq_load_table, bq_table_id, bq_create_dataset
 from observatory_platform.google.gcs import gcs_blob_uri, gcs_upload_files
 
 

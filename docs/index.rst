@@ -1,8 +1,8 @@
 =======================
 Observatory Platform
 =======================
-The Observatory Platform provides an environment and workflows for fetching, processing and analysing data to
-understand how well universities operate as Open Knowledge Institutions.
+The Observatory Platform is a set of dependencies used by the Curtin Open Knowledge Initiative (COKI)
+for running its Airflow based workflows to harvest bibliometric datasets.
 
 Installation
 =======================
@@ -18,13 +18,6 @@ Tutorials
 
     tutorials/index
 
-REST API
-=========================
-.. toctree::
-    :maxdepth: 2
-
-    api/index
-
 License & Contributing Guidelines
 =================================
 Information about licenses, contributing guidelines etc.
@@ -36,7 +29,7 @@ Information about licenses, contributing guidelines etc.
 
 Python API Reference
 =====================
-Documentation for the observatory.platform Python API.
+Documentation for the observatory_platform Python API.
 
 .. toctree::
     :maxdepth: 3
