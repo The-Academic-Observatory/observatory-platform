@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "observatory-platform"
-version = "1.0.0"
+dynamic = ["version"]
 description = "The Observatory Platform is an environment for fetching, processing and analysing data to understand how well universities operate as Open Knowledge Institutions."
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
@@ -78,6 +78,9 @@ tests = [
 "Documentation" = "https://observatory-platform.readthedocs.io/en/latest/"
 "Source" = "https://github.com/The-Academic-Observatory/observatory-platform"
 "Repository" = "https://github.com/The-Academic-Observatory/observatory-platform"
+
+[tool.setuptools_scm]
+version_file = "observatory_platform/_version.py"
 
 [tool.liccheck]
 authorized_licenses = [

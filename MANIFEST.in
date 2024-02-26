@@ -1,0 +1,9 @@
+# Exclude folders and files that are not needed in the final package
+prune .github
+prune docs
+
+# Exclude tests folders
+prune observatory_platform/airflow/tests
+prune observatory_platform/google/tests
+prune observatory_platform/sandbox/tests
+prune observatory_platform/tests
