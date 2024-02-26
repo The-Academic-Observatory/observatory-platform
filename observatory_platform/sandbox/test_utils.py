@@ -68,6 +68,11 @@ class SandboxTestCase(unittest.TestCase):
 
     @property
     def fake_cloud_workspace(self):
+        """Return a fake CloudWorkspace instance for mocking.
+
+        :return: a CloudWorkspace instance.
+        """
+
         return CloudWorkspace(
             project_id="project-id",
             download_bucket="download_bucket",
@@ -328,6 +333,23 @@ def save_empty_file(path: str, file_name: str) -> str:
 
 @contextlib.contextmanager
 def bq_dataset_test_env(*, project_id: str, location: str, prefix: str):
+    """Creates a BigQuery dataset with a random ID for testing purposes and deletes the dataset and its contents
+    when the context exits. The BigQuery dataset is created with the given project_id, in the given location and with
+    the given prefix. See code example below for usage:
+
+    .. code-block:: python
+
+        with bq_dataset_test_env(
+            project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
+        ) as dataset_id:
+            print(f"My dataset id: {dataset_id}")
+
+    :param project_id: the BigQuery project ID.
+    :param location: the BigQuery dataset location.
+    :param prefix: a prefix to add to the dataset ID.
+    :return: yields the BigQuery dataset ID.
+    """
+
     client = bigquery.Client()
     dataset_id = prefix + "_" + random_id()
     try:
@@ -339,6 +361,22 @@ def bq_dataset_test_env(*, project_id: str, location: str, prefix: str):
 
 @contextlib.contextmanager
 def aws_bucket_test_env(*, prefix: str, region_name: str, expiration_days=1) -> str:
+    """Creates an AWS bucket with a random ID for testing purposes and deletes the bucket and its contents
+    when the context exits. The AWS bucket is named with the given prefix and created in the given region.
+    See code example below for usage:
+
+    .. code-block:: python
+
+        with aws_bucket_test_env(prefix="my-prefix", region_name=self.aws_region_name) as aws_bucket_name:
+            print(f"My AWS bucket name: {aws_bucket_name}")
+
+    :param prefix: a prefix for the AWS bucket name.
+    :param region_name: the AWS region where the bucket should be created.
+    :param expiration_days: the number of days for objects on the bucket to automatically expire, in case deleting
+    of the bucket or its contents fail.
+    :return: yields the AWS bucket name.
+    """
+
     # Create an S3 client
     s3 = boto3.Session().client("s3", region_name=region_name)
     bucket_name = f"obs-test-{prefix}-{random_id()}"

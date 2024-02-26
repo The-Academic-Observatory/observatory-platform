@@ -105,6 +105,12 @@ class DatasetRelease:
 
     @staticmethod
     def from_dict(_dict: Dict) -> DatasetRelease:
+        """Create a DatasetRelease instance from a dictionary.
+
+        :param _dict: the dictionary.
+        :return: DatasetRelease instance.
+        """
+
         return DatasetRelease(
             dag_id=_dict["dag_id"],
             dataset_id=_dict["dataset_id"],
@@ -123,6 +129,11 @@ class DatasetRelease:
         )
 
     def to_dict(self) -> Dict:
+        """Convert this DatasetRelease instance to a dictionary.
+
+        :return: a dictionary representation of this DatasetRelease instance.
+        """
+
         return dict(
             dag_id=self.dag_id,
             dataset_id=self.dataset_id,

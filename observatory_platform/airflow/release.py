@@ -67,26 +67,51 @@ class Release:
 
     @property
     def workflow_folder(self):
+        """Get the path to the workflow folder, namespaced to a DAG run. Can contain multiple release folders.
+
+        :return: path to folder.
+        """
+
         return make_workflow_folder(self.dag_id, self.run_id)
 
     @property
     def release_folder(self):
+        """Get the path to the release folder, which resides inside the workflow folder.
+
+        :return: path to folder.
+        """
+
         raise NotImplementedError("self.release_folder should be implemented by subclasses")
 
     @property
     def download_folder(self):
+        """Get the path to the download folder, which contains downloaded files. Resides in a release folder.
+
+        :return: path to folder.
+        """
+
         path = os.path.join(self.release_folder, "download")
         os.makedirs(path, exist_ok=True)
         return path
 
     @property
     def extract_folder(self):
+        """Get the path to the extract folder, which contains extracted files. Resides in a release folder.
+
+        :return: path to folder.
+        """
+
         path = os.path.join(self.release_folder, "extract")
         os.makedirs(path, exist_ok=True)
         return path
 
     @property
     def transform_folder(self):
+        """Get the path to the transform folder, which contains transformed files. Resides in a release folder.
+
+        :return: path to folder.
+        """
+
         path = os.path.join(self.release_folder, "transform")
         os.makedirs(path, exist_ok=True)
         return path
@@ -115,6 +140,11 @@ class SnapshotRelease(Release):
 
     @property
     def release_folder(self):
+        """Get the path to the release folder, which resides inside the workflow folder.
+
+        :return: path to folder.
+        """
+
         return make_workflow_folder(self.dag_id, self.run_id, f"snapshot_{self.snapshot_date.format(DATE_TIME_FORMAT)}")
 
     def __str__(self):
@@ -141,6 +171,11 @@ class PartitionRelease(Release):
 
     @property
     def release_folder(self):
+        """Get the path to the release folder, which resides inside the workflow folder.
+
+        :return: path to folder.
+        """
+
         return make_workflow_folder(
             self.dag_id, self.run_id, f"partition_{self.partition_date.format(DATE_TIME_FORMAT)}"
         )
@@ -178,6 +213,11 @@ class ChangefileRelease(Release):
 
     @property
     def release_folder(self):
+        """Get the path to the release folder, which resides inside the workflow folder.
+
+        :return: path to folder.
+        """
+
         return make_workflow_folder(
             self.dag_id,
             self.run_id,

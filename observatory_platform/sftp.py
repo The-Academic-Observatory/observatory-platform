@@ -50,7 +50,7 @@ class SftpFolders:
         """Initialise SftpFolders.
 
         :param dag_id: the dag id (namespace + organisation name)
-        :param sftp_conn_id: TODO
+        :param sftp_conn_id: the Airflow Connection ID for the SFTP server.
         :param sftp_root: optional root to be added to sftp home path
         """
         self.dag_id = dag_id
