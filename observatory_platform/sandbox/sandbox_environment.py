@@ -115,6 +115,12 @@ class SandboxEnvironment:
 
     @property
     def cloud_workspace(self) -> CloudWorkspace:
+        """Return a default CloudWorkspace instance constructed from the sandbox project_id, download_bucket,
+        transform_bucket and data_location variables.
+
+        :return: the CloudWorkspace instance.
+        """
+
         return CloudWorkspace(
             project_id=self.project_id,
             download_bucket=self.download_bucket,

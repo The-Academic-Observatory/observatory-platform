@@ -54,6 +54,11 @@ def get_data_path() -> str:
 
 
 def fetch_workflows() -> List[Workflow]:
+    """Fetches Workflow instances from the WORKFLOWS Airflow Variable.
+
+    :return: a list of Workflow instances.
+    """
+
     workflows = []
     workflows_str = Variable.get(AirflowVars.WORKFLOWS)
     logging.info(f"workflows_str: {workflows_str}")
@@ -69,6 +74,11 @@ def fetch_workflows() -> List[Workflow]:
 
 
 def load_dags_from_config():
+    """Loads DAGs from a workflow config file, stored in the WORKFLOWS Airflow Variable.
+
+    :return: None.
+    """
+
     for workflow in fetch_workflows():
         dag_id = workflow.dag_id
         logging.info(f"Making Workflow: {workflow.name}, dag_id={dag_id}")
