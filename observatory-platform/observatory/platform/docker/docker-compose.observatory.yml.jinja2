@@ -151,7 +151,7 @@ services:
   webserver:
     container_name: webserver
     hostname: webserver 
-    image: apache/airflow:{{ airflow_version }}-python{{ python_version }}
+    build: *build
     volumes: *volumes
     environment: *environment
     restart: always
