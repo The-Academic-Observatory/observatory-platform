@@ -25,3 +25,4 @@ docs/schemas
 /observatory-platform/build
 /observatory-api/build
 liccheck-output.txt
+_version.py
