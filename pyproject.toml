@@ -67,7 +67,7 @@ tests = [
     "responses>=0.23.1,<1",
     "boto3>=1.15.0,<2",
     "timeout-decorator>=0,<1",
-    "time-machine>2.14.0,<3",
+    "time-machine>=2.14.0,<3",
     # SFTP & FTP
     "sftpserver>=0.3,<1",
     "pyftpdlib>=1.5.7,<2",
