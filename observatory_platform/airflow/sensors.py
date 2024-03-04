@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Tuan Chien
+# Author: Tuan Chien, Keegan Smith, Jamie Diprose
 
 from __future__ import annotations
 
-from datetime import timedelta, datetime
-from typing import List
-import logging
+from datetime import timedelta
+from functools import partial
+from typing import List, Callable, Optional
 
+import pendulum
 from airflow.models import DagRun
 from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.utils.db import provide_session
@@ -36,6 +37,7 @@ class PreviousDagRunSensor(ExternalTaskSensor):
         task_id: str = "wait_for_prev_dag_run",
         external_task_id: str = "dag_run_complete",
         allowed_states: List[str] = None,
+        mode: str = "reschedule",
         *args,
         **kwargs,
     ):
@@ -67,6 +69,7 @@ class PreviousDagRunSensor(ExternalTaskSensor):
             external_dag_id=dag_id,
             external_task_id=external_task_id,
             allowed_states=allowed_states,
+            mode=mode,
             *args,
             **kwargs,
         )
@@ -97,28 +100,28 @@ class DagCompleteSensor(ExternalTaskSensor):
 
     def __init__(
         self,
-        task_id,
-        external_dag_id,
-        mode="reschedule",
-        poke_interval=int(1200),  # Check if dag run is ready every 20 minutes
-        timeout=int(timedelta(days=1).total_seconds()),  # Sensor will fail after 1 day of waiting
-        check_existence=True,
-        # Custom date retrieval fn. Airflow expects a callable with the execution_date as an argument only.
-        execution_date_fn=None,
+        task_id: str,
+        external_dag_id: str,
+        mode: str = "reschedule",
+        poke_interval: int = 1200,  # Check if dag run is ready every 20 minutes
+        timeout: int = int(timedelta(days=1).total_seconds()),  # Sensor will fail after 1 day of waiting
+        check_existence: bool = True,
+        execution_date_fn: Optional[Callable] = None,
         **kwargs,
     ):
         """
         :param task_id: the id of the sensor task to create
-        :param external_dag_id: the id of the external dag to check
+        :param ext_dag_id: the id of the external dag to check
         :param mode: The mode of the scheduler. Can be reschedule or poke.
         :param poke_interval: how often to check if the external dag run is complete
         :param timeout: how long to check before the sensor fails
-        :param check_existence: Whether to check that the provided dag_id exists
-        :param execution_date_fn: The callable that returns a logical date to check for the provided dag_id
+        :param check_existence: whether to check that the provided dag_id exists
+        :param execution_date_fn: a function that returns the logical date(s) of the external DAG runs to query for,
+        since you need a logical date and a DAG ID to find a particular DAG run to wait for.
         """
 
-        if not execution_date_fn:
-            execution_date_fn = lambda dt: latest_execution_timedelta(dt, external_dag_id)
+        if execution_date_fn is None:
+            execution_date_fn = partial(get_logical_dates, external_dag_id)
 
         super().__init__(
             task_id=task_id,
@@ -133,27 +136,32 @@ class DagCompleteSensor(ExternalTaskSensor):
 
 
 @provide_session
-def latest_execution_timedelta(
-    data_interval_start: datetime, ext_dag_id: str, session: scoped_session = None, **context
-) -> int:
-    """
-    Get the latest execution for a given external dag and returns its data_interval_start (logical date)
+def get_logical_dates(
+    external_dag_id: str, logical_date: pendulum.DateTime, session: scoped_session = None, **context
+) -> List[pendulum.DateTime]:
+    """Get the logical dates for a given external dag that fall between and returns its data_interval_start (logical date)
 
-    :param ext_dag_id: The dag_id to get the latest execution date for.
-    :return: The latest execution date in the window.
+    :param external_dag_id: the DAG ID of the external DAG we are waiting for.
+    :param logical_date: the logic date of the waiting DAG.
+    :param session: the SQL Alchemy session.
+    :param context: the Airflow context.
+    :return: the last logical date of the external DAG that falls before the data interval end of the waiting DAG.
     """
-    dagruns = (
+
+    data_interval_end = context["data_interval_end"]
+    dag_runs = (
         session.query(DagRun)
         .filter(
-            DagRun.dag_id == ext_dag_id,
+            DagRun.dag_id == external_dag_id,
+            DagRun.data_interval_end <= data_interval_end,
         )
         .all()
     )
-    dates = [d.data_interval_start for d in dagruns]  # data_interval start is what ExternalTaskSensor checks
+    dates = [d.logical_date for d in dag_runs]
     dates.sort(reverse=True)
 
-    if not len(dates):  # If no execution is found return the logical date for the Workflow
-        logging.warn(f"No Executions found for dag id: {ext_dag_id}")
-        return data_interval_start
+    # If more than 1 date return first date
+    if len(dates) >= 2:
+        dates = [dates[0]]
 
-    return dates[0]
+    return dates
