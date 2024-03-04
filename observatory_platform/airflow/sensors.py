@@ -111,7 +111,7 @@ class DagCompleteSensor(ExternalTaskSensor):
     ):
         """
         :param task_id: the id of the sensor task to create
-        :param ext_dag_id: the id of the external dag to check
+        :param external_dag_id: the id of the external dag to check
         :param mode: The mode of the scheduler. Can be reschedule or poke.
         :param poke_interval: how often to check if the external dag run is complete
         :param timeout: how long to check before the sensor fails
