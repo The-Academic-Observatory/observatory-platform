@@ -436,10 +436,11 @@ class ObservatoryEnvironment:
         self.session.add(conn)
         self.session.commit()
 
-    def run_task(self, task_id: str) -> TaskInstance:
+    def run_task(self, task_id: str, map_index: int = -1) -> TaskInstance:
         """Run an Airflow task.
 
         :param task_id: the Airflow task identifier.
+        :param map_index: the map index if the task is a daynamic task
         :return: None.
         """
 
@@ -448,9 +449,29 @@ class ObservatoryEnvironment:
         dag = self.dag_run.dag
         run_id = self.dag_run.run_id
         task = dag.get_task(task_id=task_id)
-        ti = TaskInstance(task, run_id=run_id)
+        ti = TaskInstance(task, run_id=run_id, map_index=map_index)
         ti.refresh_from_db()
-        ti.run(ignore_ti_state=True)
+
+        # TODO: remove this when this issue fixed / PR merged: https://github.com/apache/airflow/issues/34023#issuecomment-1705761692
+        # https://github.com/apache/airflow/pull/36462
+        ignore_task_deps = False
+        if map_index > -1:
+            ignore_task_deps = True
+
+        ti.run(ignore_task_deps=ignore_task_deps)
+
+        return ti
+
+    def skip_task(self, task_id: str, map_index: int = -1) -> TaskInstance:
+
+        assert self.dag_run is not None, "with create_dag_run must be called before run_task"
+
+        dag = self.dag_run.dag
+        run_id = self.dag_run.run_id
+        task = dag.get_task(task_id=task_id)
+        ti = TaskInstance(task, run_id=run_id, map_index=map_index)
+        ti.refresh_from_db()
+        ti.set_state(State.SKIPPED)
 
         return ti
 
@@ -793,12 +814,16 @@ class ObservatoryTestCase(unittest.TestCase):
 
         expected_keys = expected.keys()
         actual_keys = dag.task_dict.keys()
+        diff = set(expected_keys) - set(actual_keys)
         self.assertEqual(expected_keys, actual_keys)
 
         for task_id, downstream_list in expected.items():
+            print(task_id)
             self.assertTrue(dag.has_task(task_id))
             task = dag.get_task(task_id)
-            self.assertEqual(set(downstream_list), task.downstream_task_ids)
+            expected = set(downstream_list)
+            actual = task.downstream_task_ids
+            self.assertEqual(expected, actual)
 
     def assert_dag_load(self, dag_id: str, dag_file: str):
         """Assert that the given DAG loads from a DagBag.
@@ -814,7 +839,7 @@ class ObservatoryTestCase(unittest.TestCase):
 
             shutil.copy(dag_file, os.path.join(dag_folder, os.path.basename(dag_file)))
 
-            dag_bag = DagBag(dag_folder=dag_folder)
+            dag_bag = DagBag(dag_folder=dag_folder, include_examples=False)
 
             if dag_bag.import_errors != {}:
                 logging.error(f"DagBag errors: {dag_bag.import_errors}")
@@ -962,13 +987,13 @@ class ObservatoryTestCase(unittest.TestCase):
         self.assertEqual(expected_hash, actual_hash)
 
     def assert_cleanup(self, workflow_folder: str):
-        """Assert that the download, extracted and transformed folders were cleaned up.
+        """Assert that the files in the workflow_folder folder was cleaned up.
 
         :param workflow_folder: the path to the DAGs download folder.
         :return: None.
         """
 
-        self.assertFalse(os.path.exists(workflow_folder))
+        self.assertTrue(len(os.listdir(workflow_folder)) == 0)
 
     def setup_mock_file_download(
         self, uri: str, file_path: str, headers: Dict = None, method: str = httpretty.GET

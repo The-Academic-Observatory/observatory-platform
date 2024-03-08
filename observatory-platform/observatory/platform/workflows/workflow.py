@@ -22,7 +22,7 @@ import logging
 import shutil
 from abc import ABC, abstractmethod
 from functools import partial
-from typing import Any, Callable, Dict, List, Union, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 try:
     from typing import Protocol
@@ -151,7 +151,57 @@ class Release:
 
         self.dag_id = dag_id
         self.run_id = run_id
-        self.workflow_folder = make_workflow_folder(self.dag_id, run_id)
+
+    @property
+    def workflow_folder(self):
+        """Get the path to the workflow folder, namespaced to a DAG run. Can contain multiple release folders.
+
+        :return: path to folder.
+        """
+
+        return make_workflow_folder(self.dag_id, self.run_id)
+
+    @property
+    def release_folder(self):
+        """Get the path to the release folder, which resides inside the workflow folder.
+
+        :return: path to folder.
+        """
+
+        raise NotImplementedError("self.release_folder should be implemented by subclasses")
+
+    @property
+    def download_folder(self):
+        """Get the path to the download folder, which contains downloaded files. Resides in a release folder.
+
+        :return: path to folder.
+        """
+
+        path = os.path.join(self.release_folder, "download")
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    @property
+    def extract_folder(self):
+        """Get the path to the extract folder, which contains extracted files. Resides in a release folder.
+
+        :return: path to folder.
+        """
+
+        path = os.path.join(self.release_folder, "extract")
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    @property
+    def transform_folder(self):
+        """Get the path to the transform folder, which contains transformed files. Resides in a release folder.
+
+        :return: path to folder.
+        """
+
+        path = os.path.join(self.release_folder, "transform")
+        os.makedirs(path, exist_ok=True)
+        return path
 
     def __str__(self):
         return f"Release(dag_id={self.dag_id}, run_id={self.run_id})"
@@ -175,10 +225,14 @@ class SnapshotRelease(Release):
         super().__init__(dag_id=dag_id, run_id=run_id)
         self.snapshot_date = snapshot_date
 
-        snapshot = f"snapshot_{snapshot_date.format(DATE_TIME_FORMAT)}"
-        self.download_folder = make_workflow_folder(self.dag_id, run_id, snapshot, "download")
-        self.extract_folder = make_workflow_folder(self.dag_id, run_id, snapshot, "extract")
-        self.transform_folder = make_workflow_folder(self.dag_id, run_id, snapshot, "transform")
+    @property
+    def release_folder(self):
+        """Get the path to the release folder, which resides inside the workflow folder.
+
+        :return: path to folder.
+        """
+
+        return make_workflow_folder(self.dag_id, self.run_id, f"snapshot_{self.snapshot_date.format(DATE_TIME_FORMAT)}")
 
     def __str__(self):
         return f"SnapshotRelease(dag_id={self.dag_id}, run_id={self.run_id}, snapshot_date={self.snapshot_date})"
@@ -202,10 +256,16 @@ class PartitionRelease(Release):
         super().__init__(dag_id=dag_id, run_id=run_id)
         self.partition_date = partition_date
 
-        partition = f"partition_{partition_date.format(DATE_TIME_FORMAT)}"
-        self.download_folder = make_workflow_folder(self.dag_id, run_id, partition, "download")
-        self.extract_folder = make_workflow_folder(self.dag_id, run_id, partition, "extract")
-        self.transform_folder = make_workflow_folder(self.dag_id, run_id, partition, "transform")
+    @property
+    def release_folder(self):
+        """Get the path to the release folder, which resides inside the workflow folder.
+
+        :return: path to folder.
+        """
+
+        return make_workflow_folder(
+            self.dag_id, self.run_id, f"partition_{self.partition_date.format(DATE_TIME_FORMAT)}"
+        )
 
     def __str__(self):
         return f"PartitionRelease(dag_id={self.dag_id}, run_id={self.run_id}, partition_date={self.partition_date})"
@@ -238,10 +298,23 @@ class ChangefileRelease(Release):
         self.sequence_start = sequence_start
         self.sequence_end = sequence_end
 
-        changefile = f"changefile_{start_date.format(DATE_TIME_FORMAT)}_to_{end_date.format(DATE_TIME_FORMAT)}"
-        self.download_folder = make_workflow_folder(self.dag_id, run_id, changefile, "download")
-        self.extract_folder = make_workflow_folder(self.dag_id, run_id, changefile, "extract")
-        self.transform_folder = make_workflow_folder(self.dag_id, run_id, changefile, "transform")
+    def __eq__(self, other):
+        if isinstance(other, ChangefileRelease):
+            return self.__dict__ == other.__dict__
+        return False
+
+    @property
+    def release_folder(self):
+        """Get the path to the release folder, which resides inside the workflow folder.
+
+        :return: path to folder.
+        """
+
+        return make_workflow_folder(
+            self.dag_id,
+            self.run_id,
+            f"changefile_{self.start_date.format(DATE_TIME_FORMAT)}_to_{self.end_date.format(DATE_TIME_FORMAT)}",
+        )
 
     def __str__(self):
         return (
