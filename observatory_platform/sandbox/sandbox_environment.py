@@ -277,10 +277,11 @@ class SandboxEnvironment:
         self.session.add(conn)
         self.session.commit()
 
-    def run_task(self, task_id: str) -> TaskInstance:
+    def run_task(self, task_id: str, map_index: int = -1) -> TaskInstance:
         """Run an Airflow task.
 
         :param task_id: the Airflow task identifier.
+        :param map_index: the map index if the task is a daynamic task
         :return: None.
         """
 
@@ -289,9 +290,9 @@ class SandboxEnvironment:
         dag = self.dag_run.dag
         run_id = self.dag_run.run_id
         task = dag.get_task(task_id=task_id)
-        ti = TaskInstance(task, run_id=run_id)
+        ti = TaskInstance(task, run_id=run_id, map_index=map_index)
         ti.refresh_from_db()
-        ti.run(ignore_ti_state=True)
+        ti.run(ignore_ti_state=True, ignore_all_deps=True)
 
         return ti
 
