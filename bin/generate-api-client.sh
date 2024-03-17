@@ -11,7 +11,7 @@ if ! command -v openapi-generator-cli &>/dev/null; then
 fi
 
 if ! command -v observatory-api &>/dev/null; then
-  pip install -e observatory-api --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.6.3/constraints-no-providers-3.10.txt
+  pip install -e observatory-api --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.8.3/constraints-no-providers-3.10.txt
 fi
 
 # Directories

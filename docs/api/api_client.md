@@ -19,7 +19,7 @@ To install the package from source:
 ```bash
 git clone https://github.com/The-Academic-Observatory/observatory-platform.git
 cd observatory-platform
-pip install -e observatory-api --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.6.3/constraints-no-providers-3.10.txt
+pip install -e observatory-api --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.8.3/constraints-no-providers-3.10.txt
 ```
 
 ## Getting Started

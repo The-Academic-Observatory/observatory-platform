@@ -28,7 +28,7 @@ from observatory.platform.observatory_config import Config
 HOST_UID = os.getuid()
 DEBUG = False
 PYTHON_VERSION = "3.10"
-AIRFLOW_VERSION = "2.7.3"
+AIRFLOW_VERSION = "2.8.3"
 
 
 class PlatformRunner(ComposeRunner):
