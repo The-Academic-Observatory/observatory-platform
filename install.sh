@@ -1,7 +1,7 @@
 #!/bin/bash
 
 venv_observatory_platform="observatory_venv"
-airflow_version="2.8.3"
+airflow_version="2.7.3"
 python_version="3.10"
 
 function set_os_arch() {
