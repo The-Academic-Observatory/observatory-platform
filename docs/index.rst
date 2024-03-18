@@ -1,31 +1,22 @@
 =======================
 Observatory Platform
 =======================
-The Observatory Platform provides an environment and workflows for fetching, processing and analysing data to
-understand how well universities operate as Open Knowledge Institutions.
+The Observatory Platform is a set of dependencies used by the Curtin Open Knowledge Initiative (COKI) for running its
+Airflow based workflows to fetch, process and analyse bibliometric datasets.
 
-Installation
-=======================
-.. toctree::
-    :maxdepth: 1
+The workflows for the project can be seen at:
 
-    installation
+* `Academic Observatory Workflows <https://github.com/The-Academic-Observatory/academic-observatory-workflows>`_
+* `OAeBU Workflows <https://github.com/The-Academic-Observatory/oaebu-workflows>`_
 
-Tutorials
-=======================
-.. toctree::
-    :maxdepth: 2
+Python Package Reference
+=====================
+Documentation for the observatory_platform Python package:
 
-    tutorials/index
+* :doc:`Python Package Documentation <autoapi/index>`
 
-REST API
-=========================
-.. toctree::
-    :maxdepth: 2
 
-    api/index
-
-License & Contributing Guidelines
+License
 =================================
 Information about licenses, contributing guidelines etc.
 
@@ -33,18 +24,3 @@ Information about licenses, contributing guidelines etc.
     :maxdepth: 1
 
     license
-
-Python API Reference
-=====================
-Documentation for the observatory.platform Python API.
-
-.. toctree::
-    :maxdepth: 3
-
-
-Indices and tables
-=======================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

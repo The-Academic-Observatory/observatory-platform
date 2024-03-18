@@ -33,19 +33,17 @@ author = "Curtin University"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "pbr.sphinxext",
     "sphinx_rtd_theme",
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     "autoapi.extension",
     "recommonmark",
-    "sphinxcontrib.openapi",
 ]
 
 # Auto API settings: https://github.com/readthedocs/sphinx-autoapi
 autoapi_type = "python"
-autoapi_dirs = ["../observatory-api", "../observatory-platform"]
-autoapi_ignore = ["*.eggs*"]
+autoapi_dirs = ["../observatory_platform"]
+autoapi_ignore = ["*.eggs*", "**/tests/**"]
 autoapi_add_toctree_entry = True
 autoapi_python_use_implicit_namespaces = False
 
@@ -68,15 +66,6 @@ html_theme = "sphinx_rtd_theme"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = []
-
-html_build_dir = "_build/html"
-src_graphics_dir = "graphics"
-dst_graphics_dir = os.path.join(html_build_dir, "graphics")
-Path(html_build_dir).mkdir(exist_ok=True, parents=True)
-
-# In case of older version of shutil. Newer versions of copytree have dirs_exists_ok as a kwarg.
-if not os.path.exists(dst_graphics_dir):
-    shutil.copytree(src_graphics_dir, dst_graphics_dir)
 
 # recommonmark config, used to enable rst to be evaluated within markdown files
 def setup(app):
