@@ -292,7 +292,14 @@ class SandboxEnvironment:
         task = dag.get_task(task_id=task_id)
         ti = TaskInstance(task, run_id=run_id, map_index=map_index)
         ti.refresh_from_db()
-        ti.run(ignore_ti_state=True, ignore_all_deps=True)
+
+        # TODO: remove this when this issue fixed / PR merged: https://github.com/apache/airflow/issues/34023#issuecomment-1705761692
+        # https://github.com/apache/airflow/pull/36462
+        ignore_task_deps = False
+        if map_index > -1:
+            ignore_task_deps = True
+
+        ti.run(ignore_task_deps=ignore_task_deps)
 
         return ti
 

@@ -24,6 +24,8 @@ from datetime import timedelta
 import croniter
 import pendulum
 from airflow.decorators import dag, task
+from airflow.decorators import task_group
+from airflow.exceptions import AirflowSkipException
 from airflow.models.connection import Connection
 from airflow.models.dag import ScheduleArg
 from airflow.models.variable import Variable
@@ -73,6 +75,52 @@ def create_dag(
         t1 >> t2 >> t3
 
     return my_dag()
+
+
+def create_dynamic_task_dag(
+    *,
+    dag_id: str,
+    start_date: pendulum.DateTime,
+    schedule: str = "@weekly",
+    catchup: bool = False,
+):
+    @dag(
+        dag_id=dag_id,
+        schedule_interval=schedule,
+        start_date=start_date,
+        catchup=catchup,
+        tags=["example_tag"],
+    )
+    def example_workflow():
+        @task
+        def fetch_releases(**context):
+            releases = [0, 1]
+            if not releases:
+                raise AirflowSkipException("No new releases found, skipping")
+            return releases
+
+        @task_group(group_id="process_release")
+        def process_release(data, **context):
+            @task
+            def download(release: dict, **context):
+                print(f"Downloading {release}")
+
+            @task
+            def bq_load(release: dict, **context):
+                print(f"Loading to BigQuery {release}")
+
+            # Connects tasks
+            download(data) >> bq_load(data)
+
+        # Fetches releases
+        xcom_releases = fetch_releases()
+
+        # Using `.expand()` to dynamically create tasks for each release
+        process_release_task_group = process_release.expand(data=xcom_releases)
+
+        (xcom_releases >> process_release_task_group)
+
+    return example_workflow()
 
 
 class TestSandboxEnvironment(unittest.TestCase):
@@ -331,3 +379,20 @@ class TestSandboxEnvironment(unittest.TestCase):
             with env.create_dag_run(my_dag, execution_date):
                 self.assertIsNotNone(env.dag_run)
                 self.assertEqual(expected_dag_date, env.dag_run.start_date)
+
+    def test_map_index(self):
+        env = SandboxEnvironment(self.project_id, self.data_location)
+        logical_date = pendulum.datetime(2024, 1, 1)
+        my_dag = create_dynamic_task_dag(dag_id="dynamic_task_dag", start_date=logical_date)
+        with env.create():
+            with env.create_dag_run(my_dag, logical_date):
+                self.assertIsNotNone(env.dag_run)
+                ti = env.run_task("fetch_releases")
+                self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
+
+                for map_index in range(2):
+                    ti = env.run_task("process_release.download", map_index=map_index)
+                    self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
+
+                    ti = env.run_task("process_release.bq_load", map_index=map_index)
+                    self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
