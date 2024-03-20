@@ -13,7 +13,7 @@
   },
   {
     "name": "dag_run_id",
-    "mode": "REQUIRED",
+    "mode": "NULLABLE",
     "type": "STRING",
     "description": "The Airflow DAG run ID."
   },
@@ -56,13 +56,13 @@
   {
     "name": "sequence_start",
     "mode": "NULLABLE",
-    "type": "INT64",
+    "type": "NUMERIC",
     "description": "The first sequence number of changefiles in this release. For datasets that provide changefiles with inserts, updates and deletes."
   },
   {
     "name": "sequence_end",
     "mode": "NULLABLE",
-    "type": "INT64",
+    "type": "NUMERIC",
     "description": "The last sequence number of changefiles in this release. For datasets that provide changefiles with inserts, updates and deletes."
   },
   {
