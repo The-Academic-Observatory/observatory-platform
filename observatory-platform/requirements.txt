@@ -2,7 +2,8 @@
 observatory-api
 
 # Airflow
-apache-airflow[redis,celery,slack,http]==2.7.3
+apache-airflow[redis,slack,http]==2.7.3
+apache-airflow-providers-celery==3.5.0
 astronomer-starship
 
 # Google Cloud
