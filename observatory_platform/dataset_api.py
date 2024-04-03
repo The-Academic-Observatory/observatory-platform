@@ -99,7 +99,7 @@ class DatasetRelease:
         self.changefile_end_date = changefile_end_date
         self.sequence_start = sequence_start
         self.sequence_end = sequence_end
-        self.extra = extra
+        self.extra = dict() if extra is None else extra
         self.created = created
         self.modified = modified
 
