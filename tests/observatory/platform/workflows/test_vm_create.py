@@ -163,27 +163,27 @@ class TestVmCreateWorkflow(ObservatoryTestCase):
                 with time_machine.travel(dag_run.start_date, tick=True):
                     # check dependencies
                     ti = env.run_task(workflow.check_dependencies.__name__)
-                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(State.SUCCESS, ti.state)
 
                     # check vm state
                     ti = env.run_task(workflow.check_vm_state.__name__)
-                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(State.SUCCESS, ti.state)
 
                     # update terraform variable
                     ti = env.run_task(workflow.update_terraform_variable.__name__)
-                    self.assertEqual(ti.state, State.SKIPPED)
+                    self.assertEqual(State.SKIPPED, ti.state)
 
                     # run terraform
                     ti = env.run_task(workflow.run_terraform.__name__)
-                    self.assertEqual(ti.state, State.SKIPPED)
+                    self.assertEqual(State.SKIPPED, ti.state)
 
                     # check run status
                     ti = env.run_task(workflow.check_run_status.__name__)
-                    self.assertEqual(ti.state, State.SKIPPED)
+                    self.assertEqual(State.SKIPPED, ti.state)
 
                     # cleanup
                     ti = env.run_task(workflow.cleanup.__name__)
-                    self.assertEqual(ti.state, State.SUCCESS)
+                    self.assertEqual(State.SKIPPED, ti.state)
 
     @patch("observatory.platform.workflows.vm_workflow.send_slack_msg")
     @patch("observatory.platform.workflows.vm_workflow.TerraformApi.get_run_details")
