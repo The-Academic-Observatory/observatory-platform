@@ -16,7 +16,7 @@
 
 import logging
 from datetime import datetime
-from typing import Optional, Tuple, Union, List
+from typing import List, Optional, Tuple, Union
 
 import pendulum
 from airflow.models.dag import DAG
@@ -24,6 +24,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState
+from airflow.utils.trigger_rule import TriggerRule
 from croniter import croniter
 
 from observatory.platform.airflow import delete_old_xcoms, get_airflow_connection_password, send_slack_msg
@@ -220,7 +221,7 @@ class VmCreateWorkflow(Workflow):
         self.add_task(self.update_terraform_variable)
         self.add_task(self.run_terraform)
         self.add_task(self.check_run_status)
-        self.add_task(self.cleanup, trigger_rule="none_failed")
+        self.add_task(self.cleanup)
 
     def make_release(self, **kwargs) -> None:
         """Required for Workflow class.

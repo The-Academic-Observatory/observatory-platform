@@ -15,20 +15,6 @@
 # The keywords airflow and DAG are required to load the DAGs from this file, see bullet 2 in the Apache Airflow FAQ:
 # https://airflow.apache.org/docs/stable/faq.html
 
-# Author: James Diprose
+from observatory.platform.refactor.workflow import load_dags_from_config
 
-import logging
-from typing import List
-
-from observatory.platform.airflow import fetch_workflows, make_workflow
-from observatory.platform.observatory_config import Workflow
-
-# Load DAGs
-workflows: List[Workflow] = fetch_workflows()
-for config in workflows:
-    logging.info(f"Making Workflow: {config.name}, dag_id={config.dag_id}")
-    workflow = make_workflow(config)
-    dag = workflow.make_dag()
-
-    logging.info(f"Adding DAG: dag_id={workflow.dag_id}, dag={dag}")
-    globals()[workflow.dag_id] = dag
+load_dags_from_config()
