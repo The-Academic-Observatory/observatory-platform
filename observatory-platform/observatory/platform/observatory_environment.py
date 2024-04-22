@@ -862,7 +862,7 @@ class ObservatoryTestCase(unittest.TestCase):
         :return: None.
         """
 
-        self.assert_dag_load(dag_id, os.path.join(module_file_path("observatory.platform.dags"), "load_workflows.py"))
+        self.assert_dag_load(dag_id, os.path.join(module_file_path("observatory.platform.dags"), "load_dags_legacy.py"))
 
     def assert_blob_exists(self, bucket_id: str, blob_name: str):
         """Assert whether a blob exists or not.

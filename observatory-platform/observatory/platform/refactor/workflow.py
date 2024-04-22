@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional
 
 import pendulum
 from airflow import AirflowException
-from airflow.models import DagBag, Variable
+from airflow.models import DAG, DagBag, Variable
 
 from observatory.platform.airflow import delete_old_xcoms
 from observatory.platform.config import AirflowVars
@@ -84,8 +84,9 @@ def load_dags_from_config():
         logging.info(f"Making Workflow: {workflow.name}, dag_id={dag_id}")
         dag = make_dag(workflow)
 
-        logging.info(f"Adding DAG: dag_id={dag_id}, dag={dag}")
-        globals()[dag_id] = dag
+        if isinstance(dag, DAG):
+            logging.info(f"Adding DAG: dag_id={dag_id}, dag={dag}")
+            globals()[dag_id] = dag
 
 
 def make_dag(workflow: Workflow):
