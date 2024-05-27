@@ -53,6 +53,7 @@ dependencies = [
     "validators<=0.20.0",
     "xmltodict",
     "tenacity",
+    "dateutils",
 ]
 
 [project.optional-dependencies]
