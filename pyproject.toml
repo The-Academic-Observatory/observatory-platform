@@ -53,7 +53,7 @@ dependencies = [
     "validators<=0.20.0",
     "xmltodict",
     "tenacity",
-    "dateutil",
+    "python-dateutil",
 ]
 
 [project.optional-dependencies]
