@@ -6,7 +6,7 @@
     "description": "The Airflow DAG ID, e.g. doi_workflow"
   },
   {
-    "name": "dataset_id",
+    "name": "entity_id",
     "mode": "REQUIRED",
     "type": "STRING",
     "description": "A unique identifier to represent the dataset being processed."
@@ -84,3 +84,4 @@
     "description": "The date that this record was modified."
   }
 ]
+
