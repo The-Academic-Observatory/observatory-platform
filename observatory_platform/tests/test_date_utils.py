@@ -14,15 +14,17 @@
 
 # Author: Keegan Smith
 
+from datetime import datetime
 import unittest
+from zoneinfo import ZoneInfo
 
-from observatory_platform.date_utils import normalise_datetime
+from observatory_platform.date_utils import datetime_normalise
 
 
 class test_normalise_datetime(unittest.TestCase):
     """Tests for normalise_datetime"""
 
-    def test_good_inputs(self):
+    def test_str_inputs(self):
         inputs = [
             "2024-01-01 12:00:00+0000",
             "2024-01-01 00:00:00+0800",
@@ -38,12 +40,29 @@ class test_normalise_datetime(unittest.TestCase):
             "2024-01-01T13:00:00+00:00",
         ]
         for input, expected_output in zip(inputs, expected_outputs):
-            actual_output = normalise_datetime(input)
+            actual_output = datetime_normalise(input)
+            self.assertEqual(expected_output, actual_output)
+
+    def test_dt_inputs(self):
+        inputs = [
+            datetime(2024, 1, 1, 12, 0, 0, tzinfo=ZoneInfo("UTC")),
+            datetime(2024, 1, 1, 12, 0, 0, tzinfo=ZoneInfo("Etc/GMT+1")),
+            datetime(2024, 1, 1, 0, 0, 0, tzinfo=ZoneInfo("Etc/GMT-1")),
+            datetime(2023, 12, 31, 23, 0, 0, tzinfo=ZoneInfo("Etc/GMT+1")),
+        ]
+        expected_outputs = [
+            "2024-01-01T12:00:00+00:00",
+            "2024-01-01T13:00:00+00:00",
+            "2023-12-31T23:00:00+00:00",
+            "2024-01-01T00:00:00+00:00",
+        ]
+        for input, expected_output in zip(inputs, expected_outputs):
+            actual_output = datetime_normalise(input)
             self.assertEqual(expected_output, actual_output)
 
     def test_missing_tz(self):
-        inputs = ["2024-01-01 00:00:00", "2024-01-01T12:00:00"]
-        expected_outputs = ["2024-01-01T00:00:00+00:00", "2024-01-01T12:00:00+00:00"]
+        inputs = ["2024-01-01 00:00:00", "2024-01-01T12:00:00", datetime(2024, 1, 1, 12, 0, 0)]
+        expected_outputs = ["2024-01-01T00:00:00+00:00", "2024-01-01T12:00:00+00:00", "2024-01-01T12:00:00+00:00"]
         for input, expected_output in zip(inputs, expected_outputs):
-            actual_output = normalise_datetime(input)
+            actual_output = datetime_normalise(input)
             self.assertEqual(expected_output, actual_output)

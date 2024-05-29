@@ -14,19 +14,22 @@
 
 # Author: Keegan Smith
 
+from datetime import datetime
+from typing import Union
 from zoneinfo import ZoneInfo
 
 from dateutil import parser
 
 
-def normalise_datetime(dt_string: str) -> str:
+def datetime_normalise(dt: Union[str, datetime]) -> str:
     """
-    Converts a date or datetime string to an isoformatted datetime string at +0000UTC
+    Converts a datetime object or string to an isoformatted datetime string at +0000UTC
 
     :param dt_string:  The string to convert
     :return: The ISO formatted datetime string
     """
-    dt = parser.parse(dt_string)  # Parse string to datetime object
+    if isinstance(dt, str):
+        dt = parser.parse(dt)  # Parse string to datetime object
     if not dt.utcoffset():  # If no timezone present, assume +0000UTC
         dt = dt.replace(tzinfo=ZoneInfo("UTC"))
     dt = dt.astimezone(ZoneInfo("UTC"))
