@@ -144,8 +144,8 @@ optional_dependencies = ["tests"] # to load extras from [project.optional-depend
 # MIT license: https://pypi.org/project/ordereddict/1.1/
 ordereddict = "1.1"
 
-# MIT License: https://pypi.org/project/pendulum/3.0.0/
-pendulum = ">=3.0.0"
+# MIT license: https://pypi.org/project/pendulum/1.4.4/
+pendulum = ">=1.4.4"
 
 # Python Imaging Library (PIL) License: https://github.com/python-pillow/Pillow/blob/master/LICENSE
 Pillow = ">=7.2.0"
