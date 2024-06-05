@@ -80,8 +80,18 @@ class test_normalise_datetime(unittest.TestCase):
             self.assertEqual(expected_output, actual_output)
 
     def test_missing_tz(self):
-        inputs = ["2024-01-01 00:00:00", "2024-01-01T12:00:00", datetime(2024, 1, 1, 12, 0, 0), pendulum.datetime(2024, 1, 1, 12, 0, 0)]
-        expected_outputs = ["2024-01-01T00:00:00+00:00", "2024-01-01T12:00:00+00:00", "2024-01-01T12:00:00+00:00", "2024-01-01T12:00:00+00:00"]
+        inputs = [
+            "2024-01-01 00:00:00",
+            "2024-01-01T12:00:00",
+            datetime(2024, 1, 1, 12, 0, 0),
+            pendulum.datetime(2024, 1, 1, 12, 0, 0),
+        ]
+        expected_outputs = [
+            "2024-01-01T00:00:00+00:00",
+            "2024-01-01T12:00:00+00:00",
+            "2024-01-01T12:00:00+00:00",
+            "2024-01-01T12:00:00+00:00",
+        ]
         for input, expected_output in zip(inputs, expected_outputs):
             actual_output = datetime_normalise(input)
             self.assertEqual(expected_output, actual_output)
