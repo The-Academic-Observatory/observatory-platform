@@ -19,6 +19,7 @@ from typing import Union
 from zoneinfo import ZoneInfo
 
 from dateutil import parser
+import pendulum
 
 
 def datetime_normalise(dt: Union[str, datetime]) -> str:
@@ -28,6 +29,8 @@ def datetime_normalise(dt: Union[str, datetime]) -> str:
     :param dt_string:  The string to convert
     :return: The ISO formatted datetime string
     """
+    if isinstance(dt, pendulum.DateTime):
+        dt = dt.to_iso8601_string()
     if isinstance(dt, str):
         dt = parser.parse(dt)  # Parse string to datetime object
     if not dt.utcoffset():  # If no timezone present, assume +0000UTC
