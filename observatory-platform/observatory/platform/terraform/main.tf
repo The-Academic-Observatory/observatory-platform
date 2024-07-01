@@ -386,7 +386,7 @@ resource "random_id" "airflow_db_name_suffix" {
 }
 
 resource "google_sql_database_instance" "observatory_db_instance" {
-  name                = var.environment == "production" ? "observatory-db-instance" : "observatory-db-instance-${random_id.airflow_db_name_suffix.hex}"
+  name                = var.environment == "production" ? "observatory-db-${var.google_cloud.region}" : "observatory-db-${var.google_cloud.region}-${random_id.airflow_db_name_suffix.hex}"
   database_version    = "POSTGRES_12"
   region              = var.google_cloud.region
   deletion_protection = var.environment == "production"
