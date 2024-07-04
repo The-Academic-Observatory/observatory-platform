@@ -55,6 +55,8 @@ def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int
 
     # Create PersistentVolumeClaim
     namespace = hook.get_namespace()
+    namespace = "coki-astro"
+    print("HOOK: {hook}")
     pvc = client.V1PersistentVolumeClaim(
         api_version="v1",
         kind="PersistentVolumeClaim",
