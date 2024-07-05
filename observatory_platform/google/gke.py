@@ -35,28 +35,11 @@ def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int
 
     # Create the PersistentVolume
     capacity = {"storage": f"{size_gi}Gi"}
-    # pv = client.V1PersistentVolume(
-    #     api_version="v1",
-    #     kind="PersistentVolume",
-    #     metadata=client.V1ObjectMeta(
-    #         name=volume_name,
-    #         # TODO: supposed to use this user for the persistent volume but doesn't seem to do anything
-    #         # annotations={"pv.beta.kubernetes.io/uid": f"{uid}", "pv.beta.kubernetes.io/gid": f"{uid}"}
-    #     ),
-    #     spec=client.V1PersistentVolumeSpec(
-    #         capacity=capacity,
-    #         access_modes=["ReadWriteOnce"],
-    #         persistent_volume_reclaim_policy="Retain",
-    #         storage_class_name="standard",
-    #         gce_persistent_disk=client.V1GCEPersistentDiskVolumeSource(pd_name=volume_name),
-    #     ),
-    # )
-    # v1.create_persistent_volume(body=pv)
 
     # Create PersistentVolumeClaim
     namespace = hook.get_namespace()
     namespace = "coki-astro"
-    print("HOOK: {hook}")
+    print(f"HOOK: {hook}")
     pvc = client.V1PersistentVolumeClaim(
         api_version="v1",
         kind="PersistentVolumeClaim",
@@ -67,7 +50,8 @@ def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int
             storage_class_name="standard",
         ),
     )
-    v1.create_namespaced_persistent_volume_claim(namespace=namespace, body=pvc)
+    r = v1.create_namespaced_persistent_volume_claim(namespace=namespace, body=pvc)
+    print(r)
 
 
 def gke_delete_volume(*, kubernetes_conn_id: str, volume_name: str):
