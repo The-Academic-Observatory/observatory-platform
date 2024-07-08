@@ -101,22 +101,3 @@ def gke_delete_volume(*, kubernetes_conn_id: str, volume_name: str):
             logging.info(f"gke_delete_volume: PersistentVolume with name={volume_name} does not exist")
         else:
             raise e
-
-
-def gke_retrieve_secret(*, secret_name: str, namespace: str):
-    """Retrieves a secret from the GKE secrets backend
-
-    :param secret_name: the name of the secret to retrieve
-    :param namespace: the namespace that the secret belongs to
-    :return: The secret
-    """
-    v1 = client.CoreV1Api()
-    try:
-        secret = v1.read_namespaced_secret(secret_name, namespace)
-    except client.exceptions.ApiException as e:
-        if e.status == 404:
-            print(f"Secret '{secret_name}' not found in namespace '{namespace}'")
-        else:
-            print(f"Exception when retrieving secret: {e}")
-
-    return secret
