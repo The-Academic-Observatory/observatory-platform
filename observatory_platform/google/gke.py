@@ -122,8 +122,8 @@ def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int
 
     # Create PersistentVolumeClaim
     namespace = hook.get_namespace()
-    # namespace = "coki-astro"
-    print(namespace)  # TODO delete
+    namespace = "coki-astro"
+    # TODO: Fix this. the get_namespace() returns None
     pvc = client.V1PersistentVolumeClaim(
         api_version="v1",
         kind="PersistentVolumeClaim",
@@ -153,6 +153,8 @@ def gke_delete_volume(*, kubernetes_conn_id: str, volume_name: str):
 
     # Delete VolumeClaim and Volume
     namespace = hook.get_namespace()
+    namespace = "coki-astro"
+    # TODO: Fix this. the get_namespace() returns None
     try:
         v1.delete_namespaced_persistent_volume_claim(name=volume_name, namespace=namespace)
     except kubernetes.client.exceptions.ApiException as e:
