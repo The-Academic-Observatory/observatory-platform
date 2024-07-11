@@ -76,7 +76,7 @@ def fetch_workflows() -> List[Workflow]:
 def load_dags_from_config(use_params: bool = False):
     """Loads DAGs from a workflow config file, stored in the WORKFLOWS Airflow Variable.
 
-    :param use_params: whether the workflow has a Params class with which to load with
+    :param use_params: whether the workflow has a DagParams class with which to load with
     :return: None.
     """
 
@@ -98,10 +98,10 @@ def make_dag_from_params(workflow: Workflow):
     :param workflow: the workflow configuration.
     :return: the workflow instance.
     """
-    param_cls = locate(workflow.class_name + ".Params")
+    param_cls = locate(workflow.class_name + ".DagParams")
     if param_cls is None:
         raise ModuleNotFoundError(
-            f"dag_id={workflow.dag_id}: could not locate Param class_name={workflow.class_name}.Params"
+            f"dag_id={workflow.dag_id}: could not locate Param class_name={workflow.class_name}.DagParams"
         )
 
     cls = locate(workflow.class_name + ".create_dag")
