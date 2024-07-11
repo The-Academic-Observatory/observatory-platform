@@ -110,7 +110,9 @@ def make_dag_from_params(workflow: Workflow):
             f"dag_id={workflow.dag_id}: could not locate class_name={workflow.class_name}.create_dag"
         )
 
-    return cls(params=param_cls(dag_id=workflow.dag_id, cloud_workspace=workflow.cloud_workspace, **workflow.kwargs))
+    return cls(
+        dag_params=param_cls(dag_id=workflow.dag_id, cloud_workspace=workflow.cloud_workspace, **workflow.kwargs)
+    )
 
 
 def make_dag(workflow: Workflow):
