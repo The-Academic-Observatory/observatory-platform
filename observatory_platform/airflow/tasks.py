@@ -81,9 +81,7 @@ def check_connections(*connections):
 
 
 @task
-def gke_create_storage(
-    project_id: str, zone: str, volume_name: str, volume_size: int, kubernetes_conn_id: str, **context
-):
+def gke_create_storage(volume_name: str, volume_size: int, kubernetes_conn_id: str, **context):
     """Create storage on a GKE cluster.
 
     :param project_id: the Google Cloud project ID.
@@ -95,12 +93,12 @@ def gke_create_storage(
     :return: None.
     """
 
-    gcp_create_disk(project_id=project_id, zone=zone, disk_name=volume_name, disk_size_gb=volume_size)
+    # gcp_create_disk(project_id=project_id, zone=zone, disk_name=volume_name, disk_size_gb=volume_size)
     gke_create_volume(kubernetes_conn_id=kubernetes_conn_id, volume_name=volume_name, size_gi=volume_size)
 
 
 @task
-def gke_delete_storage(project_id: str, zone: str, volume_name: str, kubernetes_conn_id: str, **context):
+def gke_delete_storage(volume_name: str, kubernetes_conn_id: str, **context):
     """Delete storage on a GKE cluster.
 
     :param project_id: the Google Cloud project ID.
@@ -112,4 +110,4 @@ def gke_delete_storage(project_id: str, zone: str, volume_name: str, kubernetes_
     """
 
     gke_delete_volume(kubernetes_conn_id=kubernetes_conn_id, volume_name=volume_name)
-    gcp_delete_disk(project_id=project_id, zone=zone, disk_name=volume_name)
+    # gcp_delete_disk(project_id=project_id, zone=zone, disk_name=volume_name)
