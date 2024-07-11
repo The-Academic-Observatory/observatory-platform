@@ -110,7 +110,7 @@ def make_dag_from_params(workflow: Workflow):
             f"dag_id={workflow.dag_id}: could not locate class_name={workflow.class_name}.create_dag"
         )
 
-    return cls(param_cls(dag_id=workflow.dag_id, cloud_workspace=workflow.cloud_workspace, **workflow.kwargs))
+    return cls(params=param_cls(dag_id=workflow.dag_id, cloud_workspace=workflow.cloud_workspace, **workflow.kwargs))
 
 
 def make_dag(workflow: Workflow):
@@ -363,7 +363,7 @@ class Workflow:
         return Workflow(dag_id, name, class_name, cloud_workspace, kwargs)
 
     @staticmethod
-    def parse_workflows(list: List) -> List[Workflow]:
+    def parse_workflows(list: Dict) -> List[Workflow]:
         """Parse the workflows list object into a list of Workflow instances.
 
         :param list: the list.
