@@ -14,93 +14,9 @@
 
 import logging
 
-import kubernetes
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+import kubernetes
 from kubernetes import client
-
-
-# def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int):
-#     """
-#
-#     :param kubernetes_conn_id:
-#     :param volume_name:
-#     :param size_gi:
-#     :return: None.
-#     """
-#
-#     # Make Kubernetes API Client from Airflow Connection
-#     hook = KubernetesHook(conn_id=kubernetes_conn_id)
-#     api_client = hook.get_conn()
-#     v1 = client.CoreV1Api(api_client=api_client)
-#
-#     # Create the PersistentVolume
-#     capacity = {"storage": f"{size_gi}Gi"}
-#     pv = client.V1PersistentVolume(
-#         api_version="v1",
-#         kind="PersistentVolume",
-#         metadata=client.V1ObjectMeta(
-#             name=volume_name,
-#             # TODO: supposed to use this user for the persistent volume but doesn't seem to do anything
-#             # annotations={"pv.beta.kubernetes.io/uid": f"{uid}", "pv.beta.kubernetes.io/gid": f"{uid}"}
-#         ),
-#         spec=client.V1PersistentVolumeSpec(
-#             capacity=capacity,
-#             access_modes=["ReadWriteOnce"],
-#             persistent_volume_reclaim_policy="Retain",
-#             storage_class_name="standard",
-#             gce_persistent_disk=client.V1GCEPersistentDiskVolumeSource(pd_name=volume_name),
-#         ),
-#     )
-#     v1.create_persistent_volume(body=pv)
-#
-#     # Create PersistentVolumeClaim
-#     namespace = hook.get_namespace()
-#     pvc = client.V1PersistentVolumeClaim(
-#         api_version="v1",
-#         kind="PersistentVolumeClaim",
-#         metadata=client.V1ObjectMeta(name=volume_name),
-#         spec=client.V1PersistentVolumeClaimSpec(
-#             access_modes=["ReadWriteOnce"],
-#             resources=client.V1ResourceRequirements(requests=capacity),
-#             storage_class_name="standard",
-#         ),
-#     )
-#     v1.create_namespaced_persistent_volume_claim(namespace=namespace, body=pvc)
-#
-#
-# def gke_delete_volume(*, kubernetes_conn_id: str, volume_name: str):
-#     """
-#
-#     :param kubernetes_conn_id:
-#     :param namespace:
-#     :param volume_name:
-#     :return: None.
-#     """
-#
-#     # Make Kubernetes API Client from Airflow Connection
-#     hook = KubernetesHook(conn_id=kubernetes_conn_id)
-#     api_client = hook.get_conn()
-#     v1 = client.CoreV1Api(api_client=api_client)
-#
-#     # Delete VolumeClaim and Volume
-#     namespace = hook.get_namespace()
-#     try:
-#         v1.delete_namespaced_persistent_volume_claim(name=volume_name, namespace=namespace)
-#     except kubernetes.client.exceptions.ApiException as e:
-#         if e.status == 404:
-#             logging.info(
-#                 f"gke_delete_volume: PersistentVolumeClaim with name={volume_name}, namespace={namespace} does not exist"
-#             )
-#         else:
-#             raise e
-#
-#     try:
-#         v1.delete_persistent_volume(name=volume_name)
-#     except kubernetes.client.exceptions.ApiException as e:
-#         if e.status == 404:
-#             logging.info(f"gke_delete_volume: PersistentVolume with name={volume_name} does not exist")
-#         else:
-#             raise e
 
 
 def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int):
@@ -115,7 +31,7 @@ def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int
     # Make Kubernetes API Client from Airflow Connection
     hook = KubernetesHook(conn_id=kubernetes_conn_id)
     api_client = hook.get_conn()
-    v1 = client.CoreV1Api(api_client=api_client)
+    v1 = kubernetes.client.CoreV1Api(api_client=api_client)
 
     # Create the PersistentVolume
     capacity = {"storage": f"{size_gi}Gi"}
@@ -135,6 +51,13 @@ def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int
         ),
     )
     v1.create_namespaced_persistent_volume_claim(namespace=namespace, body=pvc)
+    try:
+        v1.create_namespaced_persistent_volume_claim(namespace=namespace, body=pvc)
+    except kubernetes.client.exceptions.ApiException as e:
+        if e.status == 409:
+            logging.warn(f"PVC {volume_name} already exists.")
+        else:
+            raise e
 
 
 def gke_delete_volume(*, kubernetes_conn_id: str, volume_name: str):
@@ -149,7 +72,7 @@ def gke_delete_volume(*, kubernetes_conn_id: str, volume_name: str):
     # Make Kubernetes API Client from Airflow Connection
     hook = KubernetesHook(conn_id=kubernetes_conn_id)
     api_client = hook.get_conn()
-    v1 = client.CoreV1Api(api_client=api_client)
+    v1 = kubernetes.client.CoreV1Api(api_client=api_client)
 
     # Delete VolumeClaim and Volume
     namespace = hook.get_namespace()
@@ -164,32 +87,3 @@ def gke_delete_volume(*, kubernetes_conn_id: str, volume_name: str):
             )
         else:
             raise e
-
-    # try:
-    #     v1.delete_persistent_volume(name=volume_name)
-    # except kubernetes.client.exceptions.ApiException as e:
-    #     if e.status == 404:
-    #         logging.info(f"gke_delete_volume: PersistentVolume with name={volume_name} does not exist")
-    #     else:
-    #         raise e
-
-
-#
-#
-# def gke_retrieve_secret(*, secret_name: str, namespace: str):
-#     """Retrieves a secret from the GKE secrets backend
-#
-#     :param secret_name: the name of the secret to retrieve
-#     :param namespace: the namespace that the secret belongs to
-#     :return: The secret
-#     """
-#     v1 = client.CoreV1Api()
-#     try:
-#         secret = v1.read_namespaced_secret(secret_name, namespace)
-#     except client.exceptions.ApiException as e:
-#         if e.status == 404:
-#             print(f"Secret '{secret_name}' not found in namespace '{namespace}'")
-#         else:
-#             print(f"Exception when retrieving secret: {e}")
-#
-#     return secret
