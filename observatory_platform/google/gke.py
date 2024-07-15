@@ -50,7 +50,6 @@ def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int
             storage_class_name="standard",
         ),
     )
-    v1.create_namespaced_persistent_volume_claim(namespace=namespace, body=pvc)
     try:
         v1.create_namespaced_persistent_volume_claim(namespace=namespace, body=pvc)
     except kubernetes.client.exceptions.ApiException as e:
