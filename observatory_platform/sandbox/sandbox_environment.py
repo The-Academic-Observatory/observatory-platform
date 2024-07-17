@@ -335,12 +335,7 @@ class SandboxEnvironment:
         """
 
         # Get start date, which is one schedule interval after execution date
-        if isinstance(dag.normalized_schedule_interval, (timedelta, relativedelta)):
-            start_date = (
-                datetime.fromtimestamp(execution_date.timestamp(), pendulum.tz.UTC) + dag.normalized_schedule_interval
-            )
-        else:
-            start_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(pendulum.DateTime)
+        start_date = dag.next_dagrun_info(last_automated_dagrun=execution_date).data_interval.start
 
         try:
             self.dag_run = dag.create_dagrun(
