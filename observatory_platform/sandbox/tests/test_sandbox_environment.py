@@ -362,14 +362,13 @@ class TestSandboxEnvironment(unittest.TestCase):
                 self.assertIsNotNone(env.dag_run)
                 self.assertEqual(expected_dag_date, env.dag_run.start_date)
 
-    def test_create_dag_run_timedelta(self):
+    def test_create_dag_run_raises_error(self):
         env = SandboxEnvironment(self.project_id, self.data_location)
 
         my_dag = create_dag(schedule=timedelta(days=1))
-        execution_date = pendulum.datetime(2021, 1, 1)
         with env.create():
             with self.assertRaisesRegex(ValueError, "Must provide one of"):
-                with env.create_dag_run(my_dag, execution_date):
+                with env.create_dag_run(my_dag):
                     pass
 
     def test_map_index(self):
