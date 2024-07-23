@@ -48,7 +48,7 @@ def create_dag(
     schedule: ScheduleArg = "@weekly",
 ):
     # Define the DAG (workflow)
-    @dag(dag_id=dag_id, schedule=schedule, start_date=start_date, catchup=catchup)
+    @dag(dag_id=dag_id, schedule=schedule, start_date=start_date)
     def my_dag():
         @task()
         def task2():
