@@ -21,14 +21,13 @@ import os
 import unittest
 from datetime import timedelta
 
-import croniter
 import pendulum
-from airflow.decorators import dag, task
-from airflow.decorators import task_group
+from airflow.decorators import dag, task, task_group
 from airflow.exceptions import AirflowSkipException
 from airflow.models.connection import Connection
 from airflow.models.dag import ScheduleArg
 from airflow.models.variable import Variable
+from airflow.timetables.base import DataInterval
 from airflow.utils.state import TaskInstanceState
 from google.cloud.exceptions import NotFound
 
@@ -49,11 +48,7 @@ def create_dag(
     schedule: ScheduleArg = "@weekly",
 ):
     # Define the DAG (workflow)
-    @dag(
-        dag_id=dag_id,
-        schedule=schedule,
-        start_date=start_date,
-    )
+    @dag(dag_id=dag_id, schedule=schedule, start_date=start_date)
     def my_dag():
         @task()
         def task2():
@@ -296,17 +291,13 @@ class TestSandboxEnvironment(unittest.TestCase):
         env = SandboxEnvironment(self.project_id, self.data_location)
 
         # Setup Telescope
-        first_execution_date = pendulum.datetime(year=2020, month=11, day=1, tz="UTC")
-        second_execution_date = pendulum.datetime(year=2020, month=12, day=1, tz="UTC")
+        first_execution_date = pendulum.datetime(year=2020, month=11, day=1, tz="UTC")  # Sunday
+        second_execution_date = pendulum.datetime(year=2020, month=12, day=1, tz="UTC")  # Tuesday
+        third_data_interval = DataInterval(
+            pendulum.datetime(year=2021, month=1, day=1, tz="UTC"),
+            pendulum.datetime(year=2021, month=1, day=3, tz="UTC"),
+        )
         my_dag = create_dag()
-
-        # Get start dates outside of
-        first_start_date = croniter.croniter(my_dag.normalized_schedule_interval, first_execution_date).get_next(
-            pendulum.DateTime
-        )
-        second_start_date = croniter.croniter(my_dag.normalized_schedule_interval, second_execution_date).get_next(
-            pendulum.DateTime
-        )
 
         # Use DAG run with freezing time
         with env.create():
@@ -322,37 +313,9 @@ class TestSandboxEnvironment(unittest.TestCase):
             with env.create_dag_run(my_dag, first_execution_date):
                 # Test DAG Run is set and has frozen start date
                 self.assertIsNotNone(env.dag_run)
-                self.assertEqual(first_start_date.date(), env.dag_run.start_date.date())
-
-                ti1 = env.run_task("check_dependencies")
-                self.assertEqual(TaskInstanceState.SUCCESS, ti1.state)
-                self.assertIsNone(ti1.previous_ti)
-
-            with env.create_dag_run(my_dag, second_execution_date):
-                # Test DAG Run is set and has frozen start date
-                self.assertIsNotNone(env.dag_run)
-                self.assertEqual(second_start_date, env.dag_run.start_date)
-
-                ti2 = env.run_task("check_dependencies")
-                self.assertEqual(TaskInstanceState.SUCCESS, ti2.state)
-                # Test previous ti is set
-                self.assertEqual(ti1.job_id, ti2.previous_ti.job_id)
-
-        # Use DAG run without freezing time
-        env = SandboxEnvironment(self.project_id, self.data_location)
-        with env.create():
-            # Test add_variable
-            env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
-
-            # Test add_connection
-            conn = Connection(conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2")
-            env.add_connection(conn)
-
-            # First DAG Run
-            with env.create_dag_run(my_dag, first_execution_date):
-                # Test DAG Run is set and has today as start date
-                self.assertIsNotNone(env.dag_run)
-                self.assertEqual(first_start_date, env.dag_run.start_date)
+                self.assertEqual(first_execution_date.date(), env.dag_run.start_date.date())
+                self.assertEqual(env.dag_run.data_interval_start.date(), first_execution_date.date())
+                self.assertEqual(env.dag_run.data_interval_end.date(), first_execution_date.date() + timedelta(days=7))
 
                 ti1 = env.run_task("check_dependencies")
                 self.assertEqual(TaskInstanceState.SUCCESS, ti1.state)
@@ -360,25 +323,53 @@ class TestSandboxEnvironment(unittest.TestCase):
 
             # Second DAG Run
             with env.create_dag_run(my_dag, second_execution_date):
-                # Test DAG Run is set and has today as start date
+                # Test DAG Run is set and has frozen start date
                 self.assertIsNotNone(env.dag_run)
-                self.assertEqual(second_start_date, env.dag_run.start_date)
+                self.assertEqual(second_execution_date.date(), env.dag_run.start_date.date())
+                self.assertEqual(env.dag_run.data_interval_start.date(), second_execution_date.date())
+                self.assertEqual(env.dag_run.data_interval_end.date(), second_execution_date.date() + timedelta(days=5))
 
                 ti2 = env.run_task("check_dependencies")
                 self.assertEqual(TaskInstanceState.SUCCESS, ti2.state)
                 # Test previous ti is set
                 self.assertEqual(ti1.job_id, ti2.previous_ti.job_id)
 
+            # Third DAG Run
+            with env.create_dag_run(my_dag, data_interval=third_data_interval):
+                # Test DAG Run is set and has frozen start date
+                self.assertIsNotNone(env.dag_run)
+                self.assertEqual(third_data_interval.start, env.dag_run.data_interval_start)
+                self.assertEqual(third_data_interval.end, env.dag_run.data_interval_end)
+
+                ti3 = env.run_task("check_dependencies")
+                self.assertEqual(TaskInstanceState.SUCCESS, ti3.state)
+                # Test previous ti is set
+                self.assertEqual(ti2.job_id, ti3.previous_ti.job_id)
+
     def test_create_dag_run_timedelta(self):
         env = SandboxEnvironment(self.project_id, self.data_location)
 
         my_dag = create_dag(schedule=timedelta(days=1))
         execution_date = pendulum.datetime(2021, 1, 1)
-        expected_dag_date = pendulum.datetime(2021, 1, 2)
         with env.create():
             with env.create_dag_run(my_dag, execution_date):
                 self.assertIsNotNone(env.dag_run)
+                self.assertEqual(execution_date, env.dag_run.start_date)
+                execution_date = env.dag_run.data_interval_end
+
+            expected_dag_date = pendulum.datetime(2021, 1, 2)
+            with env.create_dag_run(my_dag, execution_date):
+                self.assertIsNotNone(env.dag_run)
                 self.assertEqual(expected_dag_date, env.dag_run.start_date)
+
+    def test_create_dag_run_raises_error(self):
+        env = SandboxEnvironment(self.project_id, self.data_location)
+
+        my_dag = create_dag(schedule=timedelta(days=1))
+        with env.create():
+            with self.assertRaisesRegex(ValueError, "Must provide one of"):
+                with env.create_dag_run(my_dag):
+                    pass
 
     def test_map_index(self):
         env = SandboxEnvironment(self.project_id, self.data_location)

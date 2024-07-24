@@ -1,5 +1,3 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
 # to you under the Apache License, Version 2.0 (the
@@ -34,27 +32,24 @@
 # limitations under the License.
 
 import contextlib
-import datetime
 import logging
 import os
-from datetime import datetime, timedelta
 from typing import List, Optional, Set, Union
 
-import croniter
-import google
-import pendulum
-import requests
 from airflow import DAG, settings
 from airflow.models.connection import Connection
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
+from airflow.timetables.base import DataInterval
 from airflow.utils import db
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from click.testing import CliRunner
-from dateutil.relativedelta import relativedelta
+import google
 from google.cloud import bigquery, storage
+import pendulum
+import requests
 
 from observatory_platform.airflow.workflow import Workflow, CloudWorkspace, workflows_to_json_string
 from observatory_platform.config import AirflowVars
@@ -322,7 +317,8 @@ class SandboxEnvironment:
     def create_dag_run(
         self,
         dag: DAG,
-        execution_date: pendulum.DateTime,
+        execution_date: pendulum.DateTime = None,
+        data_interval: DataInterval = None,
         run_type: DagRunType = DagRunType.SCHEDULED,
     ):
         """Create a DagRun that can be used when running tasks.
@@ -334,13 +330,15 @@ class SandboxEnvironment:
         :return: None.
         """
 
-        # Get start date, which is one schedule interval after execution date
-        if isinstance(dag.normalized_schedule_interval, (timedelta, relativedelta)):
-            start_date = (
-                datetime.fromtimestamp(execution_date.timestamp(), pendulum.tz.UTC) + dag.normalized_schedule_interval
-            )
+        if data_interval:
+            start_date = data_interval.start
+            if not execution_date:
+                execution_date = data_interval.start
+        elif execution_date:
+            data_interval = dag.infer_automated_data_interval(logical_date=execution_date)
+            start_date = data_interval.start
         else:
-            start_date = croniter.croniter(dag.normalized_schedule_interval, execution_date).get_next(pendulum.DateTime)
+            raise ValueError("Must provide one of `data_inerval` or `execution_date`")
 
         try:
             self.dag_run = dag.create_dagrun(
@@ -348,6 +346,7 @@ class SandboxEnvironment:
                 execution_date=execution_date,
                 start_date=start_date,
                 run_type=run_type,
+                data_interval=data_interval,
             )
             yield self.dag_run
         finally:
