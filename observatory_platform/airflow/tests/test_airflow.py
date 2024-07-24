@@ -20,7 +20,6 @@ import textwrap
 import unittest
 from unittest.mock import MagicMock, patch
 
-import pendulum
 from airflow.decorators import dag
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.connection import Connection
@@ -30,6 +29,8 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+import pendulum
+import time_machine
 
 from observatory_platform.airflow.airflow import (
     get_airflow_connection_login,
@@ -73,11 +74,11 @@ class TestAirflow(unittest.TestCase):
                 self.log_url = "log_url"
 
         ti = MockTI()
-        execution_date = pendulum.now()
+        logical_date = pendulum.now()
 
         send_slack_msg(
             ti=ti,
-            execution_date=execution_date,
+            logical_date=logical_date,
             comments="comment",
             slack_conn_id=slack_webhook_conn_id,
         )
@@ -91,7 +92,7 @@ class TestAirflow(unittest.TestCase):
             *Log Url*: log_url
             *Comments*: comment
             """
-        ).format(exec_date=execution_date.isoformat())
+        ).format(exec_date=logical_date.isoformat())
 
         m_slack.assert_called_once_with(slack_webhook_conn_id=slack_webhook_conn_id)
         m_slack.return_value.send_text.assert_called_once_with(message)
@@ -175,28 +176,28 @@ class TestAirflow(unittest.TestCase):
 
         def create_xcom(**kwargs):
             ti = kwargs["ti"]
-            execution_date = kwargs["execution_date"]
-            ti.xcom_push("topic", {"snapshot_date": execution_date.format("YYYYMMDD"), "something": "info"})
+            logical_date = kwargs["logical_date"]
+            ti.xcom_push("topic", {"snapshot_date": logical_date.format("YYYYMMDD"), "something": "info"})
 
         env = SandboxEnvironment()
         with env.create():
-            execution_date = pendulum.datetime(2021, 9, 5)
+            logical_date = pendulum.datetime(2021, 9, 5)
             with DAG(
                 dag_id="hello_world_dag",
                 schedule="@daily",
-                default_args={"owner": "airflow", "start_date": execution_date},
+                default_args={"owner": "airflow", "start_date": logical_date},
                 catchup=True,
             ) as dag:
                 kwargs = {"task_id": "create_xcom"}
                 op = PythonOperator(python_callable=create_xcom, **kwargs)
 
             # DAG Run
-            with env.create_dag_run(dag=dag, execution_date=execution_date):
+            with env.create_dag_run(dag=dag, logical_date=logical_date):
                 ti = env.run_task("create_xcom")
                 self.assertEqual("success", ti.state)
                 msgs = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
                 self.assertIsInstance(msgs, dict)
-                delete_old_xcoms(dag_id="hello_world_dag", execution_date=execution_date, retention_days=0)
+                delete_old_xcoms(dag_id="hello_world_dag", retention_days=0)
                 msgs = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
                 self.assertEqual(msgs, None)
 
@@ -205,13 +206,13 @@ class TestAirflow(unittest.TestCase):
 
         def create_xcom(**kwargs):
             ti = kwargs["ti"]
-            execution_date = kwargs["execution_date"]
-            ti.xcom_push("topic", {"snapshot_date": execution_date.format("YYYYMMDD"), "something": "info"})
+            logical_date = kwargs["logical_date"]
+            ti.xcom_push("topic", {"snapshot_date": logical_date.format("YYYYMMDD"), "something": "info"})
 
         @provide_session
-        def get_xcom(session=None, dag_id=None, task_id=None, key=None, execution_date=None):
+        def get_xcom(run_id, session=None, dag_id=None, task_id=None, key=None):
             msgs = XCom.get_many(
-                execution_date=execution_date,
+                run_id=run_id,
                 key=key,
                 dag_ids=dag_id,
                 task_ids=task_id,
@@ -222,47 +223,46 @@ class TestAirflow(unittest.TestCase):
 
         env = SandboxEnvironment()
         with env.create():
-            first_execution_date = pendulum.datetime(2021, 9, 5)
+            first_logical_date = pendulum.datetime(2021, 9, 5)
             with DAG(
                 dag_id="hello_world_dag",
                 schedule="@daily",
-                default_args={"owner": "airflow", "start_date": first_execution_date},
+                default_args={"owner": "airflow", "start_date": first_logical_date},
                 catchup=True,
             ) as dag:
                 kwargs = {"task_id": "create_xcom"}
                 PythonOperator(python_callable=create_xcom, **kwargs)
 
             # First DAG Run
-            with env.create_dag_run(dag=dag, execution_date=first_execution_date):
-                ti = env.run_task("create_xcom")
+            with env.create_dag_run(dag=dag, logical_date=first_logical_date):
+                with time_machine.travel(first_logical_date):
+                    ti = env.run_task("create_xcom")
                 self.assertEqual("success", ti.state)
                 msg = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
-                self.assertEqual(msg["snapshot_date"], first_execution_date.format("YYYYMMDD"))
+                self.assertEqual(msg["snapshot_date"], first_logical_date.format("YYYYMMDD"))
 
             # Second DAG Run
-            second_execution_date = pendulum.datetime(2021, 9, 15)
-            with env.create_dag_run(dag=dag, execution_date=second_execution_date):
-                ti = env.run_task("create_xcom")
+            second_logical_date = pendulum.datetime(2021, 9, 15)
+            with env.create_dag_run(dag=dag, logical_date=second_logical_date):
+                with time_machine.travel(second_logical_date):
+                    ti = env.run_task("create_xcom")
                 self.assertEqual("success", ti.state)
                 msg = ti.xcom_pull(key="topic", task_ids="create_xcom", include_prior_dates=True)
-                self.assertEqual(msg["snapshot_date"], second_execution_date.format("YYYYMMDD"))
+                self.assertEqual(msg["snapshot_date"], second_logical_date.format("YYYYMMDD"))
 
                 # Check there are two xcoms in the db
-                xcoms = get_xcom(
-                    dag_id="hello_world_dag", task_id="create_xcom", key="topic", execution_date=second_execution_date
-                )
+                xcoms = get_xcom(ti.run_id, dag_id="hello_world_dag", task_id="create_xcom", key="topic")
                 self.assertEqual(len(xcoms), 2)
 
                 # Delete old xcoms
-                delete_old_xcoms(dag_id="hello_world_dag", execution_date=second_execution_date, retention_days=1)
+                with time_machine.travel(second_logical_date):
+                    delete_old_xcoms(dag_id="hello_world_dag", retention_days=1)
 
                 # Check result
-                xcoms = get_xcom(
-                    dag_id="hello_world_dag", task_id="create_xcom", key="topic", execution_date=second_execution_date
-                )
+                xcoms = get_xcom(ti.run_id, dag_id="hello_world_dag", task_id="create_xcom", key="topic")
                 self.assertEqual(len(xcoms), 1)
                 msg = XCom.deserialize_value(xcoms[0])
-                self.assertEqual(msg["snapshot_date"], second_execution_date.format("YYYYMMDD"))
+                self.assertEqual(msg["snapshot_date"], second_logical_date.format("YYYYMMDD"))
 
     @patch("observatory_platform.airflow.airflow.send_slack_msg")
     def test_on_failure_callback(self, mock_send_slack_msg):
@@ -273,9 +273,9 @@ class TestAirflow(unittest.TestCase):
                 self.dag_id = "dag"
                 self.log_url = "logurl"
 
-        execution_date = pendulum.now()
+        logical_date = pendulum.now()
         ti = MockTI()
-        context = {"exception": AirflowException("Exception message"), "ti": ti, "execution_date": execution_date}
+        context = {"exception": AirflowException("Exception message"), "ti": ti, "logical_date": logical_date}
         # Check that hasn't been called
         mock_send_slack_msg.assert_not_called()
 
@@ -285,7 +285,7 @@ class TestAirflow(unittest.TestCase):
         # Check that called with correct parameters
         mock_send_slack_msg.assert_called_once_with(
             ti=ti,
-            execution_date=execution_date,
+            logical_date=logical_date,
             comments="Task failed, exception:\n" "airflow.exceptions.AirflowException: Exception message",
             slack_conn_id="slack",
         )
@@ -308,6 +308,7 @@ class TestAirflow(unittest.TestCase):
             )
             def callback_test_dag():
                 check_dependencies(airflow_conns=airflow_conns)
+
             return callback_test_dag()
 
         # Setup Observatory environment
@@ -316,11 +317,11 @@ class TestAirflow(unittest.TestCase):
         env = SandboxEnvironment(project_id, data_location)
 
         # Setup Workflow with 0 retries and missing airflow variable, so it will fail the task
-        execution_date = pendulum.datetime(2020, 1, 1)
+        logical_date = pendulum.datetime(2020, 1, 1)
         conn_id = "orcid_bucket"
         my_dag = create_dag(
             "test_callback",
-            execution_date,
+            logical_date,
             "@weekly",
             retries=0,
             airflow_conns=[conn_id],
@@ -328,7 +329,7 @@ class TestAirflow(unittest.TestCase):
 
         # Create the Observatory environment and run task, expecting slack webhook call in production environment
         with env.create(task_logging=True):
-            with env.create_dag_run(my_dag, execution_date):
+            with env.create_dag_run(my_dag, logical_date):
                 with self.assertRaises(AirflowNotFoundException):
                     env.run_task("check_dependencies")
 
@@ -343,7 +344,7 @@ class TestAirflow(unittest.TestCase):
 
         # Add orcid_bucket connection and test that Slack Web Hook did not get triggered
         with env.create(task_logging=True):
-            with env.create_dag_run(my_dag, execution_date):
+            with env.create_dag_run(my_dag, logical_date):
                 env.add_connection(Connection(conn_id=conn_id, uri="https://orcid.org/"))
                 env.run_task("check_dependencies")
                 mock_send_slack_msg.assert_not_called()
@@ -353,17 +354,17 @@ class TestAirflow(unittest.TestCase):
 
         env = SandboxEnvironment()
         with env.create():
-            first_execution_date = pendulum.datetime(2021, 9, 5)
+            first_logical_date = pendulum.datetime(2021, 9, 5)
             with DAG(
                 dag_id="hello_world_dag",
                 schedule="@daily",
-                default_args={"owner": "airflow", "start_date": first_execution_date},
+                default_args={"owner": "airflow", "start_date": first_logical_date},
                 catchup=True,
             ) as dag:
                 task = BashOperator(task_id="task", bash_command="echo 'hello'")
 
             # First DAG Run
-            with env.create_dag_run(dag=dag, execution_date=first_execution_date) as first_dag_run:
+            with env.create_dag_run(dag=dag, logical_date=first_logical_date) as first_dag_run:
                 # Should be true the first DAG run. Check before and after a task.
                 is_first = is_first_dag_run(first_dag_run)
                 self.assertTrue(is_first)
@@ -375,8 +376,8 @@ class TestAirflow(unittest.TestCase):
                 self.assertTrue(is_first)
 
             # Second DAG Run
-            second_execution_date = pendulum.datetime(2021, 9, 12)
-            with env.create_dag_run(dag=dag, execution_date=second_execution_date) as second_dag_run:
+            second_logical_date = pendulum.datetime(2021, 9, 12)
+            with env.create_dag_run(dag=dag, logical_date=second_logical_date) as second_dag_run:
                 # Should be false on second DAG Run, check before and after a task.
                 is_first = is_first_dag_run(second_dag_run)
                 self.assertFalse(is_first)

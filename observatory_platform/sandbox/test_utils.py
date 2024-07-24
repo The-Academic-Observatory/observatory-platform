@@ -555,18 +555,18 @@ def log_diff(diff_type, changes):
             )
 
 
-def make_dummy_dag(dag_id: str, execution_date: pendulum.DateTime) -> DAG:
+def make_dummy_dag(dag_id: str, logical_date: pendulum.DateTime) -> DAG:
     """A Dummy DAG for testing purposes.
 
     :param dag_id: the DAG id.
-    :param execution_date: the DAGs execution date.
+    :param logical_date: the DAGs logical date.
     :return: the DAG.
     """
 
     with DAG(
         dag_id=dag_id,
         schedule="@weekly",
-        default_args={"owner": "airflow", "start_date": execution_date},
+        default_args={"owner": "airflow", "start_date": logical_date},
         catchup=False,
     ) as dag:
         task1 = EmptyOperator(task_id="dummy_task")

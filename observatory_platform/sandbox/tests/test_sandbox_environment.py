@@ -210,14 +210,14 @@ class TestSandboxEnvironment(unittest.TestCase):
         """Tests create, add_variable, add_connection and run_task"""
 
         # Setup Telescope
-        execution_date = pendulum.datetime(year=2020, month=11, day=1)
+        logical_date = pendulum.datetime(year=2020, month=11, day=1)
         my_dag = create_dag()
 
         # Test that previous tasks have to be finished to run next task
         env = SandboxEnvironment(self.project_id, self.data_location)
 
         with env.create(task_logging=True):
-            with env.create_dag_run(my_dag, execution_date):
+            with env.create_dag_run(my_dag, logical_date):
                 # Add_variable
                 env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
 
@@ -247,12 +247,12 @@ class TestSandboxEnvironment(unittest.TestCase):
         env = SandboxEnvironment(self.project_id, self.data_location)
 
         # Setup Telescope
-        execution_date = pendulum.datetime(year=2020, month=11, day=1)
+        logical_date = pendulum.datetime(year=2020, month=11, day=1)
         my_dag = create_dag()
 
         # Test environment without logging enabled
         with env.create():
-            with env.create_dag_run(my_dag, execution_date):
+            with env.create_dag_run(my_dag, logical_date):
                 # Test add_variable
                 env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
 
@@ -270,7 +270,7 @@ class TestSandboxEnvironment(unittest.TestCase):
         # Test environment with logging enabled
         env = SandboxEnvironment(self.project_id, self.data_location)
         with env.create(task_logging=True):
-            with env.create_dag_run(my_dag, execution_date):
+            with env.create_dag_run(my_dag, logical_date):
                 # Test add_variable
                 env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
 
@@ -291,8 +291,8 @@ class TestSandboxEnvironment(unittest.TestCase):
         env = SandboxEnvironment(self.project_id, self.data_location)
 
         # Setup Telescope
-        first_execution_date = pendulum.datetime(year=2020, month=11, day=1, tz="UTC")  # Sunday
-        second_execution_date = pendulum.datetime(year=2020, month=12, day=1, tz="UTC")  # Tuesday
+        first_logical_date = pendulum.datetime(year=2020, month=11, day=1, tz="UTC")  # Sunday
+        second_logical_date = pendulum.datetime(year=2020, month=12, day=1, tz="UTC")  # Tuesday
         third_data_interval = DataInterval(
             pendulum.datetime(year=2021, month=1, day=1, tz="UTC"),
             pendulum.datetime(year=2021, month=1, day=3, tz="UTC"),
@@ -310,24 +310,24 @@ class TestSandboxEnvironment(unittest.TestCase):
 
             self.assertIsNone(env.dag_run)
             # First DAG Run
-            with env.create_dag_run(my_dag, first_execution_date):
+            with env.create_dag_run(my_dag, logical_date=first_logical_date):
                 # Test DAG Run is set and has frozen start date
                 self.assertIsNotNone(env.dag_run)
-                self.assertEqual(first_execution_date.date(), env.dag_run.start_date.date())
-                self.assertEqual(env.dag_run.data_interval_start.date(), first_execution_date.date())
-                self.assertEqual(env.dag_run.data_interval_end.date(), first_execution_date.date() + timedelta(days=7))
+                self.assertEqual(first_logical_date.date(), env.dag_run.start_date.date())
+                self.assertEqual(env.dag_run.data_interval_start.date(), first_logical_date.date())
+                self.assertEqual(env.dag_run.data_interval_end.date(), first_logical_date.date() + timedelta(days=7))
 
                 ti1 = env.run_task("check_dependencies")
                 self.assertEqual(TaskInstanceState.SUCCESS, ti1.state)
                 self.assertIsNone(ti1.previous_ti)
 
             # Second DAG Run
-            with env.create_dag_run(my_dag, second_execution_date):
+            with env.create_dag_run(my_dag, logical_date=second_logical_date):
                 # Test DAG Run is set and has frozen start date
                 self.assertIsNotNone(env.dag_run)
-                self.assertEqual(second_execution_date.date(), env.dag_run.start_date.date())
-                self.assertEqual(env.dag_run.data_interval_start.date(), second_execution_date.date())
-                self.assertEqual(env.dag_run.data_interval_end.date(), second_execution_date.date() + timedelta(days=5))
+                self.assertEqual(second_logical_date.date(), env.dag_run.start_date.date())
+                self.assertEqual(env.dag_run.data_interval_start.date(), second_logical_date.date())
+                self.assertEqual(env.dag_run.data_interval_end.date(), second_logical_date.date() + timedelta(days=5))
 
                 ti2 = env.run_task("check_dependencies")
                 self.assertEqual(TaskInstanceState.SUCCESS, ti2.state)
@@ -350,15 +350,15 @@ class TestSandboxEnvironment(unittest.TestCase):
         env = SandboxEnvironment(self.project_id, self.data_location)
 
         my_dag = create_dag(schedule=timedelta(days=1))
-        execution_date = pendulum.datetime(2021, 1, 1)
+        logical_date = pendulum.datetime(2021, 1, 1)
         with env.create():
-            with env.create_dag_run(my_dag, execution_date):
+            with env.create_dag_run(my_dag, logical_date):
                 self.assertIsNotNone(env.dag_run)
-                self.assertEqual(execution_date, env.dag_run.start_date)
-                execution_date = env.dag_run.data_interval_end
+                self.assertEqual(logical_date, env.dag_run.start_date)
+                logical_date = env.dag_run.data_interval_end
 
             expected_dag_date = pendulum.datetime(2021, 1, 2)
-            with env.create_dag_run(my_dag, execution_date):
+            with env.create_dag_run(my_dag, logical_date):
                 self.assertIsNotNone(env.dag_run)
                 self.assertEqual(expected_dag_date, env.dag_run.start_date)
 
