@@ -74,7 +74,7 @@ def make_dummy_dag(*, dag_id: str, schedule: str, start_date: pendulum.DateTime,
 
     :param dag_id: the DAG id.
     :param schedule: the schedule interval.
-    :param start_date: the DAGs execution date.
+    :param start_date: the DAGs logical date.
     :param fail: Whether to intentionally fail the task
     :return: the DAG.
     """
@@ -141,7 +141,7 @@ class TestDagCompleteSensor(SandboxTestCase):
             dag = create_dag(start_date=logical_date, ext_dag_ids=["crossref_metadata"], schedule="@weekly")
             destination = pendulum.datetime(2024, 2, 11)
             with time_machine.travel(destination, tick=True):
-                with env.create_dag_run(dag=dag, execution_date=logical_date):
+                with env.create_dag_run(dag=dag, logical_date=logical_date):
                     ti = env.run_task(f"crossref_metadata_sensor")
                     self.assertEqual(State.SUCCESS, ti.state)
 
@@ -154,7 +154,7 @@ class TestDagCompleteSensor(SandboxTestCase):
             dag = create_dag(start_date=logical_date, ext_dag_ids=["crossref_metadata"], schedule="@weekly")
             destination = pendulum.datetime(2024, 2, 18)
             with time_machine.travel(destination, tick=True):
-                with env.create_dag_run(dag=dag, execution_date=logical_date):
+                with env.create_dag_run(dag=dag, logical_date=logical_date):
                     ti = env.run_task(f"crossref_metadata_sensor")
                     self.assertEqual(State.SUCCESS, ti.state)
 
@@ -187,7 +187,7 @@ class TestDagCompleteSensor(SandboxTestCase):
             dag = create_dag(start_date=logical_date, ext_dag_ids=["crossref_metadata"], schedule="@weekly")
             destination = pendulum.datetime(2024, 2, 11)
             with time_machine.travel(destination, tick=True):
-                with env.create_dag_run(dag=dag, execution_date=logical_date):
+                with env.create_dag_run(dag=dag, logical_date=logical_date):
                     ti = env.run_task(f"crossref_metadata_sensor")
                     self.assertEqual(State.UP_FOR_RESCHEDULE, ti.state)
 
@@ -220,7 +220,7 @@ class TestDagCompleteSensor(SandboxTestCase):
             dag = create_dag(start_date=logical_date, ext_dag_ids=["unpaywall"], schedule="@weekly")
             destination = pendulum.datetime(2024, 2, 11, 1)
             with time_machine.travel(destination, tick=True):
-                with env.create_dag_run(dag=dag, execution_date=logical_date):
+                with env.create_dag_run(dag=dag, logical_date=logical_date):
                     ti = env.run_task(f"unpaywall_sensor")
                     self.assertEqual(State.SUCCESS, ti.state)
 

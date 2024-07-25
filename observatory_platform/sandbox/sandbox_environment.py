@@ -317,7 +317,7 @@ class SandboxEnvironment:
     def create_dag_run(
         self,
         dag: DAG,
-        execution_date: pendulum.DateTime = None,
+        logical_date: pendulum.DateTime = None,
         data_interval: DataInterval = None,
         run_type: DagRunType = DagRunType.SCHEDULED,
     ):
@@ -325,25 +325,25 @@ class SandboxEnvironment:
         During cleanup the DAG run state is updated.
 
         :param dag: the Airflow DAG instance.
-        :param execution_date: the execution date of the DAG.
+        :param logical_date: the logical date of the DAG.
         :param run_type: what run_type to use when running the DAG run.
         :return: None.
         """
 
         if data_interval:
             start_date = data_interval.start
-            if not execution_date:
-                execution_date = data_interval.start
-        elif execution_date:
-            data_interval = dag.infer_automated_data_interval(logical_date=execution_date)
+            if not logical_date:
+                logical_date = data_interval.start
+        elif logical_date:
+            data_interval = dag.infer_automated_data_interval(logical_date=logical_date)
             start_date = data_interval.start
         else:
-            raise ValueError("Must provide one of `data_inerval` or `execution_date`")
+            raise ValueError("Must provide one of `data_inerval` or `logical_date`")
 
         try:
             self.dag_run = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=execution_date,
+                execution_date=logical_date,
                 start_date=start_date,
                 run_type=run_type,
                 data_interval=data_interval,
@@ -398,6 +398,8 @@ class SandboxEnvironment:
                     logging.getLogger().setLevel(20)
                     # Propagate logging so it is displayed
                     logging.getLogger("airflow.task").propagate = True
+                else:
+                    logging.getLogger("airflow.task").propagate = False
 
                 # Create buckets and datasets
                 if self.create_gcp_env:

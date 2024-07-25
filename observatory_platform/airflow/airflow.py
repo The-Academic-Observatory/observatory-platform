@@ -121,8 +121,8 @@ def on_failure_callback(context):
 
     comments = f"Task failed, exception:\n{formatted_exception}"
     ti = context["ti"]
-    execution_date = context["execution_date"]
-    send_slack_msg(ti=ti, execution_date=execution_date, comments=comments, slack_conn_id=AirflowConns.SLACK)
+    logical_date = context["logical_date"]
+    send_slack_msg(ti=ti, logical_date=logical_date, comments=comments, slack_conn_id=AirflowConns.SLACK)
 
 
 def change_task_log_level(new_levels: Union[List, int]) -> list:
@@ -144,13 +144,13 @@ def change_task_log_level(new_levels: Union[List, int]) -> list:
 
 
 def send_slack_msg(
-    *, ti: TaskInstance, execution_date: pendulum.DateTime, comments: str = "", slack_conn_id: str = AirflowConns.SLACK
+    *, ti: TaskInstance, logical_date: pendulum.DateTime, comments: str = "", slack_conn_id: str = AirflowConns.SLACK
 ):
     """
     Send a Slack message using the token in the slack airflow connection.
 
     :param ti: Task instance.
-    :param execution_date: DagRun execution date.
+    :param logical_date: DagRun logical date.
     :param comments: Additional comments in slack message
     :param slack_conn_id: the Airflow connection id for the Slack connection.
     """
@@ -167,7 +167,7 @@ def send_slack_msg(
     ).format(
         task=ti.task_id,
         dag=ti.dag_id,
-        exec_date=execution_date,
+        exec_date=logical_date,
         log_url=ti.log_url,
         comments=comments,
     )
@@ -227,23 +227,21 @@ def normalized_schedule_interval(schedule_interval: Optional[str]) -> Optional[S
 def delete_old_xcoms(
     session: Session = None,
     dag_id: str = None,
-    execution_date: pendulum.DateTime = None,
     retention_days: int = 31,
 ):
     """Delete XCom messages created by the DAG with the given ID that are as old or older than than
-    execution_date - retention_days.  Defaults to 31 days of retention.
+    `retention_days`.  Defaults to 31 days of retention.
 
     :param session: DB session.
     :param dag_id: DAG ID.
-    :param execution_date: DAG execution date.
     :param retention_days: Days of messages to retain.
     """
 
-    cut_off_date = execution_date.subtract(days=retention_days)
+    cut_off_date = pendulum.now().subtract(days=retention_days)
     results = session.query(XCom).filter(
         and_(
             XCom.dag_id == dag_id,
-            XCom.execution_date <= cut_off_date,
+            XCom.timestamp <= cut_off_date,
         )
     )
     # set synchronize_session="fetch" to prevent the following error: sqlalchemy.exc.InvalidRequestError: Could not evaluate current criteria in Python: "Cannot evaluate SelectStatementGrouping". Specify 'fetch' or False for the synchronize_session execution option.
