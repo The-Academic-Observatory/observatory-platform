@@ -92,10 +92,10 @@ class PreviousDagRunSensor(ExternalTaskSensor):
 class DagCompleteSensor(ExternalTaskSensor):
     """
     A sensor that awaits the completion of an external dag by default. Wait functionality can be customised by
-    providing a different execution_date_fn.
+    providing a different logical_date_fn.
 
     The sensor checks for completion of a dag with "external_dag_id" on the logical date returned by the
-    execution_date_fn.
+    logical_date_fn.
     """
 
     def __init__(
@@ -116,8 +116,8 @@ class DagCompleteSensor(ExternalTaskSensor):
         :param poke_interval: how often to check if the external dag run is complete
         :param timeout: how long to check before the sensor fails
         :param check_existence: whether to check that the provided dag_id exists
-        :param execution_date_fn: a function that returns the logical date(s) of the external DAG runs to query for,
-        since you need a logical date and a DAG ID to find a particular DAG run to wait for.
+        :param execution_date_fn: a function that returns the execution/logical date(s) of the external DAG runs to
+        query for, since you need a logical date and a DAG ID to find a particular DAG run to wait for.
         """
 
         if execution_date_fn is None:
