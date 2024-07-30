@@ -1,4 +1,4 @@
-# Copyright 2020-2023 Curtin University
+# Copyright 2020-2024 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,9 +26,9 @@ from typing import Optional
 import pendulum
 import six
 import validators
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models import TaskInstance, XCom, DagRun
+from airflow.models import TaskInstance, XCom, DagRun, Connection
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.utils.db import provide_session
 from dateutil.relativedelta import relativedelta
@@ -38,6 +38,82 @@ from sqlalchemy.orm import Session
 from observatory_platform.config import AirflowConns
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
+
+
+@provide_session
+def upsert_airflow_connection(
+    conn_id: str,
+    conn_type: str,
+    host: Optional[str] = None,
+    schema: Optional[str] = None,
+    login: Optional[str] = None,
+    password: Optional[str] = None,
+    port: Optional[int] = None,
+    extra: Optional[str] = None,
+    session: Session = None,
+):
+    """Upserts an Airflow connection. If the connection exists, it updates the existing connection
+    with the provided details. If the connection does not exist, it adds a new connection with the
+    provided details.
+
+    :param conn_id: The connection ID
+    :param conn_type: The connection type (e.g., 'http', 'postgres', etc.)
+    :param host: The hostname or IP address of the connection
+    :param schema: The schema to use
+    :param login: The username for the connection
+    :param password: The password for the connection
+    :param port: The port number for the connection
+    :param extra: Additional connection configuration as a JSON string
+    :param session: The SQLAlchemy session. Provided by the @provide_session decorator.
+
+    :raises Exception: If there is an issue adding or updating the connection.
+
+    :return: None
+    """
+    try:
+        existing_conn = BaseHook.get_connection(conn_id)
+    except AirflowNotFoundException:
+        existing_conn = None
+
+    if existing_conn:
+        logging.info(f"Connection '{conn_id}' exists. Updating the connection.")
+        existing_conn.conn_type = conn_type
+        existing_conn.host = host
+        existing_conn.schema = schema
+        existing_conn.login = login
+        existing_conn.password = password
+        existing_conn.port = port
+        existing_conn.extra = extra
+        session.add(existing_conn)
+    else:
+        logging.info(f"Connection '{conn_id}' does not exist. Adding the connection.")
+        new_conn = Connection(
+            conn_id=conn_id,
+            conn_type=conn_type,
+            host=host,
+            schema=schema,
+            login=login,
+            password=password,
+            port=port,
+            extra=extra,
+        )
+        session.add(new_conn)
+    session.commit()
+
+
+@provide_session
+def clear_airflow_connections(session: Session = None):
+    """Clears all aiflow connections in a session
+
+    :param session: The session to clear.
+    """
+    try:
+        session.query(Connection).delete()
+        session.commit()
+        logging.info("All connections have been cleared.")
+    except Exception as e:
+        session.rollback()
+        logging.info(f"Failed to clear connections: {e}")
 
 
 def get_airflow_connection_url(conn_id: str) -> str:

@@ -69,6 +69,7 @@ class SandboxEnvironment:
         age_to_delete: int = 12,
         workflows: List[Workflow] = None,
         gcs_bucket_roles: Union[Set[str], str] = None,
+        env_vars: dict = None,
     ):
         """Constructor for an Observatory environment.
 
@@ -81,6 +82,7 @@ class SandboxEnvironment:
         :param data_location: the Google Cloud data location.
         :param prefix: prefix for buckets and datsets created for the testing environment.
         :param age_to_delete: age of buckets and datasets to delete that share the same prefix, in hours
+        :param env_vars: Any environment variables to set upon environment creation.
         """
 
         self.project_id = project_id
@@ -96,6 +98,7 @@ class SandboxEnvironment:
         self.prefix = prefix
         self.age_to_delete = age_to_delete
         self.workflows = workflows
+        self.env_vars = env_vars
 
         if self.create_gcp_env:
             self.download_bucket = self.add_bucket(roles=gcs_bucket_roles)
@@ -379,6 +382,8 @@ class SandboxEnvironment:
             try:
                 # Update environment
                 os.environ.update(self.new_env)
+                if self.env_vars:
+                    os.environ.update(self.env_vars)
 
                 # Create Airflow SQLite database
                 settings.DAGS_FOLDER = os.path.join(self.temp_dir, "airflow", "dags")
