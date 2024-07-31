@@ -168,11 +168,10 @@ def fetch_dag_bag(path: str, include_examples: bool = False) -> DagBag:
     return dag_bag
 
 
-def cleanup(dag_id: str, execution_date: str, workflow_folder: str = None, retention_days=31) -> None:
+def cleanup(dag_id: str, workflow_folder: str = None, retention_days=31) -> None:
     """Delete all files, folders and XComs associated from a release.
 
     :param dag_id: The ID of the DAG to remove XComs
-    :param execution_date: The execution date of the DAG run
     :param workflow_folder: The top-level workflow folder to clean up
     :param retention_days: How many days of Xcom messages to retain
     """
@@ -182,7 +181,7 @@ def cleanup(dag_id: str, execution_date: str, workflow_folder: str = None, reten
         except FileNotFoundError as e:
             logging.warning(f"No such file or directory {workflow_folder}: {e}")
 
-    delete_old_xcoms(dag_id=dag_id, execution_date=execution_date, retention_days=retention_days)
+    delete_old_xcoms(dag_id=dag_id, retention_days=retention_days)
 
 
 class CloudWorkspace:
