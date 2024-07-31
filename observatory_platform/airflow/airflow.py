@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Author: Aniek Roelofs, Tuan Chien
+# Author: Author: Aniek Roelofs, Tuan Chien, Keegan Smith
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def upsert_airflow_connection(
     port: Optional[int] = None,
     extra: Optional[str] = None,
     session: Session = None,
-):
+) -> None:
     """Upserts an Airflow connection. If the connection exists, it updates the existing connection
     with the provided details. If the connection does not exist, it adds a new connection with the
     provided details.
@@ -102,7 +102,7 @@ def upsert_airflow_connection(
 
 
 @provide_session
-def clear_airflow_connections(session: Session = None):
+def clear_airflow_connections(session: Session = None) -> None:
     """Clears all aiflow connections in a session
 
     :param session: The session to clear.
@@ -180,7 +180,7 @@ def get_airflow_connection_password(conn_id: str) -> str:
     return password
 
 
-def on_failure_callback(context):
+def on_failure_callback(context) -> None:
     """Function that is called on failure of an airflow task. Will create a slack webhook and send a notification.
 
     :param context: the context passed from the PythonOperator. See
@@ -223,7 +223,7 @@ def change_task_log_level(new_levels: Union[List, int]) -> list:
 
 def send_slack_msg(
     *, ti: TaskInstance, logical_date: pendulum.DateTime, comments: str = "", slack_conn_id: str = AirflowConns.SLACK
-):
+) -> None:
     """
     Send a Slack message using the token in the slack airflow connection.
 
@@ -306,7 +306,7 @@ def delete_old_xcoms(
     session: Session = None,
     dag_id: str = None,
     retention_days: int = 31,
-):
+) -> None:
     """Delete XCom messages created by the DAG with the given ID that are as old or older than than
     `retention_days`.  Defaults to 31 days of retention.
 
