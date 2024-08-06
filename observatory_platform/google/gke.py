@@ -25,30 +25,45 @@ from kubernetes import client
 
 @dataclass
 class GkeParams:
-    """Parameters describing the use of Google Kubernetes Engine
+    """Parameters describing the use of Google Kubernetes Engine"""
 
-    :param gke_namespace: The cluster namespace to use.
-    :param gke_volume_name: The name of the persistent volume to create
-    :param gke_volume_size: The amount of storage to request for the persistent volume in GiB
-    :param gke_volume_path: Where to mount the persistent volume
-    :param gke_image: The image location to pull from.
-    :param gke_zone: The zone containing the gke cluster
-    :param gke_startup_timeout_seconds: How long to wait for the container to start in seconds.
-    :param gke_conn_id: The name of the airlfow connection storing the gke cluster information.
-    :param docker_astro_uuid: The uuid of the astro user
-    :param gke_resource_overrides: Task resource overrides
-    """
+    def __init__(
+        self,
+        gke_namespace: str,
+        gke_volume_name: str,
+        gke_volume_size: int,
+        gke_volume_path: str = "/data",
+        gke_image: str = "us-docker.pkg.dev/academic-observatory/academic-observatory/academic-observatory:latest",
+        gke_zone: str = "us-central1",
+        gke_startup_timeout_seconds: int = 300,
+        gke_conn_id: str = "gke_cluster",
+        docker_astro_uid: int = 50000,
+        gke_resource_overrides: Optional[dict] = None,
+    ):
+        """
+        :param gke_namespace: The cluster namespace to use.
+        :param gke_volume_name: The name of the persistent volume to create
+        :param gke_volume_size: The amount of storage to request for the persistent volume in GiB
+        :param gke_volume_path: Where to mount the persistent volume
+        :param gke_image: The image location to pull from.
+        :param gke_zone: The zone containing the gke cluster
+        :param gke_startup_timeout_seconds: How long to wait for the container to start in seconds.
+        :param gke_conn_id: The name of the airlfow connection storing the gke cluster information.
+        :param docker_astro_uuid: The uuid of the astro user
+        :param gke_resource_overrides: Task resource overrides"""
 
-    gke_namespace: str
-    gke_volume_name: str
-    gke_volume_size: int
-    gke_volume_path: str = "/data"
-    gke_image: str = "us-docker.pkg.dev/academic-observatory/academic-observatory/academic-observatory:latest"
-    gke_zone: str = "us-central1"
-    gke_startup_timeout_seconds: int = 300
-    gke_conn_id: str = "gke_cluster"
-    docker_astro_uid: int = 50000
-    gke_resource_overrides: Optional[dict] = None
+        self.gke_namespace = gke_namespace
+        self.gke_volume_name = gke_volume_name
+        self.gke_volume_size = gke_volume_size
+        self.gke_volume_path = gke_volume_path
+        self.gke_image = gke_image
+        self.gke_zone = gke_zone
+        self.gke_startup_timeout_seconds = gke_startup_timeout_seconds
+        self.gke_conn_id = gke_conn_id
+        self.docker_astro_uid = docker_astro_uid
+        self.gke_resource_overrides = gke_resource_overrides
+        if not gke_resource_overrides:
+            self.gke_resource_overrides = {}
 
 
 def gke_make_kubernetes_task_params(gke_params: GkeParams):

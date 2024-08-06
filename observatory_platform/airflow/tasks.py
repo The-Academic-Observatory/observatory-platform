@@ -83,8 +83,6 @@ def check_connections(*connections):
 def gke_create_storage(volume_name: str, volume_size: int, kubernetes_conn_id: str, **context):
     """Create storage on a GKE cluster.
 
-    :param project_id: the Google Cloud project ID.
-    :param zone: the Google Cloud zone.
     :param volume_name: the name of the volume.
     :param volume_size: the volume size.
     :param kubernetes_conn_id: the Kubernetes Airflow Connection ID.
@@ -99,8 +97,6 @@ def gke_create_storage(volume_name: str, volume_size: int, kubernetes_conn_id: s
 def gke_delete_storage(volume_name: str, kubernetes_conn_id: str, **context):
     """Delete storage on a GKE cluster.
 
-    :param project_id: the Google Cloud project ID.
-    :param zone: the Google Cloud zone.
     :param volume_name: the name of the volume.
     :param kubernetes_conn_id: the Kubernetes Airflow Connection ID.
     :param context: the Airflow context.
