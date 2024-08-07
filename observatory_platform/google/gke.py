@@ -97,6 +97,19 @@ def gke_make_kubernetes_task_params(gke_params: GkeParams):
         env_vars={"DATA_PATH": gke_params.gke_volume_path},
         volumes=volumes,
         volume_mounts=volume_mounts,
+        init_containers=[
+            k8s.V1Container(
+                name="init-container",
+                image="ubuntu",
+                command=[
+                    "sh",
+                    "-c",
+                    f"useradd -u {gke_params.docker_astro_uid} astro && chown -R astro:astro {gke_params.gke_volume_path}",
+                ],
+                volume_mounts=volume_mounts,
+                security_context=k8s.V1PodSecurityContext(fs_group=0, run_as_group=0, run_as_user=0),
+            )
+        ],
     )
 
 
