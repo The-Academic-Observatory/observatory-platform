@@ -1,4 +1,4 @@
-# Copyright 2023 Curtin University
+# Copyright 2023-2024 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 
 from dataclasses import dataclass
 import logging
+import requests
 from typing import Optional
 
 import kubernetes
@@ -178,3 +179,22 @@ def gke_delete_volume(*, kubernetes_conn_id: str, volume_name: str) -> None:
             )
         else:
             raise e
+
+
+def gke_service_account_email() -> str | None:
+    """Retrieves the service account email from the internal gke node
+
+    :return: The service account email if it exists"""
+    metadata_url = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
+    headers = {"Metadata-Flavor": "Google"}
+
+    try:
+        response = requests.get(metadata_url, headers=headers)
+        if response.status_code == 200:
+            return response.text
+        else:
+            print(f"Error: Received status code {response.status_code} from metadata server.")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"Error accessing metadata server: {e}")
+        return None
