@@ -182,7 +182,7 @@ def bq_select_table_shard_dates(
 
 def bq_select_latest_table(
     table_id: str,
-    end_date: Union[pendulum.DateTime, pendulum.Date, None],
+    end_date: Union[pendulum.DateTime, pendulum.Date, None] = None,
     sharded: bool = True,
     client: bigquery.Client = None,
 ):
