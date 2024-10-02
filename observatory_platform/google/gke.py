@@ -126,7 +126,9 @@ def gke_make_container_resources(default: dict, override: Optional[dict]) -> V1R
     return V1ResourceRequirements(requests=resource, limits=resource)
 
 
-def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int) -> None:
+def gke_create_volume(
+    *, kubernetes_conn_id: str, volume_name: str, size_gi: int, storage_class: str = "standard"
+) -> None:
     """Creates a GKE volume
 
     :param kubernetes_conn_id:
@@ -149,7 +151,7 @@ def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size_gi: int
         spec=client.V1PersistentVolumeClaimSpec(
             access_modes=["ReadWriteOnce"],
             resources=client.V1ResourceRequirements(requests=capacity),
-            storage_class_name="standard",
+            storage_class_name=storage_class,
         ),
     )
     v1.create_namespaced_persistent_volume_claim(namespace=namespace, body=pvc)
