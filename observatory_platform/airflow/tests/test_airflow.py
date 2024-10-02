@@ -15,6 +15,7 @@
 # Author: James Diprose, Aniek Roelofs
 
 import datetime
+import json
 import os
 import textwrap
 import unittest
@@ -22,6 +23,7 @@ from unittest.mock import MagicMock, patch
 
 from airflow.decorators import dag
 from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.xcom import XCom
@@ -30,6 +32,7 @@ from airflow.operators.python import PythonOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 import pendulum
+from sqlalchemy.orm import Session
 import time_machine
 
 from observatory_platform.airflow.airflow import (
@@ -41,6 +44,8 @@ from observatory_platform.airflow.airflow import (
     on_failure_callback,
     normalized_schedule_interval,
     is_first_dag_run,
+    upsert_airflow_connection,
+    clear_airflow_connections,
 )
 from observatory_platform.airflow.tasks import check_dependencies
 from observatory_platform.sandbox.sandbox_environment import SandboxEnvironment
@@ -59,6 +64,48 @@ class MockConnection:
 
 
 class TestAirflow(unittest.TestCase):
+
+    @provide_session
+    def test_upsert_airflow_connection(self, session: Session = None):
+        """Tests the upsert_airflow_connection function"""
+
+        # Delete all existing connections
+        session.query(Connection).delete()
+        with self.assertRaises(AirflowNotFoundException):
+            BaseHook.get_connection("my_conn")
+
+        # Attempt to upsert a new connection
+        upsert_airflow_connection(conn_id="my_conn", conn_type="http", session=session)
+        my_conn = BaseHook.get_connection("my_conn")
+        self.assertTrue(isinstance(my_conn, Connection))
+
+        # Upsert a new connection with the same name
+        upsert_airflow_connection(
+            conn_id="my_conn", conn_type="http", extra=json.dumps({"my_field": 42}), session=session
+        )
+        my_conn = BaseHook.get_connection("my_conn")
+        my_conn_extra = my_conn.extra_dejson
+        self.assertEqual(my_conn_extra, {"my_field": 42})
+
+    @provide_session
+    def test_clear_airflow_connections(self, session: Session = None):
+        """Tests the clear_airflow_connections function"""
+
+        # Delete all existing connections
+        session.query(Connection).delete()
+        clear_airflow_connections(session=session)  # Check it works with no connections
+
+        self.assertEqual(len(session.query(Connection).all()), 0)
+        new_conn = Connection(conn_id="my_conn", conn_type="http")
+        session.add(new_conn)
+        session.commit()
+        self.assertEqual(len(session.query(Connection).all()), 1)
+        clear_airflow_connections(session=session)
+        self.assertEqual(len(session.query(Connection).all()), 0)
+
+        with self.assertRaises(Exception):
+            clear_airflow_connections(session="Not a Session Object")  # Should raise an exception
+
     @patch("observatory_platform.airflow.airflow.SlackWebhookHook")
     @patch("airflow.hooks.base.BaseHook.get_connection")
     def test_send_slack_msg(self, mock_get_connection, m_slack):

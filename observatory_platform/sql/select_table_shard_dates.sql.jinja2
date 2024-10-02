@@ -18,6 +18,10 @@ SELECT DISTINCT
   PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) as suffix
 FROM
   `{{ table_id }}*`
-WHERE CHAR_LENGTH(_TABLE_SUFFIX) = 8 AND REGEXP_CONTAINS(_TABLE_SUFFIX, r"\d{8}") AND PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) <= DATE('{{ end_date }}')
+WHERE CHAR_LENGTH(_TABLE_SUFFIX) = 8
+    AND REGEXP_CONTAINS(_TABLE_SUFFIX, r"\d{8}")
+    {% if end_date is not none %}
+    AND PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) <= DATE('{{ end_date }}')
+    {% endif %}
 ORDER BY suffix DESC
 LIMIT {{ limit }};
