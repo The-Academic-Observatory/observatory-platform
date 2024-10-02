@@ -94,7 +94,7 @@ def gke_create_storage(
     """
 
     gke_create_volume(
-        kubernetes_conn_id=kubernetes_conn_id, volume_name=volume_name, size_gi=volume_size, storage_class=storage_clss
+        kubernetes_conn_id=kubernetes_conn_id, volume_name=volume_name, size_gi=volume_size, storage_class=storage_class
     )
 
 
