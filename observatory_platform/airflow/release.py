@@ -27,7 +27,7 @@ import pendulum
 from airflow.exceptions import AirflowException
 
 from observatory_platform.airflow.workflow import make_workflow_folder
-from observatory_platform.google.gcs import gcs_upload_file, gcs_read_blob, gcs_blob_uri
+from observatory_platform.google.gcs import gcs_upload_file, gcs_read_blob
 
 DATE_TIME_FORMAT = "YYYY-MM-DD_HH:mm:ss"
 
@@ -59,10 +59,10 @@ def set_task_state(success: bool, task_id: str, release: Release = None):
         raise AirflowException(msg_failed)
 
 
-def release_blob(uuid: str) -> str:
+def release_blob(id: str) -> str:
     """Generates the blob for a release object"""
 
-    return f"releases/{uuid}.json"
+    return f"releases/{id}.json"
 
 
 def release_to_bucket(release: Release, bucket: str, id: Optional[str] = None) -> str:
@@ -91,7 +91,7 @@ def release_from_bucket(bucket: str, id: str) -> dict:
     """Downloads a release from a bucket.
 
     :param bucket: The name of the bucket containing the release
-    :param uuid: The uuid of the release
+    :param id: The id of the release
     :return: The content of the release as a json dictionary
     """
 
@@ -168,11 +168,11 @@ class Release:
     @staticmethod
     def from_dict(_dict: dict):
         """Converts the release dict to its object equivalent"""
-        raise NotImplementedError("_from_dict() not implemented for this Release object")
+        raise NotImplementedError("from_dict() not implemented for this Release object")
 
     def to_dict(self) -> dict:
         """Transforms the release to its dictionary equivalent"""
-        raise NotImplementedError("_to_dict() not implemented for this Release object")
+        raise NotImplementedError("to_dict() not implemented for this Release object")
 
     def __str__(self):
         return f"Release(dag_id={self.dag_id}, run_id={self.run_id})"
