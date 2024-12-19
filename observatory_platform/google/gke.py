@@ -12,16 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 import logging
-import requests
+from dataclasses import dataclass
 from typing import Optional
 
 import kubernetes
-from kubernetes.client import models as k8s
-from kubernetes.client.models import V1ResourceRequirements
+import requests
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from kubernetes import client
+from kubernetes.client import models as k8s
+from kubernetes.client.models import V1ResourceRequirements
+
+DEFAULT_GKE_IMAGE = "us-docker.pkg.dev/academic-observatory/academic-observatory/academic-observatory:latest"
 
 
 @dataclass
@@ -34,7 +36,7 @@ class GkeParams:
         gke_volume_name: str,
         gke_volume_size: int,
         gke_volume_path: str = "/data",
-        gke_image: str = "us-docker.pkg.dev/academic-observatory/academic-observatory/academic-observatory:latest",
+        gke_image: str = DEFAULT_GKE_IMAGE,
         gke_zone: str = "us-central1",
         gke_startup_timeout_seconds: int = 300,
         gke_conn_id: str = "gke_cluster",
@@ -65,6 +67,14 @@ class GkeParams:
         self.gke_resource_overrides = gke_resource_overrides
         if not gke_resource_overrides:
             self.gke_resource_overrides = {}
+
+    @property
+    def container_resources(self):
+        return self.gke_resource_overrides
+
+    @property
+    def kubernetes_task_params(self):
+        return gke_make_kubernetes_task_params(self)
 
 
 def gke_make_kubernetes_task_params(gke_params: GkeParams):
@@ -154,7 +164,15 @@ def gke_create_volume(
             storage_class_name=storage_class,
         ),
     )
-    v1.create_namespaced_persistent_volume_claim(namespace=namespace, body=pvc)
+    try:
+        v1.create_namespaced_persistent_volume_claim(namespace=namespace, body=pvc)
+    except kubernetes.client.exceptions.ApiException as e:
+        if e.status == 409:
+            logging.info(
+                f"gke_create_volume: PersistentVolumeClaim with name={volume_name}, namespace={namespace} already exists"
+            )
+        else:
+            raise e
 
 
 def gke_delete_volume(*, kubernetes_conn_id: str, volume_name: str) -> None:
