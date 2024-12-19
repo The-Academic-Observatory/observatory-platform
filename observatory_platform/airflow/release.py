@@ -21,7 +21,7 @@ import json
 import os
 import tempfile
 import uuid
-from typing import Optional
+from typing import Optional, Union, List
 
 import pendulum
 from airflow.exceptions import AirflowException
@@ -65,10 +65,10 @@ def release_blob(id: str) -> str:
     return f"releases/{id}.json"
 
 
-def release_to_bucket(release: Release, bucket: str, id: Optional[str] = None) -> str:
+def release_to_bucket(data: Union[dict, List[dict]], bucket: str, id: Optional[str] = None) -> str:
     """Uploads a release object to a bucket in json format. Will put it in {bucket}/releases.
 
-    :param release: The release object
+    :param data: The release object
     :param bucket: The name of the bucket to upload to
     :param id: The id to use as an identifier. Will be generated if not supplied.
     :return: The id as a string
@@ -78,21 +78,21 @@ def release_to_bucket(release: Release, bucket: str, id: Optional[str] = None) -
         id = str(uuid.uuid4())
 
     with tempfile.NamedTemporaryFile(mode="w") as f:
-        f.write(json.dumps(release.to_dict()))
+        f.write(json.dumps(data))
         f.flush()  # Force write stream to file
         success, _ = gcs_upload_file(bucket_name=bucket, blob_name=release_blob(id), file_path=f.name)
     if not success:
-        raise RuntimeError(f"Release could not be uploaded to gs://{bucket}/{release_blob}.json")
+        raise RuntimeError(f"Release could not be uploaded to gs://{bucket}/{id}.json")
 
     return id
 
 
-def release_from_bucket(bucket: str, id: str) -> dict:
+def release_from_bucket(bucket: str, id: str) -> Union[dict, List[dict]]:
     """Downloads a release from a bucket.
 
     :param bucket: The name of the bucket containing the release
     :param id: The id of the release
-    :return: The content of the release as a json dictionary
+    :return: The content of the release as a json dictionary or list of dicts
     """
 
     blob_name = release_blob(id)

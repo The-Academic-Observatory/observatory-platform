@@ -49,36 +49,42 @@ class _MyRelease(Release):
     def __str__(self):
         return f"{self.dag_id}, {self.run_id}, {self.my_int}, {self.my_time.timestamp()}"
 
+    @staticmethod
+    def _gen_release():
+        return _MyRelease(
+            dag_id="test_dag",
+            run_id=str(uuid.uuid4()),
+            my_int=randint(-10e9, 10e9),
+            my_time=pendulum.datetime(randint(0, 2000), 1, 1),
+        )
+
 
 class TestGCSFunctions(SandboxTestCase):
-    release = _MyRelease(
-        dag_id="test_dag",
-        run_id=str(uuid.uuid4()),
-        my_int=randint(-10e9, 10e9),
-        my_time=pendulum.datetime(randint(0, 2000), 1, 1),
-    )
+
     gcp_project_id = os.getenv("TEST_GCP_PROJECT_ID")
     gcp_data_location = os.getenv("TEST_GCP_DATA_LOCATION")
 
     def test_release_to_bucket(self):
         env = SandboxEnvironment(project_id=self.gcp_project_id, data_location=self.gcp_data_location)
         bucket = env.add_bucket()
+        release = _MyRelease._gen_release()
         with env.create():
-            id = release_to_bucket(self.release, bucket)
+            id = release_to_bucket(release.to_dict(), bucket)
             blobs = [b.name for b in gcs_list_blobs(bucket)]
-            self.assertIn(f"releases/{id}.pkl", blobs)
+            self.assertIn(f"releases/{id}.json", blobs)
 
     def test_release_from_bucket(self):
         env = SandboxEnvironment(project_id=self.gcp_project_id, data_location=self.gcp_data_location)
         bucket = env.add_bucket()
         id = "test_release"
+        release = _MyRelease._gen_release()
         with env.create():
             with tempfile.NamedTemporaryFile(mode="w") as f:
-                f.write(json.dumps(self.release.to_dict()))
+                f.write(json.dumps(release.to_dict()))
                 f.flush()  # Force write stream to file
                 gcs_upload_file(bucket_name=bucket, blob_name=f"releases/{id}.json", file_path=f.name)
-            release = release_from_bucket(bucket, id)
-            self.assertEqual(str(_MyRelease.from_dict(release)), str(self.release))
+            dl_release = release_from_bucket(bucket, id)
+            self.assertEqual(str(release), str(_MyRelease.from_dict(dl_release)))
 
 
 class TestWorkflow(SandboxTestCase):
