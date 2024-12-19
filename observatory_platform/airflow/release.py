@@ -17,12 +17,17 @@
 from __future__ import annotations
 
 import logging
+import json
 import os
+import tempfile
+import uuid
+from typing import Optional
 
 import pendulum
 from airflow.exceptions import AirflowException
 
 from observatory_platform.airflow.workflow import make_workflow_folder
+from observatory_platform.google.gcs import gcs_upload_file, gcs_read_blob, gcs_blob_uri
 
 DATE_TIME_FORMAT = "YYYY-MM-DD_HH:mm:ss"
 
@@ -52,6 +57,50 @@ def set_task_state(success: bool, task_id: str, release: Release = None):
             msg_failed += f" {release}"
         logging.error(msg_failed)
         raise AirflowException(msg_failed)
+
+
+def release_blob(uuid: str) -> str:
+    """Generates the blob for a release object"""
+
+    return f"releases/{uuid}.json"
+
+
+def release_to_bucket(release: Release, bucket: str, id: Optional[str] = None) -> str:
+    """Uploads a release object to a bucket in json format. Will put it in {bucket}/releases.
+
+    :param release: The release object
+    :param bucket: The name of the bucket to upload to
+    :param id: The id to use as an identifier. Will be generated if not supplied.
+    :return: The id as a string
+    """
+
+    if not id:
+        id = str(uuid.uuid4())
+
+    with tempfile.NamedTemporaryFile(mode="w") as f:
+        f.write(json.dumps(release.to_dict()))
+        f.flush()  # Force write stream to file
+        success, _ = gcs_upload_file(bucket_name=bucket, blob_name=release_blob(id), file_path=f.name)
+    if not success:
+        raise RuntimeError(f"Release could not be uploaded to gs://{bucket}/{release_blob}.json")
+
+    return id
+
+
+def release_from_bucket(bucket: str, id: str) -> dict:
+    """Downloads a release from a bucket.
+
+    :param bucket: The name of the bucket containing the release
+    :param uuid: The uuid of the release
+    :return: The content of the release as a json dictionary
+    """
+
+    blob_name = release_blob(id)
+    content, success = gcs_read_blob(bucket_name=bucket, blob_name=blob_name)
+    if not success:
+        raise RuntimeError(f"Release at gs://{bucket}/{blob_name} could not be downloaded")
+
+    return json.loads(content)
 
 
 class Release:
@@ -115,6 +164,15 @@ class Release:
         path = os.path.join(self.release_folder, "transform")
         os.makedirs(path, exist_ok=True)
         return path
+
+    @staticmethod
+    def from_dict(_dict: dict):
+        """Converts the release dict to its object equivalent"""
+        raise NotImplementedError("_from_dict() not implemented for this Release object")
+
+    def to_dict(self) -> dict:
+        """Transforms the release to its dictionary equivalent"""
+        raise NotImplementedError("_to_dict() not implemented for this Release object")
 
     def __str__(self):
         return f"Release(dag_id={self.dag_id}, run_id={self.run_id})"

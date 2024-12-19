@@ -19,6 +19,8 @@ import unittest
 from datetime import timedelta
 from typing import Optional
 from unittest.mock import patch
+from uuid import uuid4
+import tempfile
 
 import boto3
 import pendulum
@@ -38,6 +40,7 @@ from observatory_platform.google.gcs import (
     gcs_delete_bucket_dir,
     gcs_download_blob,
     gcs_download_blobs,
+    gcs_read_blob,
     gcs_upload_file,
     gcs_upload_files,
     gcs_list_buckets_with_prefix,
@@ -187,6 +190,18 @@ class TestGoogleCloudStorage(unittest.TestCase):
                 for blob in [blob_original, blob_copy]:
                     if blob.exists():
                         blob.delete()
+
+    def test_gcs_read_blob(self):
+        blob_uuid = str(uuid4())
+        content = str(uuid4())
+        with tempfile.NamedTemporaryFile(mode="w") as f:
+            f.write(content)
+            f.flush()  # Force write stream to file
+            gcs_upload_file(bucket_name=self.gc_bucket_name, blob_name=blob_uuid, file_path=f.name)
+
+        dl_content, success = gcs_read_blob(bucket_name=self.gc_bucket_name, blob_name=blob_uuid)
+        self.assertTrue(success)
+        self.assertEqual(content, dl_content)
 
     @patch("observatory_platform.airflow.workflow.Variable.get")
     def test_upload_download_blobs_from_cloud_storage(self, mock_get_variable):
