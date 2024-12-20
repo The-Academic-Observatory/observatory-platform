@@ -34,8 +34,6 @@ class TestDatasetAPI(SandboxTestCase):
         bq_dataset_id = env.add_dataset(prefix="dataset_api")
         api = DatasetAPI(bq_project_id=self.project_id, bq_dataset_id=bq_dataset_id, location=self.data_location)
         with env.create():
-            api.seed_db()
-
             # Add dataset release
             dag_id = "doi_workflow"
             entity_id = "doi"
@@ -71,8 +69,6 @@ class TestDatasetAPI(SandboxTestCase):
         api = DatasetAPI(bq_project_id=self.project_id, bq_dataset_id=bq_dataset_id, location=self.data_location)
         expected = []
         with env.create():
-            api.seed_db()
-
             # Create dataset releases
             dag_id = "doi_workflow"
             entity_id = "doi"
@@ -100,8 +96,6 @@ class TestDatasetAPI(SandboxTestCase):
         bq_dataset_id = env.add_dataset(prefix="dataset_api")
         api = DatasetAPI(bq_project_id=self.project_id, bq_dataset_id=bq_dataset_id, location=self.data_location)
         with env.create():
-            api.seed_db()
-
             dag_id = "doi_workflow"
             entity_id = "doi"
 
@@ -157,8 +151,6 @@ class TestDatasetAPI(SandboxTestCase):
         api = DatasetAPI(bq_project_id=self.project_id, bq_dataset_id=bq_dataset_id, location=self.data_location)
 
         with env.create():
-            api.seed_db()
-
             # Create dataset releases
             for release in releases:
                 api.add_dataset_release(release)
