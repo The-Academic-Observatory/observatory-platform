@@ -34,7 +34,7 @@ class GkeParams:
         self,
         gke_namespace: str,
         gke_volume_name: str,
-        gke_volume_size: int,
+        gke_volume_size: str,
         gke_volume_path: str = "/data",
         gke_image: str = DEFAULT_GKE_IMAGE,
         gke_zone: str = "us-central1",
@@ -46,7 +46,7 @@ class GkeParams:
         """
         :param gke_namespace: The cluster namespace to use.
         :param gke_volume_name: The name of the persistent volume to create
-        :param gke_volume_size: The amount of storage to request for the persistent volume in GiB
+        :param gke_volume_size: The amount of storage to request for the persistent volume, units must be supplied, e.g. 500Mi, 1Gi etc.
         :param gke_volume_path: Where to mount the persistent volume
         :param gke_image: The image location to pull from.
         :param gke_zone: The zone containing the gke cluster
@@ -136,14 +136,12 @@ def gke_make_container_resources(default: dict, override: Optional[dict]) -> V1R
     return V1ResourceRequirements(requests=resource, limits=resource)
 
 
-def gke_create_volume(
-    *, kubernetes_conn_id: str, volume_name: str, size_gi: int, storage_class: str = "standard"
-) -> None:
+def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size: str, storage_class: str = "standard") -> None:
     """Creates a GKE volume
 
     :param kubernetes_conn_id:
     :param volume_name:
-    :param size_gi:
+    :param size: size with units, e.g. 500Mi, 1Gi.
     """
 
     # Make Kubernetes API Client from Airflow Connection
@@ -153,7 +151,7 @@ def gke_create_volume(
 
     # Create PersistentVolumeClaim
     namespace = hook.get_namespace()
-    capacity = {"storage": f"{size_gi}Gi"}
+    capacity = {"storage": size}
     pvc = client.V1PersistentVolumeClaim(
         api_version="v1",
         kind="PersistentVolumeClaim",

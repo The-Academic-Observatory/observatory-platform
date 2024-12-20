@@ -81,12 +81,12 @@ def check_connections(*connections):
 
 @task
 def gke_create_storage(
-    volume_name: str, volume_size: int, kubernetes_conn_id: str, storage_class: str = "standard", **context
+    volume_name: str, volume_size: str, kubernetes_conn_id: str, storage_class: str = "standard", **context
 ):
     """Create storage on a GKE cluster.
 
     :param volume_name: the name of the volume.
-    :param volume_size: the volume size.
+    :param volume_size: the volume size including units, e.g. 500Mi, 1Gi.
     :param kubernetes_conn_id: the Kubernetes Airflow Connection ID.
     :param storage_class: The class of storage to create
     :param context: the Airflow context.
@@ -94,7 +94,7 @@ def gke_create_storage(
     """
 
     gke_create_volume(
-        kubernetes_conn_id=kubernetes_conn_id, volume_name=volume_name, size_gi=volume_size, storage_class=storage_class
+        kubernetes_conn_id=kubernetes_conn_id, volume_name=volume_name, size=volume_size, storage_class=storage_class
     )
 
 
