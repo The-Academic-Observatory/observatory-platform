@@ -15,6 +15,7 @@
 import logging
 from dataclasses import dataclass
 from typing import Optional
+import re
 
 import kubernetes
 import requests
@@ -143,6 +144,13 @@ def gke_create_volume(*, kubernetes_conn_id: str, volume_name: str, size: str, s
     :param volume_name:
     :param size: size with units, e.g. 500Mi, 1Gi.
     """
+    if not re.match(r"^\d+[KMGT]i$", size):
+        raise ValueError("Size must be in format like '500Mi', '1Gi'")
+
+    logging.info("Creating persistent storage volume to the following specification:")
+    logging.info(f"Volume name: {volume_name}")
+    logging.info(f"Volume size: {size}")
+    logging.info(f"Storage class: {storage_class}")
 
     # Make Kubernetes API Client from Airflow Connection
     hook = KubernetesHook(conn_id=kubernetes_conn_id)
