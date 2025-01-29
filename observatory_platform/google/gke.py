@@ -13,9 +13,9 @@
 # limitations under the License.
 
 import logging
+import re
 from dataclasses import dataclass
 from typing import Optional
-import re
 
 import kubernetes
 import requests
@@ -120,6 +120,9 @@ def gke_make_kubernetes_task_params(gke_params: GkeParams):
                 ],
                 volume_mounts=volume_mounts,
                 security_context=k8s.V1PodSecurityContext(fs_group=0, run_as_group=0, run_as_user=0),
+                resources=V1ResourceRequirements(
+                    requests={"cpu": "1", "memory": "1G"}, limits={"cpu": "1", "memory": "1G"}
+                ),
             )
         ],
     )
