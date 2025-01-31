@@ -70,10 +70,6 @@ class GkeParams:
             self.gke_resource_overrides = {}
 
     @property
-    def container_resources(self):
-        return self.gke_resource_overrides
-
-    @property
     def kubernetes_task_params(self):
         return gke_make_kubernetes_task_params(self)
 
