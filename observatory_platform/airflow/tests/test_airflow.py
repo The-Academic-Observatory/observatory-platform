@@ -29,7 +29,7 @@ from airflow.models.dag import DAG
 from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 import pendulum
 from sqlalchemy.orm import Session
@@ -65,10 +65,9 @@ class MockConnection:
 
 class TestAirflow(unittest.TestCase):
 
-
     def test_upsert_airflow_connection(self):
         """Tests the upsert_airflow_connection function"""
-        
+
         with create_session() as session:
             # Delete all existing connections
             session.query(Connection).delete()
@@ -87,7 +86,6 @@ class TestAirflow(unittest.TestCase):
             my_conn = BaseHook.get_connection("my_conn")
             my_conn_extra = my_conn.extra_dejson
             self.assertEqual(my_conn_extra, {"my_field": 42})
-
 
     def test_clear_airflow_connections(self, session: Session = None):
         """Tests the clear_airflow_connections function"""
