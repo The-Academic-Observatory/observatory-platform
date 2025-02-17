@@ -266,5 +266,5 @@ def get_filename_from_http_header(url: str) -> str:
     if response.status_code != 200:
         raise AirflowException(f"get_filename_from_http_header: url={response.url}, status_code={response.status_code}")
     header = response.headers["Content-Disposition"]
-    value, params = cgi.parse_header(header)
+    _, params = cgi.parse_header(header)
     return params.get("filename")

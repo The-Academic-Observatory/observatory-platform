@@ -19,17 +19,18 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import os.path
-from typing import List, Optional, Dict, Union
+from typing import Dict, List, Optional, Union
 
 import pendulum
 from google.cloud import bigquery
 
 from observatory_platform.config import module_file_path
 from observatory_platform.google.bigquery import (
-    bq_load_from_memory,
     bq_create_dataset,
     bq_create_empty_table,
+    bq_load_from_memory,
     bq_run_query,
+    bq_table_exists,
 )
 
 
@@ -190,28 +191,29 @@ class DatasetAPI:
         self.full_table_id = ".".join(parts)
         self.schema_file_path = os.path.join(module_file_path("observatory_platform.schema"), "dataset_release.json")
 
-    def seed_db(self):
+    def _seed_db(self):
         """Seed the BigQuery dataset and dataset release table.
 
         :return: None.
         """
 
-        # Create BigQuery dataset if it does not exist
-        bq_create_dataset(
-            project_id=self.bq_project_id,
-            dataset_id=self.bq_dataset_id,
-            location=self.location,
-            description="Observatory Platform Dataset Release API",
-            client=self.client,
-        )
+        if not bq_table_exists(self.full_table_id, client=self.client):
+            # Create BigQuery dataset if it does not exist
+            bq_create_dataset(
+                project_id=self.bq_project_id,
+                dataset_id=self.bq_dataset_id,
+                location=self.location,
+                description="Observatory Platform Dataset Release API",
+                client=self.client,
+            )
 
-        # Load empty table
-        bq_create_empty_table(
-            table_id=self.full_table_id,
-            schema_file_path=self.schema_file_path,
-            exists_ok=True,
-            client=self.client,
-        )
+            # Load empty table
+            bq_create_empty_table(
+                table_id=self.full_table_id,
+                schema_file_path=self.schema_file_path,
+                exists_ok=True,
+                client=self.client,
+            )
 
     def add_dataset_release(self, release: DatasetRelease):
         """Adds a DatasetRelease.
@@ -219,6 +221,9 @@ class DatasetAPI:
         :param release: the release.
         :return: None.
         """
+
+        # Seed database
+        self._seed_db()
 
         # Load data
         success = bq_load_from_memory(
@@ -243,6 +248,9 @@ class DatasetAPI:
         :param limit: the maximum number of rows to return.
         :return: List of dataset releases.
         """
+
+        # Seed database
+        self._seed_db()
 
         valid_date_keys = {
             "created",
@@ -280,6 +288,9 @@ class DatasetAPI:
         :return: the latest release or None if there is no release.
         """
 
+        # Seed database
+        self._seed_db()
+
         releases = self.get_dataset_releases(dag_id=dag_id, entity_id=entity_id, date_key=date_key, limit=1)
         if len(releases) == 0:
             return None
@@ -292,6 +303,9 @@ class DatasetAPI:
         :param entity_id: dataset id.
         :return: Whether this is the first release.
         """
+
+        # Seed database
+        self._seed_db()
 
         results = bq_run_query(
             f"SELECT COUNT(*) as count FROM `{self.full_table_id}` WHERE dag_id = '{dag_id}' AND entity_id = '{entity_id}'",

@@ -1,4 +1,4 @@
-# Copyright 2020-2023 Curtin University
+# Copyright 2020-2024 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Author: Aniek Roelofs, Tuan Chien
+# Author: Author: Aniek Roelofs, Tuan Chien, Keegan Smith
 
 from __future__ import annotations
 
@@ -25,9 +25,9 @@ from typing import List, Union, Optional
 import pendulum
 import six
 import validators
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models import TaskInstance, XCom, DagRun
+from airflow.models import TaskInstance, XCom, DagRun, Connection
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.utils.db import provide_session
 from dateutil.relativedelta import relativedelta
@@ -36,6 +36,82 @@ from sqlalchemy.orm import scoped_session, Session
 from observatory_platform.config import AirflowConns
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
+
+
+@provide_session
+def upsert_airflow_connection(
+    conn_id: str,
+    conn_type: str,
+    host: Optional[str] = None,
+    schema: Optional[str] = None,
+    login: Optional[str] = None,
+    password: Optional[str] = None,
+    port: Optional[int] = None,
+    extra: Optional[str] = None,
+    session: Session = None,
+) -> None:
+    """Upserts an Airflow connection. If the connection exists, it updates the existing connection
+    with the provided details. If the connection does not exist, it adds a new connection with the
+    provided details.
+
+    :param conn_id: The connection ID
+    :param conn_type: The connection type (e.g., 'http', 'postgres', etc.)
+    :param host: The hostname or IP address of the connection
+    :param schema: The schema to use
+    :param login: The username for the connection
+    :param password: The password for the connection
+    :param port: The port number for the connection
+    :param extra: Additional connection configuration as a JSON string
+    :param session: The SQLAlchemy session. Provided by the @provide_session decorator.
+
+    :raises Exception: If there is an issue adding or updating the connection.
+
+    :return: None
+    """
+    try:
+        existing_conn = BaseHook.get_connection(conn_id)
+    except AirflowNotFoundException:
+        existing_conn = None
+
+    if existing_conn:
+        logging.info(f"Connection '{conn_id}' exists. Updating the connection.")
+        existing_conn.conn_type = conn_type
+        existing_conn.host = host
+        existing_conn.schema = schema
+        existing_conn.login = login
+        existing_conn.password = password
+        existing_conn.port = port
+        existing_conn.extra = extra
+        session.add(existing_conn)
+    else:
+        logging.info(f"Connection '{conn_id}' does not exist. Adding the connection.")
+        new_conn = Connection(
+            conn_id=conn_id,
+            conn_type=conn_type,
+            host=host,
+            schema=schema,
+            login=login,
+            password=password,
+            port=port,
+            extra=extra,
+        )
+        session.add(new_conn)
+    session.commit()
+
+
+@provide_session
+def clear_airflow_connections(session: Session = None) -> None:
+    """Clears all aiflow connections in a session
+
+    :param session: The session to clear.
+    """
+    try:
+        session.query(Connection).delete()
+        session.commit()
+        logging.info("All connections have been cleared.")
+    except Exception as e:
+        session.rollback()
+        logging.info(f"Failed to clear connections: {e}")
 
 
 def get_airflow_connection_url(conn_id: str) -> str:
@@ -102,7 +178,7 @@ def get_airflow_connection_password(conn_id: str) -> str:
     return password
 
 
-def on_failure_callback(context):
+def on_failure_callback(context) -> None:
     """Function that is called on failure of an airflow task. Will create a slack webhook and send a notification.
 
     :param context: the context passed from the PythonOperator. See
@@ -145,7 +221,7 @@ def change_task_log_level(new_levels: Union[List, int]) -> list:
 
 def send_slack_msg(
     *, ti: TaskInstance, logical_date: pendulum.DateTime, comments: str = "", slack_conn_id: str = AirflowConns.SLACK
-):
+) -> None:
     """
     Send a Slack message using the token in the slack airflow connection.
 
@@ -228,7 +304,7 @@ def delete_old_xcoms(
     session: Session = None,
     dag_id: str = None,
     retention_days: int = 31,
-):
+) -> None:
     """Delete XCom messages created by the DAG with the given ID that are as old or older than than
     `retention_days`.  Defaults to 31 days of retention.
 

@@ -27,7 +27,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
 from multiprocessing import cpu_count
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 
 import pendulum
 from airflow import AirflowException
@@ -189,6 +189,56 @@ def gcs_copy_blob(
     success = True if response else False
 
     return success
+
+
+def gcs_read_blob(
+    *,
+    bucket_name: str,
+    blob_name: str,
+    retries: int = 3,
+    connection_sem: threading.BoundedSemaphore = None,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    client: storage.Client = None,
+) -> Union[str, bool]:
+    """Read the contents of a blob
+
+    :param bucket_name: the name of the Google Cloud storage bucket.
+    :param blob_name: the path to the blob.
+    :param retries: the number of times to retry downloading the blob.
+    :param connection_sem: a BoundedSemaphore to limit the number of download connections that can run at once.
+    :param chunk_size: the chunk size to use when downloading a blob in multiple parts, must be a multiple of 256 KB.
+    :param client: Storage client. If None default Client is created.
+    :return: The contents of the blob, or False if unsuccessful
+    """
+
+    func_name = gcs_read_blob.__name__
+    logging.info(f"{func_name}: gs://{bucket_name}/{blob_name}")
+
+    if client is None:
+        client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    blob: Blob = bucket.blob(blob_name)
+    uri = gcs_blob_uri(bucket_name, blob_name)
+
+    # Get connection semaphore
+    if connection_sem is not None:
+        connection_sem.acquire()
+
+    success = False
+    for i in range(0, retries):
+        try:
+            blob.chunk_size = chunk_size
+            downloaded_blob = blob.download_as_text()
+            success = True
+            break
+        except ChunkedEncodingError as e:
+            logging.error(f"{func_name}: exception downloading file: try={i}, uri={uri}, exception={e}")
+
+    # Release connection semaphore
+    if connection_sem is not None:
+        connection_sem.release()
+
+    return downloaded_blob, success
 
 
 def gcs_download_blob(

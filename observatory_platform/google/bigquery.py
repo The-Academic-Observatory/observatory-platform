@@ -146,9 +146,8 @@ def bq_table_exists(table_id: str, client: Optional[bigquery.Client] = None) -> 
 
 
 def bq_select_table_shard_dates(
-    *,
     table_id: str,
-    end_date: Union[pendulum.DateTime, pendulum.Date],
+    end_date: Union[pendulum.DateTime, pendulum.Date, None] = None,
     limit: int = 1,
     client: Optional[bigquery.Client] = None,
 ) -> List[pendulum.Date]:
@@ -167,7 +166,7 @@ def bq_select_table_shard_dates(
     query = render_template(
         template_path,
         table_id=table_id,
-        end_date=end_date.strftime("%Y-%m-%d"),
+        end_date=end_date if end_date is None else end_date.strftime("%Y-%m-%d"),
         limit=limit,
     )
     if client is None:
@@ -182,7 +181,10 @@ def bq_select_table_shard_dates(
 
 
 def bq_select_latest_table(
-    *, table_id: str, end_date: Union[pendulum.DateTime, pendulum.Date], sharded: bool, client: bigquery.Client = None
+    table_id: str,
+    end_date: Union[pendulum.DateTime, pendulum.Date, None] = None,
+    sharded: bool = True,
+    client: bigquery.Client = None,
 ):
     """Select the latest fully qualified BigQuery table identifier.
 
@@ -197,7 +199,7 @@ def bq_select_latest_table(
         if client is None:
             client = bigquery.Client()
         table_date = bq_select_table_shard_dates(
-            table_id=table_id,
+            table_id,
             end_date=end_date,
             client=client,
         )[0]
