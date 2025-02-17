@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, List
+from typing import List, Optional
 
 import airflow
 from airflow.decorators import task
@@ -88,7 +88,9 @@ def gke_create_storage(
     :param volume_name: the name of the volume.
     :param volume_size: the volume size including units, e.g. 500Mi, 1Gi.
     :param kubernetes_conn_id: the Kubernetes Airflow Connection ID.
-    :param storage_class: The class of storage to create
+    :param storage_class: what storage class to use when creating the volume. Valid options and how they
+    map to Google Compute Engine (inside brackets) include: premium-rwo (pd-ssd), standard (pd-standard),
+    standard-rwo (pd-balanced). See here for more details about the Compute Engine Disk types: https://cloud.google.com/kubernetes-engine/docs/concepts/storage-overview#why-pd
     :param context: the Airflow context.
     :return: None.
     """

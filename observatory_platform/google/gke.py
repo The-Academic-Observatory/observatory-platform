@@ -37,6 +37,7 @@ class GkeParams:
         gke_volume_name: str,
         gke_volume_size: str,
         gke_volume_path: str = "/data",
+        gke_volume_storage_class: str = "standard",
         gke_image: str = DEFAULT_GKE_IMAGE,
         gke_zone: str = "us-central1",
         gke_startup_timeout_seconds: int = 300,
@@ -48,7 +49,10 @@ class GkeParams:
         :param gke_namespace: The cluster namespace to use.
         :param gke_volume_name: The name of the persistent volume to create
         :param gke_volume_size: The amount of storage to request for the persistent volume, units must be supplied, e.g. 500Mi, 1Gi etc.
-        :param gke_volume_path: Where to mount the persistent volume
+        :param gke_volume_path: Where to mount the persistent volume.
+        :param gke_volume_storage_class: what storage class to use when creating the volume. Valid options and how they
+        map to Google Compute Engine (inside brackets) include: premium-rwo (pd-ssd), standard (pd-standard),
+        standard-rwo (pd-balanced). See here for more details about the Compute Engine Disk types: https://cloud.google.com/kubernetes-engine/docs/concepts/storage-overview#why-pd
         :param gke_image: The image location to pull from.
         :param gke_zone: The zone containing the gke cluster
         :param gke_startup_timeout_seconds: How long to wait for the container to start in seconds.
@@ -60,6 +64,7 @@ class GkeParams:
         self.gke_volume_name = gke_volume_name
         self.gke_volume_size = gke_volume_size
         self.gke_volume_path = gke_volume_path
+        self.gke_volume_storage_class = gke_volume_storage_class
         self.gke_image = gke_image
         self.gke_zone = gke_zone
         self.gke_startup_timeout_seconds = gke_startup_timeout_seconds
