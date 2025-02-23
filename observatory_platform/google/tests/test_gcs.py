@@ -15,41 +15,40 @@
 # Author: James Diprose, Aniek Roelofs
 
 import os
+import tempfile
 import unittest
 from datetime import timedelta
 from typing import Optional
 from unittest.mock import patch
 from uuid import uuid4
-import tempfile
 
 import boto3
 import pendulum
 from azure.storage.blob import BlobClient, BlobServiceClient
-from click.testing import CliRunner
 from google.auth import default
 from google.cloud import storage
 
 from observatory_platform.files import crc32c_base64_hash, hex_to_base64_str
 from observatory_platform.google.bigquery import bq_delete_old_datasets_with_prefix
 from observatory_platform.google.gcs import (
+    gcs_blob_name_from_path,
     gcs_blob_uri,
+    gcs_copy_blob,
     gcs_create_aws_transfer,
     gcs_create_azure_transfer,
-    gcs_copy_blob,
     gcs_create_bucket,
     gcs_delete_bucket_dir,
+    gcs_delete_old_buckets_with_prefix,
     gcs_download_blob,
     gcs_download_blobs,
+    gcs_hmac_key,
+    gcs_list_blobs,
+    gcs_list_buckets_with_prefix,
     gcs_read_blob,
     gcs_upload_file,
     gcs_upload_files,
-    gcs_list_buckets_with_prefix,
-    gcs_list_blobs,
-    gcs_delete_old_buckets_with_prefix,
-    gcs_blob_name_from_path,
-    gcs_hmac_key,
 )
-from observatory_platform.sandbox.test_utils import random_id, aws_bucket_test_env
+from observatory_platform.sandbox.test_utils import aws_bucket_test_env, random_id
 
 
 def make_account_url(account_name: str) -> str:
@@ -79,14 +78,12 @@ class TestGoogleCloudStorageNoAuth(unittest.TestCase):
         self.assertEqual(self.expected_crc32c, actual)
 
     def test_crc32c_base64_hash(self):
-        runner = CliRunner()
-        file_name = "test.txt"
-
-        with runner.isolated_filesystem():
-            with open(file_name, "w") as f:
+        with tempfile.TemporaryDirectory() as t:
+            path = os.path.join(t, "test.txt")
+            with open(path, "w") as f:
                 f.write(self.data)
 
-            actual_crc32c = crc32c_base64_hash(file_name)
+            actual_crc32c = crc32c_base64_hash(path)
             self.assertEqual(self.expected_crc32c, actual_crc32c)
 
 
@@ -156,12 +153,12 @@ class TestGoogleCloudStorage(unittest.TestCase):
 
     def test_gcs_copy_blob(self):
         """Test that blob is copied from one bucket to another"""
-        runner = CliRunner()
-        with runner.isolated_filesystem():
+        with tempfile.TemporaryDirectory() as t:
             # Create file
             upload_file_name = f"{random_id()}.txt"
+            upload_file_path = os.path.join(t, upload_file_name)
             copy_file_name = f"{random_id()}.txt"
-            with open(upload_file_name, "w") as f:
+            with open(upload_file_path, "w") as f:
                 f.write(self.data)
 
             # Create client for blob
@@ -171,7 +168,7 @@ class TestGoogleCloudStorage(unittest.TestCase):
             try:
                 # Upload file
                 result, upload = gcs_upload_file(
-                    bucket_name=self.gc_bucket_name, blob_name=upload_file_name, file_path=upload_file_name
+                    bucket_name=self.gc_bucket_name, blob_name=upload_file_name, file_path=upload_file_path
                 )
 
                 blob_original = bucket.blob(upload_file_name)
@@ -205,8 +202,7 @@ class TestGoogleCloudStorage(unittest.TestCase):
 
     @patch("observatory_platform.airflow.workflow.Variable.get")
     def test_upload_download_blobs_from_cloud_storage(self, mock_get_variable):
-        runner = CliRunner()
-        with runner.isolated_filesystem() as t:
+        with tempfile.TemporaryDirectory() as t:
             data_path = os.path.join(t, "data")
             os.makedirs(data_path, exist_ok=True)
             mock_get_variable.return_value = data_path
@@ -240,19 +236,16 @@ class TestGoogleCloudStorage(unittest.TestCase):
                     self.assertEqual(self.expected_crc32c, blob.crc32c)
 
                 # Download blobs
-                download_folder_name = random_id()
-                download_folder = os.path.join(data_path, download_folder_name)
+                download_folder = os.path.join(t, random_id())
                 os.makedirs(download_folder)
                 result = gcs_download_blobs(
-                    bucket_name=self.gc_bucket_name, prefix=upload_folder_name, destination_path=download_folder_name
+                    bucket_name=self.gc_bucket_name, prefix=upload_folder_name, destination_path=download_folder
                 )
                 self.assertTrue(result)
 
                 # Check that all files exist and have correct hashes
                 for blob_name in blob_names:
-                    download_file_path = os.path.join(
-                        download_folder_name, blob_name.replace(f"{upload_folder_name}/", "")
-                    )
+                    download_file_path = os.path.join(download_folder, blob_name.replace(f"{upload_folder_name}/", ""))
                     self.assertTrue(os.path.isfile(download_file_path))
                     actual_crc32c = crc32c_base64_hash(download_file_path)
                     self.assertEqual(self.expected_crc32c, actual_crc32c)
@@ -264,12 +257,14 @@ class TestGoogleCloudStorage(unittest.TestCase):
                         blob.delete()
 
     def test_upload_download_blob_from_cloud_storage(self):
-        runner = CliRunner()
-        with runner.isolated_filesystem():
+        with tempfile.TemporaryDirectory() as t:
             # Create file
             upload_file_name = f"{random_id()}.txt"
+            upload_file_path = os.path.join(t, upload_file_name)
             download_file_name = f"{random_id()}.txt"
-            with open(upload_file_name, "w") as f:
+            download_file_path = os.path.join(t, download_file_name)
+
+            with open(upload_file_path, "w") as f:
                 f.write(self.data)
 
             # Create client for blob
@@ -280,7 +275,7 @@ class TestGoogleCloudStorage(unittest.TestCase):
             try:
                 # Upload file
                 result, upload = gcs_upload_file(
-                    bucket_name=self.gc_bucket_name, blob_name=upload_file_name, file_path=upload_file_name
+                    bucket_name=self.gc_bucket_name, blob_name=upload_file_name, file_path=upload_file_path
                 )
                 self.assertTrue(result)
 
@@ -291,11 +286,11 @@ class TestGoogleCloudStorage(unittest.TestCase):
 
                 # Download file
                 result = gcs_download_blob(
-                    bucket_name=self.gc_bucket_name, blob_name=upload_file_name, file_path=download_file_name
+                    bucket_name=self.gc_bucket_name, blob_name=upload_file_name, file_path=download_file_path
                 )
                 self.assertTrue(result)
-                self.assertTrue(os.path.isfile(download_file_name))
-                actual_crc32c = crc32c_base64_hash(download_file_name)
+                self.assertTrue(os.path.isfile(download_file_path))
+                actual_crc32c = crc32c_base64_hash(download_file_path)
                 self.assertEqual(self.expected_crc32c, actual_crc32c)
             finally:
                 if blob.exists():
@@ -415,8 +410,7 @@ class TestGoogleCloudStorage(unittest.TestCase):
                     aws_blob.delete()
 
     def test_gcs_delete_bucket_dir(self):
-        runner = CliRunner()
-        with runner.isolated_filesystem() as t:
+        with tempfile.TemporaryDirectory() as t:
             # Create file
             test_dir = random_id()
             os.makedirs(os.path.join(t, test_dir), exist_ok=True)

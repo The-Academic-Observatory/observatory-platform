@@ -16,10 +16,9 @@
 
 import os
 import pathlib
+import tempfile
 import unittest
 from unittest.mock import patch
-
-from click.testing import CliRunner
 
 import observatory_platform.tests as platform_utils_tests
 from observatory_platform.config import module_file_path, observatory_home
@@ -39,20 +38,18 @@ class TestConfig(unittest.TestCase):
 
     @patch("observatory_platform.config.pathlib.Path.home")
     def test_observatory_home(self, home_mock):
-        runner = CliRunner()
-        with runner.isolated_filesystem():
+        with tempfile.TemporaryDirectory() as t:
             # Create home path and mock getting home path
-            home_path = "user-home"
+            home_path = os.path.join(t, "user-home")
             os.makedirs(home_path, exist_ok=True)
             home_mock.return_value = home_path
 
-            with runner.isolated_filesystem():
-                # Test that observatory home works
-                path = observatory_home()
-                self.assertTrue(os.path.exists(path))
-                self.assertEqual(f"{home_path}/.observatory", path)
+            # Test that observatory home works
+            path = observatory_home()
+            self.assertTrue(os.path.exists(path))
+            self.assertEqual(os.path.join(home_path, ".observatory"), path)
 
-                # Test that subdirectories are created
-                path = observatory_home("subfolder")
-                self.assertTrue(os.path.exists(path))
-                self.assertEqual(f"{home_path}/.observatory/subfolder", path)
+            # Test that subdirectories are created
+            path = observatory_home("subfolder")
+            self.assertTrue(os.path.exists(path))
+            self.assertEqual(os.path.join(home_path, ".observatory", "subfolder"), path)

@@ -38,11 +38,11 @@
 import contextlib
 import os
 import socket
+import tempfile
 import threading
 import time
 
 import paramiko
-from click.testing import CliRunner
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -139,7 +139,7 @@ class SftpServer:
         :yield: None.
         """
 
-        with CliRunner().isolated_filesystem() as tmp_dir:
+        with tempfile.TemporaryDirectory() as tmp_dir:
             # Override the root directory of the SFTP server, which is set as the cwd at import time
             self.tmp_dir = tmp_dir
             self.root_dir = os.path.join(tmp_dir, "home")

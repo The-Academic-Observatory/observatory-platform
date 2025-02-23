@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import contextlib
 import datetime
 import json
@@ -21,6 +20,7 @@ import os
 import shutil
 import socket
 import socketserver
+import tempfile
 import unittest
 import uuid
 from dataclasses import dataclass
@@ -34,7 +34,6 @@ from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
 from airflow.operators.empty import EmptyOperator
-from click.testing import CliRunner
 from deepdiff import DeepDiff
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import SourceFormat
@@ -43,7 +42,7 @@ from pendulum import DateTime
 
 from observatory_platform.airflow.workflow import CloudWorkspace
 from observatory_platform.files import crc32c_base64_hash, get_file_hash, gzip_file_crc, save_jsonl_gz
-from observatory_platform.google.bigquery import bq_sharded_table_id, bq_load_table, bq_table_id, bq_create_dataset
+from observatory_platform.google.bigquery import bq_create_dataset, bq_load_table, bq_sharded_table_id, bq_table_id
 from observatory_platform.google.gcs import gcs_blob_uri, gcs_upload_files
 
 
@@ -105,7 +104,7 @@ class SandboxTestCase(unittest.TestCase):
         :return: None.
         """
 
-        with CliRunner().isolated_filesystem() as dag_folder:
+        with tempfile.TemporaryDirectory() as dag_folder:
             if not os.path.exists(dag_file):
                 raise Exception(f"{dag_file} does not exist.")
 
@@ -608,7 +607,7 @@ def bq_load_tables(
     :return: None.
     """
 
-    with CliRunner().isolated_filesystem() as t:
+    with tempfile.TemporaryDirectory() as t:
         files_list = []
         blob_names = []
 

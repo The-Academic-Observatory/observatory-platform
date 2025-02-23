@@ -16,16 +16,11 @@
 
 import os
 import shutil
+import tempfile
 from unittest.mock import patch
 
-from click.testing import CliRunner
-
 from observatory_platform.config import module_file_path
-from observatory_platform.http_download import (
-    DownloadInfo,
-    download_file,
-    download_files,
-)
+from observatory_platform.http_download import download_file, download_files, DownloadInfo
 from observatory_platform.sandbox.http_server import HttpServer
 from observatory_platform.sandbox.test_utils import SandboxTestCase
 from observatory_platform.url_utils import get_observatory_http_header
@@ -58,52 +53,52 @@ class TestAsyncHttpFileDownloader(SandboxTestCase):
             url2 = f"{http_server.url}{file2}"
 
             # Empty list
-            with CliRunner().isolated_filesystem() as tmpdir:
-                download_files(download_list=[])
+            with tempfile.TemporaryDirectory() as tmpdir:
+                download_files(download_list=[], prefix_dir=tmpdir)
                 files = os.listdir(tmpdir)
                 self.assertEqual(len(files), 0)
 
             # URL only
-            with CliRunner().isolated_filesystem() as tmpdir:
+            with tempfile.TemporaryDirectory() as tmpdir:
                 download_list = [url1, url2]
-                download_files(download_list=download_list)
-                self.assert_file_integrity(file1, hash1, algorithm)
-                self.assert_file_integrity(file2, hash2, algorithm)
+                download_files(download_list=download_list, prefix_dir=tmpdir)
+                self.assert_file_integrity(os.path.join(tmpdir, file1), hash1, algorithm)
+                self.assert_file_integrity(os.path.join(tmpdir, file2), hash2, algorithm)
 
             # URL only with observatory user agent
-            with CliRunner().isolated_filesystem() as tmpdir:
+            with tempfile.TemporaryDirectory() as tmpdir:
                 with patch("observatory_platform.url_utils.metadata", return_value=MockVersionData):
                     headers = get_observatory_http_header(package_name="observatory-platform")
                     download_list = [url1, url2]
-                    download_files(download_list=download_list, headers=headers)
-                    self.assert_file_integrity(file1, hash1, algorithm)
-                    self.assert_file_integrity(file2, hash2, algorithm)
+                    download_files(download_list=download_list, headers=headers, prefix_dir=tmpdir)
+                    self.assert_file_integrity(os.path.join(tmpdir, file1), hash1, algorithm)
+                    self.assert_file_integrity(os.path.join(tmpdir, file2), hash2, algorithm)
 
             # Dictionary list
-            with CliRunner().isolated_filesystem() as tmpdir:
+            with tempfile.TemporaryDirectory() as tmpdir:
                 dst1 = "test1.txt"
                 dst2 = "test2.txt"
 
                 download_list = [
-                    DownloadInfo(url=url1, filename=dst1),
-                    DownloadInfo(url=url2, filename=dst2),
+                    DownloadInfo(url=url1, filename=dst1, prefix_dir=tmpdir),
+                    DownloadInfo(url=url2, filename=dst2, prefix_dir=tmpdir),
                 ]
                 download_files(download_list=download_list)
-                self.assert_file_integrity(dst1, hash1, algorithm)
-                self.assert_file_integrity(dst2, hash2, algorithm)
+                self.assert_file_integrity(os.path.join(tmpdir, dst1), hash1, algorithm)
+                self.assert_file_integrity(os.path.join(tmpdir, dst2), hash2, algorithm)
 
             # Single download
-            with CliRunner().isolated_filesystem() as tmpdir:
-                download_file(url=url1)
-                download_file(url=url2, filename=file2)
-                self.assert_file_integrity(file1, hash1, algorithm)
-                self.assert_file_integrity(file2, hash2, algorithm)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                download_file(url=url1, prefix_dir=tmpdir)
+                download_file(url=url2, filename=file2, prefix_dir=tmpdir)
+                self.assert_file_integrity(os.path.join(tmpdir, file1), hash1, algorithm)
+                self.assert_file_integrity(os.path.join(tmpdir, file2), hash2, algorithm)
 
             # Assert that filepaths are correct
-            with CliRunner().isolated_filesystem() as tmpdir:
-                success, download_info = download_file(url=url1)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                success, download_info = download_file(url=url1, prefix_dir=tmpdir)
                 self.assertTrue(success)
-                self.assertEqual(file1, download_info.file_path)
+                self.assertEqual(os.path.join(tmpdir, file1), download_info.file_path)
 
                 success, download_info = download_file(url=url1, prefix_dir=tmpdir)
                 self.assertTrue(success)
@@ -114,38 +109,39 @@ class TestAsyncHttpFileDownloader(SandboxTestCase):
                 self.assertEqual(os.path.join(tmpdir, file2), download_info.file_path)
 
             # Single download with  (prefix dir)
-            with CliRunner().isolated_filesystem() as tmpdir:
-                dinfo = DownloadInfo(url=url1, filename=file1, prefix_dir="invalid")
-                download_files(download_list=[dinfo], prefix_dir=tmpdir)
-                self.assert_file_integrity(file1, hash1, algorithm)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                dinfo = DownloadInfo(url=url1, filename=file1, prefix_dir=tmpdir)
+                download_files(download_list=[dinfo])
+                self.assert_file_integrity(os.path.join(tmpdir, file1), hash1, algorithm)
 
             # Retry and timeout
-            download_list = [f"{http_server.url}does_not_exist"]
-            success = download_files(download_list=download_list)
-            self.assertFalse(success)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                download_list = [f"{http_server.url}does_not_exist"]
+                success = download_files(download_list=download_list, prefix_dir=tmpdir)
+                self.assertFalse(success)
 
             # File exists, good hash
-            with CliRunner().isolated_filesystem() as tmpdir:
+            with tempfile.TemporaryDirectory() as tmpdir:
                 src_file = os.path.join(directory, file1)
                 dst_file = os.path.join(tmpdir, file1)
                 shutil.copyfile(src_file, dst_file)
 
                 hash = "d8e8fca2dc0f896fd7cb4cb0031ba249"
-                download_file(url=url1, hash=hash, hash_algorithm="md5")
-                self.assert_file_integrity(file1, hash1, algorithm)
+                download_file(url=url1, hash=hash, hash_algorithm="md5", prefix_dir=tmpdir)
+                self.assert_file_integrity(dst_file, hash1, algorithm)
 
             # File exists, bad hash
-            with CliRunner().isolated_filesystem() as tmpdir:
+            with tempfile.TemporaryDirectory() as tmpdir:
                 src_file = os.path.join(directory, file1)
                 dst_file = os.path.join(tmpdir, file1)
                 shutil.copyfile(src_file, dst_file)
 
                 hash = "garbage2dc0f896fd7cb4cb0031ba249"
-                success, download_info = download_file(url=url1, hash=hash, hash_algorithm="md5")
+                success, download_info = download_file(url=url1, hash=hash, hash_algorithm="md5", prefix_dir=tmpdir)
                 self.assertFalse(success)
 
             # File exists, bad hash (prefix dir)
-            with CliRunner().isolated_filesystem() as tmpdir:
+            with tempfile.TemporaryDirectory() as tmpdir:
                 src_file = os.path.join(directory, file1)
                 dst_file = os.path.join(tmpdir, file1)
                 shutil.copyfile(src_file, dst_file)
@@ -155,22 +151,24 @@ class TestAsyncHttpFileDownloader(SandboxTestCase):
                 self.assertFalse(success)
 
             # File does not exist, bad hash
-            with CliRunner().isolated_filesystem() as tmpdir:
+            with tempfile.TemporaryDirectory() as tmpdir:
                 hash = "garbage2dc0f896fd7cb4cb0031ba249"
-                success, download_info = download_file(url=url1, hash=hash, hash_algorithm="md5")
+                success, download_info = download_file(url=url1, hash=hash, hash_algorithm="md5", prefix_dir=tmpdir)
                 self.assertFalse(success)
 
             # File does not exist, good hash
-            with CliRunner().isolated_filesystem() as tmpdir:
-                success, download_info = download_file(url=url1, hash=hash1, hash_algorithm="md5")
+            with tempfile.TemporaryDirectory() as tmpdir:
+                success, download_info = download_file(url=url1, hash=hash1, hash_algorithm="md5", prefix_dir=tmpdir)
                 self.assertTrue(success)
-                self.assert_file_integrity(file1, hash1, algorithm)
+                self.assert_file_integrity(os.path.join(tmpdir, file1), hash1, algorithm)
 
                 # Skip download because exists
                 with patch("observatory_platform.http_download.download_http_file_") as m_down:
-                    success = download_file(url=url1, filename=file1, hash=hash1, hash_algorithm="md5")
+                    success = download_file(
+                        url=url1, filename=file1, hash=hash1, hash_algorithm="md5", prefix_dir=tmpdir
+                    )
                     self.assertTrue(success)
-                    self.assert_file_integrity(file1, hash1, algorithm)
+                    self.assert_file_integrity(os.path.join(tmpdir, file1), hash1, algorithm)
                     self.assertEqual(m_down.call_count, 0)
 
                 # Skip download because exists (with prefix dir)
@@ -179,16 +177,18 @@ class TestAsyncHttpFileDownloader(SandboxTestCase):
                         url=url1, filename=file1, hash=hash1, hash_algorithm="md5", prefix_dir=tmpdir
                     )
                     self.assertTrue(success)
-                    self.assert_file_integrity(file1, hash1, algorithm)
+                    self.assert_file_integrity(os.path.join(tmpdir, file1), hash1, algorithm)
                     self.assertEqual(m_down.call_count, 0)
 
             # Get filename from Content-Disposition
-            with CliRunner().isolated_filesystem() as tmpdir:
+            with tempfile.TemporaryDirectory() as tmpdir:
                 with patch("observatory_platform.http_download.parse_header") as m_header:
                     m_header.return_value = (None, {"filename": "testfile"})
-                    success, download_info = download_file(url=url1, hash=hash1, hash_algorithm="md5")
+                    success, download_info = download_file(
+                        url=url1, hash=hash1, hash_algorithm="md5", prefix_dir=tmpdir
+                    )
                     self.assertTrue(success)
-                    self.assert_file_integrity("testfile", hash1, algorithm)
+                    self.assert_file_integrity(os.path.join(tmpdir, "testfile"), hash1, algorithm)
 
     def test_download_files_bad_input(self):
         self.assertRaises(Exception, download_files, download_list=[{"url": "myurl", "filename": "myfilename"}])

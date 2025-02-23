@@ -62,7 +62,6 @@ tests = [
     "flake8>=3.8.0,<4",
     "coverage>=5.2,<6",
     "azure-storage-blob>=12.8.1,<13",
-    "click>=8,<9",
     "httpretty>=1.0.0,<2",
     "deepdiff>=6,<7",
     "responses>=0.23.1,<1",

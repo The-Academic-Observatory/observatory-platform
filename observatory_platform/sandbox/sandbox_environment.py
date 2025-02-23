@@ -34,8 +34,12 @@
 import contextlib
 import logging
 import os
+import tempfile
 from typing import List, Optional, Set, Union
 
+import google
+import pendulum
+import requests
 from airflow import DAG, settings
 from airflow.models.connection import Connection
 from airflow.models.dagrun import DagRun
@@ -45,13 +49,9 @@ from airflow.timetables.base import DataInterval
 from airflow.utils import db
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from click.testing import CliRunner
-import google
 from google.cloud import bigquery, storage
-import pendulum
-import requests
 
-from observatory_platform.airflow.workflow import Workflow, CloudWorkspace, workflows_to_json_string
+from observatory_platform.airflow.workflow import CloudWorkspace, Workflow, workflows_to_json_string
 from observatory_platform.config import AirflowVars
 from observatory_platform.google.bigquery import bq_delete_old_datasets_with_prefix
 from observatory_platform.google.gcs import gcs_delete_old_buckets_with_prefix
@@ -371,7 +371,7 @@ class SandboxEnvironment:
         :yield: Observatory environment temporary directory.
         """
 
-        with CliRunner().isolated_filesystem() as temp_dir:
+        with tempfile.TemporaryDirectory() as temp_dir:
             # Set temporary directory
             self.temp_dir = temp_dir
 

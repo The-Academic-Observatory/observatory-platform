@@ -14,23 +14,24 @@
 
 # Author: James Diprose, Keegan Smith
 
+import tempfile
 import time
 import unittest
 from datetime import datetime
-from typing import List, Any
-from unittest.mock import patch, Mock
+from typing import Any, List
+from unittest.mock import Mock, patch
 
 import httpretty
 import pendulum
 import requests
 import responses
 from airflow.exceptions import AirflowException
-from click.testing import CliRunner
 from tenacity import wait_fixed
 
 from observatory_platform.config import module_file_path
 from observatory_platform.sandbox.http_server import HttpServer
 from observatory_platform.url_utils import (
+    get_filename_from_http_header,
     get_filename_from_url,
     get_http_response_json,
     get_http_response_xml_to_dict,
@@ -40,7 +41,6 @@ from observatory_platform.url_utils import (
     retry_get_url,
     retry_session,
     wait_for_url,
-    get_filename_from_http_header,
 )
 
 
@@ -274,7 +274,7 @@ class TestUrlUtils(unittest.TestCase):
         self.assertEqual(parsed2, file1)
 
     def test_get_http_text_response(self):
-        with CliRunner().isolated_filesystem():
+        with tempfile.TemporaryDirectory():
             httpserver = HttpServer(".")
 
             with httpserver.create():
@@ -288,7 +288,7 @@ class TestUrlUtils(unittest.TestCase):
                 self.assertTrue(len(text) > 0)
 
     def test_get_http_response_json(self):
-        with CliRunner().isolated_filesystem():
+        with tempfile.TemporaryDirectory():
             httpserver = HttpServer(self.fixtures_path)
 
             with httpserver.create():
@@ -299,7 +299,7 @@ class TestUrlUtils(unittest.TestCase):
                 self.assertEqual(response["test"], "value")
 
     def test_get_http_response_xml_to_dict(self):
-        with CliRunner().isolated_filesystem():
+        with tempfile.TemporaryDirectory():
             httpserver = HttpServer(self.fixtures_path)
 
             with httpserver.create():

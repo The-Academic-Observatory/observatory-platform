@@ -16,17 +16,13 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from unittest.mock import patch
 
 import timeout_decorator
-from click.testing import CliRunner
 
 from observatory_platform.config import module_file_path
-from observatory_platform.http_download import (
-    DownloadInfo,
-    download_file,
-    download_files,
-)
+from observatory_platform.http_download import download_file, download_files, DownloadInfo
 from observatory_platform.sandbox.http_server import HttpServer
 from observatory_platform.sandbox.test_utils import SandboxTestCase
 
@@ -71,7 +67,7 @@ class TestHttpserver(SandboxTestCase):
 
         url = f"{server.url}{test_file}"
 
-        with CliRunner().isolated_filesystem() as tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir:
             dst_file = os.path.join(tmpdir, "testfile.txt")
 
             download_files(download_list=[DownloadInfo(url=url, filename=dst_file)])
@@ -90,7 +86,7 @@ class TestHttpserver(SandboxTestCase):
 
             url = f"{server.url}{test_file}"
 
-            with CliRunner().isolated_filesystem() as tmpdir:
+            with tempfile.TemporaryDirectory() as tmpdir:
                 dst_file = os.path.join(tmpdir, "testfile.txt")
                 download_file(url=url, filename=dst_file)
                 self.assert_file_integrity(dst_file, expected_hash, algorithm)

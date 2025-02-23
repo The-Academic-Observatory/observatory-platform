@@ -24,14 +24,13 @@ from pathlib import Path
 
 import httpretty
 import pendulum
-from click.testing import CliRunner
 from google.cloud.bigquery import SourceFormat
 
 from observatory_platform.config import module_file_path
 from observatory_platform.google.bigquery import bq_create_dataset, bq_load_table, bq_table_id
-from observatory_platform.google.gcs import gcs_upload_file, gcs_blob_uri
+from observatory_platform.google.gcs import gcs_blob_uri, gcs_upload_file
 from observatory_platform.sandbox.sandbox_environment import SandboxEnvironment
-from observatory_platform.sandbox.test_utils import SandboxTestCase, load_and_parse_json, random_id
+from observatory_platform.sandbox.test_utils import load_and_parse_json, random_id, SandboxTestCase
 from observatory_platform.sandbox.tests.test_sandbox_environment import create_dag
 from observatory_platform.url_utils import retry_session
 
@@ -265,7 +264,7 @@ class TestSandboxTestCase(unittest.TestCase):
     def test_assert_cleanup(self):
         """Test assert_cleanup"""
 
-        with CliRunner().isolated_filesystem() as temp_dir:
+        with tempfile.TemporaryDirectory() as temp_dir:
             workflow = os.path.join(temp_dir, "workflow")
 
             # Make download, extract and transform folders
@@ -285,7 +284,7 @@ class TestSandboxTestCase(unittest.TestCase):
     def test_setup_mock_file_download(self):
         """Test mocking a file download"""
 
-        with CliRunner().isolated_filesystem() as temp_dir:
+        with tempfile.TemporaryDirectory() as temp_dir:
             # Write data into temp_dir
             expected_data = "Hello World!"
             file_path = os.path.join(temp_dir, f"content.txt")

@@ -22,30 +22,34 @@ import json
 import os
 import pathlib
 import shutil
+import tempfile
 import unittest
 import uuid
 from typing import Generator
 
 import jsonlines
-from click.testing import CliRunner
 from google.cloud import bigquery
 
 from observatory_platform.config import module_file_path
-from observatory_platform.files import add_partition_date, find_replace_file, get_chunks
 from observatory_platform.files import (
+    add_partition_date,
+    find_replace_file,
+    get_chunks,
     get_file_hash,
     get_hasher_,
     gunzip_files,
-    is_gzip,
-    load_csv,
-    yield_csv,
-    yield_jsonl,
-    save_jsonl_gz,
     gzip_file_crc,
+    is_gzip,
+    list_files,
+    load_csv,
+    load_jsonl,
+    save_jsonl_gz,
     split_file,
     split_file_and_compress,
+    validate_file_hash,
+    yield_csv,
+    yield_jsonl,
 )
-from observatory_platform.files import validate_file_hash, load_jsonl, list_files
 
 
 class TestFileUtils(unittest.TestCase):
@@ -84,9 +88,9 @@ class TestFileUtils(unittest.TestCase):
     def test_save_jsonl_gz(self):
         """Test writing list of dicts to jsonl.gz file"""
         list_of_dicts = [{"k1a": "v1a", "k2a": "v2a"}, {"k1b": "v1b", "k2b": "v2b"}]
-        file_path = "list.jsonl.gz"
         expected_file_hash = "e608cfeb"
-        with CliRunner().isolated_filesystem():
+        with tempfile.TemporaryDirectory() as t:
+            file_path = os.path.join(t, "list.jsonl.gz")
             save_jsonl_gz(file_path, list_of_dicts)
             self.assertTrue(os.path.isfile(file_path))
             actual_file_hash = gzip_file_crc(file_path)
@@ -103,7 +107,7 @@ class TestFileUtils(unittest.TestCase):
         actual_records = load_jsonl(self.jsonl_file_path)
         self.assertListEqual(self.expected_records, actual_records)
 
-        with CliRunner().isolated_filesystem() as t:
+        with tempfile.TemporaryDirectory() as t:
             expected_records = [
                 {"name": "Elon Musk"},
                 {"name": "Jeff Bezos"},
@@ -168,21 +172,25 @@ class TestFileUtils(unittest.TestCase):
         src = os.path.join(self.fixtures_path, filename)
 
         # Save in same dir
-        with CliRunner().isolated_filesystem() as tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir:
             dst = os.path.join(tmpdir, filename)
             shutil.copyfile(src, dst)
 
             gunzip_files(file_list=[dst])
-            self.assertTrue(validate_file_hash(file_path=output_file, expected_hash=expected_hash))
+            self.assertTrue(
+                validate_file_hash(file_path=os.path.join(tmpdir, output_file), expected_hash=expected_hash)
+            )
 
         # Specify save dir
-        with CliRunner().isolated_filesystem() as tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir:
             dst = os.path.join(tmpdir, filename)
             gunzip_files(file_list=[src], output_dir=tmpdir)
-            self.assertTrue(validate_file_hash(file_path=output_file, expected_hash=expected_hash))
+            self.assertTrue(
+                validate_file_hash(file_path=os.path.join(tmpdir, output_file), expected_hash=expected_hash)
+            )
 
         # Skip non gz files
-        with CliRunner().isolated_filesystem() as tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir:
             dst = os.path.join(tmpdir, filename)
             src_path = os.path.join(self.fixtures_path, output_file)
             gunzip_files(file_list=[src_path], output_dir=tmpdir)
@@ -190,7 +198,7 @@ class TestFileUtils(unittest.TestCase):
 
     def test_split_file_and_compress(self):
         # Check that files are split and compressed properly
-        with CliRunner().isolated_filesystem() as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             # Make a random file
             n_lines = 1000
             expected_data = [{"name": str(uuid.uuid4()), "country": str(uuid.uuid4())} for _ in range(n_lines)]
@@ -218,7 +226,7 @@ class TestFileUtils(unittest.TestCase):
             self.assertEqual(expected_data, data)
 
         # Test that one file produced when under limit
-        with CliRunner().isolated_filesystem() as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             expected_data = ["hello", "world"]
             file_path = os.path.join(tmp, "test.txt")
             with open(file_path, mode="w") as f:
@@ -239,7 +247,7 @@ class TestFileUtils(unittest.TestCase):
 
         # Test that only one file is produced when we just exceed the limit but there are no bytes to be written into
         # second file
-        with CliRunner().isolated_filesystem() as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             expected_data = [str(uuid.uuid4()) for _ in range(98)]
             file_path = os.path.join(tmp, "test.txt")
             with open(file_path, mode="w") as f:
@@ -260,7 +268,7 @@ class TestFileUtils(unittest.TestCase):
 
     def test_split_file(self):
         # Check that files are split and compressed properly
-        with CliRunner().isolated_filesystem() as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             # Make a random file
             n_lines = 1000
             expected_data = [{"name": str(uuid.uuid4()), "country": str(uuid.uuid4())} for _ in range(n_lines)]
@@ -286,7 +294,7 @@ class TestFileUtils(unittest.TestCase):
             self.assertEqual(expected_data, data)
 
         # Test that one file produced when under limit
-        with CliRunner().isolated_filesystem() as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             expected_data = ["hello", "world"]
             file_path = os.path.join(tmp, "test.txt")
             with open(file_path, mode="w") as f:
@@ -306,7 +314,7 @@ class TestFileUtils(unittest.TestCase):
 
         # Test that only one file is produced when we just exceed the limit but there are no bytes to be written into
         # second file
-        with CliRunner().isolated_filesystem() as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             # 2071 bytes vs 2048 max
             expected_data = [str(uuid.uuid4()) for _ in range(56)]
             file_path = os.path.join(tmp, "test.txt")
@@ -329,9 +337,12 @@ class TestFileUtils(unittest.TestCase):
         src = os.path.join(self.fixtures_path, "find_replace.txt")
         expected_hash = "ffa623201cb9538bd3c030cd0b9f6b66"
 
-        with CliRunner().isolated_filesystem():
-            find_replace_file(src=src, dst="output", pattern="authenticated-orcid", replacement="authenticated_orcid")
-            validate_file_hash(file_path="output", expected_hash=expected_hash)
+        with tempfile.TemporaryDirectory() as t:
+            output_path = os.path.join(t, "output")
+            find_replace_file(
+                src=src, dst=output_path, pattern="authenticated-orcid", replacement="authenticated_orcid"
+            )
+            validate_file_hash(file_path=output_path, expected_hash=expected_hash)
 
     def test_add_partition_date(self):
         list_of_dicts = [{"k1a": "v2a"}, {"k1b": "v2b"}, {"k1c": "v2c"}]

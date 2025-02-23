@@ -12,23 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: James Diprose
-
+import os.path
+import tempfile
 import unittest
 
 import pendulum
-from click.testing import CliRunner
 
-from observatory_platform.jinja2_utils import render_template, make_jinja2_filename, make_sql_jinja2_filename
+from observatory_platform.jinja2_utils import make_jinja2_filename, make_sql_jinja2_filename, render_template
+
+
+# Author: James Diprose
 
 
 class TestJinja2Utils(unittest.TestCase):
     def test_render_template(self):
-        template_path = "query.sql.jinja2"
         template = "{# Test comment #}SELECT * FROM `{{ project_id }}.{{ dataset_id }}.Affiliations{{ snapshot_date.strftime('%Y%m%d') }}` LIMIT 1000"
         expected_render = "SELECT * FROM `academic-observatory.mag.Affiliations20200810` LIMIT 1000"
 
-        with CliRunner().isolated_filesystem():
+        with tempfile.TemporaryDirectory() as t:
+            template_path = os.path.join(t, "query.sql.jinja2")
+
             # Write test template
             with open(template_path, "w") as f:
                 f.write(template)

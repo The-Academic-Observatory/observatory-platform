@@ -22,22 +22,22 @@ import logging
 import os
 import re
 from copy import deepcopy
-from typing import Dict, Tuple, Union, List, Optional
+from typing import Dict, List, Optional, Tuple, Union
 
 import jsonlines
 import pendulum
 from google.api_core.exceptions import BadRequest
 from google.cloud import bigquery
 from google.cloud.bigquery import (
+    CopyJob,
+    CopyJobConfig,
+    dataset,
     LoadJob,
     LoadJobConfig,
     QueryJob,
     SourceFormat,
-    CopyJobConfig,
-    CopyJob,
     Table as BQTable,
 )
-from google.cloud.bigquery import dataset
 from google.cloud.bigquery.job import QueryJobConfig
 from google.cloud.bigquery.table import Table
 from google.cloud.exceptions import Conflict, NotFound
@@ -564,13 +564,17 @@ def bq_query_bytes_budget_check(*, bytes_budget: int, bytes_estimate: int):
 
 
 def bq_run_query(
-    query: str, bytes_budget: int = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT, client: Optional[bigquery.Client] = None
+    query: str,
+    bytes_budget: int = BIGQUERY_SINGLE_QUERY_BYTE_LIMIT,
+    client: Optional[bigquery.Client] = None,
+    job_config: bigquery.QueryJobConfig = None,
 ) -> list:
     """Run a BigQuery query.  Defaults to 1 TiB query budget.
 
     :param query: the query to run.
     :param bytes_budget: Maximum bytes allowed to be processed by the query.
     :param client: BigQuery client. If None default Client is created.
+    :param job_config: optional BigQuery job config.
     :return: the results.
     """
 
@@ -580,7 +584,7 @@ def bq_run_query(
     bytes_estimate = bq_query_bytes_estimate(query, client=client)
     bq_query_bytes_budget_check(bytes_budget=bytes_budget, bytes_estimate=bytes_estimate)
 
-    query_job = client.query(query)
+    query_job = client.query(query, job_config=job_config)
     rows = query_job.result()
     success = query_job.errors is None  # throws error when query didn't work
 

@@ -16,10 +16,9 @@ from __future__ import annotations
 
 import contextlib
 import os
+import tempfile
 import unittest
 from ftplib import FTP
-
-from click.testing import CliRunner
 
 from observatory_platform.sandbox.ftp_server import FtpServer
 from observatory_platform.sandbox.test_utils import find_free_port
@@ -34,7 +33,7 @@ class TestFtpServer(unittest.TestCase):
     def test_server(self):
         """Test that the FTP server can be connected to"""
 
-        with CliRunner().isolated_filesystem() as tmp_dir:
+        with tempfile.TemporaryDirectory() as tmp_dir:
             server = FtpServer(directory=tmp_dir, host=self.host, port=self.port)
             with server.create() as root_dir:
                 # Connect to FTP server anonymously
@@ -59,7 +58,7 @@ class TestFtpServer(unittest.TestCase):
     def test_user_permissions(self):
         "Test the level of permissions of the root and anonymous users."
 
-        with CliRunner().isolated_filesystem() as tmp_dir:
+        with tempfile.TemporaryDirectory() as tmp_dir:
             server = FtpServer(
                 directory=tmp_dir, host=self.host, port=self.port, root_username="root", root_password="pass"
             )

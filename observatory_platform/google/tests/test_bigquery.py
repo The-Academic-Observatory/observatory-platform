@@ -18,12 +18,12 @@ import datetime
 import json
 import os
 import re
+import tempfile
 import time
 import unittest
 from unittest.mock import patch
 
 import pendulum
-from click.testing import CliRunner
 from google.api_core.exceptions import Conflict
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import SourceFormat, Table as BQTable
@@ -32,37 +32,37 @@ from observatory_platform.config import module_file_path
 from observatory_platform.files import load_jsonl
 from observatory_platform.google.bigquery import (
     assert_table_id,
+    bq_copy_table,
+    bq_create_dataset,
+    bq_create_empty_table,
+    bq_create_table_from_query,
+    bq_create_view,
+    bq_delete_old_datasets_with_prefix,
+    bq_delete_records,
+    bq_export_table,
+    bq_find_schema,
+    bq_get_table,
+    bq_list_datasets_with_prefix,
+    bq_list_tables,
+    bq_load_from_memory,
+    bq_load_table,
+    bq_query_bytes_budget_check,
+    bq_query_bytes_estimate,
+    bq_run_query,
+    bq_select_columns,
+    bq_select_latest_table,
+    bq_select_table_shard_dates,
+    bq_sharded_table_id,
+    bq_snapshot,
+    bq_table_exists,
     bq_table_id,
     bq_table_id_parts,
     bq_table_shard_info,
-    bq_select_latest_table,
     bq_update_table_description,
-    bq_sharded_table_id,
-    bq_find_schema,
-    bq_table_exists,
-    bq_create_dataset,
-    bq_query_bytes_estimate,
-    bq_copy_table,
-    bq_snapshot,
     bq_upsert_records,
-    bq_delete_records,
-    bq_select_columns,
-    bq_create_table_from_query,
-    bq_create_view,
-    bq_create_empty_table,
-    bq_load_table,
-    bq_load_from_memory,
-    bq_run_query,
-    bq_select_table_shard_dates,
-    bq_delete_old_datasets_with_prefix,
-    bq_list_datasets_with_prefix,
-    bq_list_tables,
-    bq_get_table,
-    bq_export_table,
-    bq_query_bytes_budget_check,
 )
 from observatory_platform.google.gcs import gcs_delete_old_buckets_with_prefix, gcs_upload_file
-from observatory_platform.sandbox.test_utils import random_id, bq_dataset_test_env
+from observatory_platform.sandbox.test_utils import bq_dataset_test_env, random_id
 
 
 class TestBigQuery(unittest.TestCase):
@@ -368,12 +368,12 @@ class TestBigQuery(unittest.TestCase):
         with bq_dataset_test_env(
             project_id=self.gc_project_id, location=self.gc_location, prefix=self.prefix
         ) as dataset_id:
-            with CliRunner().isolated_filesystem():
+            with tempfile.TemporaryDirectory() as t:
                 schema = [
                     {"mode": "NULLABLE", "name": "name", "type": "STRING", "description": "Foo Bar"},
                     {"mode": "NULLABLE", "name": "date", "type": "DATE", "description": "Foo Bar"},
                 ]
-                schema_file_path = "schema.json"
+                schema_file_path = os.path.join(t, "schema.json")
                 with open(schema_file_path, "w") as f:
                     json.dump(schema, f)
 
