@@ -34,7 +34,6 @@
 import contextlib
 import logging
 import os
-import tempfile
 from typing import List, Optional, Set, Union
 
 import google
@@ -99,6 +98,7 @@ class SandboxEnvironment:
         self.age_to_delete = age_to_delete
         self.workflows = workflows
         self.env_vars = env_vars
+        self.temp_dir = mkdtemp()
 
         if self.create_gcp_env:
             self.download_bucket = self.add_bucket(roles=gcs_bucket_roles)
@@ -355,6 +355,17 @@ class SandboxEnvironment:
         finally:
             self.dag_run.update_state()
 
+    def init_airflow_db(self):
+        # Create Airflow SQLite database
+        settings.DAGS_FOLDER = os.path.join(self.temp_dir, "airflow", "dags")
+        os.makedirs(settings.DAGS_FOLDER, exist_ok=True)
+        airflow_db_path = os.path.join(self.temp_dir, "airflow.db")
+        settings.SQL_ALCHEMY_CONN = f"sqlite:///{airflow_db_path}"
+        logging.info(f"SQL_ALCHEMY_CONN: {settings.SQL_ALCHEMY_CONN}")
+        settings.configure_orm(disable_connection_pool=True)
+        self.session = settings.Session
+        db.initdb()
+
     @contextlib.contextmanager
     def create(self, task_logging: bool = False):
         """Make and destroy an Observatory isolated environment, which involves:
@@ -371,79 +382,68 @@ class SandboxEnvironment:
         :yield: Observatory environment temporary directory.
         """
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Set temporary directory
-            self.temp_dir = temp_dir
+        # Prepare environment
+        self.new_env = {self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, ".observatory")}
+        prev_env = dict(os.environ)
 
-            # Prepare environment
-            self.new_env = {self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, ".observatory")}
-            prev_env = dict(os.environ)
+        try:
+            # Update environment
+            os.environ.update(self.new_env)
+            if self.env_vars:
+                os.environ.update(self.env_vars)
 
-            try:
-                # Update environment
-                os.environ.update(self.new_env)
-                if self.env_vars:
-                    os.environ.update(self.env_vars)
+            # initialise database
+            self.init_airflow_db()
 
-                # Create Airflow SQLite database
-                settings.DAGS_FOLDER = os.path.join(self.temp_dir, "airflow", "dags")
-                os.makedirs(settings.DAGS_FOLDER, exist_ok=True)
-                airflow_db_path = os.path.join(self.temp_dir, "airflow.db")
-                settings.SQL_ALCHEMY_CONN = f"sqlite:///{airflow_db_path}"
-                logging.info(f"SQL_ALCHEMY_CONN: {settings.SQL_ALCHEMY_CONN}")
-                settings.configure_orm(disable_connection_pool=True)
-                self.session = settings.Session
-                db.initdb()
-
-                # Setup Airflow task logging
-                original_log_level = logging.getLogger().getEffectiveLevel()
-                if task_logging:
-                    # Set root logger to INFO level, it seems that custom 'logging.info()' statements inside a task
-                    # come from root
-                    logging.getLogger().setLevel(20)
-                    # Propagate logging so it is displayed
-                    logging.getLogger("airflow.task").propagate = True
-                else:
-                    logging.getLogger("airflow.task").propagate = False
-
-                # Create buckets and datasets
-                if self.create_gcp_env:
-                    for bucket_id, roles in self.buckets.items():
-                        self._create_bucket(bucket_id, roles)
-
-                    for dataset_id in self.datasets:
-                        self._create_dataset(dataset_id)
-
-                # Deletes old test buckets and datasets from the project thats older than 2 hours.
-                gcs_delete_old_buckets_with_prefix(prefix=self.prefix, age_to_delete=self.age_to_delete)
-                bq_delete_old_datasets_with_prefix(prefix=self.prefix, age_to_delete=self.age_to_delete)
-
-                # Add default Airflow variables
-                self.data_path = os.path.join(self.temp_dir, "data")
-                self.add_variable(Variable(key=AirflowVars.DATA_PATH, val=self.data_path))
-
-                if self.workflows is not None:
-                    var = workflows_to_json_string(self.workflows)
-                    self.add_variable(Variable(key=AirflowVars.WORKFLOWS, val=var))
-
-                # Reset dag run
-                self.dag_run: DagRun = None
-
-                yield self.temp_dir
-            finally:
-                # Set logger settings back to original settings
-                logging.getLogger().setLevel(original_log_level)
+            # Setup Airflow task logging
+            original_log_level = logging.getLogger().getEffectiveLevel()
+            if task_logging:
+                # Set root logger to INFO level, it seems that custom 'logging.info()' statements inside a task
+                # come from root
+                logging.getLogger().setLevel(20)
+                # Propagate logging so it is displayed
+                logging.getLogger("airflow.task").propagate = True
+            else:
                 logging.getLogger("airflow.task").propagate = False
 
-                # Revert environment
-                os.environ.clear()
-                os.environ.update(prev_env)
+            # Create buckets and datasets
+            if self.create_gcp_env:
+                for bucket_id, roles in self.buckets.items():
+                    self._create_bucket(bucket_id, roles)
 
-                if self.create_gcp_env:
-                    # Remove Google Cloud Storage buckets
-                    for bucket_id, roles in self.buckets.items():
-                        self._delete_bucket(bucket_id)
+                for dataset_id in self.datasets:
+                    self._create_dataset(dataset_id)
 
-                    # Remove BigQuery datasets
-                    for dataset_id in self.datasets:
-                        self._delete_dataset(dataset_id)
+            # Deletes old test buckets and datasets from the project thats older than 2 hours.
+            gcs_delete_old_buckets_with_prefix(prefix=self.prefix, age_to_delete=self.age_to_delete)
+            bq_delete_old_datasets_with_prefix(prefix=self.prefix, age_to_delete=self.age_to_delete)
+
+            # Add default Airflow variables
+            self.data_path = os.path.join(self.temp_dir, "data")
+            self.add_variable(Variable(key=AirflowVars.DATA_PATH, val=self.data_path))
+
+            if self.workflows is not None:
+                var = workflows_to_json_string(self.workflows)
+                self.add_variable(Variable(key=AirflowVars.WORKFLOWS, val=var))
+
+            # Reset dag run
+            self.dag_run: DagRun = None
+
+            yield self.temp_dir
+        finally:
+            # Set logger settings back to original settings
+            logging.getLogger().setLevel(original_log_level)
+            logging.getLogger("airflow.task").propagate = False
+
+            # Revert environment
+            os.environ.clear()
+            os.environ.update(prev_env)
+
+            if self.create_gcp_env:
+                # Remove Google Cloud Storage buckets
+                for bucket_id, roles in self.buckets.items():
+                    self._delete_bucket(bucket_id)
+
+                # Remove BigQuery datasets
+                for dataset_id in self.datasets:
+                    self._delete_dataset(dataset_id)
