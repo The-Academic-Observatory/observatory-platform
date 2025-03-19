@@ -159,18 +159,18 @@ class TestDatasetAPI(SandboxTestCase):
             self.assertEqual(releases[-1], latest)
 
     def test_build_schedule(self):
-        start_date = pendulum.datetime(2021, 1, 1)
-        end_date = pendulum.datetime(2021, 2, 1)
+        start_date = pendulum.date(2021, 1, 1)
+        end_date = pendulum.date(2021, 2, 1)
         schedule = build_schedule(start_date, end_date)
-        self.assertEqual([pendulum.Period(pendulum.date(2021, 1, 1), pendulum.date(2021, 1, 31))], schedule)
+        self.assertEqual([pendulum.date(2021, 1, 1).diff(pendulum.date(2021, 1, 31))], schedule)
 
         start_date = pendulum.datetime(2021, 1, 1)
         end_date = pendulum.datetime(2021, 3, 1)
         schedule = build_schedule(start_date, end_date)
         self.assertEqual(
             [
-                pendulum.Period(pendulum.date(2021, 1, 1), pendulum.date(2021, 1, 31)),
-                pendulum.Period(pendulum.date(2021, 2, 1), pendulum.date(2021, 2, 28)),
+                pendulum.datetime(2021, 1, 1).diff(pendulum.datetime(2021, 1, 31).end_of("day")),
+                pendulum.datetime(2021, 2, 1).diff(pendulum.datetime(2021, 2, 28).end_of("day")),
             ],
             schedule,
         )
@@ -178,4 +178,4 @@ class TestDatasetAPI(SandboxTestCase):
         start_date = pendulum.datetime(2021, 1, 7)
         end_date = pendulum.datetime(2021, 2, 7)
         schedule = build_schedule(start_date, end_date)
-        self.assertEqual([pendulum.Period(pendulum.date(2021, 1, 7), pendulum.date(2021, 2, 6))], schedule)
+        self.assertEqual([pendulum.datetime(2021, 1, 7).diff(pendulum.datetime(2021, 2, 6).end_of("day"))], schedule)

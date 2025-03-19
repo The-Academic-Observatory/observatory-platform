@@ -25,6 +25,7 @@ import pendulum
 from google.cloud import bigquery
 
 from observatory_platform.config import module_file_path
+from observatory_platform.date_utils import datetime_normalise
 from observatory_platform.google.bigquery import (
     bq_create_dataset,
     bq_create_empty_table,
@@ -116,14 +117,14 @@ class DatasetRelease:
             dag_id=_dict["dag_id"],
             entity_id=_dict["entity_id"],
             dag_run_id=_dict["dag_run_id"],
-            created=bq_timestamp_to_pendulum(_dict["created"]),
-            modified=bq_timestamp_to_pendulum(_dict["modified"]),
-            data_interval_start=bq_timestamp_to_pendulum(_dict.get("data_interval_start")),
-            data_interval_end=bq_timestamp_to_pendulum(_dict.get("data_interval_end")),
-            snapshot_date=bq_timestamp_to_pendulum(_dict.get("snapshot_date")),
-            partition_date=bq_timestamp_to_pendulum(_dict.get("partition_date")),
-            changefile_start_date=bq_timestamp_to_pendulum(_dict.get("changefile_start_date")),
-            changefile_end_date=bq_timestamp_to_pendulum(_dict.get("changefile_end_date")),
+            created=_dt(_dict["created"]),
+            modified=_dt(_dict["modified"]),
+            data_interval_start=_dt(_dict.get("data_interval_start")),
+            data_interval_end=_dt(_dict.get("data_interval_end")),
+            snapshot_date=_dt(_dict.get("snapshot_date")),
+            partition_date=_dt(_dict.get("partition_date")),
+            changefile_start_date=_dt(_dict.get("changefile_start_date")),
+            changefile_end_date=_dt(_dict.get("changefile_end_date")),
             sequence_start=_dict.get("sequence_start"),
             sequence_end=_dict.get("sequence_end"),
             extra=_dict.get("extra"),
@@ -139,14 +140,14 @@ class DatasetRelease:
             dag_id=self.dag_id,
             entity_id=self.entity_id,
             dag_run_id=self.dag_run_id,
-            created=self.created.to_iso8601_string(),
-            modified=self.modified.to_iso8601_string(),
-            data_interval_start=pendulum_to_bq_timestamp(self.data_interval_start),
-            data_interval_end=pendulum_to_bq_timestamp(self.data_interval_end),
-            snapshot_date=pendulum_to_bq_timestamp(self.snapshot_date),
-            partition_date=pendulum_to_bq_timestamp(self.partition_date),
-            changefile_start_date=pendulum_to_bq_timestamp(self.changefile_start_date),
-            changefile_end_date=pendulum_to_bq_timestamp(self.changefile_end_date),
+            created=_dt(self.created),
+            modified=_dt(self.modified),
+            data_interval_start=_dt(self.data_interval_start),
+            data_interval_end=_dt(self.data_interval_end),
+            snapshot_date=_dt(self.snapshot_date),
+            partition_date=_dt(self.partition_date),
+            changefile_start_date=_dt(self.changefile_start_date),
+            changefile_end_date=_dt(self.changefile_end_date),
             sequence_start=self.sequence_start,
             sequence_end=self.sequence_end,
             extra=self.extra,
@@ -328,12 +329,12 @@ def build_schedule(sched_start_date: pendulum.DateTime, sched_end_date: pendulum
 
     schedule = []
 
-    for start_date in pendulum.Period(start=sched_start_date, end=sched_end_date).range("months"):
+    for start_date in sched_start_date.diff(sched_end_date).range("months"):
         if start_date >= sched_end_date:
             break
         end_date = start_date.add(months=1).subtract(days=1).end_of("day")
         end_date = min(sched_end_date, end_date)
-        schedule.append(pendulum.Period(start_date.date(), end_date.date()))
+        schedule.append(start_date.diff(end_date))
 
     return schedule
 
@@ -372,3 +373,10 @@ def get_bigquery_default_project() -> str:
 
     client = bigquery.Client()
     return client.project
+
+
+def _dt(dt: Optional[Union[pendulum.Datetime, str]]) -> Union[pendulum.Datetime, str, None]:
+    """Wrapper for datetime_normalise that does nothing if type is None"""
+    if not dt:
+        return None
+    return datetime_normalise(dt)

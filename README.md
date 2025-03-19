@@ -32,7 +32,7 @@ cd observatory-platform
 
 Install dependencies:
 ```bash
-pip install -e .[tests] --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-no-providers-3.10.txt
+pip install -e .[tests] --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-no-providers-3.10.txt
 ```
 
 Run unit tests:
