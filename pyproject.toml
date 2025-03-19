@@ -52,7 +52,7 @@ dependencies = [
     "backoff>=2,<3",
     "validators<=0.20.0",
     "xmltodict",
-    "tenacity",
+    "tenacity>=8.0.0",
     "python-dateutil",
 ]
 
@@ -120,7 +120,8 @@ authorized_licenses = [
     "lgpl",
     "gnu library or lesser general public license (lgpl)",
     "gnu lesser general public license v3 or later (lgplv3+)",
-    "lgplv3+"
+    "lgplv3+",
+    "the unlicense (unlicense)"
 ]
 unauthorized_licenses = [
     # Restricted licenses: https://opensource.google/docs/thirdparty/licenses/#restricted
