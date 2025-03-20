@@ -61,7 +61,7 @@ class TestDatasetAPI(SandboxTestCase):
             rows = bq_run_query(f"SELECT * FROM `{api.full_table_id}`")
             self.assertEqual(1, len(rows))
             actual = DatasetRelease.from_dict(dict(rows[0]))
-            self.assertEqual(expected, actual)
+            self.assertEqual(expected.to_dict(), actual.to_dict())
 
     def test_get_dataset_releases(self):
         env = SandboxEnvironment(project_id=self.project_id, data_location=self.data_location)
@@ -89,7 +89,7 @@ class TestDatasetAPI(SandboxTestCase):
 
             # Get releases
             actual = api.get_dataset_releases(dag_id=dag_id, entity_id=entity_id)
-            self.assertListEqual(expected, actual)
+            self.assertListEqual([e.to_dict() for e in expected], [a.to_dict() for a in actual])
 
     def test_is_first_release(self):
         env = SandboxEnvironment(project_id=self.project_id, data_location=self.data_location)
@@ -156,7 +156,7 @@ class TestDatasetAPI(SandboxTestCase):
                 api.add_dataset_release(release)
 
             latest = api.get_latest_dataset_release(dag_id=dag_id, entity_id=entity_id, date_key="snapshot_date")
-            self.assertEqual(releases[-1], latest)
+            self.assertEqual(releases[-1].to_dict(), latest.to_dict())
 
     def test_build_schedule(self):
         start_date = pendulum.date(2021, 1, 1)
