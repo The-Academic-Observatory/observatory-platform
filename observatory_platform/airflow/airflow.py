@@ -157,7 +157,7 @@ def is_first_dag_run(dag_run: DagRun) -> bool:
     :return: Whether the DAG run is the first run or not
     """
 
-    return dag_run.get_previous_dagrun() is None
+    return DagRun.get_previous_dagrun(dag_run) is None
 
 
 def get_airflow_connection_password(conn_id: str) -> str:

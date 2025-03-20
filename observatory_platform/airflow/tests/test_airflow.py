@@ -160,7 +160,7 @@ class TestAirflow(unittest.TestCase):
             *Log Url*: log_url
             *Comments*: comment
             """
-        ).format(exec_date=logical_date.isoformat())
+        ).format(exec_date=str(logical_date))
 
         m_slack.assert_called_once_with(slack_webhook_conn_id=slack_webhook_conn_id)
         m_slack.return_value.send_text.assert_called_once_with(message)
@@ -385,11 +385,12 @@ class TestAirflow(unittest.TestCase):
         env = SandboxEnvironment(project_id, data_location)
 
         # Setup Workflow with 0 retries and missing airflow variable, so it will fail the task
-        logical_date = pendulum.datetime(2020, 1, 1)
+        first_logical_date = pendulum.datetime(2020, 1, 1)
+        second_logical_date = pendulum.datetime(2020, 1, 2)
         conn_id = "orcid_bucket"
         my_dag = create_dag(
             "test_callback",
-            logical_date,
+            first_logical_date,
             "@weekly",
             retries=0,
             airflow_conns=[conn_id],
@@ -397,7 +398,7 @@ class TestAirflow(unittest.TestCase):
 
         # Create the Observatory environment and run task, expecting slack webhook call in production environment
         with env.create(task_logging=True):
-            with env.create_dag_run(my_dag, logical_date):
+            with env.create_dag_run(my_dag, first_logical_date):
                 with self.assertRaises(AirflowNotFoundException):
                     env.run_task("check_dependencies")
 
@@ -412,7 +413,7 @@ class TestAirflow(unittest.TestCase):
 
         # Add orcid_bucket connection and test that Slack Web Hook did not get triggered
         with env.create(task_logging=True):
-            with env.create_dag_run(my_dag, logical_date):
+            with env.create_dag_run(my_dag, second_logical_date):
                 env.add_connection(Connection(conn_id=conn_id, uri="https://orcid.org/"))
                 env.run_task("check_dependencies")
                 mock_send_slack_msg.assert_not_called()
