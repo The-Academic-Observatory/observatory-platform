@@ -89,7 +89,7 @@ class TestDatasetAPI(SandboxTestCase):
 
             # Get releases
             actual = api.get_dataset_releases(dag_id=dag_id, entity_id=entity_id)
-            self.assertListEqual([e for e in expected], [a for a in actual])
+            self.assertListEqual(expected, actual)
 
     def test_is_first_release(self):
         env = SandboxEnvironment(project_id=self.project_id, data_location=self.data_location)
