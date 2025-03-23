@@ -325,7 +325,7 @@ class TestLoadAndParseJson(unittest.TestCase):
             expected_result = data.copy()
             expected_result["timestamp1"] = datetime(2022, 1, 1, 12, 0, 0, 100000)
             expected_result["timestamp2"] = datetime(
-                2023, 1, 1, 12, 0, 0, tzinfo=pendulum.tz.timezone("UTC")
+                2023, 1, 1, 12, 0, 0, tzinfo=pendulum.timezone("UTC")
             )  # Converted by pendulum
             result = load_and_parse_json(
                 temp_file.name,

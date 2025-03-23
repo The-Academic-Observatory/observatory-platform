@@ -50,6 +50,7 @@ from airflow.utils import db
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from google.cloud import bigquery, storage
+from sqlalchemy.exc import IntegrityError
 
 from observatory_platform.airflow.workflow import CloudWorkspace, Workflow, workflows_to_json_string
 from observatory_platform.config import AirflowVars
@@ -257,14 +258,28 @@ class SandboxEnvironment:
             pass
 
     def add_variable(self, var: Variable) -> None:
-        """Add an Airflow variable to the Observatory environment.
+        """Safely add or update a variable in the Observatory environment.
 
         :param var: the Airflow variable.
         :return: None.
         """
-
-        self.session.add(var)
-        self.session.commit()
+        try:
+            existing_var = self.session.query(Variable).filter(Variable.key == var.key).first()
+            if existing_var:
+                existing_var.set_val(var.val)
+            else:
+                self.session.add(var)
+            self.session.commit()
+            logging.info(f"Variable '{var.key}' added/updated successfully.")
+        except IntegrityError:
+            self.session.rollback()
+            logging.info(f"Failed to add variable '{var.key}' due to integrity error.")
+        except Exception as e:
+            logging.info(f"Error adding variable '{var.key}': {e}")
+            self.session.rollback()
+            self.session.delete(var)
+            self.session.add(var)
+            self.session.commit()
 
     def add_connection(self, conn: Connection):
         """Add an Airflow connection to the Observatory environment.
@@ -436,7 +451,6 @@ class SandboxEnvironment:
             logging.getLogger().setLevel(original_log_level)
             logging.getLogger("airflow.task").propagate = False
 
-            # Revert environment
             os.environ.clear()
             os.environ.update(prev_env)
 

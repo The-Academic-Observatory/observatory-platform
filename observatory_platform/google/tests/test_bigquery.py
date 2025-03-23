@@ -67,6 +67,7 @@ from observatory_platform.sandbox.test_utils import bq_dataset_test_env, random_
 
 class TestBigQuery(unittest.TestCase):
     __init__already = False
+    maxDiff = None
 
     def __init__(self, *args, **kwargs):
         super(TestBigQuery, self).__init__(*args, **kwargs)

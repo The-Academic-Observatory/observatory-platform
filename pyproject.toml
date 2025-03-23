@@ -27,7 +27,7 @@ classifiers = [
 ]
 dependencies = [
     # Airflow
-    "apache-airflow[slack]==2.7.3",
+    "apache-airflow[slack]==2.10.5",
     "apache-airflow-providers-cncf-kubernetes>=7.4.0",
     # Google Cloud
     "google-crc32c>=1.1.0,<2",
@@ -52,7 +52,7 @@ dependencies = [
     "backoff>=2,<3",
     "validators<=0.20.0",
     "xmltodict",
-    "tenacity",
+    "tenacity>=8.0.0",
     "python-dateutil",
 ]
 
@@ -120,7 +120,8 @@ authorized_licenses = [
     "lgpl",
     "gnu library or lesser general public license (lgpl)",
     "gnu lesser general public license v3 or later (lgplv3+)",
-    "lgplv3+"
+    "lgplv3+",
+    "the unlicense (unlicense)"
 ]
 unauthorized_licenses = [
     # Restricted licenses: https://opensource.google/docs/thirdparty/licenses/#restricted
@@ -144,7 +145,7 @@ optional_dependencies = ["tests"] # to load extras from [project.optional-depend
 ordereddict = "1.1"
 
 # MIT license: https://pypi.org/project/pendulum/1.4.4/
-pendulum = ">=1.4.4"
+pendulum = ">=3.0.0"
 
 # Python Imaging Library (PIL) License: https://github.com/python-pillow/Pillow/blob/master/LICENSE
 Pillow = ">=7.2.0"

@@ -139,8 +139,8 @@ class DatasetRelease:
             dag_id=self.dag_id,
             entity_id=self.entity_id,
             dag_run_id=self.dag_run_id,
-            created=self.created.to_iso8601_string(),
-            modified=self.modified.to_iso8601_string(),
+            created=pendulum_to_bq_timestamp(self.created),
+            modified=pendulum_to_bq_timestamp(self.modified),
             data_interval_start=pendulum_to_bq_timestamp(self.data_interval_start),
             data_interval_end=pendulum_to_bq_timestamp(self.data_interval_end),
             snapshot_date=pendulum_to_bq_timestamp(self.snapshot_date),
@@ -328,12 +328,12 @@ def build_schedule(sched_start_date: pendulum.DateTime, sched_end_date: pendulum
 
     schedule = []
 
-    for start_date in pendulum.Period(start=sched_start_date, end=sched_end_date).range("months"):
+    for start_date in sched_start_date.diff(sched_end_date).range("months"):
         if start_date >= sched_end_date:
             break
         end_date = start_date.add(months=1).subtract(days=1).end_of("day")
         end_date = min(sched_end_date, end_date)
-        schedule.append(pendulum.Period(start_date.date(), end_date.date()))
+        schedule.append(start_date.diff(end_date))
 
     return schedule
 

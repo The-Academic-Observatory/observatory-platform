@@ -33,7 +33,7 @@ class TestSFTP(unittest.TestCase):
         username = "username"
         password = "password"
         host = "host"
-        host_key = quote(paramiko.RSAKey.generate(512).get_base64(), safe="")
+        host_key = quote(paramiko.RSAKey.generate(1024).get_base64(), safe="")
 
         # mock airflow sftp service conn
         mock_airflow_conn.return_value = Connection(uri=f"ssh://{username}:{password}@{host}?host_key={host_key}")
