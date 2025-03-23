@@ -1,6 +1,6 @@
 [run]
 branch=True
-source=observatory
+source=observatory_platform
 
 [report]
 exclude_lines =
@@ -12,10 +12,4 @@ exclude_lines =
     @abstract
 ignore_errors = True
 omit =
-    tests/*
-    observatory-api/observatory/api/client/api_client.py
-    observatory-api/observatory/api/client/configuration.py
-    observatory-api/observatory/api/client/exceptions.py
-    observatory-api/observatory/api/client/model_utils.py
-    observatory-api/observatory/api/client/rest.py
-    observatory-platform/observatory/platform/airflow/*
+    */tests*

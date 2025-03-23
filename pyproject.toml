@@ -1,0 +1,151 @@
+[build-system]
+requires = ["setuptools>=60", "setuptools-scm>=8.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "observatory-platform"
+dynamic = ["version"]
+description = "The Observatory Platform is an environment for fetching, processing and analysing data to understand how well universities operate as Open Knowledge Institutions."
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+keywords = ["science", "data", "workflows", "academic institutes", "academic-observatory-workflows"]
+authors = [{ name = "Curtin University", email = "agent@observatory.academy" }]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities"
+]
+dependencies = [
+    # Airflow
+    "apache-airflow[slack]==2.10.5",
+    "apache-airflow-providers-cncf-kubernetes>=7.4.0",
+    # Google Cloud
+    "google-crc32c>=1.1.0,<2",
+    "google-cloud-bigquery>=3.2,<4",
+    "google-api-python-client>=2,<3",
+    "google-cloud-storage>=2.7.0,<3",
+    #"google-auth-oauthlib>=0.4.5,<1",
+    "google-cloud-compute >=1.16.0,<2.0",
+    # File manipulation, reading, writing
+    "Jinja2>=3,<4",
+    "jsonlines>=2.0.0,<3", # Writing
+    "json_lines>=0.5.0,<1", # Reading, including jsonl.gz
+    "pandas>=2,<3",
+    # HTTP requests and URL cleaning
+    "requests>=2.25.0,<3",
+    "aiohttp>=3.7.0,<4",
+    # SFTP
+    "paramiko>=2.7.2,<3",
+    "pysftp>=0.2.9,<1",
+    # Utils
+    "natsort>=7.1.1,<8",
+    "backoff>=2,<3",
+    "validators<=0.20.0",
+    "xmltodict",
+    "tenacity>=8.0.0",
+    "python-dateutil",
+]
+
+[project.optional-dependencies]
+tests = [
+    "liccheck>=0.4.9,<1",
+    "flake8>=3.8.0,<4",
+    "coverage>=5.2,<6",
+    "azure-storage-blob>=12.8.1,<13",
+    "httpretty>=1.0.0,<2",
+    "deepdiff>=6,<7",
+    "responses>=0.23.1,<1",
+    "boto3>=1.15.0,<2",
+    "timeout-decorator>=0,<1",
+    "time-machine>=2.14.0,<3",
+    # SFTP & FTP
+    "sftpserver>=0.3,<1",
+    "pyftpdlib>=1.5.7,<2",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/The-Academic-Observatory/observatory-platform"
+"Bug Tracker" = "https://github.com/The-Academic-Observatory/observatory-platform/issues"
+"Documentation" = "https://observatory-platform.readthedocs.io/en/latest/"
+"Source" = "https://github.com/The-Academic-Observatory/observatory-platform"
+"Repository" = "https://github.com/The-Academic-Observatory/observatory-platform"
+
+[tool.setuptools_scm]
+version_file = "observatory_platform/_version.py"
+
+[tool.liccheck]
+authorized_licenses = [
+    # Unencumbered licenses: https://opensource.google/docs/thirdparty/licenses/#unencumbered
+    "public domain <http://unlicense.org>",
+    "cc0 1.0 universal (cc0 1.0) public domain dedication",
+    # Notice licenses: https://opensource.google/docs/thirdparty/licenses/#notice
+    "artistic",
+    "apache software license 2.0",
+    "apache license version 2.0",
+    "apache license, version 2.0",
+    "apache license 2.0",
+    "apache 2.0",
+    "apache-2.0",
+    "apache software",
+    "apache 2",
+    "apache-2",
+    "bsd",
+    "bsd-2-clause",
+    "bsd-3-clause",
+    "3-clause bsd",
+    "new bsd",
+    "bsd or apache license, version 2.0",
+    "bsd-2-clause or apache-2.0",
+    "isc license (iscl)",
+    "isc",
+    "mit",
+    "python software foundation",
+    "psfl",
+    "zpl 2.1",
+    # Reciprocal licenses: https://opensource.google/docs/thirdparty/licenses/#reciprocal
+    "mozilla public license 1.1 (mpl 1.1)",
+    "mozilla public license 2.0 (mpl 2.0)",
+    "mpl-2.0",
+    # LGPL
+    "lgpl",
+    "gnu library or lesser general public license (lgpl)",
+    "gnu lesser general public license v3 or later (lgplv3+)",
+    "lgplv3+",
+    "the unlicense (unlicense)"
+]
+unauthorized_licenses = [
+    # Restricted licenses: https://opensource.google/docs/thirdparty/licenses/#restricted
+    "gpl v1",
+    "gpl v2",
+    "gpl v3",
+    # Banned licenses: https://opensource.google/docs/thirdparty/licenses/#banned
+    "agpl",
+    "affero gpl",
+    "agpl (affero gpl)",
+    "sspl"
+]
+level = "CAUTIOUS"
+reporting_txt_file = "liccheck-output.txt" # by default is None
+no_deps = false
+dependencies = true # to load [project.dependencies]
+optional_dependencies = ["tests"] # to load extras from [project.optional-dependencies]
+
+[tool.liccheck.authorized_packages]
+# MIT license: https://pypi.org/project/ordereddict/1.1/
+ordereddict = "1.1"
+
+# MIT license: https://pypi.org/project/pendulum/1.4.4/
+pendulum = ">=3.0.0"
+
+# Python Imaging Library (PIL) License: https://github.com/python-pillow/Pillow/blob/master/LICENSE
+Pillow = ">=7.2.0"

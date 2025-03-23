@@ -22,3 +22,7 @@ ChangeLog
 /observatory-dags/observatory/dags/workflows/oapen_cloud_function.zip
 docs/schemas
 .env
+/observatory-platform/build
+/observatory-api/build
+liccheck-output.txt
+_version.py

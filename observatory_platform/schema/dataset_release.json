@@ -1,0 +1,87 @@
+[
+  {
+    "name": "dag_id",
+    "mode": "REQUIRED",
+    "type": "STRING",
+    "description": "The Airflow DAG ID, e.g. doi_workflow"
+  },
+  {
+    "name": "entity_id",
+    "mode": "REQUIRED",
+    "type": "STRING",
+    "description": "A unique identifier to represent the dataset being processed."
+  },
+  {
+    "name": "dag_run_id",
+    "mode": "NULLABLE",
+    "type": "STRING",
+    "description": "The Airflow DAG run ID."
+  },
+  {
+    "name": "data_interval_start",
+    "mode": "NULLABLE",
+    "type": "TIMESTAMP",
+    "description": "The Airflow data interval start datetime."
+  },
+  {
+    "name": "data_interval_end",
+    "mode": "NULLABLE",
+    "type": "TIMESTAMP",
+    "description": "The Airflow data interval end datetime."
+  },
+  {
+    "name": "snapshot_date",
+    "mode": "NULLABLE",
+    "type": "TIMESTAMP",
+    "description": "For datasets that release entire snapshots, the date that the snapshot was released."
+  },
+  {
+    "name": "partition_date",
+    "mode": "NULLABLE",
+    "type": "TIMESTAMP",
+    "description": ""
+  },
+  {
+    "name": "changefile_start_date",
+    "mode": "NULLABLE",
+    "type": "TIMESTAMP",
+    "description": "The date of the first changefile in this release. For datasets that provide changefiles with inserts, updates and deletes."
+  },
+  {
+    "name": "changefile_end_date",
+    "mode": "NULLABLE",
+    "type": "TIMESTAMP",
+    "description": "The date of the last changefile in this release. For datasets that provide changefiles with inserts, updates and deletes."
+  },
+  {
+    "name": "sequence_start",
+    "mode": "NULLABLE",
+    "type": "NUMERIC",
+    "description": "The first sequence number of changefiles in this release. For datasets that provide changefiles with inserts, updates and deletes."
+  },
+  {
+    "name": "sequence_end",
+    "mode": "NULLABLE",
+    "type": "NUMERIC",
+    "description": "The last sequence number of changefiles in this release. For datasets that provide changefiles with inserts, updates and deletes."
+  },
+  {
+    "name": "extra",
+    "mode": "NULLABLE",
+    "type": "JSON",
+    "description": "An optional JSON field for extra information."
+  },
+  {
+    "name": "created",
+    "mode": "REQUIRED",
+    "type": "TIMESTAMP",
+    "description": "The date that this record was created."
+  },
+  {
+    "name": "modified",
+    "mode": "REQUIRED",
+    "type": "TIMESTAMP",
+    "description": "The date that this record was modified."
+  }
+]
+
