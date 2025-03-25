@@ -328,7 +328,7 @@ def build_schedule(sched_start_date: pendulum.DateTime, sched_end_date: pendulum
 
     schedule = []
 
-    for start_date in sched_start_date.diff(sched_end_date).range("months"):
+    for start_date in sched_end_date.diff(sched_start_date).range("months"):
         if start_date >= sched_end_date:
             break
         end_date = start_date.add(months=1).subtract(days=1).end_of("day")
