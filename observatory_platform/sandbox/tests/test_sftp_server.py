@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 import unittest
 
-import pysftp
+import paramiko
 
 from observatory_platform.sandbox.sftp_server import SftpServer
 from observatory_platform.sandbox.test_utils import find_free_port
@@ -35,19 +35,24 @@ class TestSftpServer(unittest.TestCase):
         server = SftpServer(host=self.host, port=self.port)
         with server.create() as root_dir:
             # Connect to SFTP server and disable host key checking
-            cnopts = pysftp.CnOpts()
-            cnopts.hostkeys = None
-            sftp = pysftp.Connection(self.host, port=self.port, username="", password="", cnopts=cnopts)
 
-            # Check that there are no files
-            files = sftp.listdir(".")
-            self.assertFalse(len(files))
+            ssh_client = paramiko.SSHClient()
+            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh_client.connect(self.host, port=self.port, username="user", password="pass")
+            sftp = ssh_client.open_sftp()
 
-            # Add a file and check that it exists
-            expected_file_name = "onix.xml"
-            file_path = os.path.join(root_dir, expected_file_name)
-            with open(file_path, mode="w") as f:
-                f.write("hello world")
-            files = sftp.listdir(".")
-            self.assertEqual(1, len(files))
-            self.assertEqual(expected_file_name, files[0])
+            try:
+                # Check that there are no files
+                files = sftp.listdir(".")
+                self.assertFalse(len(files))
+
+                # Add a file and check that it exists
+                expected_file_name = "onix.xml"
+                file_path = os.path.join(root_dir, expected_file_name)
+                with open(file_path, mode="w") as f:
+                    f.write("hello world")
+                files = sftp.listdir(".")
+                self.assertEqual(1, len(files))
+                self.assertEqual(expected_file_name, files[0])
+            finally:
+                sftp.close()
