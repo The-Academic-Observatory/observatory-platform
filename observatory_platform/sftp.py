@@ -14,35 +14,33 @@
 
 
 import os
-from base64 import b64decode
-from typing import Union
+import contextlib
+from typing import Union, Generator
 
 import paramiko
-import pysftp
 from airflow.hooks.base import BaseHook
 
 
-def make_sftp_connection(sftp_conn_id: str) -> pysftp.Connection:
+@contextlib.contextmanager
+def make_sftp_connection(sftp_conn_id: str) -> Generator[paramiko.SSHClient, None, None]:
     """Create a SFTP connection using credentials from the Airflow sftp_conn_id connection.
 
     :param sftp_conn_id: the SFTP Airflow Connection ID.
     :return: SFTP connection
     """
     conn = BaseHook.get_connection(sftp_conn_id)
-    host = conn.host
+    port = conn.port or 22
 
-    # Add public host key
-    public_key = conn.extra_dejson.get("host_key", None)
-    if public_key is not None:
-        key = paramiko.RSAKey(data=b64decode(public_key))
-        cnopts = pysftp.CnOpts()
-        cnopts.hostkeys.add(host, "ssh-rsa", key)
-    else:
-        cnopts = pysftp.CnOpts()
-        cnopts.hostkeys = None
+    ssh_client = paramiko.SSHClient()
+    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh_client.connect(conn.host, port=port, username=conn.login, password=conn.password)
+    sftp = ssh_client.open_sftp()
 
-    # set up connection
-    return pysftp.Connection(host, port=conn.port, username=conn.login, password=conn.password, cnopts=cnopts)
+    try:
+        yield sftp
+    finally:
+        sftp.close()
+        ssh_client.close()
 
 
 class SftpFolders:
@@ -104,7 +102,7 @@ class SftpFolders:
             upload_files = [upload_files]
 
         with make_sftp_connection(self.sftp_conn_id) as sftp:
-            sftp.makedirs(self.in_progress)
+            sftp.mkdir(self.in_progress)
             for file in upload_files:
                 file_name = os.path.basename(file)
                 upload_file = os.path.join(self.upload, file_name)
@@ -122,7 +120,7 @@ class SftpFolders:
             in_progress_files = [in_progress_files]
 
         with make_sftp_connection(self.sftp_conn_id) as sftp:
-            sftp.makedirs(self.finished)
+            sftp.mkdir(self.finished)
             for file in in_progress_files:
                 file_name = os.path.basename(file)
                 in_progress_file = os.path.join(self.in_progress, file_name)

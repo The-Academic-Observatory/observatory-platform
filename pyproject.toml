@@ -45,8 +45,7 @@ dependencies = [
     "requests>=2.25.0,<3",
     "aiohttp>=3.7.0,<4",
     # SFTP
-    "paramiko>=2.7.2,<3",
-    "pysftp>=0.2.9,<1",
+    "paramiko>=3,<4",
     # Utils
     "natsort>=7.1.1,<8",
     "backoff>=2,<3",
