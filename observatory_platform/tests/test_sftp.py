@@ -14,41 +14,40 @@
 
 import unittest
 from unittest.mock import patch
-from urllib.parse import quote
+from unittest.mock import MagicMock
 
-import paramiko
-import pysftp
-from airflow.models.connection import Connection
+# from urllib.parse import quote
+
+# import paramiko
+# from airflow.models.connection import Connection
 
 from observatory_platform.sftp import make_sftp_connection
 
 
 class TestSFTP(unittest.TestCase):
-    @patch.object(pysftp, "Connection")
+
     @patch("airflow.hooks.base.BaseHook.get_connection")
-    def test_make_sftp_connection(self, mock_airflow_conn, mock_pysftp_connection):
-        """Test that sftp connection is initialized correctly"""
+    @patch("observatory_platform.sftp.paramiko.SSHClient")
+    def test_make_sftp_connection(self, mock_sshclient_cls, mock_get_connection):
+        # Setup mock connection returned by BaseHook.get_connection
+        mock_conn = MagicMock()
+        mock_conn.host = "example.com"
+        mock_conn.port = 2222
+        mock_conn.login = "user"
+        mock_conn.password = "pass"
+        mock_get_connection.return_value = mock_conn
 
-        # set up variables
-        username = "username"
-        password = "password"
-        host = "host"
-        host_key = quote(paramiko.RSAKey.generate(1024).get_base64(), safe="")
+        # Setup mock SSH client and its methods
+        mock_sshclient = MagicMock()
+        mock_sftp = MagicMock()
+        mock_sshclient.open_sftp.return_value = mock_sftp
+        mock_sshclient_cls.return_value = mock_sshclient
 
-        # mock airflow sftp service conn
-        mock_airflow_conn.return_value = Connection(uri=f"ssh://{username}:{password}@{host}?host_key={host_key}")
+        with make_sftp_connection("my_conn_id") as sftp:
+            self.assertEqual(sftp, mock_sftp)
+            mock_sshclient.connect.assert_called_once_with("example.com", port=2222, username="user", password="pass")
+            mock_sshclient.open_sftp.assert_called_once()
 
-        # run function
-        sftp = make_sftp_connection("pysftp_connection")
-
-        # confirm sftp server was initialised with correct username, password and cnopts
-        call_args = mock_pysftp_connection.call_args
-
-        self.assertEqual(1, len(call_args[0]))
-        self.assertEqual(host, call_args[0][0])
-
-        self.assertEqual(4, len(call_args[1]))
-        self.assertEqual(username, call_args[1]["username"])
-        self.assertEqual(password, call_args[1]["password"])
-        self.assertIsInstance(call_args[1]["cnopts"], pysftp.CnOpts)
-        self.assertIsNone(call_args[1]["port"])
+        # Ensure cleanup was called
+        mock_sftp.close.assert_called_once()
+        mock_sshclient.close.assert_called_once()
