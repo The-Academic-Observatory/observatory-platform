@@ -28,7 +28,7 @@ classifiers = [
 dependencies = [
     # Airflow
     "apache-airflow[slack]==2.10.5",
-    "apache-airflow-providers-cncf-kubernetes>=7.4.0",
+    "apache-airflow-providers-cncf-kubernetes==7.4.0",
     # Google Cloud
     "google-crc32c>=1.1.0,<2",
     "google-cloud-bigquery>=3.2,<4",
