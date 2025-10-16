@@ -15,7 +15,7 @@
 # Author: Keegan Smith
 
 import logging
-from typing import List, Sequence, Mapping, Union
+from typing import List, Sequence, Mapping
 import base64
 
 from google.oauth2.credentials import Credentials
