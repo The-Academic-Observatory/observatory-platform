@@ -26,6 +26,7 @@ classifiers = [
     "Topic :: Utilities"
 ]
 dependencies = [
+    "setuptools==80.9.0",
     # Airflow
     "apache-airflow[slack]==2.10.5",
     "apache-airflow-providers-cncf-kubernetes==7.4.0",
