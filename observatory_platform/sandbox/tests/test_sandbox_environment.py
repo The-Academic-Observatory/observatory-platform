@@ -22,11 +22,10 @@ import unittest
 from datetime import timedelta
 
 import pendulum
-from airflow.decorators import dag, task, task_group
+from airflow.sdk import dag, task, task_group, Variable
 from airflow.exceptions import AirflowSkipException
-from airflow.models.connection import Connection
+from airflow.sdk import Connection
 from airflow.models.dag import ScheduleArg
-from airflow.models.variable import Variable
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import TaskInstanceState
 from google.cloud.exceptions import NotFound

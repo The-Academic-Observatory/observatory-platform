@@ -40,11 +40,12 @@ from typing import List, Optional, Set, Union
 import google
 import pendulum
 import requests
-from airflow import DAG, settings
+from airflow import settings
+from airflow.sdk import DAG
 from airflow.models.connection import Connection
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.variable import Variable
+from airflow.sdk import Variable
 from airflow.timetables.base import DataInterval
 from airflow.utils import db
 from airflow.utils.state import State

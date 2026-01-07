@@ -22,7 +22,7 @@ from typing import List, Callable, Optional
 
 import pendulum
 from airflow.models import DagRun
-from airflow.sensors.external_task import ExternalTaskSensor
+from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
 from sqlalchemy.orm.scoping import scoped_session

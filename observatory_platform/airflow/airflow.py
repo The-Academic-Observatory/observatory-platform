@@ -27,7 +27,8 @@ import six
 import validators
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models import TaskInstance, XCom, DagRun, Connection
+# from airflow.models import TaskInstance, XCom, DagRun, Connection
+from airflow.sdk import TaskInstance, XCom, DagRun, Connection
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.utils.db import provide_session
 from dateutil.relativedelta import relativedelta

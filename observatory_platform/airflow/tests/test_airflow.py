@@ -24,14 +24,14 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-from airflow.decorators import dag
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
-from airflow.models.dag import DAG, settings
+from airflow.sdk import XCom, Connection
+from airflow.models.dag import settings
+from airflow.sdk import DAG, dag
 from airflow.models.xcom import XCom
-from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import db
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
