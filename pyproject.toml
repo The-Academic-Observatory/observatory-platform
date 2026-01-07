@@ -45,7 +45,7 @@ dependencies = [
     "google-crc32c>=1.1.0,<2",
     "google-cloud-bigquery>=3.2,<4",
     "google-api-python-client>=2,<3",
-    "google-cloud-storage>=2.7.0,<3",
+    "google-cloud-storage>=3.0.0,<4",
     #"google-auth-oauthlib>=0.4.5,<1",
     "google-cloud-compute >=1.16.0,<2.0",
     # File manipulation, reading, writing
