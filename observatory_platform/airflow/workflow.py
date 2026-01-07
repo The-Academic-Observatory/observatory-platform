@@ -27,7 +27,8 @@ from typing import Any, Dict, List, Optional
 
 import pendulum
 from airflow import AirflowException
-from airflow.sdk import DagBag, Variable
+from airflow.models import DagBag
+from airflow.sdk import Variable
 
 from observatory_platform.airflow.airflow import delete_old_xcoms
 from observatory_platform.config import AirflowVars
