@@ -27,13 +27,13 @@ import six
 import validators
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-# from airflow.models import TaskInstance, XCom, DagRun, Connection
-from airflow.sdk import TaskInstance, XCom, DagRun, Connection
+from airflow.models import TaskInstance, XCom, DagRun
+from airflow.sdk import Connection
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.utils.db import provide_session
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import and_
-from sqlalchemy.orm import scoped_session, Session
+from sqlalchemy.orm import Session
 from observatory_platform.config import AirflowConns
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
