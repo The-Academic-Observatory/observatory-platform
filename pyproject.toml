@@ -61,7 +61,6 @@ dependencies = [
     # Utils
     "natsort>=8,<9",
     "backoff>=2,<3",
-    "validators<=0.20.0",
     "xmltodict",
     "tenacity>=8.0.0",
     "python-dateutil",
