@@ -36,15 +36,19 @@ import logging
 import os
 from tempfile import mkdtemp
 from typing import List, Optional, Set, Union
+import uuid
 
 import google
 import pendulum
 import requests
-from airflow import DAG, settings
+from airflow import settings
+from airflow.sdk import DAG
 from airflow.models.connection import Connection
 from airflow.models.dagrun import DagRun
+from airflow.models.dag import DagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
+from airflow.models.dag_version import DagVersion
 from airflow.timetables.base import DataInterval
 from airflow.utils import db
 from airflow.utils.state import State
@@ -101,6 +105,7 @@ class SandboxEnvironment:
         self.workflows = workflows
         self.env_vars = env_vars
         self.temp_dir = mkdtemp()
+        self.current_dag = None
 
         if self.create_gcp_env:
             self.download_bucket = self.add_bucket(roles=gcs_bucket_roles)
@@ -170,6 +175,12 @@ class SandboxEnvironment:
             self.buckets[bucket_name] = roles
 
         return bucket_name
+
+    def _ensure_dag_version(self, dag):
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=self.session)
+        if dag_version is None:
+            dag_version = DagVersion.write_dag(dag, session=self.session)
+        return dag_version
 
     def _create_bucket(self, bucket_id: str, roles: Optional[Union[str, Set[str]]] = None) -> None:
         """Create a Google Cloud Storage Bucket.
@@ -263,6 +274,7 @@ class SandboxEnvironment:
         :param var: the Airflow variable.
         :return: None.
         """
+
         try:
             existing_var = self.session.query(Variable).filter(Variable.key == var.key).first()
             if existing_var:
@@ -281,6 +293,8 @@ class SandboxEnvironment:
             self.session.add(var)
             self.session.commit()
 
+        os.environ[f"AIRFLOW_VAR_{var.key.upper()}"] = var.val
+
     def add_connection(self, conn: Connection):
         """Add an Airflow connection to the Observatory environment.
 
@@ -288,8 +302,16 @@ class SandboxEnvironment:
         :return: None.
         """
 
+        # Add to the database for scheduler/legacy logic
+        existing_conn = self.session.query(Connection).filter(Connection.conn_id == conn.conn_id).first()
+        if existing_conn:
+            self.session.delete(existing_conn)
+
         self.session.add(conn)
         self.session.commit()
+
+        env_key = f"AIRFLOW_CONN_{conn.conn_id.upper()}"
+        os.environ[env_key] = conn.get_uri()
 
     def run_task(self, task_id: str, map_index: int = -1) -> TaskInstance:
         """Run an Airflow task.
@@ -298,13 +320,14 @@ class SandboxEnvironment:
         :param map_index: the map index if the task is a daynamic task
         :return: None.
         """
-
         assert self.dag_run is not None, "with create_dag_run must be called before run_task"
 
-        dag = self.dag_run.dag
         run_id = self.dag_run.run_id
-        task = dag.get_task(task_id=task_id)
-        ti = TaskInstance(task, run_id=run_id, map_index=map_index)
+        task = self.current_dag.get_task(task_id=task_id)
+        latest_version = DagVersion.get_latest_version(self.dag_run.dag_id)
+        # latest_version = self._ensure_dag_version(self.current_dag)
+        # ti = TaskInstance(task=task, dag_version_id=uuid.uuid4(), run_id=run_id, map_index=map_index)
+        ti = TaskInstance(task=task, dag_version_id=latest_version, run_id=run_id, map_index=map_index)
         ti.refresh_from_db()
 
         # TODO: remove this when this issue fixed / PR merged: https://github.com/apache/airflow/issues/34023#issuecomment-1705761692
@@ -327,7 +350,7 @@ class SandboxEnvironment:
         assert self.dag_run is not None, "with create_dag_run must be called before get_task_instance"
 
         run_id = self.dag_run.run_id
-        task = self.dag_run.dag.get_task(task_id=task_id)
+        task = self.current_dag.get_task(task_id=task_id)
         ti = TaskInstance(task, run_id=run_id)
         ti.refresh_from_db()
         return ti
@@ -338,7 +361,7 @@ class SandboxEnvironment:
         dag: DAG,
         logical_date: pendulum.DateTime = None,
         data_interval: DataInterval = None,
-        run_type: DagRunType = DagRunType.SCHEDULED,
+        run_type: str = DagRunType.SCHEDULED,
     ):
         """Create a DagRun that can be used when running tasks.
         During cleanup the DAG run state is updated.
@@ -354,19 +377,29 @@ class SandboxEnvironment:
             if not logical_date:
                 logical_date = data_interval.start
         elif logical_date:
-            data_interval = dag.infer_automated_data_interval(logical_date=logical_date)
+            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
             start_date = data_interval.start
         else:
             raise ValueError("Must provide one of `data_inerval` or `logical_date`")
 
+        # dag_version = self._ensure_dag_version(dag)
         try:
-            self.dag_run = dag.create_dagrun(
+            self.dag_run = DagRun(
+                dag_id=dag.dag_id,
+                run_id=dag.timetable.generate_run_id(
+                    run_type=DagRunType(run_type), run_after=logical_date, data_interval=data_interval
+                ),
                 state=State.RUNNING,
-                execution_date=logical_date,
+                logical_date=logical_date,
                 start_date=start_date,
-                run_type=run_type,
+                run_type=DagRunType(run_type),
                 data_interval=data_interval,
             )
+            DagVersion.write_dag(dag.dag_id, "sandbox", session=self.session)
+            self.session.add(self.dag_run)
+            self.session.commit()
+            self.current_dag = dag
+
             yield self.dag_run
         finally:
             self.dag_run.update_state()

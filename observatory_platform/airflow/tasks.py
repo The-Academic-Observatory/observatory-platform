@@ -19,10 +19,10 @@ import logging
 from typing import List, Optional
 
 import airflow
-from airflow.decorators import task
+from airflow.sdk import task
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models import Variable
+from airflow.sdk import Variable
 
 from observatory_platform.google.gke import gke_create_volume, gke_delete_volume
 

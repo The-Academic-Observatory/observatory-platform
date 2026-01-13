@@ -30,10 +30,10 @@ from typing import Dict, List, Set
 import boto3
 import httpretty
 import pendulum
-from airflow import DAG
+from airflow.sdk import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from deepdiff import DeepDiff
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import SourceFormat
