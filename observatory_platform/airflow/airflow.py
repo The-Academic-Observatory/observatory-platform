@@ -26,7 +26,7 @@ import pendulum
 import six
 import validators
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
+from airflow.sdk.bases.hook import BaseHook
 from airflow.models import TaskInstance, XCom, DagRun
 from airflow.sdk import Connection
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
