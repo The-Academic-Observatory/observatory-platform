@@ -33,7 +33,7 @@ dependencies = [
     "google-crc32c>=1.1.0,<2",
     "google-cloud-bigquery>=3.2,<4",
     "google-api-python-client>=2,<3",
-    "google-cloud-storage>=2.7.0,<3",
+    "google-cloud-storage>=3,<4",
     #"google-auth-oauthlib>=0.4.5,<1",
     "google-cloud-compute >=1.16.0,<2.0",
     # File manipulation, reading, writing
@@ -58,7 +58,7 @@ dependencies = [
 tests = [
     "liccheck>=0.4.9,<1",
     "flake8>=3.8.0,<4",
-    "coverage>=5.2,<6",
+    "coverage>7",
     "azure-storage-blob>=12.8.1,<13",
     "httpretty>=1.0.0,<2",
     "deepdiff>=8,<9",
