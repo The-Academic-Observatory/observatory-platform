@@ -108,6 +108,7 @@ authorized_licenses = [
     "isc",
     "mit",
     "python software foundation",
+    "psf-2.0",
     "psfl",
     "zpl 2.1",
     # Reciprocal licenses: https://opensource.google/docs/thirdparty/licenses/#reciprocal
@@ -119,7 +120,9 @@ authorized_licenses = [
     "gnu library or lesser general public license (lgpl)",
     "gnu lesser general public license v3 or later (lgplv3+)",
     "lgplv3+",
-    "the unlicense (unlicense)"
+    "the unlicense (unlicense)",
+    "apache-2.0 and mit",
+    "mit and psf-2.0",
 ]
 unauthorized_licenses = [
     # Restricted licenses: https://opensource.google/docs/thirdparty/licenses/#restricted
@@ -141,9 +144,9 @@ optional_dependencies = ["tests"] # to load extras from [project.optional-depend
 [tool.liccheck.authorized_packages]
 # MIT license: https://pypi.org/project/ordereddict/1.1/
 ordereddict = "1.1"
-
 # MIT license: https://pypi.org/project/pendulum/1.4.4/
 pendulum = ">=3.0.0"
-
 # Python Imaging Library (PIL) License: https://github.com/python-pillow/Pillow/blob/master/LICENSE
 Pillow = ">=7.2.0"
+# Apache 2.0: https://github.com/googleapis/python-crc32c
+google-crc32c ">=0"
