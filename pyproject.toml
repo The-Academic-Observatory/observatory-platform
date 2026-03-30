@@ -149,4 +149,4 @@ pendulum = ">=3.0.0"
 # Python Imaging Library (PIL) License: https://github.com/python-pillow/Pillow/blob/master/LICENSE
 Pillow = ">=7.2.0"
 # Apache 2.0: https://github.com/googleapis/python-crc32c
-google-crc32c ">=0"
+google-crc32c = ">=0"
