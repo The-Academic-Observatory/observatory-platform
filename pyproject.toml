@@ -28,23 +28,23 @@ classifiers = [
 dependencies = [
     "setuptools==80.9.0",
     # Airflow
-    "apache-airflow[slack]==2.10.5",
-    "apache-airflow-providers-cncf-kubernetes==7.4.0",
-    "apache-airflow-providers-common-compat==1.9.0",
-    "apache-airflow-providers-common-io==1.6.5",
-    "apache-airflow-providers-common-sql==1.29.0",
-    "apache-airflow-providers-fab==1.5.2",
-    "apache-airflow-providers-ftp==3.13.3",
-    "apache-airflow-providers-http==5.3.2",
-    "apache-airflow-providers-imap==3.9.4",
-    "apache-airflow-providers-slack==9.1.0",
-    "apache-airflow-providers-smtp==2.3.2",
-    "apache-airflow-providers-sqlite==4.1.3",
+    "apache-airflow[slack]==2.11.2",
+    "apache-airflow-providers-cncf-kubernetes",
+    "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-io",
+    "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-fab",
+    "apache-airflow-providers-ftp",
+    "apache-airflow-providers-http",
+    "apache-airflow-providers-imap",
+    "apache-airflow-providers-slack",
+    "apache-airflow-providers-smtp",
+    "apache-airflow-providers-sqlite",
     # Google Cloud
     "google-crc32c>=1.1.0,<2",
     "google-cloud-bigquery>=3.2,<4",
     "google-api-python-client>=2,<3",
-    "google-cloud-storage>=2.7.0,<3",
+    "google-cloud-storage>=3,<4",
     #"google-auth-oauthlib>=0.4.5,<1",
     "google-cloud-compute >=1.16.0,<2.0",
     # File manipulation, reading, writing
@@ -60,7 +60,6 @@ dependencies = [
     # Utils
     "natsort>=7.1.1,<8",
     "backoff>=2,<3",
-    "validators<=0.20.0",
     "xmltodict",
     "tenacity>=8.0.0",
     "python-dateutil",
@@ -70,7 +69,8 @@ dependencies = [
 tests = [
     "liccheck>=0.4.9,<1",
     "flake8>=3.8.0,<4",
-    "coverage>=5.2,<6",
+    "coverage>7",
+    "validators<=0.40.0",
     "azure-storage-blob>=12.8.1,<13",
     "httpretty>=1.0.0,<2",
     "deepdiff>=8,<9",
@@ -120,6 +120,7 @@ authorized_licenses = [
     "isc",
     "mit",
     "python software foundation",
+    "psf-2.0",
     "psfl",
     "zpl 2.1",
     # Reciprocal licenses: https://opensource.google/docs/thirdparty/licenses/#reciprocal
@@ -131,7 +132,9 @@ authorized_licenses = [
     "gnu library or lesser general public license (lgpl)",
     "gnu lesser general public license v3 or later (lgplv3+)",
     "lgplv3+",
-    "the unlicense (unlicense)"
+    "the unlicense (unlicense)",
+    "apache-2.0 and mit",
+    "mit and psf-2.0",
 ]
 unauthorized_licenses = [
     # Restricted licenses: https://opensource.google/docs/thirdparty/licenses/#restricted
@@ -153,9 +156,9 @@ optional_dependencies = ["tests"] # to load extras from [project.optional-depend
 [tool.liccheck.authorized_packages]
 # MIT license: https://pypi.org/project/ordereddict/1.1/
 ordereddict = "1.1"
-
 # MIT license: https://pypi.org/project/pendulum/1.4.4/
 pendulum = ">=3.0.0"
-
 # Python Imaging Library (PIL) License: https://github.com/python-pillow/Pillow/blob/master/LICENSE
 Pillow = ">=7.2.0"
+# Apache 2.0: https://github.com/googleapis/python-crc32c
+google-crc32c = ">=0"

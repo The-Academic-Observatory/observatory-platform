@@ -21,6 +21,7 @@ import textwrap
 import traceback
 from datetime import timedelta
 from typing import List, Union, Optional
+from urllib.parse import urlsplit
 
 import pendulum
 import six
@@ -29,10 +30,11 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import TaskInstance, XCom, DagRun, Connection
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
-from airflow.utils.db import provide_session
+
+from airflow.utils.session import provide_session
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import and_
-from sqlalchemy.orm import scoped_session, Session
+from sqlalchemy.orm import Session
 from observatory_platform.config import AirflowConns
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
@@ -48,7 +50,7 @@ def upsert_airflow_connection(
     password: Optional[str] = None,
     port: Optional[int] = None,
     extra: Optional[str] = None,
-    session: Session = None,
+    session: Optional[Session] = None,
 ) -> None:
     """Upserts an Airflow connection. If the connection exists, it updates the existing connection
     with the provided details. If the connection does not exist, it adds a new connection with the
@@ -100,7 +102,7 @@ def upsert_airflow_connection(
 
 
 @provide_session
-def clear_airflow_connections(session: Session = None) -> None:
+def clear_airflow_connections(session: Optional[Session] = None) -> None:
     """Clears all aiflow connections in a session
 
     :param session: The session to clear.
@@ -125,7 +127,13 @@ def get_airflow_connection_url(conn_id: str) -> str:
     conn = BaseHook.get_connection(conn_id)
     url = conn.get_uri()
 
-    if validators.url(url) != True:
+    result = urlsplit(url)
+    if result.hostname == "localhost":
+        simple_host = True
+    else:
+        simple_host = False
+
+    if not validators.url(url, simple_host=simple_host):
         raise AirflowException(f"Airflow connection id {conn_id} does not have a valid url: {url}")
 
     if url[-1] != "/":
@@ -301,8 +309,8 @@ def normalized_schedule_interval(schedule_interval: Optional[str]) -> Optional[S
 
 @provide_session
 def delete_old_xcoms(
-    session: Session = None,
-    dag_id: str = None,
+    session: Optional[Session] = None,
+    dag_id: Optional[str] = None,
     retention_days: int = 31,
 ) -> None:
     """Delete XCom messages created by the DAG with the given ID that are as old or older than than
@@ -312,7 +320,6 @@ def delete_old_xcoms(
     :param dag_id: DAG ID.
     :param retention_days: Days of messages to retain.
     """
-
     cut_off_date = pendulum.now().subtract(days=retention_days)
     results = session.query(XCom).filter(
         and_(
