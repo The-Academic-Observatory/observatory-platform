@@ -21,6 +21,7 @@ import textwrap
 import traceback
 from datetime import timedelta
 from typing import List, Union, Optional
+from urllib.parse import urlsplit
 
 import pendulum
 import six
@@ -126,7 +127,13 @@ def get_airflow_connection_url(conn_id: str) -> str:
     conn = BaseHook.get_connection(conn_id)
     url = conn.get_uri()
 
-    if not validators.url(url):
+    result = urlsplit(url)
+    if result.hostname == "localhost":
+        simple_host = True
+    else:
+        simple_host = False
+
+    if not validators.url(url, simple_host=simple_host):
         raise AirflowException(f"Airflow connection id {conn_id} does not have a valid url: {url}")
 
     if url[-1] != "/":
