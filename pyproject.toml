@@ -59,6 +59,7 @@ tests = [
     "liccheck>=0.4.9,<1",
     "flake8>=3.8.0,<4",
     "coverage>7",
+    "validators<=0.40.0",
     "azure-storage-blob>=12.8.1,<13",
     "httpretty>=1.0.0,<2",
     "deepdiff>=8,<9",
