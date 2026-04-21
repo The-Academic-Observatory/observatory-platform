@@ -102,7 +102,10 @@ class SftpFolders:
             upload_files = [upload_files]
 
         with make_sftp_connection(self.sftp_conn_id) as sftp:
-            sftp.mkdir(self.in_progress)
+            try:
+                sftp.mkdir(self.in_progress)
+            except IOError:
+                print(f"Directory {self.in_progress} already exists. Skipping creation")
             for file in upload_files:
                 file_name = os.path.basename(file)
                 upload_file = os.path.join(self.upload, file_name)
@@ -120,7 +123,10 @@ class SftpFolders:
             in_progress_files = [in_progress_files]
 
         with make_sftp_connection(self.sftp_conn_id) as sftp:
-            sftp.mkdir(self.finished)
+            try:
+                sftp.mkdir(self.finished)
+            except IOError:
+                print(f"Directory {self.finished} already exists. Skipping creation")
             for file in in_progress_files:
                 file_name = os.path.basename(file)
                 in_progress_file = os.path.join(self.in_progress, file_name)
