@@ -207,6 +207,42 @@ class TestUrlUtils(unittest.TestCase):
         duration = (end - start).total_seconds()
         self.assertAlmostEqual(expected_wait, duration, delta=2.5)
 
+    @patch("observatory_platform.url_utils.requests.get")
+    @patch("observatory_platform.url_utils.cffi_requests.get")
+    def test_retry_get_url_impersonate(self, mock_cffi_get, mock_requests_get):
+        # Test that cffi_requests.get is used when impersonate is provided
+        url = "http://test.com/"
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = "success"
+        mock_cffi_get.return_value = mock_response
+
+        response = retry_get_url(url, impersonate="chrome110", num_retries=1)
+
+        self.assertEqual(response.text, "success")
+        mock_cffi_get.assert_called_once_with(url, impersonate="chrome110")
+        mock_requests_get.assert_not_called()
+
+    @responses.activate
+    def test_retry_get_url_squelch(self):
+        # Test that the URL is squelched in the error message
+        url = "http://secret.com/token=123"
+        responses.add(responses.GET, url, body="Error", status=500)
+
+        with self.assertRaises(requests.exceptions.HTTPError) as cm:
+            retry_get_url(url, num_retries=1, squelch_url=True)
+
+        self.assertIn("Error getting url: ***", str(cm.exception))
+        self.assertNotIn(url, str(cm.exception))
+
+        # Test that the URL is NOT squelched by default
+        responses.reset()
+        responses.add(responses.GET, url, body="Error", status=500)
+        with self.assertRaises(requests.exceptions.HTTPError) as cm:
+            retry_get_url(url, num_retries=1)
+
+        self.assertIn(f"Error getting url: {url}", str(cm.exception))
+
     def test_retry_get_url_read_timeout(self):
         # Test that a ReadTimeout is triggered
 

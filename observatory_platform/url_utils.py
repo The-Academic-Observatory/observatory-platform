@@ -28,6 +28,7 @@ from typing import Dict, List, Tuple, Union, Optional
 
 import pytz
 import requests
+from curl_cffi import requests as cffi_requests
 import xmltodict
 from airflow import AirflowException
 from requests.adapters import HTTPAdapter
@@ -58,6 +59,7 @@ def retry_get_url(
     num_retries=3,
     wait: wait_base = wait_exponential_jitter(initial=5, max=300),
     squelch_url: bool = False,
+    impersonate: Optional[str] = None,
     **kwargs,
 ):
     """Attempts an HTTP GET request inside a retry loop.
@@ -67,12 +69,19 @@ def retry_get_url(
     :param num_retries: The number of times to retry the request before reraising the error
     :param wait: The Tenacity wait function. If unsupplied, use an exponential jitter wait
     :param squelch_url: Whether to hide the URL from logs
+    :param A target browser to impersonate when making this request. Available targets: https://curl-cffi.readthedocs.io/en/latest/impersonate/targets.html
     :param kwargs: Keyword args for requests.get()
     :raises requests.exceptions.RequestException: Raised when the number of retries are exhausted
     """
     log_url = "***" if squelch_url else url
     logger = logging.getLogger(__name__)
     logging.basicConfig(level=logging.INFO)
+
+    get_fn =  requests.get
+    if impersonate: 
+        get_fn = cffi_requests.get
+        kwargs["impersonate"] = impersonate
+
     retrier = Retrying(
         stop=stop_after_attempt(num_retries),
         wait=wait,
@@ -92,7 +101,7 @@ def retry_get_url(
         with attempt:
             try:
                 response = None
-                response = requests.get(url, **kwargs)
+                response = get_fn(url, **kwargs)
                 response.raise_for_status()
             except (requests.exceptions.ReadTimeout, requests.exceptions.HTTPError) as e:
                 log = f"Error getting url: {log_url} | "
