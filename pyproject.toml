@@ -55,6 +55,7 @@ dependencies = [
     # HTTP requests and URL cleaning
     "requests>=2.25.0,<3",
     "aiohttp>=3.7.0,<4",
+    "curl_cffi==0.15.0",
     # SFTP
     "paramiko>=3,<4",
     # Utils
