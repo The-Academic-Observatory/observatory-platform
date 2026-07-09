@@ -38,19 +38,19 @@ from tempfile import mkdtemp
 from typing import List, Optional, Set, Union
 
 import google
-import pendulum
 import requests
-from airflow import DAG, settings
-from airflow.models.connection import Connection
+from airflow import settings
+from airflow.sdk import Connection
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.dag import DagModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.variable import Variable
-from airflow.timetables.base import DataInterval
+from airflow.sdk import Variable
 from airflow.utils import db
-from airflow.utils.state import State
-from airflow.utils.types import DagRunType
+from airflow.utils.session import create_session
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from google.cloud import bigquery, storage
-from sqlalchemy.exc import IntegrityError
 
 from observatory_platform.airflow.workflow import CloudWorkspace, Workflow, workflows_to_json_string
 from observatory_platform.config import AirflowVars
@@ -101,6 +101,7 @@ class SandboxEnvironment:
         self.workflows = workflows
         self.env_vars = env_vars
         self.temp_dir = mkdtemp()
+        self._env_var_backups: dict[str, Optional[str]] = {}
 
         if self.create_gcp_env:
             self.download_bucket = self.add_bucket(roles=gcs_bucket_roles)
@@ -112,6 +113,23 @@ class SandboxEnvironment:
             self.transform_bucket = None
             self.storage_client = None
             self.bigquery_client = None
+
+    def _set_env_var(self, key: str, value: str) -> None:
+        """Set an environment variable, recording its prior value the first time
+        this key is touched so it can be released later"""
+        if key not in self._env_var_backups:
+            self._env_var_backups[key] = os.environ.get(key)
+        os.environ[key] = value
+
+    def _release_env_vars(self) -> None:
+        """Restore every key touched via _set_env_var back to its pre-touch state,
+        then clear the tracker."""
+        for key, original in self._env_var_backups.items():
+            if original is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = original
+        self._env_var_backups.clear()
 
     @property
     def cloud_workspace(self) -> CloudWorkspace:
@@ -260,36 +278,22 @@ class SandboxEnvironment:
     def add_variable(self, var: Variable) -> None:
         """Safely add or update a variable in the Observatory environment.
 
+        Sets it as an AIRFLOW_VAR_{KEY} environment variable instead of writing to
+        the metadata database directly. Cleanup is handled by create()'s existing
+        os.environ snapshot/restore, so no teardown logic is needed here.
+
         :param var: the Airflow variable.
         :return: None.
         """
-        try:
-            existing_var = self.session.query(Variable).filter(Variable.key == var.key).first()
-            if existing_var:
-                existing_var.set_val(var.val)
-            else:
-                self.session.add(var)
-            self.session.commit()
-            logging.info(f"Variable '{var.key}' added/updated successfully.")
-        except IntegrityError:
-            self.session.rollback()
-            logging.info(f"Failed to add variable '{var.key}' due to integrity error.")
-        except Exception as e:
-            logging.info(f"Error adding variable '{var.key}': {e}")
-            self.session.rollback()
-            self.session.delete(var)
-            self.session.add(var)
-            self.session.commit()
+        env_key = f"AIRFLOW_VAR_{var.key.upper()}"
+        self._set_env_var(env_key, var.value)
+        logging.info(f"Variable '{var.key}' set via environment variable '{env_key}'.")
 
-    def add_connection(self, conn: Connection):
-        """Add an Airflow connection to the Observatory environment.
-
-        :param conn: the Airflow connection.
-        :return: None.
-        """
-
-        self.session.add(conn)
-        self.session.commit()
+    def add_connection(self, conn: Connection) -> None:
+        """Safely add or update a connection in the Observatory environment."""
+        env_key = f"AIRFLOW_CONN_{conn.conn_id.upper()}"
+        self._set_env_var(env_key, conn.get_uri())
+        logging.info(f"Connection '{conn.conn_id}' set via environment variable '{env_key}'.")
 
     def run_task(self, task_id: str, map_index: int = -1) -> TaskInstance:
         """Run an Airflow task.
@@ -332,55 +336,62 @@ class SandboxEnvironment:
         ti.refresh_from_db()
         return ti
 
-    @contextlib.contextmanager
-    def create_dag_run(
-        self,
-        dag: DAG,
-        logical_date: pendulum.DateTime = None,
-        data_interval: DataInterval = None,
-        run_type: DagRunType = DagRunType.SCHEDULED,
-    ):
-        """Create a DagRun that can be used when running tasks.
-        During cleanup the DAG run state is updated.
-
-        :param dag: the Airflow DAG instance.
-        :param logical_date: the logical date of the DAG.
-        :param run_type: what run_type to use when running the DAG run.
-        :return: None.
-        """
-
-        if data_interval:
-            start_date = data_interval.start
-            if not logical_date:
-                logical_date = data_interval.start
-        elif logical_date:
-            data_interval = dag.infer_automated_data_interval(logical_date=logical_date)
-            start_date = data_interval.start
-        else:
-            raise ValueError("Must provide one of `data_inerval` or `logical_date`")
-
-        try:
-            self.dag_run = dag.create_dagrun(
-                state=State.RUNNING,
-                execution_date=logical_date,
-                start_date=start_date,
-                run_type=run_type,
-                data_interval=data_interval,
-            )
-            yield self.dag_run
-        finally:
-            self.dag_run.update_state()
-
-    def init_airflow_db(self):
+    def _init_airflow_db(self):
         # Create Airflow SQLite database
         settings.DAGS_FOLDER = os.path.join(self.temp_dir, "airflow", "dags")
         os.makedirs(settings.DAGS_FOLDER, exist_ok=True)
         airflow_db_path = os.path.join(self.temp_dir, "airflow.db")
-        settings.SQL_ALCHEMY_CONN = f"sqlite:///{airflow_db_path}"
-        logging.info(f"SQL_ALCHEMY_CONN: {settings.SQL_ALCHEMY_CONN}")
+
+        # Set via the proper Airflow 3 config path, not the legacy settings.SQL_ALCHEMY_CONN
+        # module attribute (deprecated since 3.0 in favour of [database] sql_alchemy_conn).
+        self._set_env_var("AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", f"sqlite:///{airflow_db_path}")
+
         settings.configure_orm(disable_connection_pool=True)
         self.session = settings.Session
         db.initdb()
+
+    def serialize_dag(self, dag, bundle_name: str = "testing") -> None:
+        """Manually serialize a DAG into the metadata database so that dag.test() can run it.
+
+        Workaround for an Airflow 3.1+ regression where dag.test() can't create a DagRun for
+        DAGs built dynamically in-memory (as opposed to discovered from a file in a Dag
+        bundle), since no DagVersion ever gets created for them. See:
+        https://github.com/apache/airflow/issues/60860
+
+        Delete this method and its call sites once that issue is fixed upstream.
+
+
+        Example use:
+        ```python
+        dag = create_dag(test_params)
+        env.serialize_dag(dag)
+        dagrun = dag.test(logical_date=logical_date)
+        ```
+
+        :param dag: the DAG instance to serialize
+        :param bundle_name: the Dag bundle name to register this dag version under
+        """
+
+        try:
+            with create_session() as session:
+                if not session.query(DagBundleModel).filter_by(name=bundle_name).first():
+                    session.add(DagBundleModel(name=bundle_name))
+                    session.commit()
+                if not session.query(DagModel).filter_by(dag_id=dag.dag_id).first():
+                    session.add(DagModel(dag_id=dag.dag_id, bundle_name=bundle_name))
+                    session.commit()
+
+                lazy_dag = LazyDeserializedDAG.from_dag(dag)
+                SerializedDagModel.write_dag(
+                    dag=lazy_dag,
+                    bundle_name=bundle_name,
+                    bundle_version=None,
+                    session=session,
+                )
+                session.commit()
+        except Exception as e:
+            logging.info(f"Error serializing DAG '{dag.dag_id}' for testing: {e}")
+            raise
 
     @contextlib.contextmanager
     def create(self, task_logging: bool = False):
@@ -397,19 +408,12 @@ class SandboxEnvironment:
         :param task_logging: display airflow task logging
         :yield: Observatory environment temporary directory.
         """
-
-        # Prepare environment
-        self.new_env = {self.OBSERVATORY_HOME_KEY: os.path.join(self.temp_dir, ".observatory")}
-        prev_env = dict(os.environ)
-
         try:
-            # Update environment
-            os.environ.update(self.new_env)
+            self._set_env_var(self.OBSERVATORY_HOME_KEY, os.path.join(self.temp_dir, ".observatory"))
             if self.env_vars:
-                os.environ.update(self.env_vars)
-
-            # initialise database
-            self.init_airflow_db()
+                for key, value in self.env_vars.items():
+                    self._set_env_var(key, value)  # initialise database
+                self._init_airflow_db()
 
             # Setup Airflow task logging
             original_log_level = logging.getLogger().getEffectiveLevel()
@@ -436,11 +440,11 @@ class SandboxEnvironment:
 
             # Add default Airflow variables
             self.data_path = os.path.join(self.temp_dir, "data")
-            self.add_variable(Variable(key=AirflowVars.DATA_PATH, val=self.data_path))
+            self.add_variable(Variable(key=AirflowVars.DATA_PATH, value=self.data_path))
 
             if self.workflows is not None:
                 var = workflows_to_json_string(self.workflows)
-                self.add_variable(Variable(key=AirflowVars.WORKFLOWS, val=var))
+                self.add_variable(Variable(key=AirflowVars.WORKFLOWS, value=var))
 
             # Reset dag run
             self.dag_run: DagRun = None
@@ -451,14 +455,12 @@ class SandboxEnvironment:
             logging.getLogger().setLevel(original_log_level)
             logging.getLogger("airflow.task").propagate = False
 
-            os.environ.clear()
-            os.environ.update(prev_env)
+            # Revert all of the updated env vars
+            self._release_env_vars()
 
+            # Tear down Google Cloud environment
             if self.create_gcp_env:
-                # Remove Google Cloud Storage buckets
                 for bucket_id, roles in self.buckets.items():
                     self._delete_bucket(bucket_id)
-
-                # Remove BigQuery datasets
                 for dataset_id in self.datasets:
                     self._delete_dataset(dataset_id)

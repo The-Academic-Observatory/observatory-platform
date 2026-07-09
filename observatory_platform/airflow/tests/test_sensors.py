@@ -23,7 +23,7 @@ import pendulum
 import time_machine
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun, DagModel
-from airflow.models.dag import DAG
+from airflow.sdk import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import State

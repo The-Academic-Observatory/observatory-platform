@@ -22,11 +22,9 @@ import unittest
 from datetime import timedelta
 
 import pendulum
-from airflow.decorators import dag, task, task_group
+from airflow.sdk import dag, task, task_group, Connection, Variable
 from airflow.exceptions import AirflowSkipException
-from airflow.models.connection import Connection
 from airflow.models.dag import ScheduleArg
-from airflow.models.variable import Variable
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import TaskInstanceState
 from google.cloud.exceptions import NotFound
@@ -81,7 +79,7 @@ def create_dynamic_task_dag(
 ):
     @dag(
         dag_id=dag_id,
-        schedule_interval=schedule,
+        schedule=schedule,
         start_date=start_date,
         catchup=catchup,
         tags=["example_tag"],
@@ -219,7 +217,7 @@ class TestSandboxEnvironment(unittest.TestCase):
         with env.create(task_logging=True):
             with env.create_dag_run(my_dag, logical_date):
                 # Add_variable
-                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+                env.add_variable(Variable(key=MY_VAR_ID, value="hello"))
 
                 # Add connection
                 conn = Connection(
@@ -254,7 +252,7 @@ class TestSandboxEnvironment(unittest.TestCase):
         with env.create():
             with env.create_dag_run(my_dag, logical_date):
                 # Test add_variable
-                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+                env.add_variable(Variable(key=MY_VAR_ID, value="hello"))
 
                 # Test add_connection
                 conn = Connection(
@@ -272,7 +270,7 @@ class TestSandboxEnvironment(unittest.TestCase):
         with env.create(task_logging=True):
             with env.create_dag_run(my_dag, logical_date):
                 # Test add_variable
-                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+                env.add_variable(Variable(key=MY_VAR_ID, value="hello"))
 
                 # Test add_connection
                 conn = Connection(
@@ -302,7 +300,7 @@ class TestSandboxEnvironment(unittest.TestCase):
         # Use DAG run with freezing time
         with env.create():
             # Test add_variable
-            env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+            env.add_variable(Variable(key=MY_VAR_ID, value="hello"))
 
             # Test add_connection
             conn = Connection(conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2")
