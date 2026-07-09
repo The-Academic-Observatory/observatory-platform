@@ -67,7 +67,7 @@ dependencies = [
 [project.optional-dependencies]
 tests = [
     "liccheck>=0.4.9,<1",
-    "flake8>=3.8.0,<4",
+    "flake8>=6.0.0,<7",
     "coverage>7",
     "azure-storage-blob>=12.8.1,<13",
     "httpretty>=1.0.0,<2",
