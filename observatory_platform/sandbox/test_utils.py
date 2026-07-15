@@ -79,22 +79,43 @@ class SandboxTestCase(unittest.TestCase):
             data_location="us",
         )
 
-    def assert_dag_structure(self, expected: Dict, dag: DAG):
-        """Assert the DAG structure.
+    def assert_dag_structure(self, expected: dict, dag) -> None:
+        """Compare expected vs actual DAG structure with a readable diff.
 
-        :param expected: a dictionary of DAG task ids as keys and values which should be a list of downstream task ids.
-        :param dag: the DAG.
-        :return: None.
+        :param expected: dict of task_id -> list of downstream task_ids
+        :param dag: the Airflow DAG object
         """
+        actual = {task.task_id: sorted(t.task_id for t in task.downstream_list) for task in dag.tasks}
+        expected = {k: sorted(v) for k, v in expected.items()}
 
-        expected_keys = expected.keys()
-        actual_keys = dag.task_dict.keys()
-        self.assertEqual(expected_keys, actual_keys)
+        errors = []
 
-        for task_id, downstream_list in expected.items():
-            self.assertTrue(dag.has_task(task_id))
-            task = dag.get_task(task_id)
-            self.assertEqual(set(downstream_list), task.downstream_task_ids)
+        # 1. Tasks that shouldn't exist
+        extra_tasks = set(actual) - set(expected)
+        if extra_tasks:
+            errors.append(f"Unexpected tasks in DAG (not in expected): {sorted(extra_tasks)}")
+
+        # 2. Tasks that are missing
+        missing_tasks = set(expected) - set(actual)
+        if missing_tasks:
+            errors.append(f"Missing tasks in DAG (in expected but not built): {sorted(missing_tasks)}")
+
+        # 3. For tasks present in both, compare their downstream edges
+        for task_id in sorted(set(expected) & set(actual)):
+            exp_down = set(expected[task_id])
+            act_down = set(actual[task_id])
+            extra = act_down - exp_down
+            missing = exp_down - act_down
+            if extra or missing:
+                detail = f"Mismatch for task '{task_id}':"
+                if missing:
+                    detail += f"\n    missing downstream (expected, not found): {sorted(missing)}"
+                if extra:
+                    detail += f"\n    unexpected downstream (found, not expected): {sorted(extra)}"
+                errors.append(detail)
+
+        if errors:
+            self.fail("DAG structure mismatch:\n" + "\n".join(errors))
 
     def assert_dag_load(self, dag_id: str, dag_file: str):
         """Assert that the given DAG loads from a DagBag.
@@ -196,32 +217,53 @@ class SandboxTestCase(unittest.TestCase):
             self.assertEqual(expected_rows, actual_rows)
 
     def assert_table_content(self, table_id: str, expected_content: List[dict], primary_key: str):
-        """Assert whether a BigQuery table has any content and if expected content is given whether it matches the
-        actual content. The order of the rows is not checked, only whether all rows in the expected content match
-        the rows in the actual content.
-        The expected content should be a list of dictionaries, where each dictionary represents one row of the table,
-        the keys are fieldnames and values are values.
+        """Assert whether a BigQuery table's content matches expected content, with a readable diff on failure.
 
         :param table_id: the BigQuery table id.
         :param expected_content: the expected content.
-        :param primary_key: the primary key to use to compare.
-        :return: whether the table has content and the expected content is correct
+        :param primary_key: the primary key field used to match rows between expected and actual.
         """
-
         logging.info(
-            f"assert_table_content: {table_id}, len(expected_content)={len(expected_content), }, primary_key={primary_key}"
+            f"assert_table_content: {table_id}, len(expected_content)={len(expected_content)}, primary_key={primary_key}"
         )
-        rows = None
-        actual_content = None
         try:
             rows = list(self.bigquery_client.list_rows(table_id))
             actual_content = [dict(row) for row in rows]
         except NotFound:
-            pass
-        self.assertIsNotNone(rows)
+            rows = None
+            actual_content = None
+
+        self.assertIsNotNone(rows, f"Table {table_id} not found or query failed")
         self.assertIsNotNone(actual_content)
-        results = compare_lists_of_dicts(expected_content, actual_content, primary_key)
-        assert results, "Rows in actual content do not match expected content"
+
+        expected_by_key = {row[primary_key]: row for row in expected_content}
+        actual_by_key = {row[primary_key]: row for row in actual_content}
+
+        errors = []
+
+        missing_keys = set(expected_by_key) - set(actual_by_key)
+        if missing_keys:
+            errors.append(f"Rows missing from actual table (expected but not found): {sorted(missing_keys)}")
+
+        extra_keys = set(actual_by_key) - set(expected_by_key)
+        if extra_keys:
+            errors.append(f"Unexpected rows in actual table (found but not expected): {sorted(extra_keys)}")
+
+        for key in sorted(set(expected_by_key) & set(actual_by_key)):
+            exp_row = expected_by_key[key]
+            act_row = actual_by_key[key]
+            field_diffs = []
+            all_fields = set(exp_row) | set(act_row)
+            for field in sorted(all_fields):
+                exp_val = exp_row.get(field, "<MISSING FIELD>")
+                act_val = act_row.get(field, "<MISSING FIELD>")
+                if exp_val != act_val:
+                    field_diffs.append(f"    {field}: expected={exp_val!r}, actual={act_val!r}")
+            if field_diffs:
+                errors.append(f"Row mismatch for {primary_key}={key!r}:\n" + "\n".join(field_diffs))
+
+        if errors:
+            self.fail(f"Table content mismatch for {table_id}:\n" + "\n".join(errors))
 
     def assert_table_bytes(self, table_id: str, expected_bytes: int):
         """Assert whether the given bytes from a BigQuery table matches the expected bytes.
