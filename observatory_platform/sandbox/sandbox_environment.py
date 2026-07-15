@@ -412,8 +412,8 @@ class SandboxEnvironment:
             self._set_env_var(self.OBSERVATORY_HOME_KEY, os.path.join(self.temp_dir, ".observatory"))
             if self.env_vars:
                 for key, value in self.env_vars.items():
-                    self._set_env_var(key, value)  # initialise database
-                self._init_airflow_db()
+                    self._set_env_var(key, value)
+            self._init_airflow_db()
 
             # Setup Airflow task logging
             original_log_level = logging.getLogger().getEffectiveLevel()
