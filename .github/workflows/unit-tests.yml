@@ -23,7 +23,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system --python ${{ matrix.python-version }} -e .[tests] --constraint https://raw.githubusercontent.com/apache/airflow/constraints-3.2.2/constraints-${{ matrix.python-version }}.txt
+          PYTHON_PATH=$(uv python find ${{ matrix.python-version }})
+          uv pip install --system --python "$PYTHON_PATH" -e .[tests] --constraint https://raw.githubusercontent.com/apache/airflow/constraints-3.2.2/constraints-${{ matrix.python-version }}.txt
 
       - name: Check licenses
         run: |
