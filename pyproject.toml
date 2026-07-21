@@ -66,7 +66,7 @@ dependencies = [
 
 [project.optional-dependencies]
 tests = [
-    "liccheck>=0.4.9,<1",
+    "licensecheck",
     "flake8>=6.0.0,<7",
     "coverage>7",
     "azure-storage-blob>=12.8.1,<13",
@@ -91,8 +91,8 @@ tests = [
 [tool.setuptools_scm]
 version_file = "observatory_platform/_version.py"
 
-[tool.liccheck]
-authorized_licenses = [
+[tool.licensecheck]
+only_licenses = [
     # Unencumbered licenses: https://opensource.google/docs/thirdparty/licenses/#unencumbered
     "public domain <http://unlicense.org>",
     "cc0 1.0 universal (cc0 1.0) public domain dedication",
@@ -134,7 +134,7 @@ authorized_licenses = [
     "apache-2.0 and mit",
     "mit and psf-2.0",
 ]
-unauthorized_licenses = [
+fail_licenses = [
     # Restricted licenses: https://opensource.google/docs/thirdparty/licenses/#restricted
     "gpl v1",
     "gpl v2",
@@ -145,18 +145,10 @@ unauthorized_licenses = [
     "agpl (affero gpl)",
     "sspl"
 ]
-level = "CAUTIOUS"
-reporting_txt_file = "liccheck-output.txt" # by default is None
-no_deps = false
-dependencies = true # to load [project.dependencies]
-optional_dependencies = ["tests"] # to load extras from [project.optional-dependencies]
-
-[tool.liccheck.authorized_packages]
-# MIT license: https://pypi.org/project/ordereddict/1.1/
-ordereddict = "1.1"
-# MIT license: https://pypi.org/project/pendulum/1.4.4/
-pendulum = ">=3.0.0"
-# Python Imaging Library (PIL) License: https://github.com/python-pillow/Pillow/blob/master/LICENSE
-Pillow = ">=7.2.0"
-# Apache 2.0: https://github.com/googleapis/python-crc32c
-google-crc32c = ">=0"
+zero = true
+ignore_packages=[
+    "ordereddict", # MIT license: https://pypi.org/project/ordereddict/1.1/
+    "pendulum", # MIT license: https://pypi.org/project/pendulum/1.4.4/
+    "Pillow", # Python Imaging Library (PIL) License: https://github.com/python-pillow/Pillow/blob/master/LICENSE
+    "google-crc32c", # Apache 2.0: https://github.com/googleapis/python-crc32c
+]
