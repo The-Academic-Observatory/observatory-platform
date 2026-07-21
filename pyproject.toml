@@ -150,5 +150,5 @@ ignore_packages=[
     "ordereddict", # MIT license: https://pypi.org/project/ordereddict/1.1/
     "pendulum", # MIT license: https://pypi.org/project/pendulum/1.4.4/
     "Pillow", # Python Imaging Library (PIL) License: https://github.com/python-pillow/Pillow/blob/master/LICENSE
-    "google-crc32c", # Apache 2.0: https://github.com/googleapis/python-crc32c
+    "google-crc32c" # Apache 2.0: https://github.com/googleapis/python-crc32c
 ]

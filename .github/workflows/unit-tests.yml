@@ -30,7 +30,7 @@ jobs:
       - name: Check licenses
         run: |
           # stop the build if there are licensing issues
-          liccheck
+          licensecheck
 
       - name: Lint with flake8
         run: |
