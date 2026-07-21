@@ -66,7 +66,6 @@ dependencies = [
 
 [project.optional-dependencies]
 tests = [
-    "licensecheck",
     "flake8>=6.0.0,<7",
     "coverage>7",
     "azure-storage-blob>=12.8.1,<13",
@@ -80,6 +79,7 @@ tests = [
     "sftpserver>=0.3,<1",
     "pyftpdlib>=1.5.7,<2",
 ]
+license = ["licensecheck==2026.0.8"]
 
 [project.urls]
 "Homepage" = "https://github.com/The-Academic-Observatory/observatory-platform"
@@ -150,5 +150,6 @@ ignore_packages=[
     "ordereddict", # MIT license: https://pypi.org/project/ordereddict/1.1/
     "pendulum", # MIT license: https://pypi.org/project/pendulum/1.4.4/
     "Pillow", # Python Imaging Library (PIL) License: https://github.com/python-pillow/Pillow/blob/master/LICENSE
-    "google-crc32c" # Apache 2.0: https://github.com/googleapis/python-crc32c
+    "google-crc32c", # Apache 2.0: https://github.com/googleapis/python-crc32c
+    "text-unidecode" # perl artistic
 ]
