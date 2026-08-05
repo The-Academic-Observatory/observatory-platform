@@ -42,10 +42,8 @@ import requests
 from airflow import settings
 from airflow.sdk import Connection
 from airflow.models.dagbundle import DagBundleModel
-from airflow.models.dagrun import DagRun
 from airflow.models.dag import DagModel
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance
 from airflow.sdk import Variable
 from airflow.utils import db
 from airflow.utils.session import create_session
@@ -95,7 +93,6 @@ class SandboxEnvironment:
         self.temp_dir = None
         self.api_env = None
         self.api_session = None
-        self.dag_run: DagRun = None
         self.prefix = prefix
         self.age_to_delete = age_to_delete
         self.workflows = workflows
@@ -295,60 +292,20 @@ class SandboxEnvironment:
         self._set_env_var(env_key, conn.get_uri())
         logging.info(f"Connection '{conn.conn_id}' set via environment variable '{env_key}'.")
 
-    def run_task(self, task_id: str, map_index: int = -1) -> TaskInstance:
-        """Run an Airflow task.
-
-        :param task_id: the Airflow task identifier.
-        :param map_index: the map index if the task is a daynamic task
-        :return: None.
-        """
-
-        assert self.dag_run is not None, "with create_dag_run must be called before run_task"
-
-        dag = self.dag_run.dag
-        run_id = self.dag_run.run_id
-        task = dag.get_task(task_id=task_id)
-        ti = TaskInstance(task, run_id=run_id, map_index=map_index)
-        ti.refresh_from_db()
-
-        # TODO: remove this when this issue fixed / PR merged: https://github.com/apache/airflow/issues/34023#issuecomment-1705761692
-        # https://github.com/apache/airflow/pull/36462
-        ignore_task_deps = False
-        if map_index > -1:
-            ignore_task_deps = True
-
-        ti.run(ignore_task_deps=ignore_task_deps)
-
-        return ti
-
-    def get_task_instance(self, task_id: str) -> TaskInstance:
-        """Get an up-to-date TaskInstance.
-
-        :param task_id: the task id.
-        :return: up-to-date TaskInstance instance.
-        """
-
-        assert self.dag_run is not None, "with create_dag_run must be called before get_task_instance"
-
-        run_id = self.dag_run.run_id
-        task = self.dag_run.dag.get_task(task_id=task_id)
-        ti = TaskInstance(task, run_id=run_id)
-        ti.refresh_from_db()
-        return ti
-
     def _init_airflow_db(self):
         # Create Airflow SQLite database
         settings.DAGS_FOLDER = os.path.join(self.temp_dir, "airflow", "dags")
         os.makedirs(settings.DAGS_FOLDER, exist_ok=True)
-        airflow_db_path = os.path.join(self.temp_dir, "airflow.db")
+        settings.configure_orm(disable_connection_pool=True)
 
         # Set via the proper Airflow 3 config path, not the legacy settings.SQL_ALCHEMY_CONN
         # module attribute (deprecated since 3.0 in favour of [database] sql_alchemy_conn).
+        airflow_db_path = os.path.join(self.temp_dir, "airflow.db")
         self._set_env_var("AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", f"sqlite:///{airflow_db_path}")
+        settings.SQL_ALCHEMY_CONN = f"sqlite:///{airflow_db_path}"
 
-        settings.configure_orm(disable_connection_pool=True)
         self.session = settings.Session
-        db.initdb()
+        db.initdb(session=self.session)
 
     def serialize_dag(self, dag, bundle_name: str = "testing") -> None:
         """Manually serialize a DAG into the metadata database so that dag.test() can run it.
@@ -445,9 +402,6 @@ class SandboxEnvironment:
             if self.workflows is not None:
                 var = workflows_to_json_string(self.workflows)
                 self.add_variable(Variable(key=AirflowVars.WORKFLOWS, value=var))
-
-            # Reset dag run
-            self.dag_run: DagRun = None
 
             yield self.temp_dir
         finally:

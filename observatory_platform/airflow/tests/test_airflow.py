@@ -21,10 +21,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from airflow.sdk import dag
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.sdk.exceptions import AirflowException
 from airflow.sdk import Connection
-from airflow.sdk import DAG
-from airflow.operators.bash import BashOperator
 from airflow.utils.state import State
 import pendulum
 
@@ -168,11 +166,14 @@ class TestAirflow(unittest.TestCase):
             def __init__(self):
                 self.task_id = "id"
                 self.dag_id = "dag"
+                self.run_id = "run_id"
+                self.try_number = 1
                 self.log_url = "logurl"
 
         logical_date = pendulum.now()
         ti = MockTI()
-        context = {"exception": AirflowException("Exception message"), "ti": ti, "logical_date": logical_date}
+        context = {"ti": ti, "logical_date": logical_date}
+
         # Check that hasn't been called
         mock_send_slack_msg.assert_not_called()
 
@@ -183,7 +184,10 @@ class TestAirflow(unittest.TestCase):
         mock_send_slack_msg.assert_called_once_with(
             ti=ti,
             logical_date=logical_date,
-            comments="Task failed, exception:\n" "airflow.exceptions.AirflowException: Exception message",
+            comments=(
+                f"Task failed: dag_id={ti.dag_id}, task_id={ti.task_id}, run_id={ti.run_id}, "
+                f"try_number={ti.try_number}. See the task logs for the full traceback."
+            ),
             slack_conn_id="slack",
         )
 
@@ -191,7 +195,6 @@ class TestAirflow(unittest.TestCase):
     def test_callback(self, mock_send_slack_msg):
         """Test that the on_failure_callback function is successfully called in a production environment when a task
         fails
-
         :param mock_send_slack_msg: Mock send_slack_msg function
         :return: None.
         """
@@ -212,10 +215,8 @@ class TestAirflow(unittest.TestCase):
         project_id = os.getenv("TEST_GCP_PROJECT_ID")
         data_location = os.getenv("TEST_GCP_DATA_LOCATION")
         env = SandboxEnvironment(project_id, data_location)
-
         # Setup Workflow with 0 retries and missing airflow variable, so it will fail the task
         first_logical_date = pendulum.datetime(2020, 1, 1)
-        second_logical_date = pendulum.datetime(2020, 1, 2)
         conn_id = "orcid_bucket"
         my_dag = create_dag(
             "test_callback",
@@ -227,61 +228,41 @@ class TestAirflow(unittest.TestCase):
 
         # Create the Observatory environment and run task, expecting slack webhook call in production environment
         with env.create(task_logging=True):
-            with env.create_dag_run(my_dag, first_logical_date):
-                with self.assertRaises(AirflowNotFoundException):
-                    env.run_task("check_dependencies")
+            env.serialize_dag(my_dag)
+            dagrun = my_dag.test(logical_date=first_logical_date)
 
-                _, callkwargs = mock_send_slack_msg.call_args
-                self.assertTrue(
-                    "airflow.exceptions.AirflowNotFoundException: Required variables or connections are missing"
-                    in callkwargs["comments"]
-                )
+            ti = dagrun.get_task_instance(task_id="check_dependencies")
+            self.assertEqual(ti.state, State.FAILED)
+
+            _, callkwargs = mock_send_slack_msg.call_args
+            self.assertIn("Task failed", callkwargs["comments"])
+            self.assertIn("check_dependencies", callkwargs["comments"])
 
         # Reset mock
         mock_send_slack_msg.reset_mock()
 
         # Add orcid_bucket connection and test that Slack Web Hook did not get triggered
         with env.create(task_logging=True):
-            with env.create_dag_run(my_dag, second_logical_date):
-                env.add_connection(Connection(conn_id=conn_id, uri="https://orcid.org/"))
-                env.run_task("check_dependencies")
-                mock_send_slack_msg.assert_not_called()
+            env.serialize_dag(my_dag)
+            env.add_connection(Connection(conn_id=conn_id, uri="https://orcid.org/"))
+            dagrun = my_dag.test(logical_date=first_logical_date)
 
-    def test_is_first_dag_run(self):
-        """Test is_first_dag_run"""
+            ti = dagrun.get_task_instance(task_id="check_dependencies")
+            self.assertEqual(ti.state, State.SUCCESS)
+            mock_send_slack_msg.assert_not_called()
 
-        env = SandboxEnvironment()
-        with env.create():
-            first_logical_date = pendulum.datetime(2021, 9, 5)
-            with DAG(
-                dag_id="hello_world_dag",
-                schedule="@daily",
-                default_args={"owner": "airflow", "start_date": first_logical_date},
-                catchup=True,
-            ) as dag:
-                task = BashOperator(task_id="task", bash_command="echo 'hello'")
+    def test_is_first_dag_run_true(self):
+        """No previous DAG run -> should be True"""
+        ti = MagicMock()
+        ti.get_previous_dagrun.return_value = None
+        context = {"ti": ti}
 
-            # First DAG Run
-            with env.create_dag_run(dag=dag, logical_date=first_logical_date) as first_dag_run:
-                # Should be true the first DAG run. Check before and after a task.
-                is_first = is_first_dag_run(first_dag_run)
-                self.assertTrue(is_first)
+        self.assertTrue(is_first_dag_run(context))
 
-                ti = env.run_task("task")
-                self.assertEqual(ti.state, State.SUCCESS)
+    def test_is_first_dag_run_false(self):
+        """A previous DAG run exists -> should be False"""
+        ti = MagicMock()
+        ti.get_previous_dagrun.return_value = MagicMock()  # some prior DagRun
+        context = {"ti": ti}
 
-                is_first = is_first_dag_run(first_dag_run)
-                self.assertTrue(is_first)
-
-            # Second DAG Run
-            second_logical_date = pendulum.datetime(2021, 9, 12)
-            with env.create_dag_run(dag=dag, logical_date=second_logical_date) as second_dag_run:
-                # Should be false on second DAG Run, check before and after a task.
-                is_first = is_first_dag_run(second_dag_run)
-                self.assertFalse(is_first)
-
-                ti = env.run_task("task")
-                self.assertEqual(ti.state, State.SUCCESS)
-
-                is_first = is_first_dag_run(second_dag_run)
-                self.assertFalse(is_first)
+        self.assertFalse(is_first_dag_run(context))

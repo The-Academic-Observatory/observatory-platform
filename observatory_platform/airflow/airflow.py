@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 import textwrap
-import traceback
 from datetime import timedelta
 from typing import List, Union, Optional
 from urllib.parse import urlsplit
@@ -26,9 +25,10 @@ from urllib.parse import urlsplit
 import pendulum
 import six
 import validators
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 from airflow.sdk import BaseHook
-from airflow.models import TaskInstance, DagRun
+from airflow.sdk.definitions.context import Context
+from airflow.models import TaskInstance
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 
 from dateutil.relativedelta import relativedelta
@@ -73,20 +73,20 @@ def get_airflow_connection_login(conn_id: str) -> str:
     conn = BaseHook.get_connection(conn_id)
     login = conn.login
 
-    if login is None:
-        raise AirflowException(f"get_airflow_connection_login: login for Airflow Connection {conn_id} is set to None")
+    if not login:
+        raise AirflowException(f"get_airflow_connection_login: login for Airflow Connection {conn_id} is not set")
 
     return login
 
 
-def is_first_dag_run(dag_run: DagRun) -> bool:
+def is_first_dag_run(context: Context) -> bool:
     """Whether the DAG Run is the first run or not
 
-    :param dag_run: A Dag Run instance
+    :param context: The context passed from Airflow to its tasks
     :return: Whether the DAG run is the first run or not
     """
-
-    return DagRun.get_previous_dagrun(dag_run) is None
+    ti = context["ti"]
+    return ti.get_previous_dagrun() is None
 
 
 def get_airflow_connection_password(conn_id: str) -> str:
@@ -115,18 +115,13 @@ def on_failure_callback(context) -> None:
     this  argument.
     :return: None.
     """
-
-    exception = context.get("exception")
-    if isinstance(exception, Exception):
-        formatted_exception = "".join(
-            traceback.format_exception(type(exception), value=exception, tb=exception.__traceback__)
-        ).strip()
-    else:
-        formatted_exception = exception
-
-    comments = f"Task failed, exception:\n{formatted_exception}"
     ti = context["ti"]
     logical_date = context["logical_date"]
+    comments = (
+        f"Task failed: dag_id={ti.dag_id}, task_id={ti.task_id}, run_id={ti.run_id}, "
+        f"try_number={ti.try_number}. See the task logs for the full traceback."
+    )
+
     send_slack_msg(ti=ti, logical_date=logical_date, comments=comments, slack_conn_id=AirflowConns.SLACK)
 
 
