@@ -44,7 +44,9 @@ def get_data_path() -> str:
     data_path = os.environ.get(f"AIRFLOW_VAR_{AirflowVars.DATA_PATH}")
     if data_path is not None:
         return data_path
-
+    data_path = os.environ.get(AirflowVars.DATA_PATH)  # plain DATA_PATH, as set by k8s pod env_vars
+    if data_path is not None:
+        return data_path
     # Try to get from Airflow Variable
     data_path = Variable.get(AirflowVars.DATA_PATH)
     if data_path is not None:
