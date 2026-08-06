@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import contextlib
-import datetime
+from datetime import datetime
 import json
 import logging
 import os
@@ -479,59 +479,57 @@ def load_and_parse_json(
     def parse_datetime(obj):
         for key, value in obj.items():
             # Try to parse into a date or datetime
-            if key in date_fields:
-                if isinstance(value, str):
-                    format_found = False
-                    for format in date_formats:
-                        try:
-                            obj[key] = DateTime.strptime(value, format).date()
-                            format_found = True
-                            break
-                        except (ValueError, TypeError):
-                            pass
-                    if not format_found:
-                        try:
-                            dt = pendulum.parse(value)
-                            dt = datetime(
-                                dt.year,
-                                dt.month,
-                                dt.day,
-                                dt.hour,
-                                dt.minute,
-                                dt.second,
-                                dt.microsecond,
-                                tzinfo=dt.tzinfo,
-                            ).date()
-                            obj[key] = dt
-                        except (ValueError, TypeError):
-                            pass
+            if key in date_fields and isinstance(value, str):
+                format_found = False
+                for format in date_formats:
+                    try:
+                        obj[key] = datetime.strptime(value, format).date()
+                        format_found = True
+                        break
+                    except (ValueError, TypeError):
+                        pass
+                if not format_found:
+                    try:
+                        dt = pendulum.parse(value)
+                        dt = datetime(
+                            dt.year,
+                            dt.month,
+                            dt.day,
+                            dt.hour,
+                            dt.minute,
+                            dt.second,
+                            dt.microsecond,
+                            tzinfo=dt.tzinfo,
+                        ).date()
+                        obj[key] = dt
+                    except (ValueError, TypeError):
+                        pass
 
-            if key in timestamp_fields:
-                if isinstance(value, str):
-                    format_found = False
-                    for format in timestamp_formats:
-                        try:
-                            obj[key] = datetime.strptime(value, format)
-                            format_found = True
-                            break
-                        except (ValueError, TypeError):
-                            pass
-                    if not format_found:
-                        try:
-                            dt = pendulum.parse(value)
-                            dt = datetime(
-                                dt.year,
-                                dt.month,
-                                dt.day,
-                                dt.hour,
-                                dt.minute,
-                                dt.second,
-                                dt.microsecond,
-                                tzinfo=dt.tzinfo,
-                            )
-                            obj[key] = dt
-                        except (ValueError, TypeError):
-                            pass
+            if key in timestamp_fields and isinstance(value, str):
+                format_found = False
+                for format in timestamp_formats:
+                    try:
+                        obj[key] = datetime.strptime(value, format)
+                        format_found = True
+                        break
+                    except (ValueError, TypeError):
+                        pass
+                if not format_found:
+                    try:
+                        dt = pendulum.parse(value)
+                        dt = datetime(
+                            dt.year,
+                            dt.month,
+                            dt.day,
+                            dt.hour,
+                            dt.minute,
+                            dt.second,
+                            dt.microsecond,
+                            tzinfo=dt.tzinfo,
+                        )
+                        obj[key] = dt
+                    except (ValueError, TypeError):
+                        pass
 
         return obj
 

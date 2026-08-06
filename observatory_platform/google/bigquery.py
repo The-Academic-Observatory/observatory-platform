@@ -414,12 +414,18 @@ def bq_load_table(
 
     load_job = None
     try:
-        load_job: [LoadJob, None] = client.load_table_from_uri(uri, table_id, job_config=job_config)
+        load_job: LoadJob = client.load_table_from_uri(uri, table_id, job_config=job_config)
 
         result = load_job.result()
         state = result.state == "DONE"
 
         logging.info(f"{func_name}: load bigquery table result.state={result.state}, {msg}")
+
+        # Apply require_partition_filter as a metadata patch after the load
+        if state and partition and require_partition_filter:
+            table = client.get_table(table_id)
+            table.require_partition_filter = True
+            client.update_table(table, ["require_partition_filter"])
     except BadRequest as e:
         logging.error(f"{func_name}: load bigquery table failed: {e}.")
         if load_job:
@@ -489,9 +495,7 @@ def bq_load_from_memory(
 
     # Set partitioning settings
     if partition:
-        job_config.time_partitioning = bigquery.TimePartitioning(
-            type_=partition_type, field=partition_field, require_partition_filter=require_partition_filter
-        )
+        job_config.time_partitioning = bigquery.TimePartitioning(type_=partition_type, field=partition_field)
     # Set clustering settings
     if cluster:
         job_config.clustering_fields = clustering_fields
@@ -510,6 +514,13 @@ def bq_load_from_memory(
         state = result.state == "DONE"
 
         logging.info(f"{func_name}: load bigquery table result.state={result.state}")
+
+        # Apply require_partition_filter as a metadata patch after the load
+        if state and partition and require_partition_filter:
+            table = client.get_table(table_id)
+            table.require_partition_filter = True
+            client.update_table(table, ["require_partition_filter"])
+
     except BadRequest as e:
         logging.error(f"{func_name}: load bigquery table failed: {e}.")
         if load_job:

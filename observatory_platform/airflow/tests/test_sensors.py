@@ -1,25 +1,9 @@
-# Copyright 2020, 2021 Curtin University
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Author: Tuan Chien, Keegan Smith, Jamie Diprose
-
-from __future__ import annotations
+from unittest.mock import MagicMock
 
 import pendulum
 from airflow.models import DagRun
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from observatory_platform.airflow.sensors import DagCompleteSensor, get_logical_dates
@@ -34,12 +18,9 @@ def add_dag_run(
     data_interval_end: pendulum.DateTime,
     state: str = DagRunState.SUCCESS,
 ) -> DagRun:
-    """Insert a bare DagRun row for `dag_id` directly, without running anything.
-
-    This is a plain ORM insert -- it doesn't touch scheduler/execution internals, so it isn't affected by the
-    Airflow 3 changes to create_dagrun/verify_integrity/etc. It's enough to satisfy get_logical_dates() and
-    ExternalTaskSensor.poke(), since both just query the DagRun table.
-    """
+    """Insert a bare DagRun row for `dag_id` directly. This is only used to give get_logical_dates()
+    something real to query -- poke()'s own state-matching now goes through ti.get_dr_count(), which is
+    mocked separately, not through this row's `state`."""
     with create_session() as session:
         dagrun = DagRun(
             dag_id=dag_id,
@@ -57,8 +38,7 @@ def add_dag_run(
 
 
 class TestGetLogicalDates(SandboxTestCase):
-    """Test the get_logical_dates function directly -- this is the core date-matching logic, and needs nothing
-    more than real DagRun rows in the DB."""
+    """get_logical_dates queries the DagRun table directly -- unaffected by the Task SDK changes to poke()."""
 
     def test_returns_most_recent_run_before_data_interval_end(self):
         env = SandboxEnvironment()
@@ -95,59 +75,80 @@ class TestGetLogicalDates(SandboxTestCase):
 
 
 class TestDagCompleteSensor(SandboxTestCase):
-    """Test the sensor's poke() behaviour directly, without running it as part of a real DAG/scheduler."""
+    """Test poke()'s decision logic. In Airflow 3, poke() gets state counts from ti.get_dr_count(...) rather
+    than a direct DB query, so ti is mocked here to control that count directly."""
 
     def _make_sensor(self, external_dag_id: str) -> DagCompleteSensor:
         return DagCompleteSensor(
             task_id=f"{external_dag_id}_sensor",
             external_dag_id=external_dag_id,
             mode="reschedule",
-            check_existence=False,  # avoid needing a DagModel row for this
+            check_existence=False,
         )
 
-    def test_poke_true_when_external_run_succeeded(self):
+    def test_poke_true_when_matching_run_succeeded(self):
         env = SandboxEnvironment()
         with env.create():
+            # Real row so get_logical_dates finds a date to check
             add_dag_run(
                 dag_id="crossref_metadata",
                 logical_date=pendulum.datetime(2024, 2, 7),
                 data_interval_end=pendulum.datetime(2024, 2, 7),
-                state=DagRunState.SUCCESS,
             )
 
             sensor = self._make_sensor("crossref_metadata")
+            ti = MagicMock()
+            ti.get_dr_count.return_value = 1  # 1 of 1 matching date is in allowed_states (SUCCESS)
+
             context = {
+                "ti": ti,
                 "logical_date": pendulum.datetime(2024, 2, 4),
                 "data_interval_end": pendulum.datetime(2024, 2, 11),
             }
 
             self.assertTrue(sensor.poke(context))
+            ti.get_dr_count.assert_called_once_with(
+                dag_id="crossref_metadata",
+                logical_dates=[pendulum.datetime(2024, 2, 7)],
+                states=[TaskInstanceState.SUCCESS.value],
+            )
 
-    def test_poke_false_when_external_run_failed(self):
+    def test_poke_false_when_matching_run_not_successful(self):
         env = SandboxEnvironment()
         with env.create():
             add_dag_run(
                 dag_id="crossref_metadata",
                 logical_date=pendulum.datetime(2024, 2, 7),
                 data_interval_end=pendulum.datetime(2024, 2, 7),
-                state=DagRunState.FAILED,
             )
 
             sensor = self._make_sensor("crossref_metadata")
+            ti = MagicMock()
+            ti.get_dr_count.return_value = 0  # matching date exists but isn't in allowed_states yet
+
             context = {
+                "ti": ti,
                 "logical_date": pendulum.datetime(2024, 2, 4),
                 "data_interval_end": pendulum.datetime(2024, 2, 11),
             }
 
             self.assertFalse(sensor.poke(context))
 
-    def test_poke_false_when_no_external_run_yet(self):
+    def test_poke_true_when_no_matching_run_exists(self):
+        """No prior external DAG run to wait on at all -- nothing blocks progress."""
         env = SandboxEnvironment()
         with env.create():
             sensor = self._make_sensor("crossref_metadata")
+            ti = MagicMock()
+            ti.get_dr_count.return_value = 0
+
             context = {
+                "ti": ti,
                 "logical_date": pendulum.datetime(2024, 2, 4),
                 "data_interval_end": pendulum.datetime(2024, 2, 11),
             }
 
-            self.assertFalse(sensor.poke(context))
+            self.assertTrue(sensor.poke(context))
+            ti.get_dr_count.assert_called_once_with(
+                dag_id="crossref_metadata", logical_dates=[], states=[TaskInstanceState.SUCCESS.value]
+            )

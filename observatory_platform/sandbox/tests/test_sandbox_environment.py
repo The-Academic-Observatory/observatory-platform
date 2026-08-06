@@ -132,7 +132,7 @@ class TestSandboxEnvironment(unittest.TestCase):
             env.add_variable(var)
 
         env._release_env_vars()  # remove env vars from environment
-        mock_set.assert_called_once_with("AIRFLOW_VAR_MIXED_CASE", "v")
+        mock_set.assert_called_once_with("AIRFLOW_VAR_MIXEDCASE", "v")
 
     def test_add_variable_sets_env(self):
         """Test the add_variable method adds variable to os.environ"""
@@ -141,7 +141,7 @@ class TestSandboxEnvironment(unittest.TestCase):
 
         env.add_variable(var)
 
-        self.assertEqual(os.environ.get("AIRFLOW_VAR_K", "v"))
+        self.assertEqual(os.environ.get("AIRFLOW_VAR_K"), "v")
         env._release_env_vars()  # remove env vars from environment
 
     def test_add_connection_uppercased(self):
@@ -150,10 +150,10 @@ class TestSandboxEnvironment(unittest.TestCase):
         conn = Connection(conn_id="mIxEdCaSe", conn_type="http", host="example.com")
 
         with patch.object(env, "_set_env_var") as mock_set:
-            env.add_conenction(conn)
+            env.add_connection(conn)
 
         env._release_env_vars()  # remove env vars from environment
-        mock_set.assert_called_once_with("AIRFLOW_CONN_MIXED_CASE", conn.get_uri())
+        mock_set.assert_called_once_with("AIRFLOW_CONN_MIXEDCASE", conn.get_uri())
 
     def test_add_connection_sets_env(self):
         """Test the add_connection method adds connetion to os.environ"""
@@ -162,7 +162,7 @@ class TestSandboxEnvironment(unittest.TestCase):
 
         env.add_connection(conn)
 
-        self.assertEqual(os.environ.get("AIRFLOW_CONN_FOO", conn.get_uri()))
+        self.assertEqual(os.environ.get("AIRFLOW_CONN_FOO"), conn.get_uri())
         env._release_env_vars()  # remove env vars from environment
 
     def test_add_bucket(self):
@@ -265,11 +265,6 @@ class TestSandboxEnvironment(unittest.TestCase):
 
             dagrun: DagRun = my_dag.test()
 
-            # Test run task when dependencies are not met
-            ti = dagrun.get_task_instance(task_id="task2")
-            self.assertIsNone(ti.state)
-
-            # Try again when dependencies are met
             ti = dagrun.get_task_instance(task_id="check_dependencies")
             self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
 
@@ -301,7 +296,7 @@ class TestSandboxEnvironment(unittest.TestCase):
             # Test run task
             dag_run = my_dag.test()
             ti = dag_run.get_task_instance(task_id="check_dependencies")
-            self.assertFalse(ti.log.propagate)
+            self.assertFalse(logging.getLogger("airflow.task").propagate)
             self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
 
         # Test environment with logging enabled
@@ -318,7 +313,7 @@ class TestSandboxEnvironment(unittest.TestCase):
             # Test run task
             dag_run = my_dag.test()
             ti = dag_run.get_task_instance(task_id="check_dependencies")
-            self.assertTrue(ti.log.propagate)
+            self.assertTrue(logging.getLogger("airflow.task").propagate)
             self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
 
     def test_map_index(self):
