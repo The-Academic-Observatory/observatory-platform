@@ -391,9 +391,9 @@ class SandboxEnvironment:
                 for dataset_id in self.datasets:
                     self._create_dataset(dataset_id)
 
-            # Deletes old test buckets and datasets from the project thats older than 2 hours.
-            gcs_delete_old_buckets_with_prefix(prefix=self.prefix, age_to_delete=self.age_to_delete)
-            bq_delete_old_datasets_with_prefix(prefix=self.prefix, age_to_delete=self.age_to_delete)
+                # Deletes old test buckets and datasets from the project thats older than 2 hours.
+                gcs_delete_old_buckets_with_prefix(prefix=self.prefix, age_to_delete=self.age_to_delete)
+                bq_delete_old_datasets_with_prefix(prefix=self.prefix, age_to_delete=self.age_to_delete)
 
             # Add default Airflow variables
             self.data_path = os.path.join(self.temp_dir, "data")
