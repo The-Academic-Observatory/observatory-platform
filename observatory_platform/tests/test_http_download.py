@@ -182,8 +182,7 @@ class TestAsyncHttpFileDownloader(SandboxTestCase):
 
             # Get filename from Content-Disposition
             with tempfile.TemporaryDirectory() as tmpdir:
-                with patch("observatory_platform.http_download.parse_header") as m_header:
-                    m_header.return_value = (None, {"filename": "testfile"})
+                with patch("observatory_platform.http_download.Message.get_filename", return_value="testfile"):
                     success, download_info = download_file(
                         url=url1, hash=hash1, hash_algorithm="md5", prefix_dir=tmpdir
                     )

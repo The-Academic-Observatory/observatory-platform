@@ -22,71 +22,9 @@ from typing import List, Callable, Optional
 
 import pendulum
 from airflow.models import DagRun
-from airflow.sensors.external_task import ExternalTaskSensor
+from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.utils.db import provide_session
-from airflow.utils.state import State
 from sqlalchemy.orm.scoping import scoped_session
-
-from observatory_platform.airflow.airflow import is_first_dag_run
-
-
-class PreviousDagRunSensor(ExternalTaskSensor):
-    def __init__(
-        self,
-        dag_id: str,
-        task_id: str = "wait_for_prev_dag_run",
-        external_task_id: str = "dag_run_complete",
-        allowed_states: List[str] = None,
-        mode: str = "reschedule",
-        *args,
-        **kwargs,
-    ):
-        """Custom ExternalTaskSensor designed to wait for a previous DAG run of the same DAG. This sensor also
-        skips on the first DAG run, as the DAG hasn't run before.
-
-        Add the following as the last tag of your DAG:
-            DummyOperator(
-                task_id=external_task_id,
-            )
-
-        :param dag_id: the DAG id of the DAG to wait for.
-        :param task_id: the task id for this sensor.
-        :param external_task_id: the task id to wait for.
-        :param allowed_states: to override allowed_states.
-        :param args: args for ExternalTaskSensor.
-        :param kwargs: kwargs for ExternalTaskSensor.
-        """
-
-        if allowed_states is None:
-            # sensor can skip a run if previous dag run skipped for some reason
-            allowed_states = [
-                State.SUCCESS,
-                State.SKIPPED,
-            ]
-
-        super().__init__(
-            task_id=task_id,
-            external_dag_id=dag_id,
-            external_task_id=external_task_id,
-            allowed_states=allowed_states,
-            mode=mode,
-            *args,
-            **kwargs,
-        )
-
-    @provide_session
-    def poke(self, context, session=None):
-        # Custom poke to allow the sensor to skip on the first DAG run
-
-        ti = context["task_instance"]
-        dag_run = context["dag_run"]
-
-        if is_first_dag_run(dag_run):
-            self.log.info("Skipping the sensor check on the first DAG run")
-            ti.set_state(State.SKIPPED)
-            return True
-
-        return super().poke(context, session=session)
 
 
 class DagCompleteSensor(ExternalTaskSensor):

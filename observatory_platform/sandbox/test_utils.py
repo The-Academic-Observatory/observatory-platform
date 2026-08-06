@@ -24,7 +24,6 @@ import tempfile
 import unittest
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Dict, List, Set
 
 import boto3
@@ -33,7 +32,7 @@ import pendulum
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from deepdiff import DeepDiff
 from google.cloud import bigquery, storage
 from google.cloud.bigquery import SourceFormat
@@ -485,7 +484,7 @@ def load_and_parse_json(
                     format_found = False
                     for format in date_formats:
                         try:
-                            obj[key] = datetime.strptime(value, format).date()
+                            obj[key] = DateTime.strptime(value, format).date()
                             format_found = True
                             break
                         except (ValueError, TypeError):

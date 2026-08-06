@@ -1,4 +1,4 @@
-# Copyright 2021 Curtin University
+# Copyright 2020, 2021 Curtin University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,213 +16,138 @@
 
 from __future__ import annotations
 
-import os.path
-from datetime import timedelta
-
 import pendulum
-import time_machine
-from airflow.exceptions import AirflowException
-from airflow.models import DagRun, DagModel
-from airflow.sdk import DAG
-from airflow.operators.python import PythonOperator
-from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.models import DagRun
+from airflow.utils.session import create_session
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from observatory_platform.airflow.sensors import DagCompleteSensor
+from observatory_platform.airflow.sensors import DagCompleteSensor, get_logical_dates
 from observatory_platform.sandbox.sandbox_environment import SandboxEnvironment
 from observatory_platform.sandbox.test_utils import SandboxTestCase
 
 
-def create_dag(
+def add_dag_run(
     *,
-    start_date: pendulum.DateTime,
-    ext_dag_ids: list[str],
-    dag_id: str = "test_workflow",
-    schedule: str = "@weekly",
-    mode: str = "reschedule",
-    check_exists: bool = True,
-    catchup: bool = False,
-):
-    with DAG(dag_id=dag_id, schedule=schedule, start_date=start_date, catchup=catchup) as dag:
+    dag_id: str,
+    logical_date: pendulum.DateTime,
+    data_interval_end: pendulum.DateTime,
+    state: str = DagRunState.SUCCESS,
+) -> DagRun:
+    """Insert a bare DagRun row for `dag_id` directly, without running anything.
 
-        def dummy_task():
-            print("Hello world")
-
-        sensors = []
-        for ext_dag_id in ext_dag_ids:
-            sensor = DagCompleteSensor(
-                task_id=f"{ext_dag_id}_sensor",
-                external_dag_id=ext_dag_id,
-                mode=mode,
-                poke_interval=int(1200),  # Check if dag run is ready every 20 minutes
-                timeout=int(timedelta(days=1).total_seconds()),  # Sensor will fail after 1 day of waiting
-                check_existence=check_exists,
-            )
-            sensors.append(sensor)
-
-        # Use the PythonOperator to run the Python functions
-        dummy_task_instance = PythonOperator(task_id="dummy_task", python_callable=dummy_task)
-
-        # Define the task sequence
-        sensors >> dummy_task_instance
-
-    return dag
-
-
-def make_dummy_dag(*, dag_id: str, schedule: str, start_date: pendulum.DateTime, fail: bool = False) -> DAG:
-    """A Dummy DAG for testing purposes.
-
-    :param dag_id: the DAG id.
-    :param schedule: the schedule interval.
-    :param start_date: the DAGs logical date.
-    :param fail: Whether to intentionally fail the task
-    :return: the DAG.
+    This is a plain ORM insert -- it doesn't touch scheduler/execution internals, so it isn't affected by the
+    Airflow 3 changes to create_dagrun/verify_integrity/etc. It's enough to satisfy get_logical_dates() and
+    ExternalTaskSensor.poke(), since both just query the DagRun table.
     """
+    with create_session() as session:
+        dagrun = DagRun(
+            dag_id=dag_id,
+            run_id=f"test__{logical_date.isoformat()}",
+            logical_date=logical_date,
+            data_interval=(logical_date, data_interval_end),
+            run_type=DagRunType.MANUAL,
+            state=state,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.add(dagrun)
+        session.commit()
+        session.refresh(dagrun)
+    return dagrun
 
-    with DAG(
-        dag_id=dag_id,
-        schedule=schedule,
-        default_args={"owner": "airflow", "start_date": start_date},
-        catchup=False,
-    ) as dag:
 
-        def dummy_task():
-            if fail:
-                raise AirflowException("We have a problem!")
-            return
+class TestGetLogicalDates(SandboxTestCase):
+    """Test the get_logical_dates function directly -- this is the core date-matching logic, and needs nothing
+    more than real DagRun rows in the DB."""
 
-        task1 = PythonOperator(task_id="dummy_task", python_callable=dummy_task)
+    def test_returns_most_recent_run_before_data_interval_end(self):
+        env = SandboxEnvironment()
+        with env.create():
+            add_dag_run(
+                dag_id="crossref_metadata",
+                logical_date=pendulum.datetime(2024, 1, 7),
+                data_interval_end=pendulum.datetime(2024, 1, 7),
+            )
+            add_dag_run(
+                dag_id="crossref_metadata",
+                logical_date=pendulum.datetime(2024, 2, 7),
+                data_interval_end=pendulum.datetime(2024, 2, 7),
+            )
 
-    return dag
+            dates = get_logical_dates(
+                external_dag_id="crossref_metadata",
+                logical_date=pendulum.datetime(2024, 2, 4),
+                data_interval_end=pendulum.datetime(2024, 2, 11),
+            )
+
+            self.assertEqual([pendulum.datetime(2024, 2, 7)], dates)
+
+    def test_returns_empty_when_no_matching_runs(self):
+        env = SandboxEnvironment()
+        with env.create():
+            dates = get_logical_dates(
+                external_dag_id="crossref_metadata",
+                logical_date=pendulum.datetime(2024, 2, 4),
+                data_interval_end=pendulum.datetime(2024, 2, 11),
+            )
+
+            self.assertEqual([], dates)
 
 
 class TestDagCompleteSensor(SandboxTestCase):
-    """Test the Task Window Sensor.  We use one of the stock example dags"""
+    """Test the sensor's poke() behaviour directly, without running it as part of a real DAG/scheduler."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def _make_sensor(self, external_dag_id: str) -> DagCompleteSensor:
+        return DagCompleteSensor(
+            task_id=f"{external_dag_id}_sensor",
+            external_dag_id=external_dag_id,
+            mode="reschedule",
+            check_existence=False,  # avoid needing a DagModel row for this
+        )
 
-    @provide_session
-    def find_runs(self, session):
-        return session.query(DagRun).all()
-
-    @provide_session
-    def update_db(self, *, session, object):
-        session.merge(object)
-        session.commit()
-
-    def add_dummy_dag_model(self, *, tmp_dir: str, dag_id: str, schedule: str):
-        model = DagModel()
-        model.dag_id = dag_id
-        model.schedule = schedule
-        model.fileloc = os.path.join(tmp_dir, "dummy_dag.py")
-        open(model.fileloc, mode="a").close()
-        self.update_db(object=model)
-
-    def test_sensor_success(self):
+    def test_poke_true_when_external_run_succeeded(self):
         env = SandboxEnvironment()
         with env.create():
-            # Create Crossref Metadata DAG
-            logical_date = pendulum.datetime(2024, 1, 7)
-            crossref_dag = make_dummy_dag(dag_id="crossref_metadata", schedule="0 0 7 * *", start_date=logical_date)
-            self.add_dummy_dag_model(
-                tmp_dir=env.temp_dir, dag_id=crossref_dag.dag_id, schedule=crossref_dag.schedule_interval
+            add_dag_run(
+                dag_id="crossref_metadata",
+                logical_date=pendulum.datetime(2024, 2, 7),
+                data_interval_end=pendulum.datetime(2024, 2, 7),
+                state=DagRunState.SUCCESS,
             )
 
-            # Run Crossref Metadata DAG run on Feb 7
-            destination = pendulum.datetime(2024, 2, 7)
-            with time_machine.travel(destination, tick=True):
-                with env.create_dag_run(crossref_dag, logical_date):
-                    ti = env.run_task("dummy_task")
-                    self.assertEqual(State.SUCCESS, ti.state)
+            sensor = self._make_sensor("crossref_metadata")
+            context = {
+                "logical_date": pendulum.datetime(2024, 2, 4),
+                "data_interval_end": pendulum.datetime(2024, 2, 11),
+            }
 
-            # Run downstream dag: Sun 4th Feb - Sun 11th Feb
-            logical_date = pendulum.datetime(2024, 2, 4)
-            dag = create_dag(start_date=logical_date, ext_dag_ids=["crossref_metadata"], schedule="@weekly")
-            destination = pendulum.datetime(2024, 2, 11)
-            with time_machine.travel(destination, tick=True):
-                with env.create_dag_run(dag=dag, logical_date=logical_date):
-                    ti = env.run_task(f"crossref_metadata_sensor")
-                    self.assertEqual(State.SUCCESS, ti.state)
+            self.assertTrue(sensor.poke(context))
 
-                    ti = env.run_task(f"dummy_task")
-                    self.assertEqual(State.SUCCESS, ti.state)
-
-            # Run downstream dag: Sun 11th Feb - Sun 18th Feb
-            # Should also work because there have been no more Crossref Metadat runs
-            logical_date = pendulum.datetime(2024, 2, 11)
-            dag = create_dag(start_date=logical_date, ext_dag_ids=["crossref_metadata"], schedule="@weekly")
-            destination = pendulum.datetime(2024, 2, 18)
-            with time_machine.travel(destination, tick=True):
-                with env.create_dag_run(dag=dag, logical_date=logical_date):
-                    ti = env.run_task(f"crossref_metadata_sensor")
-                    self.assertEqual(State.SUCCESS, ti.state)
-
-                    ti = env.run_task(f"dummy_task")
-                    self.assertEqual(State.SUCCESS, ti.state)
-
-    def test_sensor_up_for_reschedule(self):
+    def test_poke_false_when_external_run_failed(self):
         env = SandboxEnvironment()
         with env.create():
-            # Create Crossref Metadata DAG
-            logical_date = pendulum.datetime(2024, 1, 7)
-            crossref_dag = make_dummy_dag(
-                dag_id="crossref_metadata", schedule="0 0 7 * *", start_date=logical_date, fail=True
-            )
-            self.add_dummy_dag_model(
-                tmp_dir=env.temp_dir, dag_id=crossref_dag.dag_id, schedule=crossref_dag.schedule_interval
+            add_dag_run(
+                dag_id="crossref_metadata",
+                logical_date=pendulum.datetime(2024, 2, 7),
+                data_interval_end=pendulum.datetime(2024, 2, 7),
+                state=DagRunState.FAILED,
             )
 
-            # Run Crossref Metadata DAG run on Feb 7
-            destination = pendulum.datetime(2024, 2, 7)
-            with time_machine.travel(destination, tick=True):
-                with env.create_dag_run(crossref_dag, logical_date):
-                    with self.assertRaises(AirflowException):
-                        env.run_task("dummy_task")
-                    ti = env.get_task_instance("dummy_task")
-                    self.assertEqual(State.FAILED, ti.state)
+            sensor = self._make_sensor("crossref_metadata")
+            context = {
+                "logical_date": pendulum.datetime(2024, 2, 4),
+                "data_interval_end": pendulum.datetime(2024, 2, 11),
+            }
 
-            # Run downstream dag: Sun 4th Feb - Sun 11th Feb
-            logical_date = pendulum.datetime(2024, 2, 4)
-            dag = create_dag(start_date=logical_date, ext_dag_ids=["crossref_metadata"], schedule="@weekly")
-            destination = pendulum.datetime(2024, 2, 11)
-            with time_machine.travel(destination, tick=True):
-                with env.create_dag_run(dag=dag, logical_date=logical_date):
-                    ti = env.run_task(f"crossref_metadata_sensor")
-                    self.assertEqual(State.UP_FOR_RESCHEDULE, ti.state)
+            self.assertFalse(sensor.poke(context))
 
-                    ti = env.run_task("dummy_task")
-                    self.assertEqual(None, ti.state)
-
-    def test_external_dag_run_after_data_interval(self):
+    def test_poke_false_when_no_external_run_yet(self):
         env = SandboxEnvironment()
         with env.create():
-            # Create Unpaywall DAG
-            logical_date = pendulum.datetime(2024, 1, 7, 0, 1)
-            unpaywall_dag = make_dummy_dag(dag_id="unpaywall", schedule="1 0 * * *", start_date=logical_date, fail=True)
-            self.add_dummy_dag_model(
-                tmp_dir=env.temp_dir, dag_id=unpaywall_dag.dag_id, schedule=unpaywall_dag.schedule_interval
-            )
+            sensor = self._make_sensor("crossref_metadata")
+            context = {
+                "logical_date": pendulum.datetime(2024, 2, 4),
+                "data_interval_end": pendulum.datetime(2024, 2, 11),
+            }
 
-            # Run Unpaywall DAG run on Feb 11
-            logical_date = pendulum.datetime(2024, 2, 10, 0, 1)
-            destination = pendulum.datetime(2024, 2, 11, 0, 1)
-            with time_machine.travel(destination, tick=True):
-                with env.create_dag_run(unpaywall_dag, logical_date):
-                    with self.assertRaises(AirflowException):
-                        env.run_task("dummy_task")
-                    ti = env.get_task_instance("dummy_task")
-                    self.assertEqual(State.FAILED, ti.state)
-
-            # Run downstream dag: Sun 4th Feb - Sun 11th Feb
-            # Set time to 1 hour past midnight
-            logical_date = pendulum.datetime(2024, 2, 4)
-            dag = create_dag(start_date=logical_date, ext_dag_ids=["unpaywall"], schedule="@weekly")
-            destination = pendulum.datetime(2024, 2, 11, 1)
-            with time_machine.travel(destination, tick=True):
-                with env.create_dag_run(dag=dag, logical_date=logical_date):
-                    ti = env.run_task(f"unpaywall_sensor")
-                    self.assertEqual(State.SUCCESS, ti.state)
-
-                    ti = env.run_task(f"dummy_task")
-                    self.assertEqual(State.SUCCESS, ti.state)
+            self.assertFalse(sensor.poke(context))
