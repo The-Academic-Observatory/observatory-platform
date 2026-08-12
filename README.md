@@ -9,7 +9,7 @@ The workflows for the project can be seen in at:
 - [OAeBU Workflows](https://github.com/The-Academic-Observatory/oaebu-workflows)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Python Version](https://img.shields.io/badge/python-3.10-blue)](https://img.shields.io/badge/python-3.10-blue)
+[![Python Version](https://img.shields.io/badge/python-3.13-blue)](https://img.shields.io/badge/python-3.13-blue)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 ![Python package](https://github.com/The-Academic-Observatory/observatory-platform/workflows/Unit%20Tests/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/observatory-platform/badge/?version=latest)](https://observatory-platform.readthedocs.io/en/latest/?badge=latest)
@@ -18,14 +18,14 @@ The workflows for the project can be seen in at:
 
 ## Dependencies
 
-Observatory Platform supports Python 3.10, Ubuntu Linux 22.04 and MacOS 10.14, on x86 architecture.
+Observatory Platform supports Python 3.13, Ubuntu Linux 24.04 and MacOS 10.14, on x86 architecture.
 
 System dependencies:
 
-- Python 3.10
+- Python 3.13
 - Pip
 - virtualenv
-- Google Cloud SDK (optional): https://cloud.google.com/sdk/docs/install-sdk
+- Google Cloud SDK (optional): <https://cloud.google.com/sdk/docs/install-sdk>
 
 ## Installation & Unit Tests
 
@@ -38,7 +38,7 @@ cd observatory-platform
 Install dependencies:
 
 ```bash
-pip install -e .[tests] --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.11.2/constraints-3.10.txt
+pip install -e .[tests] --constraint https://raw.githubusercontent.com/apache/airflow/constraints-3.2.2/constraints-3.13.txt
 ```
 
 Run unit tests:
