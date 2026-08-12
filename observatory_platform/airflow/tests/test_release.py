@@ -54,7 +54,7 @@ class _MyRelease(Release):
         return _MyRelease(
             dag_id="test_dag",
             run_id=str(uuid.uuid4()),
-            my_int=randint(-10e9, 10e9),
+            my_int=randint(int(-10e9), int(10e9)),
             my_time=pendulum.datetime(randint(0, 2000), 1, 1),
         )
 

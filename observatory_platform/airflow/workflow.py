@@ -27,9 +27,9 @@ from typing import Any, Dict, List, Optional
 
 import pendulum
 from airflow import AirflowException
-from airflow.models import DagBag, Variable
+from airflow.sdk import Variable
+from airflow.models import DagBag
 
-from observatory_platform.airflow.airflow import delete_old_xcoms
 from observatory_platform.config import AirflowVars
 
 
@@ -41,10 +41,12 @@ def get_data_path() -> str:
     """
 
     # Try to get environment variable from environment variable first
-    data_path = os.environ.get(AirflowVars.DATA_PATH)
+    data_path = os.environ.get(f"AIRFLOW_VAR_{AirflowVars.DATA_PATH}")
     if data_path is not None:
         return data_path
-
+    data_path = os.environ.get(AirflowVars.DATA_PATH)  # plain DATA_PATH, as set by k8s pod env_vars
+    if data_path is not None:
+        return data_path
     # Try to get from Airflow Variable
     data_path = Variable.get(AirflowVars.DATA_PATH)
     if data_path is not None:
@@ -131,17 +133,19 @@ def make_dag(workflow: Workflow):
     return cls(dag_id=workflow.dag_id, cloud_workspace=workflow.cloud_workspace, **workflow.kwargs)
 
 
-def make_workflow_folder(dag_id: str, run_id: str, *subdirs: str) -> str:
-    """Return the path to this dag release's workflow folder. Will also create it if it doesn't exist
+def make_workflow_folder(dag_id: str, run_id: str, *subdirs: str, make_dir: bool = True) -> str:
+    """Return the path to this dag release's workflow folder. Will also create it if it doesn't exist if make_dir is True
 
     :param dag_id: The ID of the dag. This is used to find/create the workflow folder
     :param run_id: The Airflow DAGs run ID. Examples: "scheduled__2023-03-26T00:00:00+00:00" or "manual__2023-03-26T00:00:00+00:00".
     :param subdirs: The folder path structure (if any) to create inside the workspace. e.g. 'download' or 'transform'
+    :param make_dir: Whether to create this folder if it doesn't exist
     :return: the path of the workflow folder
     """
 
     path = os.path.join(get_data_path(), dag_id, run_id, *subdirs)
-    os.makedirs(path, exist_ok=True)
+    if make_dir:
+        os.makedirs(path, exist_ok=True)
     return path
 
 
@@ -168,20 +172,16 @@ def fetch_dag_bag(path: str, include_examples: bool = False) -> DagBag:
     return dag_bag
 
 
-def cleanup(dag_id: str, workflow_folder: str = None, retention_days=31) -> None:
-    """Delete all files, folders and XComs associated from a release.
+def cleanup(workflow_folder: str) -> None:
+    """Delete all files and folders associated from a release.
 
-    :param dag_id: The ID of the DAG to remove XComs
     :param workflow_folder: The top-level workflow folder to clean up
-    :param retention_days: How many days of Xcom messages to retain
     """
     if workflow_folder:
         try:
             shutil.rmtree(workflow_folder)
         except FileNotFoundError as e:
             logging.warning(f"No such file or directory {workflow_folder}: {e}")
-
-    delete_old_xcoms(dag_id=dag_id, retention_days=retention_days)
 
 
 class CloudWorkspace:

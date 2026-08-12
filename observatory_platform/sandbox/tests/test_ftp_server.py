@@ -14,7 +14,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import os
 import tempfile
 import unittest
@@ -29,7 +28,6 @@ class TestFtpServer(unittest.TestCase):
         self.host = "localhost"
         self.port = find_free_port()
 
-    @contextlib.contextmanager
     def test_server(self):
         """Test that the FTP server can be connected to"""
 
@@ -54,7 +52,6 @@ class TestFtpServer(unittest.TestCase):
                 self.assertEqual(1, len(files))
                 self.assertEqual(expected_file_name, files[0])
 
-    @contextlib.contextmanager
     def test_user_permissions(self):
         "Test the level of permissions of the root and anonymous users."
 

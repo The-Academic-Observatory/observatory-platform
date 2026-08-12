@@ -37,9 +37,9 @@
 #  - Skipping downloads if the file exists, and the hash matches the one supplied.
 
 import asyncio
+from email.message import Message
 import logging
 import os
-from cgi import parse_header
 from dataclasses import dataclass
 from typing import Dict, List, Union, Tuple
 
@@ -78,9 +78,11 @@ async def download_http_file_(*, download_info: DownloadInfo, headers=None, read
     async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
         async with session.get(url, timeout=None) as resp:
             if dst_file is None:
-                _, params = parse_header(resp.headers.get("Content-Disposition", ""))
-                if params != "" and "filename" in params:
-                    dst_file = params["filename"]
+                msg = Message()
+                msg["content-disposition"] = resp.headers.get("Content-Disposition", "")
+                filename = msg.get_filename()
+                if filename:
+                    dst_file = filename
                 else:
                     dst_file = get_filename_from_url(url=url)
 

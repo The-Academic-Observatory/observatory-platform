@@ -18,7 +18,7 @@ import contextlib
 from typing import Union, Generator
 
 import paramiko
-from airflow.hooks.base import BaseHook
+from airflow.sdk import BaseHook
 
 
 @contextlib.contextmanager

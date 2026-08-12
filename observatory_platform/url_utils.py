@@ -14,7 +14,7 @@
 
 # Author: James Diprose, Keegan Smith
 
-import cgi
+from email.message import Message
 import json
 import logging
 import os
@@ -77,8 +77,8 @@ def retry_get_url(
     logger = logging.getLogger(__name__)
     logging.basicConfig(level=logging.INFO)
 
-    get_fn =  requests.get
-    if impersonate: 
+    get_fn = requests.get
+    if impersonate:
         get_fn = cffi_requests.get
         kwargs["impersonate"] = impersonate
 
@@ -275,5 +275,6 @@ def get_filename_from_http_header(url: str) -> str:
     if response.status_code != 200:
         raise AirflowException(f"get_filename_from_http_header: url={response.url}, status_code={response.status_code}")
     header = response.headers["Content-Disposition"]
-    _, params = cgi.parse_header(header)
-    return params.get("filename")
+    msg = Message()
+    msg["content-disposition"] = header
+    return msg.get_filename()

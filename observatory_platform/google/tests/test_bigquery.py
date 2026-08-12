@@ -77,7 +77,7 @@ class TestBigQuery(unittest.TestCase):
         self.data = "hello world"
         self.expected_crc32c = "yZRlqg=="
         self.prefix = "bq_tests"
-        self.patents_table_id = f"bigquery-public-data.labeled_patents.figures"
+        self.patents_table_id = "bigquery-public-data.labeled_patents.figures"
         self.test_data_path = module_file_path("observatory_platform.google.tests.fixtures")
 
         # Save time and only have this run once.

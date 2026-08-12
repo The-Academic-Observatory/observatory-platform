@@ -26,7 +26,7 @@ from observatory_platform.sftp import make_sftp_connection
 
 class TestSFTP(unittest.TestCase):
 
-    @patch("airflow.hooks.base.BaseHook.get_connection")
+    @patch("airflow.sdk.BaseHook.get_connection")
     @patch("observatory_platform.sftp.paramiko.SSHClient")
     def test_make_sftp_connection(self, mock_sshclient_cls, mock_get_connection):
         # Setup mock connection returned by BaseHook.get_connection

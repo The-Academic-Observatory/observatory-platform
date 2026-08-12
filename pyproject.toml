@@ -1,12 +1,12 @@
 [build-system]
-requires = ["setuptools==80.9.0", "setuptools-scm>=8.0", "wheel"]
+requires = ["setuptools>=80.9.0", "setuptools-scm>=8.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "observatory-platform"
 dynamic = ["version"]
 description = "The Observatory Platform is an environment for fetching, processing and analysing data to understand how well universities operate as Open Knowledge Institutions."
-requires-python = ">=3.10"
+requires-python = ">=3.13,<3.14"
 license = { text = "Apache-2.0" }
 keywords = ["science", "data", "workflows", "academic institutes", "academic-observatory-workflows"]
 authors = [{ name = "Curtin University", email = "agent@observatory.academy" }]
@@ -19,26 +19,23 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
     "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Utilities"
 ]
 dependencies = [
-    "setuptools==80.9.0",
+    "setuptools>=80.9.0",
     # Airflow
-    "apache-airflow[slack]==2.11.2",
+    "apache-airflow[slack]==3.2.2",
     "apache-airflow-providers-cncf-kubernetes",
-    "apache-airflow-providers-common-compat",
-    "apache-airflow-providers-common-io",
-    "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-standard",
     "apache-airflow-providers-fab",
     "apache-airflow-providers-ftp",
     "apache-airflow-providers-http",
     "apache-airflow-providers-imap",
     "apache-airflow-providers-slack",
-    "apache-airflow-providers-smtp",
     "apache-airflow-providers-sqlite",
     # Google Cloud
     "google-crc32c>=1.1.0,<2",
@@ -59,7 +56,7 @@ dependencies = [
     # SFTP
     "paramiko>=3,<4",
     # Utils
-    "natsort>=7.1.1,<8",
+    "natsort>=8.4,<9",
     "backoff>=2,<3",
     "xmltodict",
     "tenacity>=8.0.0",
@@ -69,8 +66,7 @@ dependencies = [
 
 [project.optional-dependencies]
 tests = [
-    "liccheck>=0.4.9,<1",
-    "flake8>=3.8.0,<4",
+    "flake8>=6.0.0,<7",
     "coverage>7",
     "azure-storage-blob>=12.8.1,<13",
     "httpretty>=1.0.0,<2",
@@ -83,6 +79,7 @@ tests = [
     "sftpserver>=0.3,<1",
     "pyftpdlib>=1.5.7,<2",
 ]
+license = ["licensecheck==2026.0.8"]
 
 [project.urls]
 "Homepage" = "https://github.com/The-Academic-Observatory/observatory-platform"
@@ -94,8 +91,8 @@ tests = [
 [tool.setuptools_scm]
 version_file = "observatory_platform/_version.py"
 
-[tool.liccheck]
-authorized_licenses = [
+[tool.licensecheck]
+only_licenses = [
     # Unencumbered licenses: https://opensource.google/docs/thirdparty/licenses/#unencumbered
     "public domain <http://unlicense.org>",
     "cc0 1.0 universal (cc0 1.0) public domain dedication",
@@ -137,7 +134,7 @@ authorized_licenses = [
     "apache-2.0 and mit",
     "mit and psf-2.0",
 ]
-unauthorized_licenses = [
+fail_licenses = [
     # Restricted licenses: https://opensource.google/docs/thirdparty/licenses/#restricted
     "gpl v1",
     "gpl v2",
@@ -148,18 +145,11 @@ unauthorized_licenses = [
     "agpl (affero gpl)",
     "sspl"
 ]
-level = "CAUTIOUS"
-reporting_txt_file = "liccheck-output.txt" # by default is None
-no_deps = false
-dependencies = true # to load [project.dependencies]
-optional_dependencies = ["tests"] # to load extras from [project.optional-dependencies]
-
-[tool.liccheck.authorized_packages]
-# MIT license: https://pypi.org/project/ordereddict/1.1/
-ordereddict = "1.1"
-# MIT license: https://pypi.org/project/pendulum/1.4.4/
-pendulum = ">=3.0.0"
-# Python Imaging Library (PIL) License: https://github.com/python-pillow/Pillow/blob/master/LICENSE
-Pillow = ">=7.2.0"
-# Apache 2.0: https://github.com/googleapis/python-crc32c
-google-crc32c = ">=0"
+zero = true
+ignore_packages=[
+    "ordereddict", # MIT license: https://pypi.org/project/ordereddict/1.1/
+    "pendulum", # MIT license: https://pypi.org/project/pendulum/1.4.4/
+    "Pillow", # Python Imaging Library (PIL) License: https://github.com/python-pillow/Pillow/blob/master/LICENSE
+    "google-crc32c", # Apache 2.0: https://github.com/googleapis/python-crc32c
+    "text-unidecode" # perl artistic
+]

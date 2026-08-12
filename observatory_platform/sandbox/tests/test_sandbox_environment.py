@@ -19,15 +19,12 @@ from __future__ import annotations
 import logging
 import os
 import unittest
-from datetime import timedelta
+from unittest.mock import patch
 
 import pendulum
-from airflow.decorators import dag, task, task_group
+from airflow.sdk import dag, task, task_group, Connection, Variable
+from airflow.models import DagRun
 from airflow.exceptions import AirflowSkipException
-from airflow.models.connection import Connection
-from airflow.models.dag import ScheduleArg
-from airflow.models.variable import Variable
-from airflow.timetables.base import DataInterval
 from airflow.utils.state import TaskInstanceState
 from google.cloud.exceptions import NotFound
 
@@ -45,7 +42,7 @@ MY_CONN_ID = "my-connection"
 def create_dag(
     dag_id: str = DAG_ID,
     start_date: pendulum.DateTime = pendulum.datetime(2020, 9, 1, tz="UTC"),
-    schedule: ScheduleArg = "@weekly",
+    schedule="@weekly",
 ):
     # Define the DAG (workflow)
     @dag(dag_id=dag_id, schedule=schedule, start_date=start_date)
@@ -81,7 +78,7 @@ def create_dynamic_task_dag(
 ):
     @dag(
         dag_id=dag_id,
-        schedule_interval=schedule,
+        schedule=schedule,
         start_date=start_date,
         catchup=catchup,
         tags=["example_tag"],
@@ -125,6 +122,48 @@ class TestSandboxEnvironment(unittest.TestCase):
         super(TestSandboxEnvironment, self).__init__(*args, **kwargs)
         self.project_id = os.getenv("TEST_GCP_PROJECT_ID")
         self.data_location = os.getenv("TEST_GCP_DATA_LOCATION")
+
+    def test_add_variable_uppsercased(self):
+        """Test the add_variable method properly uppercases an input"""
+        env = SandboxEnvironment(self.project_id, self.data_location)
+        var = Variable(key="mIxEdCaSe", value="v")
+
+        with patch.object(env, "_set_env_var") as mock_set:
+            env.add_variable(var)
+
+        env._release_env_vars()  # remove env vars from environment
+        mock_set.assert_called_once_with("AIRFLOW_VAR_MIXEDCASE", "v")
+
+    def test_add_variable_sets_env(self):
+        """Test the add_variable method adds variable to os.environ"""
+        env = SandboxEnvironment(self.project_id, self.data_location)
+        var = Variable(key="k", value="v")
+
+        env.add_variable(var)
+
+        self.assertEqual(os.environ.get("AIRFLOW_VAR_K"), "v")
+        env._release_env_vars()  # remove env vars from environment
+
+    def test_add_connection_uppercased(self):
+        """Test the add_connection method properly uppercases an input"""
+        env = SandboxEnvironment(self.project_id, self.data_location)
+        conn = Connection(conn_id="mIxEdCaSe", conn_type="http", host="example.com")
+
+        with patch.object(env, "_set_env_var") as mock_set:
+            env.add_connection(conn)
+
+        env._release_env_vars()  # remove env vars from environment
+        mock_set.assert_called_once_with("AIRFLOW_CONN_MIXEDCASE", conn.get_uri())
+
+    def test_add_connection_sets_env(self):
+        """Test the add_connection method adds connetion to os.environ"""
+        env = SandboxEnvironment(self.project_id, self.data_location)
+        conn = Connection(conn_id="foo", conn_type="http", host="example.com")
+
+        env.add_connection(conn)
+
+        self.assertEqual(os.environ.get("AIRFLOW_CONN_FOO"), conn.get_uri())
+        env._release_env_vars()  # remove env vars from environment
 
     def test_add_bucket(self):
         """Test the add_bucket method"""
@@ -210,36 +249,30 @@ class TestSandboxEnvironment(unittest.TestCase):
         """Tests create, add_variable, add_connection and run_task"""
 
         # Setup Telescope
-        logical_date = pendulum.datetime(year=2020, month=11, day=1)
         my_dag = create_dag()
 
         # Test that previous tasks have to be finished to run next task
         env = SandboxEnvironment(self.project_id, self.data_location)
 
         with env.create(task_logging=True):
-            with env.create_dag_run(my_dag, logical_date):
-                # Add_variable
-                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+            env.serialize_dag(my_dag)
+            # Add_variable
+            env.add_variable(Variable(key=MY_VAR_ID, value="hello"))
 
-                # Add connection
-                conn = Connection(
-                    conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2"
-                )
-                env.add_connection(conn)
+            # Add connection
+            conn = Connection(conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2")
+            env.add_connection(conn)
 
-                # Test run task when dependencies are not met
-                ti = env.run_task("task2")
-                self.assertIsNone(ti.state)
+            dagrun: DagRun = my_dag.test()
 
-                # Try again when dependencies are met
-                ti = env.run_task("check_dependencies")
-                self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
+            ti = dagrun.get_task_instance(task_id="check_dependencies")
+            self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
 
-                ti = env.run_task("task2")
-                self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
+            ti = dagrun.get_task_instance(task_id="task2")
+            self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
 
-                ti = env.run_task("task3")
-                self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
+            ti = dagrun.get_task_instance(task_id="task3")
+            self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
 
     def test_task_logging(self):
         """Test task logging"""
@@ -247,143 +280,56 @@ class TestSandboxEnvironment(unittest.TestCase):
         env = SandboxEnvironment(self.project_id, self.data_location)
 
         # Setup Telescope
-        logical_date = pendulum.datetime(year=2020, month=11, day=1)
         my_dag = create_dag()
 
         # Test environment without logging enabled
         with env.create():
-            with env.create_dag_run(my_dag, logical_date):
-                # Test add_variable
-                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+            env.serialize_dag(my_dag)
 
-                # Test add_connection
-                conn = Connection(
-                    conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2"
-                )
-                env.add_connection(conn)
-
-                # Test run task
-                ti = env.run_task("check_dependencies")
-                self.assertFalse(ti.log.propagate)
-                self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
-
-        # Test environment with logging enabled
-        env = SandboxEnvironment(self.project_id, self.data_location)
-        with env.create(task_logging=True):
-            with env.create_dag_run(my_dag, logical_date):
-                # Test add_variable
-                env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
-
-                # Test add_connection
-                conn = Connection(
-                    conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2"
-                )
-                env.add_connection(conn)
-
-                # Test run task
-                ti = env.run_task("check_dependencies")
-                self.assertTrue(ti.log.propagate)
-                self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
-
-    def test_create_dagrun(self):
-        """Tests create_dag_run"""
-
-        env = SandboxEnvironment(self.project_id, self.data_location)
-
-        # Setup Telescope
-        first_logical_date = pendulum.datetime(year=2020, month=11, day=1, tz="UTC")  # Sunday
-        second_logical_date = pendulum.datetime(year=2020, month=12, day=1, tz="UTC")  # Tuesday
-        third_data_interval = DataInterval(
-            pendulum.datetime(year=2021, month=1, day=1, tz="UTC"),
-            pendulum.datetime(year=2021, month=1, day=3, tz="UTC"),
-        )
-        my_dag = create_dag()
-
-        # Use DAG run with freezing time
-        with env.create():
             # Test add_variable
-            env.add_variable(Variable(key=MY_VAR_ID, val="hello"))
+            env.add_variable(Variable(key=MY_VAR_ID, value="hello"))
 
             # Test add_connection
             conn = Connection(conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2")
             env.add_connection(conn)
 
-            self.assertIsNone(env.dag_run)
-            # First DAG Run
-            with env.create_dag_run(my_dag, logical_date=first_logical_date):
-                # Test DAG Run is set and has frozen start date
-                self.assertIsNotNone(env.dag_run)
-                self.assertEqual(first_logical_date.date(), env.dag_run.start_date.date())
-                self.assertEqual(env.dag_run.data_interval_start.date(), first_logical_date.date())
-                self.assertEqual(env.dag_run.data_interval_end.date(), first_logical_date.date() + timedelta(days=7))
+            # Test run task
+            dag_run = my_dag.test()
+            ti = dag_run.get_task_instance(task_id="check_dependencies")
+            self.assertFalse(logging.getLogger("airflow.task").propagate)
+            self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
 
-                ti1 = env.run_task("check_dependencies")
-                self.assertEqual(TaskInstanceState.SUCCESS, ti1.state)
-                self.assertIsNone(ti1.previous_ti)
-
-            # Second DAG Run
-            with env.create_dag_run(my_dag, logical_date=second_logical_date):
-                # Test DAG Run is set and has frozen start date
-                self.assertIsNotNone(env.dag_run)
-                self.assertEqual(second_logical_date.date(), env.dag_run.start_date.date())
-                self.assertEqual(env.dag_run.data_interval_start.date(), second_logical_date.date())
-                self.assertEqual(env.dag_run.data_interval_end.date(), second_logical_date.date() + timedelta(days=5))
-
-                ti2 = env.run_task("check_dependencies")
-                self.assertEqual(TaskInstanceState.SUCCESS, ti2.state)
-                # Test previous ti is set
-                self.assertEqual(ti1.job_id, ti2.previous_ti.job_id)
-
-            # Third DAG Run
-            with env.create_dag_run(my_dag, data_interval=third_data_interval):
-                # Test DAG Run is set and has frozen start date
-                self.assertIsNotNone(env.dag_run)
-                self.assertEqual(third_data_interval.start, env.dag_run.data_interval_start)
-                self.assertEqual(third_data_interval.end, env.dag_run.data_interval_end)
-
-                ti3 = env.run_task("check_dependencies")
-                self.assertEqual(TaskInstanceState.SUCCESS, ti3.state)
-                # Test previous ti is set
-                self.assertEqual(ti2.job_id, ti3.previous_ti.job_id)
-
-    def test_create_dag_run_timedelta(self):
+        # Test environment with logging enabled
         env = SandboxEnvironment(self.project_id, self.data_location)
+        with env.create(task_logging=True):
+            env.serialize_dag(my_dag)
+            # Test add_variable
+            env.add_variable(Variable(key=MY_VAR_ID, value="hello"))
 
-        my_dag = create_dag(schedule=timedelta(days=1))
-        logical_date = pendulum.datetime(2021, 1, 1)
-        with env.create():
-            with env.create_dag_run(my_dag, logical_date):
-                self.assertIsNotNone(env.dag_run)
-                self.assertEqual(logical_date, env.dag_run.start_date)
-                logical_date = env.dag_run.data_interval_end
+            # Test add_connection
+            conn = Connection(conn_id=MY_CONN_ID, uri="mysql://login:password@host:8080/schema?param1=val1&param2=val2")
+            env.add_connection(conn)
 
-            expected_dag_date = pendulum.datetime(2021, 1, 2)
-            with env.create_dag_run(my_dag, logical_date):
-                self.assertIsNotNone(env.dag_run)
-                self.assertEqual(expected_dag_date, env.dag_run.start_date)
-
-    def test_create_dag_run_raises_error(self):
-        env = SandboxEnvironment(self.project_id, self.data_location)
-
-        my_dag = create_dag(schedule=timedelta(days=1))
-        with env.create():
-            with self.assertRaisesRegex(ValueError, "Must provide one of"):
-                with env.create_dag_run(my_dag):
-                    pass
+            # Test run task
+            dag_run = my_dag.test()
+            ti = dag_run.get_task_instance(task_id="check_dependencies")
+            self.assertTrue(logging.getLogger("airflow.task").propagate)
+            self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
 
     def test_map_index(self):
         env = SandboxEnvironment(self.project_id, self.data_location)
         logical_date = pendulum.datetime(2024, 1, 1)
         my_dag = create_dynamic_task_dag(dag_id="dynamic_task_dag", start_date=logical_date)
         with env.create():
-            with env.create_dag_run(my_dag, logical_date):
-                self.assertIsNotNone(env.dag_run)
-                ti = env.run_task("fetch_releases")
+            env.serialize_dag(my_dag)
+            dag_run = my_dag.test()
+
+            ti = dag_run.get_task_instance(task_id="fetch_releases")
+            self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
+
+            for map_index in range(2):
+                ti = dag_run.get_task_instance(task_id="process_release.download", map_index=map_index)
                 self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
 
-                for map_index in range(2):
-                    ti = env.run_task("process_release.download", map_index=map_index)
-                    self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
-
-                    ti = env.run_task("process_release.bq_load", map_index=map_index)
-                    self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
+                ti = dag_run.get_task_instance(task_id="process_release.bq_load", map_index=map_index)
+                self.assertEqual(TaskInstanceState.SUCCESS, ti.state)
