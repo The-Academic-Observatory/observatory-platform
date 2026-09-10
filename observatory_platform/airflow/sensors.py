@@ -17,89 +17,70 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from functools import partial
-from typing import List, Callable, Optional
 
-import pendulum
-from airflow.models import DagRun
-from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
-from airflow.utils.db import provide_session
-from sqlalchemy.orm.scoping import scoped_session
+import requests
+from airflow.hooks.base import BaseHook
+from airflow.exceptions import AirflowException
+from airflow.sdk.bases.sensor import BaseSensorOperator
 
 
-class DagCompleteSensor(ExternalTaskSensor):
+class DagCompleteSensor(BaseSensorOperator):
     """
-    A sensor that awaits the completion of an external dag by default. Wait functionality can be customised by
-    providing a different logical_date_fn.
+    Waits until the most recent DAG run of `external_dag_id` reaches a terminal state.
 
-    The sensor checks for completion of a dag with "external_dag_id" on the logical date returned by the
-    logical_date_fn.
+    :param external_dag_id: the DAG ID of the external DAG to check.
+    :param allowed_states: states that count as "complete" (default: ["success"]).
+    :param failed_states: states that should immediately fail the sensor (default: ["failed"]).
+    :param conn_id: Airflow connection pointing at this Deployment's Airflow API.
     """
+
+    template_fields = ("external_dag_id",)
 
     def __init__(
         self,
-        task_id: str,
         external_dag_id: str,
+        allowed_states: list[str] | None = None,
+        failed_states: list[str] | None = None,
+        conn_id: str = "airflow_api",
         mode: str = "reschedule",
-        poke_interval: int = 1200,  # Check if dag run is ready every 20 minutes
-        timeout: int = int(timedelta(days=1).total_seconds()),  # Sensor will fail after 1 day of waiting
-        check_existence: bool = True,
-        execution_date_fn: Optional[Callable] = None,
+        poke_interval: int = 1200,
+        timeout: int = int(timedelta(days=1).total_seconds()),
         **kwargs,
     ):
-        """
-        :param task_id: the id of the sensor task to create
-        :param external_dag_id: the id of the external dag to check
-        :param mode: The mode of the scheduler. Can be reschedule or poke.
-        :param poke_interval: how often to check if the external dag run is complete
-        :param timeout: how long to check before the sensor fails
-        :param check_existence: whether to check that the provided dag_id exists
-        :param execution_date_fn: a function that returns the execution/logical date(s) of the external DAG runs to
-        query for, since you need a logical date and a DAG ID to find a particular DAG run to wait for.
-        """
+        super().__init__(mode=mode, poke_interval=poke_interval, timeout=timeout, **kwargs)
+        self.external_dag_id = external_dag_id
+        self.allowed_states = allowed_states or ["success"]
+        self.failed_states = failed_states or ["failed"]
+        self.conn_id = conn_id
 
-        if execution_date_fn is None:
-            execution_date_fn = partial(get_logical_dates, external_dag_id)
+    def poke(self, context) -> bool:
+        conn = BaseHook.get_connection(self.conn_id)
+        base_url = conn.host.rstrip("/")
+        token = conn.password
 
-        super().__init__(
-            task_id=task_id,
-            external_dag_id=external_dag_id,
-            mode=mode,
-            poke_interval=poke_interval,
-            timeout=timeout,
-            check_existence=check_existence,
-            execution_date_fn=execution_date_fn,
-            **kwargs,
+        resp = requests.get(
+            f"{base_url}/api/v2/dags/{self.external_dag_id}/dagRuns",
+            headers={"Authorization": f"Bearer {token}"},
+            params={"order_by": "-logical_date", "limit": 1},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        dag_runs = resp.json()["dag_runs"]
+
+        if not dag_runs:
+            self.log.info("No dag runs found yet for %s", self.external_dag_id)
+            return False
+
+        latest = dag_runs[0]
+        state = latest["state"]
+        self.log.info(
+            "Latest run of %s (logical_date=%s) is in state=%s",
+            self.external_dag_id,
+            latest["logical_date"],
+            state,
         )
 
+        if state in self.failed_states:
+            raise AirflowException(f"Most recent run of {self.external_dag_id} failed (state={state})")
 
-@provide_session
-def get_logical_dates(
-    external_dag_id: str, logical_date: pendulum.DateTime, session: scoped_session = None, **context
-) -> List[pendulum.DateTime]:
-    """Get the logical dates for a given external dag that fall between and returns its data_interval_start (logical date)
-
-    :param external_dag_id: the DAG ID of the external DAG we are waiting for.
-    :param logical_date: the logic date of the waiting DAG.
-    :param session: the SQL Alchemy session.
-    :param context: the Airflow context.
-    :return: the last logical date of the external DAG that falls before the data interval end of the waiting DAG.
-    """
-
-    data_interval_end = context["data_interval_end"]
-    dag_runs = (
-        session.query(DagRun)
-        .filter(
-            DagRun.dag_id == external_dag_id,
-            DagRun.data_interval_end <= data_interval_end,
-        )
-        .all()
-    )
-    dates = [d.logical_date for d in dag_runs]
-    dates.sort(reverse=True)
-
-    # If more than 1 date return first date
-    if len(dates) >= 2:
-        dates = [dates[0]]
-
-    return dates
+        return state in self.allowed_states
