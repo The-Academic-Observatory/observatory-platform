@@ -1,154 +1,157 @@
-from unittest.mock import MagicMock
+import unittest
+from unittest.mock import MagicMock, patch
 
-import pendulum
-from airflow.models import DagRun
-from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.exceptions import AirflowException
 
-from observatory_platform.airflow.sensors import DagCompleteSensor, get_logical_dates
-from observatory_platform.sandbox.sandbox_environment import SandboxEnvironment
-from observatory_platform.sandbox.test_utils import SandboxTestCase
+from observatory_platform.airflow.sensors import DagCompleteSensor
+
+EXTERNAL_DAG_ID = "some_external_dag"
+API_BASE_URL = "https://example-airflow.astronomer.run"
 
 
-def add_dag_run(
-    *,
-    dag_id: str,
-    logical_date: pendulum.DateTime,
-    data_interval_end: pendulum.DateTime,
-    state: str = DagRunState.SUCCESS,
-) -> DagRun:
-    """Insert a bare DagRun row for `dag_id` directly. This is only used to give get_logical_dates()
-    something real to query -- poke()'s own state-matching now goes through ti.get_dr_count(), which is
-    mocked separately, not through this row's `state`."""
-    with create_session() as session:
-        dagrun = DagRun(
-            dag_id=dag_id,
-            run_id=f"test__{logical_date.isoformat()}",
-            logical_date=logical_date,
-            data_interval=(logical_date, data_interval_end),
-            run_type=DagRunType.MANUAL,
-            state=state,
-            triggered_by=DagRunTriggeredByType.TEST,
-        )
-        session.add(dagrun)
-        session.commit()
-        session.refresh(dagrun)
-    return dagrun
+def make_sensor(**overrides):
+    """Helper to build a sensor instance with sensible test defaults."""
+    kwargs = {
+        "task_id": "wait_for_external_dag",
+        "external_dag_id": EXTERNAL_DAG_ID,
+        "conn_id": "airflow_api",
+    }
+    kwargs.update(overrides)
+    return DagCompleteSensor(**kwargs)
 
 
-class TestGetLogicalDates(SandboxTestCase):
-    """get_logical_dates queries the DagRun table directly -- unaffected by the Task SDK changes to poke()."""
-
-    def test_returns_most_recent_run_before_data_interval_end(self):
-        env = SandboxEnvironment()
-        with env.create():
-            add_dag_run(
-                dag_id="crossref_metadata",
-                logical_date=pendulum.datetime(2024, 1, 7),
-                data_interval_end=pendulum.datetime(2024, 1, 7),
-            )
-            add_dag_run(
-                dag_id="crossref_metadata",
-                logical_date=pendulum.datetime(2024, 2, 7),
-                data_interval_end=pendulum.datetime(2024, 2, 7),
-            )
-
-            dates = get_logical_dates(
-                external_dag_id="crossref_metadata",
-                logical_date=pendulum.datetime(2024, 2, 4),
-                data_interval_end=pendulum.datetime(2024, 2, 11),
-            )
-
-            self.assertEqual([pendulum.datetime(2024, 2, 7)], dates)
-
-    def test_returns_empty_when_no_matching_runs(self):
-        env = SandboxEnvironment()
-        with env.create():
-            dates = get_logical_dates(
-                external_dag_id="crossref_metadata",
-                logical_date=pendulum.datetime(2024, 2, 4),
-                data_interval_end=pendulum.datetime(2024, 2, 11),
-            )
-
-            self.assertEqual([], dates)
+def make_connection(host=API_BASE_URL, password="fake-token"):  # noqa: S106 - test fixture, not a real secret
+    conn = MagicMock()
+    conn.host = host
+    conn.password = password
+    return conn
 
 
-class TestDagCompleteSensor(SandboxTestCase):
-    """Test poke()'s decision logic. In Airflow 3, poke() gets state counts from ti.get_dr_count(...) rather
-    than a direct DB query, so ti is mocked here to control that count directly."""
+def make_response(dag_runs, status_code=200):
+    resp = MagicMock()
+    resp.status_code = status_code
+    resp.json.return_value = {"dag_runs": dag_runs}
+    resp.raise_for_status.side_effect = None
+    return resp
 
-    def _make_sensor(self, external_dag_id: str) -> DagCompleteSensor:
-        return DagCompleteSensor(
-            task_id=f"{external_dag_id}_sensor",
-            external_dag_id=external_dag_id,
-            mode="reschedule",
-            check_existence=False,
+
+class TestDagCompleteSensor(unittest.TestCase):
+    @patch("observatory_platform.airflow.sensors.requests.get")
+    @patch("observatory_platform.airflow.sensors.BaseHook.get_connection")
+    def test_poke_returns_false_when_no_dag_runs_exist(self, mock_get_connection, mock_get):
+        mock_get_connection.return_value = make_connection()
+        mock_get.return_value = make_response(dag_runs=[])
+
+        sensor = make_sensor()
+        result = sensor.poke(context={})
+
+        self.assertFalse(result)
+
+    @patch("observatory_platform.airflow.sensors.requests.get")
+    @patch("observatory_platform.airflow.sensors.BaseHook.get_connection")
+    def test_poke_returns_true_when_latest_run_succeeded(self, mock_get_connection, mock_get):
+        mock_get_connection.return_value = make_connection()
+        mock_get.return_value = make_response(
+            dag_runs=[{"logical_date": "2026-09-10T00:00:00+00:00", "state": "success"}]
         )
 
-    def test_poke_true_when_matching_run_succeeded(self):
-        env = SandboxEnvironment()
-        with env.create():
-            # Real row so get_logical_dates finds a date to check
-            add_dag_run(
-                dag_id="crossref_metadata",
-                logical_date=pendulum.datetime(2024, 2, 7),
-                data_interval_end=pendulum.datetime(2024, 2, 7),
-            )
+        sensor = make_sensor()
+        result = sensor.poke(context={})
 
-            sensor = self._make_sensor("crossref_metadata")
-            ti = MagicMock()
-            ti.get_dr_count.return_value = 1  # 1 of 1 matching date is in allowed_states (SUCCESS)
+        self.assertTrue(result)
 
-            context = {
-                "ti": ti,
-                "logical_date": pendulum.datetime(2024, 2, 4),
-                "data_interval_end": pendulum.datetime(2024, 2, 11),
-            }
+    @patch("observatory_platform.airflow.sensors.requests.get")
+    @patch("observatory_platform.airflow.sensors.BaseHook.get_connection")
+    def test_poke_returns_false_when_latest_run_still_running(self, mock_get_connection, mock_get):
+        mock_get_connection.return_value = make_connection()
+        mock_get.return_value = make_response(
+            dag_runs=[{"logical_date": "2026-09-10T00:00:00+00:00", "state": "running"}]
+        )
 
-            self.assertTrue(sensor.poke(context))
-            ti.get_dr_count.assert_called_once_with(
-                dag_id="crossref_metadata",
-                logical_dates=[pendulum.datetime(2024, 2, 7)],
-                states=[TaskInstanceState.SUCCESS.value],
-            )
+        sensor = make_sensor()
+        result = sensor.poke(context={})
 
-    def test_poke_false_when_matching_run_not_successful(self):
-        env = SandboxEnvironment()
-        with env.create():
-            add_dag_run(
-                dag_id="crossref_metadata",
-                logical_date=pendulum.datetime(2024, 2, 7),
-                data_interval_end=pendulum.datetime(2024, 2, 7),
-            )
+        self.assertFalse(result)
 
-            sensor = self._make_sensor("crossref_metadata")
-            ti = MagicMock()
-            ti.get_dr_count.return_value = 0  # matching date exists but isn't in allowed_states yet
+    @patch("observatory_platform.airflow.sensors.requests.get")
+    @patch("observatory_platform.airflow.sensors.BaseHook.get_connection")
+    def test_poke_raises_when_latest_run_failed(self, mock_get_connection, mock_get):
+        mock_get_connection.return_value = make_connection()
+        mock_get.return_value = make_response(
+            dag_runs=[{"logical_date": "2026-09-10T00:00:00+00:00", "state": "failed"}]
+        )
 
-            context = {
-                "ti": ti,
-                "logical_date": pendulum.datetime(2024, 2, 4),
-                "data_interval_end": pendulum.datetime(2024, 2, 11),
-            }
+        sensor = make_sensor()
 
-            self.assertFalse(sensor.poke(context))
+        with self.assertRaises(AirflowException) as ctx:
+            sensor.poke(context={})
 
-    def test_poke_true_when_no_matching_run_exists(self):
-        """No prior external DAG run to wait on at all -- nothing blocks progress."""
-        env = SandboxEnvironment()
-        with env.create():
-            sensor = self._make_sensor("crossref_metadata")
-            ti = MagicMock()
-            ti.get_dr_count.return_value = 0
+        self.assertIn(EXTERNAL_DAG_ID, str(ctx.exception))
 
-            context = {
-                "ti": ti,
-                "logical_date": pendulum.datetime(2024, 2, 4),
-                "data_interval_end": pendulum.datetime(2024, 2, 11),
-            }
+    @patch("observatory_platform.airflow.sensors.requests.get")
+    @patch("observatory_platform.airflow.sensors.BaseHook.get_connection")
+    def test_poke_respects_custom_allowed_and_failed_states(self, mock_get_connection, mock_get):
+        mock_get_connection.return_value = make_connection()
+        # "up_for_retry" is not a normally-terminal state, but let's say this DAG
+        # treats it as an allowed completion state for this particular check.
+        mock_get.return_value = make_response(
+            dag_runs=[{"logical_date": "2026-09-10T00:00:00+00:00", "state": "up_for_retry"}]
+        )
 
-            self.assertTrue(sensor.poke(context))
-            ti.get_dr_count.assert_called_once_with(
-                dag_id="crossref_metadata", logical_dates=[], states=[TaskInstanceState.SUCCESS.value]
-            )
+        sensor = make_sensor(allowed_states=["success", "up_for_retry"], failed_states=["failed"])
+        result = sensor.poke(context={})
+
+        self.assertTrue(result)
+
+    @patch("observatory_platform.airflow.sensors.requests.get")
+    @patch("observatory_platform.airflow.sensors.BaseHook.get_connection")
+    def test_poke_calls_api_with_expected_url_and_params(self, mock_get_connection, mock_get):
+        mock_get_connection.return_value = make_connection(host=API_BASE_URL + "/")  # trailing slash
+        mock_get.return_value = make_response(
+            dag_runs=[{"logical_date": "2026-09-10T00:00:00+00:00", "state": "success"}]
+        )
+
+        sensor = make_sensor()
+        sensor.poke(context={})
+
+        mock_get.assert_called_once()
+        called_args, called_kwargs = mock_get.call_args
+
+        expected_url = f"{API_BASE_URL}/api/v2/dags/{EXTERNAL_DAG_ID}/dagRuns"
+        self.assertEqual(called_args[0], expected_url)
+        self.assertEqual(called_kwargs["params"], {"order_by": "-logical_date", "limit": 1})
+        self.assertEqual(called_kwargs["headers"]["Authorization"], "Bearer fake-token")
+
+    @patch("observatory_platform.airflow.sensors.requests.get")
+    @patch("observatory_platform.airflow.sensors.BaseHook.get_connection")
+    def test_poke_propagates_http_errors(self, mock_get_connection, mock_get):
+        mock_get_connection.return_value = make_connection()
+        error_response = MagicMock()
+        error_response.raise_for_status.side_effect = Exception("500 Server Error")
+        mock_get.return_value = error_response
+
+        sensor = make_sensor()
+
+        with self.assertRaises(Exception) as ctx:
+            sensor.poke(context={})
+
+        self.assertIn("500 Server Error", str(ctx.exception))
+
+    @patch("observatory_platform.airflow.sensors.requests.get")
+    @patch("observatory_platform.airflow.sensors.BaseHook.get_connection")
+    def test_poke_picks_only_the_first_returned_run(self, mock_get_connection, mock_get):
+        """
+        The API is queried with limit=1 and order_by=-logical_date, so the sensor should
+        always act on dag_runs[0] without needing to sort or filter further itself.
+        """
+        mock_get_connection.return_value = make_connection()
+        mock_get.return_value = make_response(
+            dag_runs=[{"logical_date": "2026-09-10T00:00:00+00:00", "state": "success"}]
+        )
+
+        sensor = make_sensor()
+        result = sensor.poke(context={})
+
+        self.assertTrue(result)
+        _, called_kwargs = mock_get.call_args
+        self.assertEqual(called_kwargs["params"]["limit"], 1)
